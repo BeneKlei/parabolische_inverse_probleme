@@ -1,11 +1,5 @@
 class InstationaryModelIP:
-    def __init__(assembled_model, 
-                 primal_fom_data, 
-                 opt_data,
-                 products,
-                 boundary_info,
-                 estimators = None,
-                 name = 'fom_IP'):
+    def __init__():
         pass
         
     def solve_state(self):
