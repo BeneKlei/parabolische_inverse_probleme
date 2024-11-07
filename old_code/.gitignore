@@ -331,4 +331,3 @@ __pycache__/
 *.idea
 # egg-info
 *.egg-info/
-.ipynb_checkpoints/
