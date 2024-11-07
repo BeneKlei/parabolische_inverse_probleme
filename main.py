@@ -7,15 +7,6 @@ from pymor.parameters.base import ParameterSpace
 # general options           
 N = 10                                                                         # FE Dofs = (N+1)^2                                                
 noise_level = 1e-5        
-
-print('Construct problem..')                                                     
-analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(
-                                                        N = N,
-                                                        parameter_location = 'reaction',
-                                                        boundary_conditions = 'dirichlet',
-                                                        exact_parameter = 'Kirchner',
-                                                       )
-
 nt = 10
 fine_N = 2 * N
 
@@ -37,15 +28,27 @@ model_parameter = {
     'noise_percentage' : None,
     'noise_level' : 0.05,
     'q_circ' : 3*np.ones((nt, dims['par_dim'])), 
-    'q_exact' : q_exact,
+    'q_exact' : None,
     'bounds' : bounds,
     #'parameter_space' : ParameterSpace(analytical_problem.parameters, bounds) 
 }
+
+print('Construct problem..')                                                     
+analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(
+                                                        N = N,
+                                                        parameter_location = 'reaction',
+                                                        boundary_conditions = 'dirichlet',
+                                                        exact_parameter = 'Kirchner',
+                                                       )
+
+
+model_parameter['q_exact'] = q_exact
 
 print('Discretizing problem...')                                                
 # discretize analytical problem to obtain inverse problem fom
 fom_IP, fom_IP_data = discretize_instationary_IP(analytical_problem,
                                                  model_parameter,
-                                                 dims
+                                                 dims, 
+                                                 problem_type
                                                ) 
 

@@ -1,8 +1,12 @@
 from typing import Dict
-import pymor.vectorarrays as VectorArray
-import pymor.models.basic as InstationaryModel
 import numpy as np
 np.random.seed(0)
+
+import pymor.models.basic as InstationaryModel
+from pymor.operators.constructions import LincombOperator
+from pymor.parameters.functionals import ProjectionParameterFunctional, \
+    ParameterFunctional
+from pymor.operators.numpy import NumpyMatrixOperator
 
 def construct_noise_data(analytical_problem : InstationaryModel, 
                          model_params : Dict):
@@ -24,6 +28,32 @@ def construct_noise_data(analytical_problem : InstationaryModel,
 
     u_noise = u_exact + noise_scaling
     return u_noise
+
+def split_constant_and_parameterized_operator(complete_operator):
+    operators, coefficients = [], []
+    constant_operators, constant_coefficients = [], []
+    for coef, op in zip(complete_operator.coefficients, complete_operator.operators):
+        assert not op.parametric, 'B operator needs to be a true LincombOperator'
+        if isinstance(coef, ParameterFunctional) and coef.parametric:
+            # then the operator is parametric
+            assert isinstance(coef, ProjectionParameterFunctional), 'other cases are not implemented yet'
+            operators.append(op)
+            coefficients.append(coef)
+        else:
+            constant_operators.append(op)
+            constant_coefficients.append(coef)
+    constant_operator = LincombOperator(constant_operators, constant_coefficients).assemble()
+    parameterized_operator = LincombOperator(operators, coefficients, name='true_parameterized_operator')
+
+    matrix = constant_operator.matrix.copy()
+    matrix.eliminate_zeros()
+    constant_operator = NumpyMatrixOperator(
+        matrix = matrix,
+        source_id = complete_operator.source.id,
+        range_id = complete_operator.range.id
+    )
+
+    return parameterized_operator, constant_operator
 
     # N = int(1/diameter*np.sqrt(2)) 
     # refinement_factor = 2
@@ -77,9 +107,7 @@ def construct_noise_data(analytical_problem : InstationaryModel,
     #     u_noise = u_exact + noise_scaling  
    
     # # clear dirichlet dofs from u_noise
-    # if 'dirichlet' in opt_data['problem_type']:
-    #     u_noise = u_noise.to_numpy()[0]
-    #     DI = primal_fom_data["boundary_info"].dirichlet_boundaries(2)
+    # if 'diricsuper.__init__(*locals())primal_fom_data["boundary_info"].dirichlet_boundaries(2)
     #     u_noise[DI] = 0
     #     u_noise = u_exact.space.from_numpy(u_noise)
 
@@ -97,3 +125,6 @@ def interpolate_between_grids(N_fine, refinement_factor):
     N = N_fine/refinement_factor
     assert len(indices_coarse) == (N+1)**2, 'wrong dimensions...'
     return [i-1 for i in indices_coarse]
+
+class Struct():
+    pass
