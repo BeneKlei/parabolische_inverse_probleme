@@ -38,6 +38,10 @@ model_parameter = {
     'parameters' : None
 }
 
+optimizer_parameter = {
+    
+}
+
 print('Construct problem..')                                                     
 analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(
                                                         N = N,
