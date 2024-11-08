@@ -24,7 +24,7 @@ from pymor.parameters.base import ParameterSpace
 #%% Set options    
     
 # general options           
-N = 300                                                                        # FE Dofs = (N+1)^2                                                
+N = 200                                                                          # FE Dofs = (N+1)^2                                                
 tol = 1e-14                                                                    # safeguard tolerance
 tau = 3.5                                                                      # discrepancy parameter
 k_max = 50                                                                     # maxit
@@ -88,13 +88,21 @@ opt_data = {'FE_dim': (N+1)**2,                                                 
 parameter_space = ParameterSpace(analytical_problem.parameters, [low,up]) 
 
 # discretize analytical problem to obtain inverse problem fom
-fom_IP, fom_IP_data = discretize_stationary_IP(analytical_problem,
+fom_IP, fom_IP_data, A_ex = discretize_stationary_IP(analytical_problem,
                                                diameter = diameter,
                                                opt_data = opt_data,
                                                exact_analytical_problem = exact_analytical_problem,
                                                energy_product_problem = energy_problem,
                                                grid_type = grid_type
                                                )
+
+
+print("#########################")
+A = fom_IP.assemble_A_q(q_exact)
+print(np.max(np.abs(A.matrix.todense() - A_ex)))
+
+import sys
+sys.exit()
 
 #%% Solver setup
 

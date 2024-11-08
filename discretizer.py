@@ -34,8 +34,9 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     source = primal_fom.operator.source
     range = primal_fom.operator.range
 
-
-    u_0 = primal_fom.initial_data
+    visualizer = primal_fom.visualizer
+    
+    u_0 = primal_fom.initial_data.as_range_array()
     M = primal_fom.mass
     f = primal_fom.rhs
 
@@ -121,7 +122,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         range_id = None
     )
     
-    tup = (
+    building_blocks = (
         u_0, 
         M,
         A,
@@ -134,11 +135,12 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         constant_reg_term,
         linear_reg_term,
         bilinear_reg_term,
-        products
+        products,
+        visualizer
     )
 
-    assert all(v is not None for v in tup) 
-    return tup
+    assert all(v is not None for v in building_blocks) 
+    return building_blocks
 
     
 

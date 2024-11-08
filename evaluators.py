@@ -9,7 +9,7 @@ from pymor.discretizers.builtin.grids.referenceelements import square
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.numpy import NumpyVectorArray
 
-from utils import Struct
+from utils import Struct, build_projection
 
 LAGRANGE_SHAPE_FUNCTIONS = {1: [lambda X: (1 - X[..., 0]) * (1 - X[..., 1]),
                     lambda X: (1 - X[..., 1]) * (X[..., 0]),
@@ -48,6 +48,7 @@ class Evaluator:
         self.quadrature_order = 2
 
         if not self.pre_assemble:
+            self.nodes_to_element_projection, _, _ = build_projection(self.grid)
             self._prepare()
 
     def _prepare(self):

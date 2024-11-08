@@ -4,6 +4,8 @@ from problems import whole_problem
 from discretizer import discretize_instationary_IP
 from pymor.parameters.base import ParameterSpace
 
+from model import InstationaryModelIP
+
 # general options           
 N = 10                                                                         # FE Dofs = (N+1)^2                                                
 noise_level = 1e-5        
@@ -25,12 +27,14 @@ dims = {
 bounds = [0.001*np.ones((dims['par_dim'],)), 10e2*np.ones((dims['par_dim'],))]
 
 model_parameter = {
+    'T_final' : 1,
     'noise_percentage' : None,
     'noise_level' : 0.05,
     'q_circ' : 3*np.ones((nt, dims['par_dim'])), 
     'q_exact' : None,
     'bounds' : bounds,
     #'parameter_space' : ParameterSpace(analytical_problem.parameters, bounds) 
+    'parameters' : None
 }
 
 print('Construct problem..')                                                     
@@ -43,12 +47,21 @@ analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_p
 
 
 model_parameter['q_exact'] = q_exact
+model_parameter['parameters'] = analytical_problem.parameters
+
 
 print('Discretizing problem...')                                                
 # discretize analytical problem to obtain inverse problem fom
-fom_IP, fom_IP_data = discretize_instationary_IP(analytical_problem,
-                                                 model_parameter,
-                                                 dims, 
-                                                 problem_type
-                                               ) 
+building_blocks = discretize_instationary_IP(analytical_problem,
+                            model_parameter,
+                            dims, 
+                            problem_type
+                        ) 
 
+model = InstationaryModelIP(
+    *building_blocks,
+    dims = dims,
+    model_parameter = model_parameter
+)
+
+U = model.solve_state(model_parameter['q_exact'])

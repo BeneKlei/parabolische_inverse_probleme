@@ -66,15 +66,18 @@ def discretize_stationary_IP(analytical_problem, diameter, opt_data,
         
     # assemble the model at q_exact
     N = int(1/diameter*np.sqrt(2)) 
-    refinement_factor = 2
+    #refinement_factor = 2
+    refinement_factor = 1
     N_fine = N*refinement_factor
     diameter_fine = np.sqrt(2)/N_fine
+    diameter_fine = diameter_fine
     exact_assembled_fom, exact_assembled_fom_data = discretize_stationary_cg(exact_analytical_problem,
                                                            diameter= diameter_fine,#int(diameter/refinement_factor),
                                                            grid_type=grid_type,
                                                            preassemble= True
                                                            )
     
+
     # assemble energy product coreesponding to parameter q = 1
     q_np = np.ones((opt_data['par_dim'],))
     q_energy_product = analytical_problem.parameters.parse(q_np)
@@ -179,7 +182,7 @@ def discretize_stationary_IP(analytical_problem, diameter, opt_data,
                                  boundary_info=primal_fom_data['boundary_info']
                                  )
     
-    return fom_IP, primal_fom_data
+    return fom_IP, primal_fom_data, exact_assembled_fom.operator.matrix.todense()
 
 
 def extract_true_parameterized_operator(complete_operator):

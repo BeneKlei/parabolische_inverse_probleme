@@ -7,6 +7,7 @@ from pymor.operators.constructions import LincombOperator
 from pymor.parameters.functionals import ProjectionParameterFunctional, \
     ParameterFunctional
 from pymor.operators.numpy import NumpyMatrixOperator
+from scipy.sparse import csr_matrix
 
 def construct_noise_data(analytical_problem : InstationaryModel, 
                          model_params : Dict):
@@ -28,6 +29,25 @@ def construct_noise_data(analytical_problem : InstationaryModel,
 
     u_noise = u_exact + noise_scaling
     return u_noise
+
+def build_projection(grid):
+    rows = []
+    cols = []
+    data = []
+    cols_switched = []
+    nodes_per_axis_t = int(np.sqrt(len(grid.centers(0)))) # N
+    nodes_per_axis_n = int(np.sqrt(len(grid.centers(2)))) # N+1
+    for i in range(len(grid.centers(0))):
+        j = i // nodes_per_axis_t
+        entries = [i + j, i + j + 1, i + j + nodes_per_axis_n, i + j + nodes_per_axis_n + 1]
+        rows.extend([i, i, i, i])
+        cols.extend(entries)
+        data.extend([1 / 4., 1 / 4., 1 / 4., 1 / 4.])
+        # cols switched in order of shape functions (lower left, lower right, upper right, upper left)
+        entries_switched = [entries[0],entries[1], entries[3], entries[2]]
+        cols_switched.extend(entries_switched)  
+    nodes_to_element_projection = csr_matrix((data, (rows, cols)))
+    return nodes_to_element_projection, cols, cols_switched
 
 def split_constant_and_parameterized_operator(complete_operator):
     operators, coefficients = [], []
