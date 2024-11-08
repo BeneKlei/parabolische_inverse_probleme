@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 from typing import Dict
 
 import pymor.models.basic as InstationaryProblem
@@ -70,7 +71,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     if 1:
         products['prod_C'] = primal_fom.products['l2']
         C = NumpyMatrixOperator(
-            np.identity(range.dim),
+            scipy.sparse.identity(range.dim),
             source_id = source.id,
             range_id = range.id,
         )
@@ -80,14 +81,14 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     assert (len(y_delta) == dims['nt'])
     assert (y_delta.space == C.range) 
 
-    constant_cost_term = 0.5 * y_delta.pairwise_inner(y_delta, product=products['prod_C'])    
+    constant_cost_term = y_delta.pairwise_inner(y_delta, product=products['prod_C'])    
     linear_cost_term = NumpyMatrixOperator(
-        matrix = y_delta.to_numpy() @ products['prod_C'].assemble().matrix.T @ C.matrix,
+        matrix = C.matrix.T @ products['prod_C'].assemble().matrix @ y_delta.to_numpy().T,
         source_id = source.id,
         range_id = None
     )
     bilinear_cost_term = NumpyMatrixOperator(
-        matrix = 0.5 * C.matrix.T @ products['prod_C'].assemble().matrix @ C.matrix,
+        matrix = C.matrix.T @ products['prod_C'].assemble().matrix @ C.matrix,
         source_id = source.id,
         range_id = None
     )
@@ -110,7 +111,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     q_circ = Q_h.make_array(q_circ)
     assert (len(q_circ) == dims['nt'])
 
-    constant_reg_term = 0.5 * q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
+    constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
     linear_reg_term = NumpyMatrixOperator(
         matrix = q_circ.to_numpy() @ products['prod_Q'].matrix,
         source_id = source.id,
@@ -131,6 +132,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         constant_cost_term,
         linear_cost_term,
         bilinear_cost_term,
+        Q_h,
         q_circ,
         constant_reg_term,
         linear_reg_term,

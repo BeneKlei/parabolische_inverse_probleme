@@ -27,6 +27,7 @@ dims = {
 bounds = [0.001*np.ones((dims['par_dim'],)), 10e2*np.ones((dims['par_dim'],))]
 
 model_parameter = {
+    'T_initial' : 0,
     'T_final' : 1,
     'noise_percentage' : None,
     'noise_level' : 0.05,
@@ -64,4 +65,10 @@ model = InstationaryModelIP(
     model_parameter = model_parameter
 )
 
-U = model.solve_state(model_parameter['q_exact'])
+q_exact = []
+for _ in range(dims['nt'] + 1):
+    q_exact.append(model_parameter['q_exact'])
+q_exact = np.array(q_exact)
+
+U = model.solve_state(q_exact)
+P = model.solve_adjoint(q_exact, U)

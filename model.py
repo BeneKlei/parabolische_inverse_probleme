@@ -1,9 +1,11 @@
-from typing import Dict
+from typing import Dict, Union
 from numbers import Number
+import numpy as np
 
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.vectorarrays.interface import VectorArray
 from pymor.operators.interface import Operator
+from pymor.vectorarrays.numpy import NumpyVectorSpace
 
 from evaluators import A_evaluator, B_evaluator
 from timestepping import ImplicitEulerTimeStepper
@@ -19,6 +21,7 @@ class InstationaryModelIP:
         constant_cost_term: Number,
         linear_cost_term: NumpyMatrixOperator,
         bilinear_cost_term: NumpyMatrixOperator,
+        Q_h : NumpyVectorSpace,
         q_circ: VectorArray,
         constant_reg_term: Number,
         linear_reg_term: NumpyMatrixOperator,
@@ -50,10 +53,19 @@ class InstationaryModelIP:
         )
 
         self.V_h = M.source
+        self.Q_h = Q_h
 
         
-    def solve_state(self, q: VectorArray):
-        iterator = self.timestepper.iterate(initial_time = 0, 
+    def solve_state(self, q: Union[VectorArray, np.ndarray]):
+        assert isinstance(q, (VectorArray, np.ndarray))
+
+        # if isinstance(q, (np.ndarray)):
+        #     q = self.Q_h.make_array(q)
+             
+        # assert q.space == self.Q_h
+        # assert (len(q) == 1) or (len(q) == (self.dims['nt'] + 1))
+
+        iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
                                             initial_data = self.u_0, 
                                             q=q,
@@ -66,8 +78,37 @@ class InstationaryModelIP:
             U.append(U_n)
         return U
 
-    def solve_adjoint(self):
-        pass
+    def solve_adjoint(self, 
+                      q: Union[VectorArray, np.ndarray], 
+                      u: Union[VectorArray, np.ndarray]):
+        
+        assert isinstance(q, (VectorArray, np.ndarray))
+        assert isinstance(u, (VectorArray, np.ndarray))
+
+        print(self.bilinear_cost_term.apply(u).dim)
+        print(len(self.bilinear_cost_term.apply(u)))
+        print(self.linear_cost_term.as_range_array())
+        rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
+        print(type(rhs))
+
+        import sys
+        sys.exit()
+
+        iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
+                                            end_time = self.model_parameter['T_final'], 
+                                            initial_data = self.u_0, 
+                                            q=q,
+                                            operator = self.A, 
+                                            rhs=rhs, 
+                                            mass=self.M,
+                                            )
+        
+        # TODO Shift nicht vergessen
+        P = self.V_h.empty(reserve= self.dims['nt'] + 1)
+        for P_n, _ in iterator:
+            P.append(P_n)
+        return P
+        
 
     def objective(self):
         pass

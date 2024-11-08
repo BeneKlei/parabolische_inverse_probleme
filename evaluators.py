@@ -51,6 +51,9 @@ class Evaluator:
             self.nodes_to_element_projection, _, _ = build_projection(self.grid)
             self._prepare()
 
+        self.source = self.constant_operator.source
+        self.range = self.constant_operator.range
+
     def _prepare(self):
         g = self.grid
         q, w = g.reference_element.quadrature(
@@ -95,8 +98,8 @@ class A_evaluator(Evaluator):
             A_q = self._assemble_A_q(q)
             A_q = NumpyMatrixOperator(
                 A_q, 
-                source_id = self.constant_operator.source.id, 
-                range_id = self.constant_operator.range.id,
+                source_id = self.source.id, 
+                range_id = self.range.id,
             ) 
             A_q += self.constant_operator
             A_q = A_q.assemble()            
