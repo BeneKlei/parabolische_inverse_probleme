@@ -10,6 +10,10 @@ from pymor.vectorarrays.numpy import NumpyVectorSpace
 from evaluators import A_evaluator, B_evaluator
 from timestepping import ImplicitEulerTimeStepper
 
+# TODO 
+# - Enbale auto conversion the vector
+# - And assert correct space
+
 class InstationaryModelIP:
     def __init__(
         self,
@@ -32,6 +36,10 @@ class InstationaryModelIP:
         model_parameter: Dict,
     ):
         self.u_0 = u_0
+        self.p_0 = ...
+        self.linearized_u_0 = ...
+        self.linearized_p_0 = ...
+
         self.M = M 
         self.A = A 
         self.f = f 
@@ -52,18 +60,16 @@ class InstationaryModelIP:
             nt = self.dims['nt']
         )
 
+        assert self.model_parameter['T_final'] > self.model_parameter['T_initial']
+        self.delta_t = (self.model_parameter['T_final'] - self.model_parameter['T_initial']) / self.dims['nt']
+
         self.V_h = M.source
         self.Q_h = Q_h
 
         
-    def solve_state(self, q: Union[VectorArray, np.ndarray]):
+    def solve_state(self, q: Union[VectorArray, np.ndarray]) -> VectorArray:
         assert isinstance(q, (VectorArray, np.ndarray))
-
-        # if isinstance(q, (np.ndarray)):
-        #     q = self.Q_h.make_array(q)
-             
-        # assert q.space == self.Q_h
-        # assert (len(q) == 1) or (len(q) == (self.dims['nt'] + 1))
+        assert len(q) == (self.dims['nt'] + 1)
 
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
@@ -80,20 +86,13 @@ class InstationaryModelIP:
 
     def solve_adjoint(self, 
                       q: Union[VectorArray, np.ndarray], 
-                      u: Union[VectorArray, np.ndarray]):
+                      u: Union[VectorArray, np.ndarray]) -> VectorArray:
         
         assert isinstance(q, (VectorArray, np.ndarray))
         assert isinstance(u, (VectorArray, np.ndarray))
+        assert len(u) == (self.dims['nt'] + 1)
 
-        print(self.bilinear_cost_term.apply(u).dim)
-        print(len(self.bilinear_cost_term.apply(u)))
-        print(self.linear_cost_term.as_range_array())
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
-        print(type(rhs))
-
-        import sys
-        sys.exit()
-
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
                                             initial_data = self.u_0, 
@@ -105,28 +104,63 @@ class InstationaryModelIP:
         
         # TODO Shift nicht vergessen
         P = self.V_h.empty(reserve= self.dims['nt'] + 1)
+
         for P_n, _ in iterator:
             P.append(P_n)
         return P
         
 
-    def objective(self):
-        pass
+    def objective(self, 
+                  u: Union[VectorArray, np.ndarray]) -> Number:
+
+        assert isinstance(u, (VectorArray, np.ndarray))
+        assert len(u) == (self.dims['nt'] + 1)
+
+        # Remove the vector at k = 0
+        return  0.5 * self.delta_t * np.sum( \
+                    self.bilinear_cost_term.pairwise_apply2(u[1:],u[1:]) + \
+                    (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u)[1:] + \
+                    self.constant_cost_term[1:]
+                )
 
     def gradient(self):
-        pass
+        raise NotImplementedError
 
-    def solve_linearized_state(self):
-        pass
+    def solve_linearized_state(self,
+                               q: Union[VectorArray, np.ndarray],
+                               d: Union[VectorArray, np.ndarray],
+                               u: Union[VectorArray, np.ndarray]) -> VectorArray:
 
-    def solve_linearized_adjoint(self):
+        for x in [q,d,u]:
+            assert isinstance(x, (VectorArray, np.ndarray))
+            assert len(x) == (self.dims['nt'] + 1)
+        
+
+        rhs = -self.B(u).pairwise_inner(d)
+
+        iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
+                                            end_time = self.model_parameter['T_final'], 
+                                            initial_data = self.linearized_U_0, 
+                                            q=q,
+                                            operator = self.A, 
+                                            rhs=rhs, 
+                                            mass=self.M)        
+        linearized_U = self.V_h.empty(reserve= self.dims['nt'] + 1)
+        for linearized_U_n, _ in iterator:
+            linearized_U.append(linearized_U_n)
+        return linearized_U
+
+    def solve_linearized_adjoint(self,
+                                 q: Union[VectorArray, np.ndarray],
+                                 u: Union[VectorArray, np.ndarray],
+                                 linearized_U: Union[VectorArray, np.ndarray]) -> VectorArray:
         pass
 
     def linearized_objective(self):
-        pass
+        raise NotImplementedError
 
     def linearized_gradient(self):
-        pass
+        raise NotImplementedError
 
     def linearized_hessian(self):
-        pass
+        raise NotImplementedError

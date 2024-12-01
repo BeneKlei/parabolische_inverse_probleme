@@ -77,20 +77,20 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         )
         
     u_delta = construct_noise_data(primal_fom, model_params)
-    y_delta = C.apply(u_delta)[1:] # Remove the vector at k = 0
-    assert (len(y_delta) == dims['nt'])
+    y_delta = C.apply(u_delta) 
+    assert (len(y_delta) == dims['nt'] + 1)
     assert (y_delta.space == C.range) 
 
     constant_cost_term = y_delta.pairwise_inner(y_delta, product=products['prod_C'])    
     linear_cost_term = NumpyMatrixOperator(
         matrix = C.matrix.T @ products['prod_C'].assemble().matrix @ y_delta.to_numpy().T,
-        source_id = source.id,
-        range_id = None
+        source_id = None,
+        range_id = range.id
     )
     bilinear_cost_term = NumpyMatrixOperator(
         matrix = C.matrix.T @ products['prod_C'].assemble().matrix @ C.matrix,
         source_id = source.id,
-        range_id = None
+        range_id = range.id
     )
     
 
