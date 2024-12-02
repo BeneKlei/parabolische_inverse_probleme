@@ -138,7 +138,9 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         linear_reg_term,
         bilinear_reg_term,
         products,
-        visualizer
+        visualizer,
+        y_delta,
+        u_delta,
     )
 
     assert all(v is not None for v in building_blocks) 

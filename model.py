@@ -118,13 +118,30 @@ class InstationaryModelIP:
 
         # Remove the vector at k = 0
         return  0.5 * self.delta_t * np.sum( \
-                    self.bilinear_cost_term.pairwise_apply2(u[1:],u[1:]) + \
-                    (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u)[1:] + \
-                    self.constant_cost_term[1:]
-                )
+                      self.bilinear_cost_term.pairwise_apply2(u[1:],u[1:]) + \
+                      (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u)[1:] + \
+                      self.constant_cost_term[1:]
+                    )
 
-    def gradient(self):
-        raise NotImplementedError
+    def gradient(self,
+                 u: Union[VectorArray, np.ndarray],
+                 p: Union[VectorArray, np.ndarray]) -> VectorArray:
+
+        for x in [u,p]:
+            assert isinstance(x, (VectorArray, np.ndarray))
+            assert len(x) == (self.dims['nt'] + 1)
+
+        assert u.space == self.V_h
+        assert p.space == self.V_h
+
+        grad = np.empty((self.dims['nt'], self.dims['state_dim']))
+        
+        # TODO Check if this is efficent and / or how ts efficeny can be improved
+        for idx in range(1, self.dims['nt'] + 1):
+            grad[idx-1] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
+
+        return self.Q_h.make_array(grad)
+
 
     def solve_linearized_state(self,
                                q: Union[VectorArray, np.ndarray],

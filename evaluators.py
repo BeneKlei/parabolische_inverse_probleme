@@ -188,7 +188,7 @@ class B_evaluator(Evaluator):
     
     def __call__(self, u: VectorArray) -> NumpyMatrixOperator:
         B_u = Struct()
-        if not self.B_assemble:
+        if not self.pre_assemble:
             if self.reaction_problem:
                 g = self.grid
                 _, w = square.quadrature(order=self.quadrature_order)
