@@ -163,8 +163,7 @@ class B_evaluator(Evaluator):
     def B_u_unassembled_reaction(self, 
                                  u, 
                                  A_u, 
-                                 v : Union[NumpyVectorArray, np.ndarray]
-                                 ):
+                                 v : Union[NumpyVectorArray, np.ndarray]):
         if isinstance(v, NumpyVectorArray):
             v = v.to_numpy().reshape((self.opt_data['FE_dim'],))
         elif isinstance(v,np.ndarray):

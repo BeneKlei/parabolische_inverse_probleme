@@ -22,7 +22,7 @@ def whole_problem(N = 100, contrast_parameter = 2, parameter_location = 'diffusi
     # check input and set problem type
     assert parameter_location in {'diffusion', 'reaction' }, 'Change parameter location to "diffusion" or "dirichlet"'
     assert boundary_conditions in {'dirichlet', 'robin' }, 'Change boundary conditions to "dirichlet" or "robin"'
-    assert exact_parameter in {'PacMan', 'Kirchner', 'other' }, 'Change exact parameter to "Landweber" or "other"'
+    assert exact_parameter in {'PacMan', 'Kirchner', 'dummy', 'other' }, 'Change exact parameter to "Landweber" or "other"'
     assert parameter_elements in {'P1' }, ' "P1" '
     
     problem_type = parameter_location + ' ' + boundary_conditions + ' ' + exact_parameter + ' ' + parameter_elements
@@ -91,6 +91,8 @@ def whole_problem(N = 100, contrast_parameter = 2, parameter_location = 'diffusi
          q_1 = ExpressionFunction('1/(2*pi*0.01)*exp(-0.5*((2*x[0]-0.5)/0.1)**2 - 0.5*((2*x[1]-0.5)/0.1)**2)', 2 )  
          q_2 = ExpressionFunction('1/(2*pi*0.01)*exp(-0.5*((0.8*x[0]-0.5)/0.1)**2 - 0.5*((0.8*x[1]-0.5)/0.1)**2)', 2 ) 
          exact_q_function =  ccc*q_1 +  ccc*q_2 + ConstantFunction(3, 2)
+    elif exact_parameter == 'dummy':
+         exact_q_function =  ConstantFunction(1, 2)
          
     elif exact_parameter == 'other':
         
@@ -157,7 +159,7 @@ def whole_problem(N = 100, contrast_parameter = 2, parameter_location = 'diffusi
     # get exact parameter evaluated on rectangular mesh
     discretized_domain, _ = discretize_domain_default(domain, np.sqrt(2)/N, RectGrid)
     xp = discretized_domain.centers(2)
-    q_exact = exact_q_function(xp) 
+    q_exact = exact_q_function(xp)
 
     initial_data = ConstantFunction(0, 2)
     T = 1

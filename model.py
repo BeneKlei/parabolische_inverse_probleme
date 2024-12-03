@@ -11,8 +11,9 @@ from evaluators import A_evaluator, B_evaluator
 from timestepping import ImplicitEulerTimeStepper
 
 # TODO 
-# - Enbale auto conversion the vector
+# - Enbale auto conversion to NumpyVectorArray / Numpyvector
 # - And assert correct space
+# - Add caching
 
 class InstationaryModelIP:
     def __init__(
@@ -36,9 +37,11 @@ class InstationaryModelIP:
         model_parameter: Dict,
     ):
         self.u_0 = u_0
-        self.p_0 = ...
-        self.linearized_u_0 = ...
-        self.linearized_p_0 = ...
+        assert np.all(u_0.to_numpy() == 0)
+        self.p_0 = u_0.copy()
+        self.linearized_u_0 = u_0.copy()
+        self.linearized_p_0 = u_0.copy()
+
 
         self.M = M 
         self.A = A 
@@ -79,10 +82,10 @@ class InstationaryModelIP:
                                             rhs=self.f, 
                                             mass=self.M)
         
-        U = self.V_h.empty(reserve= self.dims['nt'] + 1)
-        for U_n, _ in iterator:
-            U.append(U_n)
-        return U
+        u = self.V_h.empty(reserve= self.dims['nt'] + 1)
+        for u_n, _ in iterator:
+            u.append(u_n)
+        return u
 
     def solve_adjoint(self, 
                       q: Union[VectorArray, np.ndarray], 
@@ -95,19 +98,17 @@ class InstationaryModelIP:
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
-                                            initial_data = self.u_0, 
+                                            initial_data = self.p_0, 
                                             q=q,
                                             operator = self.A, 
                                             rhs=rhs, 
                                             mass=self.M,
                                             )
         
-        # TODO Shift nicht vergessen
-        P = self.V_h.empty(reserve= self.dims['nt'] + 1)
-
-        for P_n, _ in iterator:
-            P.append(P_n)
-        return P
+        p = self.V_h.empty(reserve= self.dims['nt'] + 1)
+        for p_n, _ in iterator:
+            p.append(p_n)
+        return self.V_h.make_array(np.flip(p.to_numpy()))
         
 
     def objective(self, 
@@ -136,7 +137,7 @@ class InstationaryModelIP:
 
         grad = np.empty((self.dims['nt'], self.dims['state_dim']))
         
-        # TODO Check if this is efficent and / or how ts efficeny can be improved
+        # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(1, self.dims['nt'] + 1):
             grad[idx-1] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
 
@@ -152,32 +153,112 @@ class InstationaryModelIP:
             assert isinstance(x, (VectorArray, np.ndarray))
             assert len(x) == (self.dims['nt'] + 1)
         
-
-        rhs = -self.B(u).pairwise_inner(d)
+        # TODO Check if this is efficent and / or how its efficeny can be improved
+        rhs = self.V_h.make_array(np.array([
+            -self.B(u).B_u(d_).to_numpy()[0] for d_ in d
+        ]))
+        
 
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
-                                            initial_data = self.linearized_U_0, 
+                                            initial_data = self.linearized_u_0, 
                                             q=q,
                                             operator = self.A, 
                                             rhs=rhs, 
                                             mass=self.M)        
-        linearized_U = self.V_h.empty(reserve= self.dims['nt'] + 1)
-        for linearized_U_n, _ in iterator:
-            linearized_U.append(linearized_U_n)
-        return linearized_U
+        lin_u = self.V_h.empty(reserve= self.dims['nt'] + 1)
+        for lin_u_n, _ in iterator:
+            lin_u.append(lin_u_n)
+        return lin_u
 
     def solve_linearized_adjoint(self,
                                  q: Union[VectorArray, np.ndarray],
                                  u: Union[VectorArray, np.ndarray],
-                                 linearized_U: Union[VectorArray, np.ndarray]) -> VectorArray:
-        pass
+                                 lin_u: Union[VectorArray, np.ndarray]) -> VectorArray:
 
-    def linearized_objective(self):
-        raise NotImplementedError
+        
+        rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
+        iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
+                                            end_time = self.model_parameter['T_final'], 
+                                            initial_data = self.p_0, 
+                                            q=q,
+                                            operator = self.A, 
+                                            rhs=rhs, 
+                                            mass=self.M,
+                                            )
+        
+        p = self.V_h.empty(reserve= self.dims['nt'] + 1)
+        for p_n, _ in iterator:
+            p.append(p_n)
+        return self.V_h.make_array(np.flip(p.to_numpy()))
+    
+    def linearized_objective(self,
+                             q: Union[VectorArray, np.ndarray],
+                             d: Union[VectorArray, np.ndarray],
+                             u: Union[VectorArray, np.ndarray],
+                             lin_u: Union[VectorArray, np.ndarray],
+                             alpha : Number
+                             ) -> Number:
+    
+        for x in [q, d,u,lin_u]:
+            assert isinstance(x, (VectorArray, np.ndarray))
+            assert len(x) == (self.dims['nt'] + 1)
 
-    def linearized_gradient(self):
+        if not isinstance(q, VectorArray):
+            q = self.Q_h.make_array(q)
+        assert q in self.Q_h
+
+        if not isinstance(d, VectorArray):
+            d = self.Q_h.make_array(d)
+        assert d in self.Q_h
+
+
+        q_ = q + d + self.q_circ
+        regularization_term = self.products['prod_Q'].pairwise_apply2(q_[1:], q_[1:])
+        u_q_d = u + lin_u
+
+        # Remove the vector at k = 0
+        return  0.5 * self.delta_t * np.sum( \
+                      self.bilinear_cost_term.pairwise_apply2(u_q_d[1:],u_q_d[1:]) + \
+                      (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u_q_d)[1:] + \
+                      self.constant_cost_term[1:] 
+                      + alpha * regularization_term)
+
+
+    def linearized_gradient(self,
+                            q: Union[VectorArray, np.ndarray],
+                            d: Union[VectorArray, np.ndarray],
+                            u: VectorArray,
+                            lin_p: VectorArray,
+                            alpha : Number
+                            ) -> VectorArray:
+        
         raise NotImplementedError
+        # if not isinstance(q, VectorArray):
+        #     assert isinstance(q, np.ndarray)
+        #     q = self.Q_h.make_array(q)
+
+        # if not isinstance(d, VectorArray):
+        #     assert isinstance(d, np.ndarray)
+        #     d = self.Q_h.make_array(d)            
+    
+        # for x in [q, d, u, lin_u]:
+        #     assert isinstance(x, VectorArray)
+        #     assert len(x) == (self.dims['nt'] + 1)
+
+        # assert q in self.Q_h
+        # assert d in self.Q_h
+        # assert u in self.V_h
+        # assert lin_p in self.V_h
+
+        # grad = np.empty((self.dims['nt'], self.dims['state_dim']))
+        
+        # # TODO Check if this is efficent and / or how its efficeny can be improved
+        # for idx in range(1, self.dims['nt'] + 1):
+        #     grad[idx-1] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
+        # grad = self.Q_h.make_array(grad)
+
+        #return grad + alpha * 
 
     def linearized_hessian(self):
         raise NotImplementedError
