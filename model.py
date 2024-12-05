@@ -15,6 +15,12 @@ from timestepping import ImplicitEulerTimeStepper
 # - And assert correct space
 # - Add caching
 
+
+# Notes caching:
+# - Is q t dep A(q) can be stored for all time steps or calculated on the fly.
+#   - The later is maybe possible for ROMs not for FOM
+# 
+
 class InstationaryModelIP:
     def __init__(
         self,
@@ -187,10 +193,10 @@ class InstationaryModelIP:
                                             mass=self.M,
                                             )
         
-        p = self.V_h.empty(reserve= self.dims['nt'] + 1)
-        for p_n, _ in iterator:
-            p.append(p_n)
-        return self.V_h.make_array(np.flip(p.to_numpy()))
+        lin_p = self.V_h.empty(reserve= self.dims['nt'] + 1)
+        for lin_p_n, _ in iterator:
+            lin_p.append(lin_p_n)
+        return self.V_h.make_array(np.flip(lin_p.to_numpy()))
     
     def linearized_objective(self,
                              q: Union[VectorArray, np.ndarray],
