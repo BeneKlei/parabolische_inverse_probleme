@@ -77,8 +77,8 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         )
         
     u_delta = construct_noise_data(primal_fom, model_params)
-    y_delta = C.apply(u_delta) 
-    assert (len(y_delta) == dims['nt'] + 1)
+    y_delta = C.apply(u_delta)[1:]
+    assert (len(y_delta) == dims['nt'])
     assert (y_delta.space == C.range) 
 
     constant_cost_term = y_delta.pairwise_inner(y_delta, product=products['prod_C'])    
@@ -109,7 +109,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     q_circ = model_params['q_circ']
     assert type(q_circ) == np.ndarray
     q_circ = Q_h.make_array(q_circ)
-    assert (len(q_circ) == dims['nt'] + 1)
+    assert (len(q_circ) == dims['nt'])
 
     constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
     linear_reg_term = NumpyMatrixOperator(

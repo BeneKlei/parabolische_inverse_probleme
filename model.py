@@ -78,7 +78,7 @@ class InstationaryModelIP:
         
     def solve_state(self, q: Union[VectorArray, np.ndarray]) -> VectorArray:
         assert isinstance(q, (VectorArray, np.ndarray))
-        assert len(q) == (self.dims['nt'] + 1)
+        #assert len(q) == (self.dims['nt'] + 1)
 
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
@@ -88,7 +88,7 @@ class InstationaryModelIP:
                                             rhs=self.f, 
                                             mass=self.M)
         
-        u = self.V_h.empty(reserve= self.dims['nt'] + 1)
+        u = self.V_h.empty(reserve= self.dims['nt'])
         for u_n, _ in iterator:
             u.append(u_n)
         return u
@@ -99,7 +99,7 @@ class InstationaryModelIP:
         
         assert isinstance(q, (VectorArray, np.ndarray))
         assert isinstance(u, (VectorArray, np.ndarray))
-        assert len(u) == (self.dims['nt'] + 1)
+        assert len(u) == (self.dims['nt'])
 
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
@@ -111,7 +111,7 @@ class InstationaryModelIP:
                                             mass=self.M,
                                             )
         
-        p = self.V_h.empty(reserve= self.dims['nt'] + 1)
+        p = self.V_h.empty(reserve= self.dims['nt'])
         for p_n, _ in iterator:
             p.append(p_n)
         return self.V_h.make_array(np.flip(p.to_numpy()))
@@ -121,13 +121,13 @@ class InstationaryModelIP:
                   u: Union[VectorArray, np.ndarray]) -> Number:
 
         assert isinstance(u, (VectorArray, np.ndarray))
-        assert len(u) == (self.dims['nt'] + 1)
+        assert len(u) == (self.dims['nt'])
 
         # Remove the vector at k = 0
         return  0.5 * self.delta_t * np.sum( \
-                      self.bilinear_cost_term.pairwise_apply2(u[1:],u[1:]) + \
-                      (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u)[1:] + \
-                      self.constant_cost_term[1:]
+                      self.bilinear_cost_term.pairwise_apply2(u,u) + \
+                      (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u) + \
+                      self.constant_cost_term
                     )
 
     def gradient(self,
@@ -136,7 +136,7 @@ class InstationaryModelIP:
 
         for x in [u,p]:
             assert isinstance(x, (VectorArray, np.ndarray))
-            assert len(x) == (self.dims['nt'] + 1)
+            assert len(x) == (self.dims['nt'])
 
         assert u.space == self.V_h
         assert p.space == self.V_h
@@ -144,8 +144,8 @@ class InstationaryModelIP:
         grad = np.empty((self.dims['nt'], self.dims['state_dim']))
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
-        for idx in range(1, self.dims['nt'] + 1):
-            grad[idx-1] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
+        for idx in range(0, self.dims['nt']):
+            grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
 
         return self.Q_h.make_array(grad)
 
@@ -157,11 +157,11 @@ class InstationaryModelIP:
 
         for x in [q,d,u]:
             assert isinstance(x, (VectorArray, np.ndarray))
-            assert len(x) == (self.dims['nt'] + 1)
+            assert len(x) == (self.dims['nt'])
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         rhs = self.V_h.make_array(np.array([
-            -self.B(u).B_u(d_).to_numpy()[0] for d_ in d
+            -self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(d))
         ]))
         
 
@@ -172,7 +172,7 @@ class InstationaryModelIP:
                                             operator = self.A, 
                                             rhs=rhs, 
                                             mass=self.M)        
-        lin_u = self.V_h.empty(reserve= self.dims['nt'] + 1)
+        lin_u = self.V_h.empty(reserve= self.dims['nt'])
         for lin_u_n, _ in iterator:
             lin_u.append(lin_u_n)
         return lin_u
@@ -208,7 +208,7 @@ class InstationaryModelIP:
     
         for x in [q, d,u,lin_u]:
             assert isinstance(x, (VectorArray, np.ndarray))
-            assert len(x) == (self.dims['nt'] + 1)
+            assert len(x) == (self.dims['nt'])
 
         if not isinstance(q, VectorArray):
             q = self.Q_h.make_array(q)
@@ -219,15 +219,15 @@ class InstationaryModelIP:
         assert d in self.Q_h
 
 
-        q_ = q + d + self.q_circ
-        regularization_term = self.products['prod_Q'].pairwise_apply2(q_[1:], q_[1:])
+        q_ = q + d - self.q_circ
+        regularization_term = self.products['prod_Q'].pairwise_apply2(q_, q_)
         u_q_d = u + lin_u
 
         # Remove the vector at k = 0
         return  0.5 * self.delta_t * np.sum( \
-                      self.bilinear_cost_term.pairwise_apply2(u_q_d[1:],u_q_d[1:]) + \
-                      (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u_q_d)[1:] + \
-                      self.constant_cost_term[1:] 
+                      self.bilinear_cost_term.pairwise_apply2(u_q_d,u_q_d) + \
+                      (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u_q_d) + \
+                      self.constant_cost_term
                       + alpha * regularization_term)
 
 
@@ -239,32 +239,31 @@ class InstationaryModelIP:
                             alpha : Number
                             ) -> VectorArray:
         
-        raise NotImplementedError
-        # if not isinstance(q, VectorArray):
-        #     assert isinstance(q, np.ndarray)
-        #     q = self.Q_h.make_array(q)
+        if not isinstance(q, VectorArray):
+            assert isinstance(q, np.ndarray)
+            q = self.Q_h.make_array(q)
 
-        # if not isinstance(d, VectorArray):
-        #     assert isinstance(d, np.ndarray)
-        #     d = self.Q_h.make_array(d)            
+        if not isinstance(d, VectorArray):
+            assert isinstance(d, np.ndarray)
+            d = self.Q_h.make_array(d)            
     
-        # for x in [q, d, u, lin_u]:
-        #     assert isinstance(x, VectorArray)
-        #     assert len(x) == (self.dims['nt'] + 1)
+        for x in [q, d, u, lin_p]:
+            assert isinstance(x, VectorArray)
+            assert len(x) == (self.dims['nt'])
 
-        # assert q in self.Q_h
-        # assert d in self.Q_h
-        # assert u in self.V_h
-        # assert lin_p in self.V_h
+        assert q in self.Q_h
+        assert d in self.Q_h
+        assert u in self.V_h
+        assert lin_p in self.V_h
 
-        # grad = np.empty((self.dims['nt'], self.dims['state_dim']))
+        grad = np.empty((self.dims['nt'], self.dims['state_dim']))
         
-        # # TODO Check if this is efficent and / or how its efficeny can be improved
-        # for idx in range(1, self.dims['nt'] + 1):
-        #     grad[idx-1] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
-        # grad = self.Q_h.make_array(grad)
+        # TODO Check if this is efficent and / or how its efficeny can be improved
+        for idx in range(0, self.dims['nt']):
+            grad[idx] = self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
+        grad = self.Q_h.make_array(grad)
 
-        #return grad + alpha * 
+        return grad + alpha * self.products['prod_Q'].apply(q - self.q_circ)
 
     def linearized_hessian(self):
         raise NotImplementedError

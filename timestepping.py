@@ -63,7 +63,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
             assert F in A.range
             if len(F) == 1:
                 F_time_dep = False
-            elif len(F) == (self.nt + 1):
+            elif len(F) == (self.nt):
                 F_time_dep = True
             else: 
                 # Should never happend
@@ -77,7 +77,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
         elif isinstance(A, A_evaluator):
             if len(q) == 1:
                 q_time_dep = False
-            elif len(q) == (self.nt + 1):
+            elif len(q) == (self.nt):
                 q_time_dep = True
             else:
                 # Should never happend
@@ -95,7 +95,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
         assert len(U0) == 1
 
         num_ret_values = 1
-        yield U0, t0
+        #yield U0, t0
 
         # A = A(q[0])
         # options = (A.solver_options if self.solver_options == 'operator' else

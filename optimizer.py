@@ -86,8 +86,8 @@ class FOMOptimizer(Optimizer):
             regularization_qualification = False
             count = 1#
 
-            #d = ...
-            d = q
+            d = self.solve_linearized_problem()
+            
 
             lin_u = self.FOM.solve_linearized_state(q, d, u)
             lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
@@ -143,6 +143,17 @@ class FOMOptimizer(Optimizer):
         
         self.statistics['total_runtime'] = (timer() - start_time)
         return q
+
+
+    def solve_linearized_problem(self,
+                                 q_start : np.array):
+        
+        pass
+
+
+
+        #return 
+
 
 
 class ROMOptimizer(Optimizer):
