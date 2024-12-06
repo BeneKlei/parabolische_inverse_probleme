@@ -7,6 +7,7 @@ import numpy as np
 from pymor.vectorarrays.interface import VectorArray
 
 from model import InstationaryModelIP
+from helper import gradient_descent
 
 class Optimizer:
     def __init__(self, 
@@ -88,7 +89,6 @@ class FOMOptimizer(Optimizer):
 
             d = self.solve_linearized_problem()
             
-
             lin_u = self.FOM.solve_linearized_state(q, d, u)
             lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
             lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha)
@@ -146,13 +146,22 @@ class FOMOptimizer(Optimizer):
 
 
     def solve_linearized_problem(self,
-                                 q_start : np.array):
+                                 q : np.array,
+                                 d_start : np.array,
+                                 method : str,
+                                 kwargs : Dict) -> np.array:
         
-        pass
+        if method == 'gd':
+            return gradient_descent(q, d_start, kwargs)
+        
+        elif method == 'cg':
+            raise NotImplementedError
+        else:
+            raise ValueError
 
 
 
-        #return 
+        
 
 
 

@@ -14,6 +14,7 @@ from timestepping import ImplicitEulerTimeStepper
 # - Enbale auto conversion to NumpyVectorArray / Numpyvector
 # - And assert correct space
 # - Add caching
+# - Rename Number to flaot
 
 
 # Notes caching:
@@ -193,7 +194,7 @@ class InstationaryModelIP:
                                             mass=self.M,
                                             )
         
-        lin_p = self.V_h.empty(reserve= self.dims['nt'] + 1)
+        lin_p = self.V_h.empty(reserve= self.dims['nt'])
         for lin_p_n, _ in iterator:
             lin_p.append(lin_p_n)
         return self.V_h.make_array(np.flip(lin_p.to_numpy()))
@@ -260,10 +261,36 @@ class InstationaryModelIP:
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.dims['nt']):
-            grad[idx] = self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
+            grad[idx] = - self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
         grad = self.Q_h.make_array(grad)
 
-        return grad + alpha * self.products['prod_Q'].apply(q - self.q_circ)
+        return grad + alpha * self.products['prod_Q'].apply(q + d - self.q_circ)
 
     def linearized_hessian(self):
         raise NotImplementedError
+                             
+    def compute_objective(self) -> Number:
+        raise NotImplementedError
+    
+    def compute_gradient(self) -> Number:
+        raise NotImplementedError
+
+    def compute_linearized_objective(self,
+        q: Union[VectorArray, np.ndarray],
+        d: Union[VectorArray, np.ndarray],
+        alpha : Number) -> Number:
+
+        u = self.solve_state(q)
+        lin_u = self.solve_linearized_state(q, d, u)
+        return self.linearized_objective(q, d, u, lin_u, alpha)
+
+    def compute_linearized_gradient(self,
+        q: Union[VectorArray, np.ndarray],
+        d: Union[VectorArray, np.ndarray],
+        alpha : Number) -> Number:
+
+        u = self.solve_state(q)
+        lin_u = self.solve_linearized_state(q, d, u)
+        lin_p = self.solve_linearized_adjoint(q, u, lin_u)
+
+        return self.linearized_gradient(q, d, u, lin_p, alpha)
