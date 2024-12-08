@@ -96,7 +96,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
 
     ############################### Regularization ###############################
 
-    Q_h = NumpyVectorSpace(dim = dims['par_dim'])
+    Q_h = NumpyVectorSpace(dim = dims['par_dim'], id='PARAM')
     assert Q_h.dim == source.dim
     assert Q_h.dim == range.dim
 

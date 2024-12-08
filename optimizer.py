@@ -7,7 +7,7 @@ import numpy as np
 from pymor.vectorarrays.interface import VectorArray
 
 from model import InstationaryModelIP
-from helper import gradient_descent
+from gradient_descent import gradient_descent
 
 class Optimizer:
     def __init__(self, 
@@ -37,9 +37,9 @@ class Optimizer:
     def _check_optimizer_parameter(self) -> None:
         assert self.optimizer_parameter['noise_level'] >= 0
         assert self.optimizer_parameter['tau'] > 0
-        assert self.optimizer_parameter['alpha_0'] > 0
+        assert self.optimizer_parameter['alpha_0'] >= 0
         assert self.optimizer_parameter['i_max'] >= 1
-        assert self.optimizer_parameter['reg_loop_max'] >= 1
+        #assert self.optimizer_parameter['reg_loop_max'] >= 1
         assert 0 < self.optimizer_parameter['theta'] \
                  < self.optimizer_parameter['Theta'] \
                  < 1
@@ -70,7 +70,6 @@ class FOMOptimizer(Optimizer):
     
         u = self.FOM.solve_state(q)
         J = self.FOM.objective(u)
-
         
         tol = self.optimizer_parameter['tol']
         tau = self.optimizer_parameter['tau']
@@ -80,26 +79,39 @@ class FOMOptimizer(Optimizer):
         Theta = self.optimizer_parameter['Theta']
         reg_loop_max = self.optimizer_parameter['reg_loop_max']
 
+
         while J >= tol+tau*noise_level and i<i_max:
-            self.logger.info(f"\n ####################################################### \n")
+            self.logger.info(f"########################################################")
             self.logger.info(f"Start main loop iteration i = {i}:")
 
             regularization_qualification = False
-            count = 1#
+            count = 1
 
-            d = self.solve_linearized_problem()
+            d_start = q.copy()
+            d_start[:,:] = 0
+
+            d = self.solve_linearized_problem(q=q,
+                                              d_start=d_start,
+                                              alpha=alpha,
+                                              method='gd',
+                                              max_iter=1e4,
+                                              tol=1e-4,
+                                              inital_step_size=1e6)
             
             lin_u = self.FOM.solve_linearized_state(q, d, u)
             lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
-            lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha)
+            lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha=0)
 
-            condition_low = 0.5*theta*J<lin_J
-            condition_up = lin_J < 0.5*Theta*J
+            condition_low = theta*J<lin_J
+            condition_up = lin_J < Theta*J
             regularization_qualification = condition_low and condition_up
 
+            self.logger.info(f"alpha = {alpha} does not satisfy selection criteria.")
+            self.logger.info(f"{theta*J:3.4e} < {lin_J:3.4e} < {Theta*J:3.4e}?")
+            self.logger.info(f"Searching for alpha:") 
 
             while (not regularization_qualification) and (count < reg_loop_max) :
-                self.logger.info(f"\t Searching for alpha:")
+                
                 if not condition_low:
                     alpha *= 1.5  
                 elif not condition_up:
@@ -107,39 +119,59 @@ class FOMOptimizer(Optimizer):
                 else:
                     raise ValueError
 
-                #d = ...
-                d = q
+                d = self.solve_linearized_problem(q=q,
+                                                d_start=d_start,
+                                                alpha=alpha,
+                                                method='gd',
+                                                max_iter=1e4,
+                                                tol=1e-4,
+                                                inital_step_size=1e6)
 
                 lin_u = self.FOM.solve_linearized_state(q, d, u)
                 lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
-                lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha)
+                lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha=0)
 
-                condition_low = 0.5*theta*J<lin_J
-                condition_up = lin_J < 0.5*Theta*J
+                condition_low = theta*J< lin_J
+                condition_up = lin_J < Theta*J
                 regularization_qualification = condition_low and condition_up
+                            
 
-                self.logger.info(f"\t Test alpha = {alpha}.")
-                self.logger.info(f"\t Try {count}: {0.5*theta*J:3.4e} < {lin_J:3.4e} < {0.5*Theta*J:3.4e}?")
+                self.logger.info(f"Test alpha = {alpha}.")
+                self.logger.info(f"Try {count}: {theta*J:3.4e} < {lin_J:3.4e} < {Theta*J:3.4e}?")
+                self.logger.info(f"--------------------------------------------------------------------")
 
                 count += 1
 
             if (count < reg_loop_max):
-                self.logger.info(f"ABC")
+                self.logger.info(f"Found valid alpha = {alpha}.")
             else:
-                self.logger.info(f"ABC")
+                self.logger.info(f"Not found valid alpha before reaching maximum number of tries :  {reg_loop_max}. \n \
+                                   Using the last alpha tested = {alpha}.")
 
+            print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+            print(np.linalg.norm(d))
+            lin_u = self.FOM.solve_linearized_state(q, d, u)
+            lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
+            lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha=alpha)
+            print(lin_J)
+            print(J)
 
-            q += d
+            # import sys
+            # sys.exit()
+
+            #q += d
+            #TODO Some sign error?
+            q -= d
             u = self.FOM.solve_state(q)
             J = self.FOM.objective(u)        
         
             # stagnation check
-            if i > 3:
-                raise NotImplementedError
+            # if i > 3:
+            #     raise NotImplementedError
 
             i += 1
             self.statistics['time_steps'].append((timer()- start_time))
-
+            self.logger.info(f'i = {i}, J = {J:3.4e}, alpha = {alpha:1.4e}')
         
         self.statistics['total_runtime'] = (timer() - start_time)
         return q
@@ -148,11 +180,12 @@ class FOMOptimizer(Optimizer):
     def solve_linearized_problem(self,
                                  q : np.array,
                                  d_start : np.array,
+                                 alpha : float,
                                  method : str,
-                                 kwargs : Dict) -> np.array:
+                                 **kwargs : Dict) -> np.array:
         
         if method == 'gd':
-            return gradient_descent(q, d_start, kwargs)
+            return gradient_descent(self.FOM, q, d_start, alpha, **kwargs)
         
         elif method == 'cg':
             raise NotImplementedError
@@ -166,10 +199,15 @@ class FOMOptimizer(Optimizer):
 
 
 class ROMOptimizer(Optimizer):
-    def __init__(self) -> None:
-        self.FOM = None
-        self.ROM = None
-        self.reductor = None
+    def __init__(self, 
+                 optimizer_parameter: Dict, 
+                 FOM : InstationaryModelIP) -> None:
+
+        super().__init__(optimizer_parameter, FOM)
+        self.reductor = InstationaryModelIPReductor(
+            
+        )
+
 
 
     def solve(self):

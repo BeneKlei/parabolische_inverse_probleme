@@ -33,7 +33,7 @@ class InstationaryModelIP:
         constant_cost_term: Number,
         linear_cost_term: NumpyMatrixOperator,
         bilinear_cost_term: NumpyMatrixOperator,
-        Q_h : NumpyVectorSpace,
+        Q : NumpyVectorSpace,
         q_circ: VectorArray,
         constant_reg_term: Number,
         linear_reg_term: NumpyMatrixOperator,
@@ -74,7 +74,7 @@ class InstationaryModelIP:
         self.delta_t = (self.model_parameter['T_final'] - self.model_parameter['T_initial']) / self.dims['nt']
 
         self.V_h = M.source
-        self.Q_h = Q_h
+        self.Q = Q
 
         
     def solve_state(self, q: Union[VectorArray, np.ndarray]) -> VectorArray:
@@ -148,7 +148,7 @@ class InstationaryModelIP:
         for idx in range(0, self.dims['nt']):
             grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
 
-        return self.Q_h.make_array(grad)
+        return self.Q.make_array(grad)
 
 
     def solve_linearized_state(self,
@@ -212,12 +212,12 @@ class InstationaryModelIP:
             assert len(x) == (self.dims['nt'])
 
         if not isinstance(q, VectorArray):
-            q = self.Q_h.make_array(q)
-        assert q in self.Q_h
+            q = self.Q.make_array(q)
+        assert q in self.Q
 
         if not isinstance(d, VectorArray):
-            d = self.Q_h.make_array(d)
-        assert d in self.Q_h
+            d = self.Q.make_array(d)
+        assert d in self.Q
 
 
         q_ = q + d - self.q_circ
@@ -242,18 +242,18 @@ class InstationaryModelIP:
         
         if not isinstance(q, VectorArray):
             assert isinstance(q, np.ndarray)
-            q = self.Q_h.make_array(q)
+            q = self.Q.make_array(q)
 
         if not isinstance(d, VectorArray):
             assert isinstance(d, np.ndarray)
-            d = self.Q_h.make_array(d)            
+            d = self.Q.make_array(d)            
     
         for x in [q, d, u, lin_p]:
             assert isinstance(x, VectorArray)
             assert len(x) == (self.dims['nt'])
 
-        assert q in self.Q_h
-        assert d in self.Q_h
+        assert q in self.Q
+        assert d in self.Q
         assert u in self.V_h
         assert lin_p in self.V_h
 
@@ -262,18 +262,25 @@ class InstationaryModelIP:
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.dims['nt']):
             grad[idx] = - self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
-        grad = self.Q_h.make_array(grad)
+        grad = self.Q.make_array(grad)
 
         return grad + alpha * self.products['prod_Q'].apply(q + d - self.q_circ)
 
     def linearized_hessian(self):
         raise NotImplementedError
                              
-    def compute_objective(self) -> Number:
-        raise NotImplementedError
+    def compute_objective(self, 
+                          q: Union[VectorArray, np.ndarray]) -> Number:
+
+        u = self.solve_state(q)
+        return self.objective(u)
     
-    def compute_gradient(self) -> Number:
-        raise NotImplementedError
+    def compute_gradient(self,
+                         q: Union[VectorArray, np.ndarray]) -> Number:
+        u = self.solve_state(q)
+        p = self.solve_adjoint(q, u)
+        return self.gradient(u, p)
+        
 
     def compute_linearized_objective(self,
         q: Union[VectorArray, np.ndarray],
