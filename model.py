@@ -7,7 +7,7 @@ from pymor.vectorarrays.interface import VectorArray
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 
-from evaluators import A_evaluator, B_evaluator
+from evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
 from timestepping import ImplicitEulerTimeStepper
 
 # TODO 
@@ -27,9 +27,9 @@ class InstationaryModelIP:
         self,
         u_0 : VectorArray, 
         M : Operator,
-        A : A_evaluator,
+        A : Union[UnAssembledA, AssembledA],
         f : VectorArray,
-        B : B_evaluator,
+        B : Union[UnAssembledB, AssembledB],
         constant_cost_term: Number,
         linear_cost_term: NumpyMatrixOperator,
         bilinear_cost_term: NumpyMatrixOperator,
@@ -73,7 +73,7 @@ class InstationaryModelIP:
         assert self.model_parameter['T_final'] > self.model_parameter['T_initial']
         self.delta_t = (self.model_parameter['T_final'] - self.model_parameter['T_initial']) / self.dims['nt']
 
-        self.V_h = M.source
+        self.V = M.source
         self.Q = Q
 
         
@@ -89,7 +89,7 @@ class InstationaryModelIP:
                                             rhs=self.f, 
                                             mass=self.M)
         
-        u = self.V_h.empty(reserve= self.dims['nt'])
+        u = self.V.empty(reserve= self.dims['nt'])
         for u_n, _ in iterator:
             u.append(u_n)
         return u
@@ -112,10 +112,10 @@ class InstationaryModelIP:
                                             mass=self.M,
                                             )
         
-        p = self.V_h.empty(reserve= self.dims['nt'])
+        p = self.V.empty(reserve= self.dims['nt'])
         for p_n, _ in iterator:
             p.append(p_n)
-        return self.V_h.make_array(np.flip(p.to_numpy()))
+        return self.V.make_array(np.flip(p.to_numpy()))
         
 
     def objective(self, 
@@ -139,8 +139,8 @@ class InstationaryModelIP:
             assert isinstance(x, (VectorArray, np.ndarray))
             assert len(x) == (self.dims['nt'])
 
-        assert u.space == self.V_h
-        assert p.space == self.V_h
+        assert u.space == self.V
+        assert p.space == self.V
 
         grad = np.empty((self.dims['nt'], self.dims['state_dim']))
         
@@ -161,7 +161,7 @@ class InstationaryModelIP:
             assert len(x) == (self.dims['nt'])
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
-        rhs = self.V_h.make_array(np.array([
+        rhs = self.V.make_array(np.array([
             -self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(d))
         ]))
         
@@ -173,7 +173,7 @@ class InstationaryModelIP:
                                             operator = self.A, 
                                             rhs=rhs, 
                                             mass=self.M)        
-        lin_u = self.V_h.empty(reserve= self.dims['nt'])
+        lin_u = self.V.empty(reserve= self.dims['nt'])
         for lin_u_n, _ in iterator:
             lin_u.append(lin_u_n)
         return lin_u
@@ -194,10 +194,10 @@ class InstationaryModelIP:
                                             mass=self.M,
                                             )
         
-        lin_p = self.V_h.empty(reserve= self.dims['nt'])
+        lin_p = self.V.empty(reserve= self.dims['nt'])
         for lin_p_n, _ in iterator:
             lin_p.append(lin_p_n)
-        return self.V_h.make_array(np.flip(lin_p.to_numpy()))
+        return self.V.make_array(np.flip(lin_p.to_numpy()))
     
     def linearized_objective(self,
                              q: Union[VectorArray, np.ndarray],
@@ -254,8 +254,8 @@ class InstationaryModelIP:
 
         assert q in self.Q
         assert d in self.Q
-        assert u in self.V_h
-        assert lin_p in self.V_h
+        assert u in self.V
+        assert lin_p in self.V
 
         grad = np.empty((self.dims['nt'], self.dims['state_dim']))
         

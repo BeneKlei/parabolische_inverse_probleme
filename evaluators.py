@@ -8,6 +8,9 @@ import pymor.vectorarrays as VectorArray
 from pymor.discretizers.builtin.grids.referenceelements import square
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.numpy import NumpyVectorArray
+from pymor.operators.constructions import LincombOperator
+from pymor.parameters.base import Parameters
+
 
 from utils import Struct, build_projection
 
@@ -22,37 +25,35 @@ LAGRANGE_SHAPE_FUNCTIONS_GRAD = {1: lambda X: np.array(([X[..., 1] - 1., X[..., 
                                             [X[..., 1], X[..., 0]], # o rechts
                                             [-X[..., 1], 1. - X[..., 0]]))}# o links
 
+# TODO Rename unconstant_operator
 
-class Evaluator:
+
+# FOM Unassebled
+# Q-FOM Assebled
+# ROM Assebled
+class UnAssembledEvaluator:
     def __init__(self,
-                operator: Operator,
-                constant_operator : Operator,
-                pre_assemble: bool,
-                reaction_problem: bool,
-                grid: Grid,
-                boundary_info: BoundaryInfo,
-                ):
+                 constant_operator : Operator,
+                 reaction_problem: bool,
+                 grid: Grid,
+                 boundary_info: BoundaryInfo):
 
-        assert pre_assemble or (grid is not None)
-        assert pre_assemble or (boundary_info is not None)
-        assert pre_assemble or (constant_operator is not None)
-        assert constant_operator is not None
-
-        self.operator = operator
+        assert grid is not None
+        assert boundary_info is not None
+        assert reaction_problem 
+    
         self.constant_operator = constant_operator
-        
-        self.pre_assemble = pre_assemble # False if FOM, true else (Q-FOM, ROM)
         self.reaction_problem = reaction_problem
         self.grid = grid
         self.boundary_info = boundary_info
         self.quadrature_order = 2
 
-        if not self.pre_assemble:
-            self.nodes_to_element_projection, _, _ = build_projection(self.grid)
-            self._prepare()
+        self.nodes_to_element_projection, _, _ = build_projection(self.grid)
+        self._prepare()
 
-        self.source = self.constant_operator.source
-        self.range = self.constant_operator.range
+        if constant_operator:
+            self.source = self.constant_operator.source
+            self.range = self.constant_operator.range
 
     def _prepare(self):
         g = self.grid
@@ -73,20 +74,16 @@ class Evaluator:
         SF = LAGRANGE_SHAPE_FUNCTIONS[1]
         self.SF = np.array(tuple(f(q) for f in SF))    
 
-class A_evaluator(Evaluator):
+class UnAssembledA(UnAssembledEvaluator):
     def __init__(self,
-                 operator: Operator,
                  constant_operator : Operator,
-                 pre_assemble: bool,
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
                  ):
-
+        
         super().__init__(
-            operator = operator,
             constant_operator = constant_operator,
-            pre_assemble = pre_assemble,
             reaction_problem = reaction_problem,
             grid = grid,
             boundary_info = boundary_info
@@ -94,21 +91,26 @@ class A_evaluator(Evaluator):
         
     
     def __call__(self, q: VectorArray) -> NumpyMatrixOperator:
-        if not self.pre_assemble:
-            A_q = self._assemble_A_q(q)
+        A_q = self._assemble_A_q(q)
+        if self.source:
             A_q = NumpyMatrixOperator(
                 A_q, 
                 source_id = self.source.id, 
                 range_id = self.range.id,
             ) 
-            A_q += self.constant_operator
-            A_q = A_q.assemble()            
         else:
-            q_as_par = self.parameters.parse(q)
-            A_q = self.operator.assemble(q_as_par)
+            A_q = NumpyMatrixOperator(A_q)
+
+        if self.constant_operator:
+            A_q += self.constant_operator
+
+        A_q = A_q.assemble()            
         return A_q
 
-    def _assemble_A_q(self, q: VectorArray,  dirichlet_clear = True) -> csc_matrix:
+    def _assemble_A_q(self, 
+                      q: VectorArray,  
+                      dirichlet_clear: bool = True) -> csc_matrix:
+        
         g = self.grid
         bi = self.boundary_info
         if not self.reaction_problem:
@@ -140,21 +142,51 @@ class A_evaluator(Evaluator):
             del SF_INTS, SF_I0, SF_I1
             A = csc_matrix(A).copy()
         return A
-        
-class B_evaluator(Evaluator):
+
+class AssembledEvaluator():
     def __init__(self,
-                 operator: Operator,
+                 unconstant_operator: Operator,
+                 constant_operator : Operator):
+        
+        assert isinstance(unconstant_operator, LincombOperator)
+        assert unconstant_operator or constant_operator
+        
+        self.unconstant_operator = unconstant_operator
+        self.constant_operator = constant_operator
+
+        if self.unconstant_operator and self.constant_operator:
+            assert self.unconstant_operator.source == self.constant_operator.source
+            assert self.unconstant_operator.range == self.constant_operator.range
+
+        self.source = self.constant_operator.source
+        self.range = self.constant_operator.range
+
+
+class AssembledA(AssembledEvaluator):    
+    def __init__(self, 
+                 unconstant_operator: Operator,
                  constant_operator : Operator,
-                 pre_assemble: bool,
+                 parameters: Parameters):
+        
+        super().__init__(unconstant_operator, 
+                         constant_operator)
+        self.parameters = parameters
+
+
+    def __call__(self, q: VectorArray) -> NumpyMatrixOperator:
+        q_as_par = self.parameters.parse(q)
+        return self.unconstant_operator.assemble(q_as_par) + self.constant_operator
+
+
+class UnAssembledB(UnAssembledEvaluator):
+    def __init__(self,
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
                 ):
         
         super().__init__(
-            operator = operator,
-            constant_operator = constant_operator,
-            pre_assemble = pre_assemble,
+            constant_operator = None,
             reaction_problem = reaction_problem,
             grid = grid,
             boundary_info = boundary_info
@@ -187,31 +219,38 @@ class B_evaluator(Evaluator):
     
     def __call__(self, u: VectorArray) -> NumpyMatrixOperator:
         B_u = Struct()
-        if not self.pre_assemble:
-            if self.reaction_problem:
-                g = self.grid
-                _, w = square.quadrature(order=self.quadrature_order)
-                C = self.nodes_to_element_projection.dot(u.to_numpy()[0])
-                SF_INTS = np.einsum('iq,jq,q,e,e->eij', self.SF, self.SF, w, g.integration_elements(0), C).ravel()
-                del C
-                SF_I0 = np.repeat(g.subentities(0, g.dim), 4, axis=1).ravel()
-                SF_I1 = np.tile(g.subentities(0, g.dim), [1, 4]).ravel()
-                A = coo_matrix((SF_INTS, (SF_I0, SF_I1)), shape=(g.size(g.dim), g.size(g.dim)))
-                del SF_INTS, SF_I0, SF_I1
-                A_u = csc_matrix(A).copy()
-                B_u.B_u = lambda d:  self.B_u_unassembled_reaction(u,A_u, d) # numpy -> pymor
-                B_u.B_u_ad = lambda p, mode:  self.B_u_unassembled_reaction(u, A_u, p.to_numpy()[0]).to_numpy()[0]  # pmyor -> numpy
-            else:
-                B_u_mat = self.assemble_B_u_advection(u.to_numpy()[0])
-                B_u.B_u = lambda d: u.space.from_numpy(B_u_mat.dot(d))
-                B_u.B_u_ad = lambda p, mode: B_u_mat.T.dot(p.to_numpy()[0])
+        #if not self.pre_assemble:
+        if self.reaction_problem:
+            g = self.grid
+            _, w = square.quadrature(order=self.quadrature_order)
+            C = self.nodes_to_element_projection.dot(u.to_numpy()[0])
+            SF_INTS = np.einsum('iq,jq,q,e,e->eij', self.SF, self.SF, w, g.integration_elements(0), C).ravel()
+            del C
+            SF_I0 = np.repeat(g.subentities(0, g.dim), 4, axis=1).ravel()
+            SF_I1 = np.tile(g.subentities(0, g.dim), [1, 4]).ravel()
+            A = coo_matrix((SF_INTS, (SF_I0, SF_I1)), shape=(g.size(g.dim), g.size(g.dim)))
+            del SF_INTS, SF_I0, SF_I1
+            A_u = csc_matrix(A).copy()
+            B_u.B_u = lambda d:  self.B_u_unassembled_reaction(u,A_u, d) # numpy -> pymor
+            B_u.B_u_ad = lambda p, mode:  self.B_u_unassembled_reaction(u, A_u, p.to_numpy()[0]).to_numpy()[0]  # pmyor -> numpy
         else:
-            DoFs = self.solution_space.dim
-            B_u_list = np.zeros((len(self.true_parameterized_operator.operators), DoFs, 1))
-            for i, op in enumerate(self.true_parameterized_operator.operators):
+            B_u_mat = self.assemble_B_u_advection(u.to_numpy()[0])
+            B_u.B_u = lambda d: u.space.from_numpy(B_u_mat.dot(d))
+            B_u.B_u_ad = lambda p, mode: B_u_mat.T.dot(p.to_numpy()[0])    
+        return B_u
+    
+
+class AssembledB(AssembledEvaluator):    
+    def __call__(self, u: VectorArray) -> NumpyMatrixOperator:
+        B_u = Struct()
+        if self.unconstant_operator:
+            DoFs = self.u.space.dim
+            B_u_list = np.zeros((len(self.unconstant_operator), DoFs, 1))
+            for i, op in enumerate(self.unconstant_operator):
                 B_u_list[i] = -op.apply_adjoint(u).to_numpy().T
-            
             B_u.B_u = lambda d: u.space.from_numpy(np.einsum("tij,t->ij", B_u_list, d).flatten())  # numpy -> pymor
             B_u.B_u_ad = lambda p, mode: np.einsum("tij,i->t", B_u_list, p.to_numpy()[0]) # pymor -> numpy 
-        
+        else:
+            raise NotImplementedError
+
         return B_u

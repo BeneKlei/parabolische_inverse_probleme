@@ -99,7 +99,7 @@ class FOMOptimizer(Optimizer):
                                               inital_step_size=1e6)
             
             lin_u = self.FOM.solve_linearized_state(q, d, u)
-            lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
+            #lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
             lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha=0)
 
             condition_low = theta*J<lin_J
@@ -128,7 +128,7 @@ class FOMOptimizer(Optimizer):
                                                 inital_step_size=1e6)
 
                 lin_u = self.FOM.solve_linearized_state(q, d, u)
-                lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
+                #lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
                 lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha=0)
 
                 condition_low = theta*J< lin_J
@@ -148,13 +148,13 @@ class FOMOptimizer(Optimizer):
                 self.logger.info(f"Not found valid alpha before reaching maximum number of tries :  {reg_loop_max}. \n \
                                    Using the last alpha tested = {alpha}.")
 
-            print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-            print(np.linalg.norm(d))
-            lin_u = self.FOM.solve_linearized_state(q, d, u)
-            lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
-            lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha=alpha)
-            print(lin_J)
-            print(J)
+            # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+            # print(np.linalg.norm(d))
+            # lin_u = self.FOM.solve_linearized_state(q, d, u)
+            # lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
+            # lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha=alpha)
+            # print(lin_J)
+            # print(J)
 
             # import sys
             # sys.exit()

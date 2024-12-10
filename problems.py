@@ -53,6 +53,7 @@ def whole_problem(N = 100, contrast_parameter = 2, parameter_location = 'diffusi
         dirichlet_data = None
         
     # define pyMOR analytical problem
+
     problem = StationaryProblem(
                                 domain = domain,
                                 diffusion = diffusion,

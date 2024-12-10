@@ -9,7 +9,7 @@ from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.numpy import NumpyMatrixOperator
 from utils import construct_noise_data
 from pymor.discretizers.builtin.grids.rect import RectGrid
-from evaluators import A_evaluator, B_evaluator
+from evaluators import UnAssembledA, UnAssembledB
 
 from utils import split_constant_and_parameterized_operator
 
@@ -45,19 +45,14 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         primal_fom.operator
     )
 
-    A = A_evaluator(
-        operator = None,
+    A = UnAssembledA(
         constant_operator = constant_operator,
-        pre_assemble = False,
         reaction_problem = ('reaction' in problem_type),
         grid = primal_fom_data['grid'],
         boundary_info = primal_fom_data['boundary_info']
     )
     
-    B = B_evaluator(
-        operator = None,
-        constant_operator = constant_operator,
-        pre_assemble = False,
+    B = UnAssembledB(
         reaction_problem = ('reaction' in problem_type),
         grid = primal_fom_data['grid'],
         boundary_info = primal_fom_data['boundary_info']
