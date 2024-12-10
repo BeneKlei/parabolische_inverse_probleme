@@ -1,4 +1,5 @@
 from typing import Dict
+import numpy as np
 
 from pymor.reductors.basic import ProjectionBasedReductor
 from pymor.algorithms.projection import project, project_to_subbasis
@@ -44,23 +45,31 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
     def project_vectorarray(self, 
                             x : VectorArray,
-                            basis: str) -> VectorArray:
+                            basis: str) -> np.array:
 
         _basis = self.bases[basis]
         assert isinstance(x, VectorArray)
 
         if len(_basis) == 0:
-            return x
+            return x.to_numpy()
         else:
-            return _basis.lincomb(x.inner(_basis, self.products[basis]))
+            #return _basis.lincomb(x.inner(_basis, self.products[basis]))
+            return x.inner(_basis, self.products[basis])
         
     
     def _assemble_reduced_operator(self) -> LincombOperator:
         # TODO Handle basis extention via offset
         state_basis = self.bases['state_basis']
+        parameter_basis = self.bases['parameter_basis']
+
+        if len(parameter_basis) == 0:
+            raise NotImplementedError
+
         if len(state_basis) == 0:
             state_basis = None
-        parameter_basis = self.bases['parameter_basis']
+
+        assert len(self.fom.model_parameter['parameters']) == 1
+        parameter_name = list(self.fom.model_parameter['parameters'].keys())[0] 
 
         operators = [project(self.fom.A.constant_operator, 
                              state_basis, 
@@ -76,17 +85,22 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             A_q = project(A_q, state_basis, state_basis)
             operators.append(A_q)
             coefficients.append(
-                ProjectionParameterFunctional('q_coeff_' + str(i), len(parameter_basis), i)
-            )      
+                ProjectionParameterFunctional(parameter_name, len(parameter_basis), i)
+            )
+
         return LincombOperator(operators, coefficients)
 
 
 
     def project_operators(self) -> Dict:
         state_basis = self.bases['state_basis']
+        parameter_basis = self.bases['parameter_basis']
+
         if len(state_basis) == 0:
             state_basis = None
-        parameter_basis = self.bases['parameter_basis']
+
+        if len(parameter_basis) == 0:
+            parameter_basis = None
 
         unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
             complete_operator=self._assemble_reduced_operator()
@@ -97,19 +111,31 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         projected_parameters = Parameters(
             {list(self.fom.model_parameter['parameters'].keys())[0] : len(self.bases['parameter_basis'])}
         )
+        
+        if parameter_basis:
+            Q = NumpyVectorSpace(dim = len(parameter_basis))
+        else:
+            Q = self.fom.Q
+
+        if state_basis:
+            V = NumpyVectorSpace(dim = len(state_basis))
+        else:
+            V = self.fom.V
 
         A = AssembledA(
             unconstant_operator = unconstant_operator,
             constant_operator = constant_operator,
-            parameters=projected_parameters
+            parameters=projected_parameters,
+            Q = Q
         )
         B = AssembledB(
             unconstant_operator = unconstant_operator, 
-            constant_operator = constant_operator
+            constant_operator = constant_operator,
+            V = V
         )
 
         projected_operators = {
-            'u_0' : self.project_vectorarray(self.fom.u_0, basis='state_basis'),
+            'u_0' : V.make_array(self.project_vectorarray(self.fom.u_0, basis='state_basis')),
             'M' : project(self.fom.M, state_basis, state_basis),
             'A' : A,
             'f' : project(self.fom.f, state_basis, None),
@@ -117,8 +143,9 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'constant_cost_term' : self.fom.constant_cost_term,
             'linear_cost_term' : project(self.fom.linear_cost_term, state_basis, None),
             'bilinear_cost_term' : project(self.fom.bilinear_cost_term, state_basis, state_basis),
-            'Q' : NumpyVectorSpace(dim = len(parameter_basis), id='RED_PARAM'),
-            'q_circ' : self.project_vectorarray(self.fom.q_circ, basis='parameter_basis'),
+            'Q' : Q,
+            'V' : V,
+            'q_circ' : Q.make_array(self.project_vectorarray(self.fom.q_circ, basis='parameter_basis')),
             'constant_reg_term' : self.fom.constant_reg_term,
             'linear_reg_term' : project(self.fom.linear_reg_term, state_basis, None),
             'bilinear_reg_term' : project(self.fom.bilinear_reg_term, state_basis, state_basis),

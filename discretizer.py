@@ -35,6 +35,22 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     source = primal_fom.operator.source
     range = primal_fom.operator.range
 
+
+    Q_h = NumpyVectorSpace(dim = dims['par_dim'], id='PARAM')
+    assert Q_h.dim == source.dim
+    assert Q_h.dim == range.dim
+
+    products['prod_Q'] = NumpyMatrixOperator(
+        matrix = primal_fom.products['l2'].assemble().matrix,
+        source_id = Q_h.id,
+        range_id = Q_h.id
+    )
+
+    V_h = primal_fom.operator.source
+    products['prod_V'] = primal_fom.products['h1']
+    products['prod_H'] = primal_fom.products['l2']
+
+
     visualizer = primal_fom.visualizer
     
     u_0 = primal_fom.initial_data.as_range_array()
@@ -49,17 +65,16 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         constant_operator = constant_operator,
         reaction_problem = ('reaction' in problem_type),
         grid = primal_fom_data['grid'],
-        boundary_info = primal_fom_data['boundary_info']
+        boundary_info = primal_fom_data['boundary_info'],
+        Q = Q_h
     )
     
     B = UnAssembledB(
         reaction_problem = ('reaction' in problem_type),
         grid = primal_fom_data['grid'],
-        boundary_info = primal_fom_data['boundary_info']
+        boundary_info = primal_fom_data['boundary_info'],
+        V = V_h
     )
-
-    products['prod_V'] = primal_fom.products['h1']
-    products['prod_H'] = primal_fom.products['l2']
 
     ############################### Cost ###############################
 
@@ -87,19 +102,8 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         source_id = source.id,
         range_id = range.id
     )
-    
 
     ############################### Regularization ###############################
-
-    Q_h = NumpyVectorSpace(dim = dims['par_dim'], id='PARAM')
-    assert Q_h.dim == source.dim
-    assert Q_h.dim == range.dim
-
-    products['prod_Q'] = NumpyMatrixOperator(
-        matrix = primal_fom.products['l2'].assemble().matrix,
-        source_id = Q_h.id,
-        range_id = Q_h.id
-    )
 
     q_circ = model_params['q_circ']
     assert type(q_circ) == np.ndarray
@@ -108,14 +112,14 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
 
     constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
     linear_reg_term = NumpyMatrixOperator(
-        matrix = q_circ.to_numpy() @ products['prod_Q'].matrix,
-        source_id = source.id,
-        range_id = None
+        matrix = products['prod_Q'].matrix.T @ q_circ.to_numpy().T,
+        source_id = None,
+        range_id = range.id
     )
     bilinear_reg_term = NumpyMatrixOperator(
         matrix = products['prod_Q'].matrix,
         source_id = source.id,
-        range_id = None
+        range_id = range.id
     )
     
     building_blocks = (
@@ -128,6 +132,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         linear_cost_term,
         bilinear_cost_term,
         Q_h,
+        V_h,
         q_circ,
         constant_reg_term,
         linear_reg_term,

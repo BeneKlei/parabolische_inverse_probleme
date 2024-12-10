@@ -10,7 +10,7 @@ from pymor.operators.interface import Operator
 from pymor.vectorarrays.numpy import NumpyVectorArray
 from pymor.operators.constructions import LincombOperator
 from pymor.parameters.base import Parameters
-
+from pymor.vectorarrays.interface import VectorSpace
 
 from utils import Struct, build_projection
 
@@ -37,7 +37,7 @@ class UnAssembledEvaluator:
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo):
-
+        
         assert grid is not None
         assert boundary_info is not None
         assert reaction_problem 
@@ -80,18 +80,23 @@ class UnAssembledA(UnAssembledEvaluator):
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
-                 ):
+                 Q : VectorSpace):
         
         super().__init__(
             constant_operator = constant_operator,
             reaction_problem = reaction_problem,
             grid = grid,
-            boundary_info = boundary_info
+            boundary_info = boundary_info            
         )
+        self.Q = Q
         
     
     def __call__(self, q: VectorArray) -> NumpyMatrixOperator:
-        A_q = self._assemble_A_q(q)
+        assert q in self.Q
+        # TODO Check _assemble_A_q can be vectorized
+        assert len(q) == 1
+
+        A_q = self._assemble_A_q(q.to_numpy()[0])
         if self.source:
             A_q = NumpyMatrixOperator(
                 A_q, 
@@ -108,9 +113,8 @@ class UnAssembledA(UnAssembledEvaluator):
         return A_q
 
     def _assemble_A_q(self, 
-                      q: VectorArray,  
+                      q: np.array,  
                       dirichlet_clear: bool = True) -> csc_matrix:
-        
         g = self.grid
         bi = self.boundary_info
         if not self.reaction_problem:
@@ -166,15 +170,21 @@ class AssembledA(AssembledEvaluator):
     def __init__(self, 
                  unconstant_operator: Operator,
                  constant_operator : Operator,
+                 Q : VectorSpace,
                  parameters: Parameters):
         
         super().__init__(unconstant_operator, 
                          constant_operator)
+        self.Q = Q
         self.parameters = parameters
 
 
     def __call__(self, q: VectorArray) -> NumpyMatrixOperator:
-        q_as_par = self.parameters.parse(q)
+        assert q in self.Q
+        # TODO Check _assemble_A_q can be vectorized
+        assert len(q) == 1
+
+        q_as_par = self.parameters.parse(q.to_numpy()[0])
         return self.unconstant_operator.assemble(q_as_par) + self.constant_operator
 
 
@@ -183,26 +193,28 @@ class UnAssembledB(UnAssembledEvaluator):
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
-                ):
+                 V : VectorSpace):
         
         super().__init__(
             constant_operator = None,
             reaction_problem = reaction_problem,
             grid = grid,
-            boundary_info = boundary_info
-        )
+            boundary_info = boundary_info)
+    
+        self.V = V
     
     def B_u_unassembled_reaction(self, 
                                  u, 
                                  A_u, 
-                                 v : Union[NumpyVectorArray, np.ndarray]):
+                                 v : NumpyVectorArray):
         if isinstance(v, NumpyVectorArray):
             v = v.to_numpy().reshape((self.opt_data['FE_dim'],))
         elif isinstance(v,np.ndarray):
             pass
         else:
             assert 1, 'wrong input here...'
-        return -u.space.from_numpy(A_u.dot(v))
+
+        return -self.V.from_numpy(A_u.dot(v))
     
     def assemble_B_u_advection(self, u : VectorArray):
         g = self.grid
@@ -218,12 +230,17 @@ class UnAssembledB(UnAssembledEvaluator):
         return -out
     
     def __call__(self, u: VectorArray) -> NumpyMatrixOperator:
+        assert u in self.V
+        # TODO Check how this function can be vectorized
+        assert len(u) == 1
+        u = u.to_numpy()[0]
+
         B_u = Struct()
         #if not self.pre_assemble:
         if self.reaction_problem:
             g = self.grid
             _, w = square.quadrature(order=self.quadrature_order)
-            C = self.nodes_to_element_projection.dot(u.to_numpy()[0])
+            C = self.nodes_to_element_projection.dot(u)
             SF_INTS = np.einsum('iq,jq,q,e,e->eij', self.SF, self.SF, w, g.integration_elements(0), C).ravel()
             del C
             SF_I0 = np.repeat(g.subentities(0, g.dim), 4, axis=1).ravel()
@@ -231,17 +248,34 @@ class UnAssembledB(UnAssembledEvaluator):
             A = coo_matrix((SF_INTS, (SF_I0, SF_I1)), shape=(g.size(g.dim), g.size(g.dim)))
             del SF_INTS, SF_I0, SF_I1
             A_u = csc_matrix(A).copy()
+            # TODO Replace this by proper functions with type checking
             B_u.B_u = lambda d:  self.B_u_unassembled_reaction(u,A_u, d) # numpy -> pymor
-            B_u.B_u_ad = lambda p, mode:  self.B_u_unassembled_reaction(u, A_u, p.to_numpy()[0]).to_numpy()[0]  # pmyor -> numpy
+            B_u.B_u_ad = lambda p, mode:  self.B_u_unassembled_reaction(u, A_u, p.to_numpy()[0]).to_numpy()[0]  # pymor -> numpy
         else:
-            B_u_mat = self.assemble_B_u_advection(u.to_numpy()[0])
+            # TODO Replace this by proper functions with type checking
+            B_u_mat = self.assemble_B_u_advection(u)
             B_u.B_u = lambda d: u.space.from_numpy(B_u_mat.dot(d))
             B_u.B_u_ad = lambda p, mode: B_u_mat.T.dot(p.to_numpy()[0])    
         return B_u
     
 
-class AssembledB(AssembledEvaluator):    
+class AssembledB(AssembledEvaluator):
+    def __init__(self, 
+                unconstant_operator: Operator,
+                constant_operator : Operator,
+                V : VectorSpace):
+    
+        super().__init__(unconstant_operator, 
+                         constant_operator)
+        self.V = V
+        
+
     def __call__(self, u: VectorArray) -> NumpyMatrixOperator:
+        assert u in self.V
+        # TODO Check how this function can be vectorized
+        assert len(u) == 1
+        u = u.to_numpy()[0]
+
         B_u = Struct()
         if self.unconstant_operator:
             DoFs = self.u.space.dim

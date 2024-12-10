@@ -53,7 +53,6 @@ def split_constant_and_parameterized_operator(
         complete_operator : LincombOperator
     ):
     assert isinstance(complete_operator, LincombOperator)
-
     operators, coefficients = [], []
     constant_operators, constant_coefficients = [], []
     for coef, op in zip(complete_operator.coefficients, complete_operator.operators):
@@ -70,7 +69,9 @@ def split_constant_and_parameterized_operator(
     parameterized_operator = LincombOperator(operators, coefficients, name='true_parameterized_operator')
 
     matrix = constant_operator.matrix.copy()
-    matrix.eliminate_zeros()
+    if isinstance(matrix, csr_matrix):
+        matrix.eliminate_zeros()
+        
     constant_operator = NumpyMatrixOperator(
         matrix = matrix,
         source_id = complete_operator.source.id,
