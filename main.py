@@ -80,10 +80,9 @@ model_parameter['parameters'] = analytical_problem.parameters
 print('Discretizing problem...')                                                
 # discretize analytical problem to obtain inverse problem fom
 building_blocks = discretize_instationary_IP(analytical_problem,
-                            model_parameter,
-                            dims, 
-                            problem_type
-                        ) 
+                                             model_parameter,
+                                             dims, 
+                                             problem_type) 
 
 FOM = InstationaryModelIP(                 
     *building_blocks,

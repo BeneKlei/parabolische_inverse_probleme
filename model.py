@@ -104,6 +104,9 @@ class InstationaryModelIP:
             assert len(x) == (self.dims['nt'])
 
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
+        rhs = np.flip(rhs.to_numpy(), axis=0)
+        rhs = self.V.make_array(rhs)
+
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
                                             initial_data = self.p_0, 
@@ -115,7 +118,7 @@ class InstationaryModelIP:
         p = self.V.empty(reserve= self.dims['nt'])
         for p_n, _ in iterator:
             p.append(p_n)
-        return self.V.make_array(np.flip(p.to_numpy()))
+        return self.V.make_array(np.flip(p.to_numpy(), axis=0))
         
 
     def objective(self, 
@@ -146,7 +149,7 @@ class InstationaryModelIP:
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.dims['nt']):
-            grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
+            grad[idx] = - self.B(u[idx]).B_u_ad(p[idx], 'grad') 
 
         return self.Q.make_array(grad)
 
@@ -191,6 +194,8 @@ class InstationaryModelIP:
         assert lin_u in self.V
 
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
+        rhs = np.flip(rhs.to_numpy(), axis=0)
+        rhs = self.V.make_array(rhs)
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
                                             initial_data = self.p_0, 
@@ -203,7 +208,8 @@ class InstationaryModelIP:
         lin_p = self.V.empty(reserve= self.dims['nt'])
         for lin_p_n, _ in iterator:
             lin_p.append(lin_p_n)
-        return self.V.make_array(np.flip(lin_p.to_numpy()))
+
+        return self.V.make_array(np.flip(lin_p.to_numpy(), axis=0))
     
     def linearized_objective(self,
                              q: VectorArray,
