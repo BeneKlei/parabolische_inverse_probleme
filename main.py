@@ -1,7 +1,7 @@
 import numpy as np
 import logging
 import sys
-sys.path.append(':/')
+sys.path.append('./')
 
 from pymor.basic import *
 from pymor.basic import *
