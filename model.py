@@ -75,6 +75,8 @@ class InstationaryModelIP:
         assert self.model_parameter['T_final'] > self.model_parameter['T_initial']
         self.delta_t = (self.model_parameter['T_final'] - self.model_parameter['T_initial']) / self.dims['nt']
 
+#%% solve methods
+ 
     def solve_state(self, q: VectorArray) -> VectorArray:
         assert q in self.Q
         assert isinstance(q, VectorArray)
@@ -121,6 +123,36 @@ class InstationaryModelIP:
             p.append(p_n)
         return self.V.make_array(np.flip(p.to_numpy(), axis=0))
     
+    def solve_linearized_state(self,
+                               q: VectorArray,
+                               d: VectorArray,
+                               u: VectorArray) -> VectorArray:
+        
+        assert q in self.Q
+        assert d in self.Q
+        assert u in self.V
+
+        for x in [q,d,u]:
+            assert isinstance(x, VectorArray)
+            assert len(x) == (self.dims['nt'])
+        
+        # TODO Check if this is efficent and / or how its efficeny can be improved
+        rhs = self.V.make_array(np.array([
+            -self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(d))
+        ]))
+        
+        iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
+                                            end_time = self.model_parameter['T_final'], 
+                                            initial_data = self.linearized_u_0, 
+                                            q=q,
+                                            operator = self.A, 
+                                            rhs=rhs, 
+                                            mass=self.M)        
+        lin_u = self.V.empty(reserve= self.dims['nt'])
+        for lin_u_n, _ in iterator:
+            lin_u.append(lin_u_n)
+        return lin_u
+    
     def solve_linearized_adjoint(self,
                                  q: VectorArray,
                                  u: VectorArray,
@@ -149,8 +181,30 @@ class InstationaryModelIP:
         return self.V.make_array(np.flip(lin_p.to_numpy(), axis=0))
         
 
+#%% objective and gradient
+    
+    def regularization_term(self, q, alpha):
+        out = 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q,q)+\
+                                          (-2)  * self.linear_reg_term.as_range_array().pairwise_inner(q)+\
+                                              + self.constant_reg_term
+                                          )
+        
+        return out
+    
+    def gradient_regularization_term(self, q, alpha):
+        pass
+    
+    def linearized_regularization_term(self, q, d, alpha):
+        pass
+    
+    def gradient_linarized_regularization_term(self, q, d, alpha):
+        pass
+        
+        
+    
     def objective(self, 
-                  u: Union[VectorArray, np.ndarray]) -> float:
+                  u: Union[VectorArray, np.ndarray],
+                  alpha: float = 0) -> float:
 
         assert isinstance(u, (VectorArray, np.ndarray))
         assert len(u) == (self.dims['nt'])
@@ -164,7 +218,8 @@ class InstationaryModelIP:
 
     def gradient(self,
                  u: VectorArray,
-                 p: VectorArray) -> VectorArray:
+                 p: VectorArray,
+                 alpha: float = 0) -> VectorArray:
         
         assert u in self.V
         assert p in self.V
@@ -205,36 +260,6 @@ class InstationaryModelIP:
         grad = self.Q.make_array(grad)
 
         return grad + alpha * self.products['prod_Q'].apply(q + d - self.q_circ)
-
-    def solve_linearized_state(self,
-                               q: VectorArray,
-                               d: VectorArray,
-                               u: VectorArray) -> VectorArray:
-        
-        assert q in self.Q
-        assert d in self.Q
-        assert u in self.V
-
-        for x in [q,d,u]:
-            assert isinstance(x, VectorArray)
-            assert len(x) == (self.dims['nt'])
-        
-        # TODO Check if this is efficent and / or how its efficeny can be improved
-        rhs = self.V.make_array(np.array([
-            -self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(d))
-        ]))
-        
-        iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
-                                            end_time = self.model_parameter['T_final'], 
-                                            initial_data = self.linearized_u_0, 
-                                            q=q,
-                                            operator = self.A, 
-                                            rhs=rhs, 
-                                            mass=self.M)        
-        lin_u = self.V.empty(reserve= self.dims['nt'])
-        for lin_u_n, _ in iterator:
-            lin_u.append(lin_u_n)
-        return lin_u
     
     def linearized_objective(self,
                              q: VectorArray,
