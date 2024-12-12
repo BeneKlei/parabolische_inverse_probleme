@@ -208,7 +208,8 @@ class UnAssembledB(UnAssembledEvaluator):
                                  A_u, 
                                  v : NumpyVectorArray):
         if isinstance(v, NumpyVectorArray):
-            v = v.to_numpy().reshape((self.opt_data['FE_dim'],))
+            # TODO Get true var
+            v = v.to_numpy().reshape((121,))
         elif isinstance(v,np.ndarray):
             pass
         else:

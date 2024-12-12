@@ -13,13 +13,13 @@ from timestepping import ImplicitEulerTimeStepper
 # - And assert correct space
 # - Add caching
 
-
-
-
 # Notes caching:
 # - Is q t dep A(q) can be stored for all time steps or calculated on the fly.
 #   - The later is maybe possible for ROMs not for FOM
 # 
+
+# TODO 
+# Switch np tp pyMOR
 
 class InstationaryModelIP:
     def __init__(self,
@@ -110,8 +110,7 @@ class InstationaryModelIP:
                                             q=q,
                                             operator = self.A, 
                                             rhs=rhs, 
-                                            mass=self.M,
-                                            )
+                                            mass=self.M)
         
         p = self.V.empty(reserve= self.dims['nt'])
         for p_n, _ in iterator:
@@ -158,7 +157,7 @@ class InstationaryModelIP:
                                u: VectorArray) -> VectorArray:
         
         assert q in self.Q
-        assert d in self.V
+        assert d in self.Q
         assert u in self.V
 
         for x in [q,d,u]:
@@ -222,9 +221,14 @@ class InstationaryModelIP:
         assert u in self.V
         assert lin_u in self.V
 
+        #TODO Split into parts
         q_ = q + d - self.q_circ
         regularization_term = self.products['prod_Q'].pairwise_apply2(q_, q_)
         u_q_d = u + lin_u
+
+        #TODO
+        # -Check with Q-norm
+        # Script for michael
 
         return  0.5 * self.delta_t * np.sum( \
                       self.bilinear_cost_term.pairwise_apply2(u_q_d,u_q_d) + \

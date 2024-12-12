@@ -10,8 +10,6 @@ from pymor.vectorarrays.interface import VectorArray
 from pymor.algorithms.timestepping import TimeStepper, _depends_on_time
 from evaluators import UnAssembledA, AssembledA
 
-import evaluators
-
 class ImplicitEulerTimeStepper(TimeStepper):
 
     steps = 1

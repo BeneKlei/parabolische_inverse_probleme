@@ -67,6 +67,7 @@ class FOMOptimizer(Optimizer):
         i = 0
         alpha = self.optimizer_parameter['alpha_0']
         q = self.optimizer_parameter['q_0'].copy()
+        q = self.FOM.Q.make_array(q)
     
         u = self.FOM.solve_state(q)
         J = self.FOM.objective(u)
@@ -87,27 +88,32 @@ class FOMOptimizer(Optimizer):
             regularization_qualification = False
             count = 1
 
-            d_start = q.copy()
+            d_start = q.copy().to_numpy()
             d_start[:,:] = 0
+            d_start = self.FOM.Q.make_array(d_start)
 
+            max_iter = 1e4
+            tol = 1e-12
+            inital_step_size = 1e6
+            #TODO 
             d = self.solve_linearized_problem(q=q,
                                               d_start=d_start,
                                               alpha=alpha,
                                               method='gd',
-                                              max_iter=1e4,
-                                              tol=1e-4,
-                                              inital_step_size=1e6)
+                                              max_iter=max_iter,
+                                              tol=tol,
+                                              inital_step_size=inital_step_size)
             
             lin_u = self.FOM.solve_linearized_state(q, d, u)
             #lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
             lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha=0)
 
-            condition_low = theta*J<lin_J
-            condition_up = lin_J < Theta*J
+            condition_low = theta*J< 2*lin_J
+            condition_up = 2* lin_J < Theta*J
             regularization_qualification = condition_low and condition_up
 
             self.logger.info(f"alpha = {alpha} does not satisfy selection criteria.")
-            self.logger.info(f"{theta*J:3.4e} < {lin_J:3.4e} < {Theta*J:3.4e}?")
+            self.logger.info(f"{theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}?")
             self.logger.info(f"Searching for alpha:") 
 
             while (not regularization_qualification) and (count < reg_loop_max) :
@@ -120,30 +126,30 @@ class FOMOptimizer(Optimizer):
                     raise ValueError
 
                 d = self.solve_linearized_problem(q=q,
-                                                d_start=d_start,
-                                                alpha=alpha,
-                                                method='gd',
-                                                max_iter=1e4,
-                                                tol=1e-4,
-                                                inital_step_size=1e6)
+                                                  d_start=d_start,
+                                                  alpha=alpha,
+                                                  method='gd',
+                                                  max_iter=max_iter,
+                                                  tol=tol,
+                                                  inital_step_size=inital_step_size)
 
                 lin_u = self.FOM.solve_linearized_state(q, d, u)
                 #lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
                 lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha=0)
 
-                condition_low = theta*J< lin_J
-                condition_up = lin_J < Theta*J
+                condition_low = theta*J< 2 * lin_J
+                condition_up = 2* lin_J < Theta*J
                 regularization_qualification = condition_low and condition_up
                             
 
                 self.logger.info(f"Test alpha = {alpha}.")
-                self.logger.info(f"Try {count}: {theta*J:3.4e} < {lin_J:3.4e} < {Theta*J:3.4e}?")
+                self.logger.info(f"Try {count}: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}?")
                 self.logger.info(f"--------------------------------------------------------------------")
 
                 count += 1
 
             if (count < reg_loop_max):
-                self.logger.info(f"Found valid alpha = {alpha}.")
+                self.losolve_linearized_problemgger.info(f"Found valid alpha = {alpha}.")
             else:
                 self.logger.info(f"Not found valid alpha before reaching maximum number of tries :  {reg_loop_max}. \n \
                                    Using the last alpha tested = {alpha}.")
@@ -186,7 +192,6 @@ class FOMOptimizer(Optimizer):
         
         if method == 'gd':
             return gradient_descent(self.FOM, q, d_start, alpha, **kwargs)
-        
         elif method == 'cg':
             raise NotImplementedError
         else:
