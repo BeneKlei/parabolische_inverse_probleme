@@ -8,7 +8,7 @@ from pymor.parameters.base import Mu
 from pymor.tools import floatcmp
 from pymor.vectorarrays.interface import VectorArray
 from pymor.algorithms.timestepping import TimeStepper, _depends_on_time
-from evaluators import A_evaluator
+from evaluators import UnAssembledA, AssembledA
 
 class ImplicitEulerTimeStepper(TimeStepper):
 
@@ -36,13 +36,13 @@ class ImplicitEulerTimeStepper(TimeStepper):
         
         assert isinstance(F, (type(None), Operator, VectorArray))
         assert isinstance(M, (type(None), Operator))
-        assert isinstance(A, (Operator, A_evaluator))
+        assert isinstance(A, (Operator, UnAssembledA, AssembledA))
         assert A.source == A.range
         assert isinstance(q, (type(None), VectorArray, np.ndarray))
         # A could depend on either mu or q.
         # q only parametrizes A.
         # If q is not None, A needs to be A_evaluator.
-        assert (q is None) or (isinstance(A, (A_evaluator)))
+        assert (q is None) or (isinstance(A, (UnAssembledA, AssembledA)))
 
 
         num_values = num_values or nt + 1
@@ -63,7 +63,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
             assert F in A.range
             if len(F) == 1:
                 F_time_dep = False
-            elif len(F) == (self.nt + 1):
+            elif len(F) == (self.nt):
                 F_time_dep = True
             else: 
                 # Should never happend
@@ -71,13 +71,15 @@ class ImplicitEulerTimeStepper(TimeStepper):
         else:
             # Should never happend
             raise AttributeError
+    
+        
 
         if isinstance(A, Operator):
             pass
-        elif isinstance(A, A_evaluator):
+        elif isinstance(A, (UnAssembledA, AssembledA)):
             if len(q) == 1:
                 q_time_dep = False
-            elif len(q) == (self.nt + 1):
+            elif len(q) == (self.nt):
                 q_time_dep = True
             else:
                 # Should never happend
@@ -95,7 +97,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
         assert len(U0) == 1
 
         num_ret_values = 1
-        yield U0, t0
+        #yield U0, t0
 
         # A = A(q[0])
         # options = (A.solver_options if self.solver_options == 'operator' else
@@ -110,7 +112,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
         if isinstance(A, Operator):
             M_dt_A = (M + A * dt).with_(solver_options=options)
         # If q not time-dependend assemble A_q for all time steps.
-        elif isinstance(A, A_evaluator) and not q_time_dep:
+        elif isinstance(A, (UnAssembledA, AssembledA)) and not q_time_dep:
             A_q = A(q[0])
             M_dt_A = (M + A_q * dt).with_(solver_options=options)
 
@@ -141,7 +143,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
                     raise AttributeError
                 
             if q_time_dep:
-                assert isinstance(A, A_evaluator)
+                assert isinstance(A, (UnAssembledA, AssembledA))
                 A_q = A(q[n])
                 M_dt_A = (M + A_q * dt).with_(solver_options=options)
 

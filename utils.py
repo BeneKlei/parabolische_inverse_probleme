@@ -49,7 +49,10 @@ def build_projection(grid):
     nodes_to_element_projection = csr_matrix((data, (rows, cols)))
     return nodes_to_element_projection, cols, cols_switched
 
-def split_constant_and_parameterized_operator(complete_operator):
+def split_constant_and_parameterized_operator(
+        complete_operator : LincombOperator
+    ):
+    assert isinstance(complete_operator, LincombOperator)
     operators, coefficients = [], []
     constant_operators, constant_coefficients = [], []
     for coef, op in zip(complete_operator.coefficients, complete_operator.operators):
@@ -66,13 +69,15 @@ def split_constant_and_parameterized_operator(complete_operator):
     parameterized_operator = LincombOperator(operators, coefficients, name='true_parameterized_operator')
 
     matrix = constant_operator.matrix.copy()
-    matrix.eliminate_zeros()
+    if isinstance(matrix, csr_matrix):
+        matrix.eliminate_zeros()
+        
     constant_operator = NumpyMatrixOperator(
         matrix = matrix,
         source_id = complete_operator.source.id,
         range_id = complete_operator.range.id
     )
-
+    
     return parameterized_operator, constant_operator
 
     # N = int(1/diameter*np.sqrt(2)) 
