@@ -41,7 +41,7 @@ def gradient_descent(
     assert inital_step_size > 0
 
     logger = logging.getLogger('gradient_descent')
-    #logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
 
     previous_d = np.nan
     current_d = d_start
@@ -68,8 +68,8 @@ def gradient_descent(
         
         # TODO Barzilai-Bornwein
         if not armijo_condition(previous_J, current_J, step_size, previous_d, current_d, kappa_arm=1e-4):
-            if inital_step_size > 1:
-                inital_step_size = 0.5 * inital_step_size
+            #if inital_step_size > 1:
+            inital_step_size = 0.5 * inital_step_size
 
         while not armijo_condition(previous_J, current_J, step_size, previous_d, current_d, kappa_arm=1e-4):
             step_size = 0.5 * step_size
@@ -86,6 +86,10 @@ def gradient_descent(
     else:
         logger.info(f"NOT converged after {int(max_iter)} iterations.")
 
+    print(current_J)
+    print(q)
+    print(current_d)
+    print(model.compute_linearized_objective(q, current_d, alpha))
     logger.info(f"objective = {current_J}, norm gradient = {np.linalg.norm(model.compute_linearized_gradient(q, current_d, alpha).to_numpy())}.")
 
     return current_d

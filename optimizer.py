@@ -9,7 +9,6 @@ from pymor.vectorarrays.interface import VectorArray
 from model import InstationaryModelIP
 from gradient_descent import gradient_descent
 
-#%% abstract optimizer class
 class Optimizer:
     def __init__(self, 
                  optimizer_parameter: Dict, 
@@ -61,7 +60,6 @@ class Optimizer:
         pass
 
     
-#%% FOM optimizer
 
 class FOMOptimizer(Optimizer):
     def solve(self) -> VectorArray:
@@ -95,7 +93,7 @@ class FOMOptimizer(Optimizer):
             d_start = self.FOM.Q.make_array(d_start)
 
             max_iter = 1e4
-            tol = 1e-12
+            tol = 1e-7
             inital_step_size = 1e6
             #TODO 
             d = self.solve_linearized_problem(q=q,
@@ -107,8 +105,11 @@ class FOMOptimizer(Optimizer):
                                               inital_step_size=inital_step_size)
             
             lin_u = self.FOM.solve_linearized_state(q, d, u)
-            #lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u)
             lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha=0)
+            print("###########################################")
+            print(lin_J)
+            print(q)
+            print(d)
 
             condition_low = theta*J< 2*lin_J
             condition_up = 2* lin_J < Theta*J
@@ -199,7 +200,11 @@ class FOMOptimizer(Optimizer):
         else:
             raise ValueError
 
-#%% rom optimizer
+
+
+        
+
+
 
 class ROMOptimizer(Optimizer):
     def __init__(self, 
@@ -207,9 +212,9 @@ class ROMOptimizer(Optimizer):
                  FOM : InstationaryModelIP) -> None:
 
         super().__init__(optimizer_parameter, FOM)
-        # self.reductor = InstationaryModelIPReductor(
+        self.reductor = InstationaryModelIPReductor(
             
-        # )
+        )
 
 
 
