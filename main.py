@@ -91,7 +91,7 @@ FOM = InstationaryModelIP(
 )
 
 FOM.derivative_check(FOM.compute_objective, FOM.compute_gradient)
-alpha = 1e-3
+alpha = 1e-0
 q = FOM.numpy_to_pymor(q_circ)
 FOM.derivative_check(lambda d : FOM.compute_linearized_objective(q, d, alpha), lambda d: FOM.compute_linearized_gradient(q, d, alpha))
 

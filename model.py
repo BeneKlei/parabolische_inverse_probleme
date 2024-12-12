@@ -120,6 +120,33 @@ class InstationaryModelIP:
         for p_n, _ in iterator:
             p.append(p_n)
         return self.V.make_array(np.flip(p.to_numpy(), axis=0))
+    
+    def solve_linearized_adjoint(self,
+                                 q: VectorArray,
+                                 u: VectorArray,
+                                 lin_u: VectorArray) -> VectorArray:
+    
+        assert q in self.Q
+        assert u in self.V
+        assert lin_u in self.V
+
+        rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
+        rhs = np.flip(rhs.to_numpy(), axis=0)
+        rhs = self.V.make_array(rhs)
+        iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
+                                            end_time = self.model_parameter['T_final'], 
+                                            initial_data = self.p_0, 
+                                            q=q,
+                                            operator = self.A, 
+                                            rhs=rhs, 
+                                            mass=self.M,
+                                            )
+        
+        lin_p = self.V.empty(reserve= self.dims['nt'])
+        for lin_p_n, _ in iterator:
+            lin_p.append(lin_p_n)
+
+        return self.V.make_array(np.flip(lin_p.to_numpy(), axis=0))
         
 
     def objective(self, 
@@ -154,6 +181,30 @@ class InstationaryModelIP:
 
         return self.Q.make_array(grad)
 
+    def linearized_gradient(self,
+                            q: VectorArray,
+                            d: VectorArray,
+                            u: VectorArray,
+                            lin_p: VectorArray,
+                            alpha : float) -> VectorArray:
+        
+        for x in [q, d, u, lin_p]:
+            assert isinstance(x, VectorArray)
+            assert len(x) == (self.dims['nt'])
+
+        assert q in self.Q
+        assert d in self.Q
+        assert u in self.V
+        assert lin_p in self.V
+
+        grad = np.empty((self.dims['nt'], self.dims['state_dim']))
+        
+        # TODO Check if this is efficent and / or how its efficeny can be improved
+        for idx in range(0, self.dims['nt']):
+            grad[idx] = - self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
+        grad = self.Q.make_array(grad)
+
+        return grad + alpha * self.products['prod_Q'].apply(q + d - self.q_circ)
 
     def solve_linearized_state(self,
                                q: VectorArray,
@@ -184,33 +235,6 @@ class InstationaryModelIP:
         for lin_u_n, _ in iterator:
             lin_u.append(lin_u_n)
         return lin_u
-
-    def solve_linearized_adjoint(self,
-                                 q: VectorArray,
-                                 u: VectorArray,
-                                 lin_u: VectorArray) -> VectorArray:
-    
-        assert q in self.Q
-        assert u in self.V
-        assert lin_u in self.V
-
-        rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
-        rhs = np.flip(rhs.to_numpy(), axis=0)
-        rhs = self.V.make_array(rhs)
-        iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
-                                            end_time = self.model_parameter['T_final'], 
-                                            initial_data = self.p_0, 
-                                            q=q,
-                                            operator = self.A, 
-                                            rhs=rhs, 
-                                            mass=self.M,
-                                            )
-        
-        lin_p = self.V.empty(reserve= self.dims['nt'])
-        for lin_p_n, _ in iterator:
-            lin_p.append(lin_p_n)
-
-        return self.V.make_array(np.flip(lin_p.to_numpy(), axis=0))
     
     def linearized_objective(self,
                              q: VectorArray,
@@ -242,32 +266,6 @@ class InstationaryModelIP:
                       (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u_q_d) + \
                       self.constant_cost_term
                       + alpha * regularization_term)
-
-
-    def linearized_gradient(self,
-                            q: VectorArray,
-                            d: VectorArray,
-                            u: VectorArray,
-                            lin_p: VectorArray,
-                            alpha : float) -> VectorArray:
-        
-        for x in [q, d, u, lin_p]:
-            assert isinstance(x, VectorArray)
-            assert len(x) == (self.dims['nt'])
-
-        assert q in self.Q
-        assert d in self.Q
-        assert u in self.V
-        assert lin_p in self.V
-
-        grad = np.empty((self.dims['nt'], self.dims['state_dim']))
-        
-        # TODO Check if this is efficent and / or how its efficeny can be improved
-        for idx in range(0, self.dims['nt']):
-            grad[idx] = - self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
-        grad = self.Q.make_array(grad)
-
-        return grad + alpha * self.products['prod_Q'].apply(q + d - self.q_circ)
 
     def linearized_hessian(self):
         raise NotImplementedError
