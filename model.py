@@ -42,12 +42,12 @@ class InstationaryModelIP:
                  dims: Dict,
                  model_parameter: Dict):
 
+        # TODO was passiert hier?
         self.u_0 = u_0
         assert np.all(u_0.to_numpy() == 0)
         self.p_0 = u_0.copy()
         self.linearized_u_0 = u_0.copy()
         self.linearized_p_0 = u_0.copy()
-
 
         self.M = M 
         self.A = A 
@@ -73,6 +73,8 @@ class InstationaryModelIP:
 
         assert self.model_parameter['T_final'] > self.model_parameter['T_initial']
         self.delta_t = (self.model_parameter['T_final'] - self.model_parameter['T_initial']) / self.dims['nt']
+        
+#%% solve methods
 
     def solve_state(self, q: VectorArray) -> VectorArray:
         assert q in self.Q
@@ -117,40 +119,6 @@ class InstationaryModelIP:
             p.append(p_n)
         return self.V.make_array(np.flip(p.to_numpy()))
         
-
-    def objective(self, 
-                  u: Union[VectorArray, np.ndarray]) -> float:
-
-        assert isinstance(u, (VectorArray, np.ndarray))
-        assert len(u) == (self.dims['nt'])
-
-        # Remove the vector at k = 0
-        return  0.5 * self.delta_t * np.sum( \
-                      self.bilinear_cost_term.pairwise_apply2(u,u) + \
-                      (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u) + \
-                      self.constant_cost_term
-                    )
-
-    def gradient(self,
-                 u: VectorArray,
-                 p: VectorArray) -> VectorArray:
-        
-        assert u in self.V
-        assert p in self.V
-
-        for x in [u,p]:
-            assert isinstance(x, VectorArray)
-            assert len(x) == (self.dims['nt'])
-
-        grad = np.empty((self.dims['nt'], self.dims['state_dim']))
-        
-        # TODO Check if this is efficent and / or how its efficeny can be improved
-        for idx in range(0, self.dims['nt']):
-            grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
-
-        return self.Q.make_array(grad)
-
-
     def solve_linearized_state(self,
                                q: VectorArray,
                                d: VectorArray,
@@ -204,6 +172,40 @@ class InstationaryModelIP:
         for lin_p_n, _ in iterator:
             lin_p.append(lin_p_n)
         return self.V.make_array(np.flip(lin_p.to_numpy()))
+    
+#%% objective
+
+    def objective(self, 
+                  u: Union[VectorArray, np.ndarray]) -> float:
+
+        assert isinstance(u, (VectorArray, np.ndarray))
+        assert len(u) == (self.dims['nt'])
+
+        # Remove the vector at k = 0
+        return  0.5 * self.delta_t * np.sum( \
+                      self.bilinear_cost_term.pairwise_apply2(u,u) + \
+                      (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u) + \
+                      self.constant_cost_term
+                    )
+
+    def gradient(self,
+                 u: VectorArray,
+                 p: VectorArray) -> VectorArray:
+        
+        assert u in self.V
+        assert p in self.V
+
+        for x in [u,p]:
+            assert isinstance(x, VectorArray)
+            assert len(x) == (self.dims['nt'])
+
+        grad = np.empty((self.dims['nt'], self.dims['state_dim']))
+        
+        # TODO Check if this is efficent and / or how its efficeny can be improved
+        for idx in range(0, self.dims['nt']):
+            grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
+
+        return self.Q.make_array(grad)
     
     def linearized_objective(self,
                              q: VectorArray,

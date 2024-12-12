@@ -22,6 +22,9 @@ set_defaults({
     # 'pymor.algorithms.gram_schmidt.gram_schmidt.rtol' : 1e-15,
 })
 
+
+#%% set options
+
 N = 10                                                                      # FE Dofs = (N+1)^2                                                
 noise_level = 1e-5        
 nt = 10
@@ -59,12 +62,14 @@ optimizer_parameter = {
     'tau' : 1e-10,
     'tol' : 1e-10,
     'q_0' : q_circ,
-    'alpha_0' : 1e-6,
+    'alpha_0' : 1e-2,
     'i_max' : 50,
     'reg_loop_max' : 50,
     'theta' : 0.25,
     'Theta' : 0.75
 }
+
+#%% discretize
 
 print('Construct problem..')                                                     
 analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(
@@ -91,10 +96,14 @@ FOM = InstationaryModelIP(
     model_parameter = model_parameter
 )
 
-optimizer = FOMOptimizer(
-    FOM = FOM,
-    optimizer_parameter = optimizer_parameter
-)
-optimizer.logger.setLevel(logging.INFO)
+#%% tests
 
-optimizer.solve()
+#%% optimize
+
+if 0:
+    optimizer = FOMOptimizer(
+        FOM = FOM,
+        optimizer_parameter = optimizer_parameter
+    )
+    optimizer.logger.setLevel(logging.INFO)
+    optimizer.solve()

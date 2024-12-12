@@ -9,6 +9,7 @@ from pymor.vectorarrays.interface import VectorArray
 from model import InstationaryModelIP
 from gradient_descent import gradient_descent
 
+#%% abstract optimizer class
 class Optimizer:
     def __init__(self, 
                  optimizer_parameter: Dict, 
@@ -60,6 +61,7 @@ class Optimizer:
         pass
 
     
+#%% FOM optimizer
 
 class FOMOptimizer(Optimizer):
     def solve(self) -> VectorArray:
@@ -197,11 +199,7 @@ class FOMOptimizer(Optimizer):
         else:
             raise ValueError
 
-
-
-        
-
-
+#%% rom optimizer
 
 class ROMOptimizer(Optimizer):
     def __init__(self, 
@@ -209,9 +207,9 @@ class ROMOptimizer(Optimizer):
                  FOM : InstationaryModelIP) -> None:
 
         super().__init__(optimizer_parameter, FOM)
-        self.reductor = InstationaryModelIPReductor(
+        # self.reductor = InstationaryModelIPReductor(
             
-        )
+        # )
 
 
 
