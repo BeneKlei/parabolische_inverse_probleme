@@ -22,7 +22,7 @@ set_defaults({
     # 'pymor.algorithms.gram_schmidt.gram_schmidt.rtol' : 1e-15,
 })
 
-N = 50                                                                      # FE Dofs = (N+1)^2                                                
+N = 10                                                                      # FE Dofs = (N+1)^2                                                
 noise_level = 1e-5        
 nt = 50
 fine_N = 2 * N
