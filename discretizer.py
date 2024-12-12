@@ -66,14 +66,16 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         reaction_problem = ('reaction' in problem_type),
         grid = primal_fom_data['grid'],
         boundary_info = primal_fom_data['boundary_info'],
-        Q = Q_h
+        Q = Q_h,
+        dims = dims
     )
     
     B = UnAssembledB(
         reaction_problem = ('reaction' in problem_type),
         grid = primal_fom_data['grid'],
         boundary_info = primal_fom_data['boundary_info'],
-        V = V_h
+        V = V_h,
+        dims = dims
     )
 
     ############################### Cost ###############################

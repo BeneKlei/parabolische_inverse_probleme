@@ -9,6 +9,7 @@ from pymor.vectorarrays.interface import VectorSpace
 from evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
 from timestepping import ImplicitEulerTimeStepper
 
+import matplotlib.pyplot as plt
 # TODO 
 # - And assert correct space
 # - Add caching
@@ -303,3 +304,60 @@ class InstationaryModelIP:
         lin_p = self.solve_linearized_adjoint(q, u, lin_u)
 
         return self.linearized_gradient(q, d, u, lin_p, alpha)
+ 
+#%% helpers
+
+    def pymor_to_numpy(self,q):
+        return q.to_numpy()
+    
+    def numpy_to_pymor(self,q):
+        return self.Q.make_array(q)
+
+    def derivative_check(self,f, df, mode = 1):
+        
+        Eps = np.array([1,1e-1,1e-2,1e-3,1e-4,1e-5,1e-6])
+        
+        u  = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
+        du = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
+        T = np.zeros(np.shape(Eps))
+        T2 = T
+        ff = f(u)
+        
+        # Compute central & right-side difference quotient
+        for i in range(len(Eps)):
+            #print(Eps[i])
+            f_plus = f(u+Eps[i]*du)
+            f_minus = f(u-Eps[i]*du)
+            if mode == 1:
+                
+                dfu_np = df(u).to_numpy().T
+                du_np = du.to_numpy().T
+                ddd = self.delta_t * np.sum(np.sum(dfu_np*du_np, axis = 0))
+                # ddd = self.space_time_product(df(u)[0], du, 'control')
+                
+                T[i] = abs( ( (f_plus - f_minus)/(2*Eps[i]) ) - ddd )
+                T2[i] =  abs( ( (f_plus - ff)/(Eps[i]) ) - ddd )
+            else:
+                T[i] = abs( ( (f_plus - f_minus)/(2*Eps[i]) ) - df(u,du) )
+                T2[i] =  abs( ( (f_plus - ff)/(Eps[i]) ) - df(u,du) )
+            
+        #Plot
+        # plt.figure()
+        # plt.xlabel('$eps$')
+        # plt.ylabel('$J$')
+        # plt.loglog(Eps, Eps**2, label='O(eps^2)')
+        # plt.loglog(Eps, T,'ro--', label='Test')
+        # plt.legend(loc='upper left')
+        # plt.grid()
+        # plt.title("Central difference quotient")
+        plt.figure()
+        plt.xlabel('$eps$')
+        plt.ylabel('$J$')
+        plt.loglog(Eps, Eps, label='O(eps)')
+        plt.loglog(Eps, T2, 'ro--',label='Test')
+        plt.legend(loc='upper left')
+        plt.grid()
+        plt.title("Rightside difference quotient")
+        # print(T)
+        # print(Eps)
+        # print(Eps**2)

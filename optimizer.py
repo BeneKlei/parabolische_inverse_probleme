@@ -15,7 +15,8 @@ class Optimizer:
                  FOM : InstationaryModelIP) -> None:
         self.FOM = FOM
         self.optimizer_parameter = optimizer_parameter
-        self._check_optimizer_parameter()        
+        self._check_optimizer_parameter()    
+        logging.basicConfig()
         self.logger = logging.getLogger(self.__class__.__name__)
 
 
@@ -93,7 +94,7 @@ class FOMOptimizer(Optimizer):
             d_start = self.FOM.Q.make_array(d_start)
 
             max_iter = 1e4
-            tol = 1e-7
+            tol = 1e-13
             inital_step_size = 1e6
             #TODO 
             d = self.solve_linearized_problem(q=q,
@@ -152,7 +153,7 @@ class FOMOptimizer(Optimizer):
                 count += 1
 
             if (count < reg_loop_max):
-                self.losolve_linearized_problemgger.info(f"Found valid alpha = {alpha}.")
+                self.logger.info(f"Found valid alpha = {alpha}.")
             else:
                 self.logger.info(f"Not found valid alpha before reaching maximum number of tries :  {reg_loop_max}. \n \
                                    Using the last alpha tested = {alpha}.")
@@ -212,9 +213,9 @@ class ROMOptimizer(Optimizer):
                  FOM : InstationaryModelIP) -> None:
 
         super().__init__(optimizer_parameter, FOM)
-        self.reductor = InstationaryModelIPReductor(
+        # self.reductor = InstationaryModelIPReductor(
             
-        )
+        # )
 
 
 

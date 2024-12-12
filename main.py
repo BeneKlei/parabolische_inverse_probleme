@@ -22,9 +22,9 @@ set_defaults({
     # 'pymor.algorithms.gram_schmidt.gram_schmidt.rtol' : 1e-15,
 })
 
-N = 10                                                                      # FE Dofs = (N+1)^2                                                
+N = 50                                                                      # FE Dofs = (N+1)^2                                                
 noise_level = 1e-5        
-nt = 10
+nt = 50
 fine_N = 2 * N
 
 dims = {
@@ -90,10 +90,16 @@ FOM = InstationaryModelIP(
     model_parameter = model_parameter
 )
 
-optimizer = FOMOptimizer(
-    FOM = FOM,
-    optimizer_parameter = optimizer_parameter
-)
-optimizer.logger.setLevel(logging.INFO)
+FOM.derivative_check(FOM.compute_objective, FOM.compute_gradient)
+alpha = 1e-3
+q = FOM.numpy_to_pymor(q_circ)
+FOM.derivative_check(lambda d : FOM.compute_linearized_objective(q, d, alpha), lambda d: FOM.compute_linearized_gradient(q, d, alpha))
 
-optimizer.solve()
+if 0:
+    optimizer = FOMOptimizer(
+        FOM = FOM,
+        optimizer_parameter = optimizer_parameter
+    )
+    optimizer.logger.setLevel(logging.DEBUG)
+    
+    optimizer.solve()
