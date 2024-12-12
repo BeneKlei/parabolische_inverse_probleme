@@ -192,29 +192,41 @@ class InstationaryModelIP:
         return out
     
     def gradient_regularization_term(self, q, alpha):
-        pass
-    
+        return  alpha * (self.products['prod_Q'].apply(q) - self.linear_reg_term.as_range_array())
+           
     def linearized_regularization_term(self, q, d, alpha):
-        pass
+        
+        out = 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q+d,q+d)\
+                                            + (-2)  * self.linear_reg_term.as_range_array().pairwise_inner(q+d)+\
+                                            + self.constant_reg_term
+                                          )
+        
+        return out
     
     def gradient_linarized_regularization_term(self, q, d, alpha):
-        pass
-        
-        
+        return alpha * (self.products['prod_Q'].apply(q + d) - self.linear_reg_term.as_range_array())
     
     def objective(self, 
                   u: Union[VectorArray, np.ndarray],
+                  q: VectorArray,
                   alpha: float = 0) -> float:
 
         assert isinstance(u, (VectorArray, np.ndarray))
         assert len(u) == (self.dims['nt'])
-
-        # Remove the vector at k = 0
-        return  0.5 * self.delta_t * np.sum( \
+        
+        # compute tracking term
+        out = 0.5 * self.delta_t * np.sum( \
                       self.bilinear_cost_term.pairwise_apply2(u,u) + \
                       (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u) + \
                       self.constant_cost_term
                     )
+            
+        if alpha>0:
+            # add regularization term if alpha >0
+            
+            return out + self.regularization_term(q, alpha)
+        else:
+            return out
 
     def gradient(self,
                  u: VectorArray,
@@ -277,21 +289,22 @@ class InstationaryModelIP:
         assert u in self.V
         assert lin_u in self.V
 
-        #TODO Split into parts
-        q_ = q + d - self.q_circ
-        regularization_term = self.products['prod_Q'].pairwise_apply2(q_, q_)
+        # #TODO Split into parts
+        # q_ = q + d - self.q_circ
+        # regularization_term = self.products['prod_Q'].pairwise_apply2(q_, q_)
         u_q_d = u + lin_u
-
-        #TODO
-        # -Check with Q-norm
-        # Script for michael
-
-        return  0.5 * self.delta_t * np.sum( \
+        
+        
+        out = 0.5 * self.delta_t * np.sum( \
                       self.bilinear_cost_term.pairwise_apply2(u_q_d,u_q_d) + \
                       (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u_q_d) + \
                       self.constant_cost_term
-                      + alpha * regularization_term)
-
+                      )
+        if alpha >0:
+            return out + self.linearized_regularization_term(q, d, alpha)
+        else:
+            return out
+        
     def linearized_hessian(self):
         raise NotImplementedError
                              
@@ -299,7 +312,7 @@ class InstationaryModelIP:
                           q: VectorArray) -> float:
 
         u = self.solve_state(q)
-        return self.objective(u)
+        return self.objective(u, q)
     
     def compute_gradient(self,
                          q: VectorArray) -> float:
@@ -338,31 +351,28 @@ class InstationaryModelIP:
 
     def derivative_check(self,f, df, mode = 1):
         
+        print('derivative check ...')
+        
         Eps = np.array([1,1e-1,1e-2,1e-3,1e-4,1e-5,1e-6])
         
-        u  = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
-        du = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
+        q  = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
+        dq = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
         T = np.zeros(np.shape(Eps))
         T2 = T
-        ff = f(u)
+        ff = f(q)
         
         # Compute central & right-side difference quotient
         for i in range(len(Eps)):
             #print(Eps[i])
-            f_plus = f(u+Eps[i]*du)
-            f_minus = f(u-Eps[i]*du)
-            if mode == 1:
-                
-                dfu_np = df(u).to_numpy().T
-                du_np = du.to_numpy().T
-                ddd = self.delta_t * np.sum(np.sum(dfu_np*du_np, axis = 0))
-                # ddd = self.space_time_product(df(u)[0], du, 'control')
-                
-                T[i] = abs( ( (f_plus - f_minus)/(2*Eps[i]) ) - ddd )
-                T2[i] =  abs( ( (f_plus - ff)/(Eps[i]) ) - ddd )
-            else:
-                T[i] = abs( ( (f_plus - f_minus)/(2*Eps[i]) ) - df(u,du) )
-                T2[i] =  abs( ( (f_plus - ff)/(Eps[i]) ) - df(u,du) )
+            f_plus = f(q+Eps[i]*dq)
+            f_minus = f(q-Eps[i]*dq)
+            
+            dfq_np = df(q).to_numpy().T
+            dq_np = dq.to_numpy().T
+            df_dq = self.delta_t * np.sum(np.sum(dfq_np*dq_np, axis = 0))
+            
+            T[i] = abs( ( (f_plus - f_minus)/(2*Eps[i]) ) - df_dq )
+            T2[i] =  abs( ( (f_plus - ff)/(Eps[i]) ) - df_dq )
             
         #Plot
         # plt.figure()

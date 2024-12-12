@@ -90,10 +90,20 @@ FOM = InstationaryModelIP(
     model_parameter = model_parameter
 )
 
-FOM.derivative_check(FOM.compute_objective, FOM.compute_gradient)
-alpha = 1e-0
-q = FOM.numpy_to_pymor(q_circ)
-FOM.derivative_check(lambda d : FOM.compute_linearized_objective(q, d, alpha), lambda d: FOM.compute_linearized_gradient(q, d, alpha))
+if 1:
+    # Gradient tests 
+    
+    # objective 
+    FOM.derivative_check(FOM.compute_objective, FOM.compute_gradient)
+    
+    # gradient regularization term
+    alpha = 1e0
+    FOM.derivative_check(lambda q: FOM.regularization_term(q,alpha), lambda q: FOM.gradient_regularization_term(q, alpha))
+    
+    # linarized objective
+    alpha = 1e-0
+    q = FOM.numpy_to_pymor(q_circ)
+    FOM.derivative_check(lambda d : FOM.compute_linearized_objective(q, d, alpha), lambda d: FOM.compute_linearized_gradient(q, d, alpha))
 
 if 0:
     optimizer = FOMOptimizer(
