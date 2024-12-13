@@ -12,6 +12,15 @@ from pymor.parameters.base import ParameterSpace
 
 from model import InstationaryModelIP
 from optimizer import FOMOptimizer
+from gradient_descent import gradient_descent_non_linearized_problem
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+
+logger.addHandler(handler)
 
 set_log_levels({
     'pymor' : 'WARN'
@@ -98,12 +107,31 @@ if 1:
     
     # gradient regularization term
     alpha = 1e0
-    FOM.derivative_check(lambda q: FOM.regularization_term(q,alpha), lambda q: FOM.gradient_regularization_term(q, alpha))
+    FOM.derivative_check(lambda q: alpha * FOM.regularization_term(q), lambda q: alpha * FOM.gradient_regularization_term(q))
     
     # linarized objective
     alpha = 1e-0
     q = FOM.numpy_to_pymor(q_circ)
     FOM.derivative_check(lambda d : FOM.compute_linearized_objective(q, d, alpha), lambda d: FOM.compute_linearized_gradient(q, d, alpha))
+
+    # Gradient descent test
+    print("Solve optimization problem")
+
+    q_est = gradient_descent_non_linearized_problem(FOM, q_start=q_circ, alpha=0, max_iter=1e5, tol=1e-12, inital_step_size=1e8, logger=logger)
+
+    q_exact = []
+    for idx in range(dims['nt']):
+        q_exact.append(model_parameter['q_exact'])
+    
+    q_exact = FOM.Q.make_array(np.array(q_exact))
+    print("Differnce to q_exact:")
+    print("L^inf") 
+    print(np.max(np.abs((q_est - q_exact).to_numpy())))
+    print("Q-Norm") 
+    print(np.sqrt(np.sum(FOM.products['prod_Q'].pairwise_apply2(q_est - q_exact, q_est - q_exact))))
+        
+
+
 
 if 0:
     optimizer = FOMOptimizer(

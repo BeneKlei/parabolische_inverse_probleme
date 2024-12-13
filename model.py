@@ -396,6 +396,7 @@ class InstationaryModelIP:
         plt.legend(loc='upper left')
         plt.grid()
         plt.title("Rightside difference quotient")
+        plt.show()
         # print(T)
         # print(Eps)
         # print(Eps**2)

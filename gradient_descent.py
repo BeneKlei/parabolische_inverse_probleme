@@ -34,14 +34,16 @@ def gradient_descent_linearized_problem(
     alpha : float,
     max_iter : int,
     tol : float,
-    inital_step_size: float
+    inital_step_size: float,
+    logger: logging.Logger = None,
 ) -> np.array:
     assert alpha >= 0
     assert tol > 0
     assert inital_step_size > 0
 
-    logger = logging.getLogger('gradient_descent')
-    logger.setLevel(logging.DEBUG)
+    if not logger:
+        logger = logging.getLogger('gradient_descent')
+        logger.setLevel(logging.DEBUG)
 
     previous_d = np.nan
     current_d = d_start
@@ -101,14 +103,16 @@ def gradient_descent_non_linearized_problem(
     alpha : float,
     max_iter : int,
     tol : float,
-    inital_step_size: float
+    inital_step_size: float,
+    logger: logging.Logger = None
 ) -> np.array:
     assert alpha >= 0
     assert tol > 0
     assert inital_step_size > 0
 
-    logger = logging.getLogger('gradient_descent')
-    logger.setLevel(logging.DEBUG)
+    if not logger:
+        logger = logging.getLogger('gradient_descent')
+        logger.setLevel(logging.DEBUG)
 
     previous_q = np.nan
     current_q = model.Q.make_array(q_start)
@@ -137,15 +141,15 @@ def gradient_descent_non_linearized_problem(
         if not armijo_condition(previous_J, current_J, step_size, previous_q, current_q, kappa_arm=1e-4):
             #if inital_step_size > 1:
             inital_step_size = 0.5 * inital_step_size
-        else:
-            inital_step_size = 1.05 * inital_step_size
+        # else:
+        #     inital_step_size = 1.05 * inital_step_size
 
         while not armijo_condition(previous_J, current_J, step_size, previous_q, current_q, kappa_arm=1e-4):
             step_size = 0.5 * step_size
             current_q = previous_q - step_size * grad
             current_J = model.compute_objective(current_q, alpha)
 
-        if (i % 10 == 0):
+        if (i % 100 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J}, norm gradient = {np.linalg.norm(model.compute_gradient(current_q, alpha).to_numpy())}.")
             logger.info(f"  inital_step_size = {str(inital_step_size)}")
 
