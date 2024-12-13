@@ -94,8 +94,8 @@ class FOMOptimizer(Optimizer):
             d_start = self.FOM.Q.make_array(d_start)
 
             max_iter = 1e4
-            tol = 1e-13
-            inital_step_size = 1e6
+            tol = 1e-8
+            inital_step_size = 1e7
             #TODO 
             d = self.solve_linearized_problem(q=q,
                                               d_start=d_start,
@@ -107,10 +107,10 @@ class FOMOptimizer(Optimizer):
             
             lin_u = self.FOM.solve_linearized_state(q, d, u)
             lin_J = self.FOM.linearized_objective(q, d, u, lin_u, alpha=0)
-            print("###########################################")
-            print(lin_J)
-            print(q)
-            print(d)
+            # print("###########################################")
+            # print(lin_J)
+            # print(q)
+            # print(d)
 
             condition_low = theta*J< 2*lin_J
             condition_up = 2* lin_J < Theta*J
@@ -200,12 +200,6 @@ class FOMOptimizer(Optimizer):
             raise NotImplementedError
         else:
             raise ValueError
-
-
-
-        
-
-
 
 class ROMOptimizer(Optimizer):
     def __init__(self, 

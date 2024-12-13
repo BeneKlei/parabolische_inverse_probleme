@@ -137,7 +137,7 @@ class InstationaryModelIP:
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         rhs = self.V.make_array(np.array([
-            -self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(d))
+            - self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(d))
         ]))
         
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
@@ -163,7 +163,7 @@ class InstationaryModelIP:
 
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
-        rhs = self.V.make_array(rhs)
+        rhs = - self.V.make_array(rhs)
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
                                             initial_data = self.p_0, 
@@ -179,40 +179,10 @@ class InstationaryModelIP:
 
         return self.V.make_array(np.flip(lin_p.to_numpy(), axis=0))
     
-    def linearized_objective(self,
-                             q: VectorArray,
-                             d: VectorArray,
-                             u: VectorArray,
-                             lin_u: VectorArray,
-                             alpha : float) -> float:
-    
-        for x in [q, d,u,lin_u]:
-            assert isinstance(x, VectorArray)
-            assert len(x) == (self.dims['nt'])
-
-        assert q in self.Q
-        assert d in self.Q
-        assert u in self.V
-        assert lin_u in self.V
-
-        #TODO Split into parts
-        q_ = q + d - self.q_circ
-        regularization_term = self.products['prod_Q'].pairwise_apply2(q_, q_)
-        u_q_d = u + lin_u
-
-        #TODO
-        # -Check with Q-norm
-
-        return  0.5 * self.delta_t * np.sum( \
-                      self.bilinear_cost_term.pairwise_apply2(u_q_d,u_q_d) + \
-                      (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u_q_d) + \
-                      self.constant_cost_term
-                      + alpha * regularization_term)
-
 #%% objective and gradient
     def objective(self, 
                   u: Union[VectorArray, np.ndarray],
-                  q: VectorArray,
+                  q: VectorArray = None,
                   alpha: float = 0) -> float:
 
         assert isinstance(u, (VectorArray, np.ndarray))
@@ -224,8 +194,9 @@ class InstationaryModelIP:
                                           + self.constant_cost_term)
             
         if alpha > 0:
+            assert q is not None
             # add regularization term if alpha >0
-            return out + self.regularization_term(q, alpha)
+            return out + alpha * self.regularization_term(q)
         else:
             return out
 
@@ -246,12 +217,12 @@ class InstationaryModelIP:
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.dims['nt']):
-            grad[idx] = - self.B(u[idx]).B_u_ad(p[idx], 'grad') 
+            grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
         
         if alpha > 0:
             assert q is not None
             # add regularization term if alpha >0
-            return self.Q.make_array(grad) + self.regularization_term(q, alpha)
+            return self.Q.make_array(grad) + alpha * self.gradient_regularization_term(q)
         else:
             return self.Q.make_array(grad)
         
@@ -306,7 +277,7 @@ class InstationaryModelIP:
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.dims['nt']):
-            grad[idx] = - self.B(u[idx]).B_u_ad(lin_p[idx], 'grad')        
+            grad[idx] = self.B(u[idx]).B_u_ad(lin_p[idx], 'grad')        
 
         if alpha > 0:
             return self.Q.make_array(grad) + alpha * self.linarized_gradient_regularization_term(q,d)
