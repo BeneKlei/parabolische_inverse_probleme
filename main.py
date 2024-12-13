@@ -102,7 +102,7 @@ FOM = InstationaryModelIP(
 if 1:
     # Gradient tests 
     
-    # objective 
+    objective 
     FOM.derivative_check(FOM.compute_objective, FOM.compute_gradient)
     
     # gradient regularization term
@@ -114,7 +114,7 @@ if 1:
     q = FOM.numpy_to_pymor(q_circ)
     FOM.derivative_check(lambda d : FOM.compute_linearized_objective(q, d, alpha), lambda d: FOM.compute_linearized_gradient(q, d, alpha))
 
-    # Gradient descent test
+    # # Gradient descent test
     print("Solve optimization problem")
 
     q_est = gradient_descent_non_linearized_problem(FOM, q_start=q_circ, alpha=0, max_iter=1e5, tol=1e-12, inital_step_size=1e8, logger=logger)
@@ -129,11 +129,30 @@ if 1:
     print(np.max(np.abs((q_est - q_exact).to_numpy())))
     print("Q-Norm") 
     print(np.sqrt(np.sum(FOM.products['prod_Q'].pairwise_apply2(q_est - q_exact, q_est - q_exact))))
+
+    # d_start = q_circ.copy()
+    # d_start[:,:] = 0
+    # d_start = FOM.Q.make_array(d_start)
+
+    # d_est = gradient_descent_linearized_problem(FOM, q=FOM.Q.make_array(q_circ), d_start=d_start, alpha=0, max_iter=1e5, tol=1e-12, inital_step_size=1e8)
         
 
 
 
 if 0:
+    q_start = 0*np.ones((nt, dims['par_dim']))
+    optimizer_parameter = {
+        'noise_level' : model_parameter['noise_level'],
+        'tau' : 1e-10,
+        'tol' : 1e-10,
+        'q_0' : q_start,
+        'alpha_0' : 1,
+        'i_max' : 50,
+        'reg_loop_max' : 50,
+        'theta' : 0.25,
+        'Theta' : 0.75
+    }
+
     optimizer = FOMOptimizer(
         FOM = FOM,
         optimizer_parameter = optimizer_parameter

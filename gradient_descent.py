@@ -49,6 +49,7 @@ def gradient_descent_linearized_problem(
     current_d = d_start
     converged = False
     last_i = -np.inf
+    buffer = [-np.inf, -np.inf, -np.inf]
 
     previous_J = np.inf
     current_J = model.compute_linearized_objective(q, current_d, alpha)
@@ -70,8 +71,10 @@ def gradient_descent_linearized_problem(
         
         # TODO Barzilai-Bornwein
         if not armijo_condition(previous_J, current_J, step_size, previous_d, current_d, kappa_arm=1e-4):
-            #if inital_step_size > 1:
             inital_step_size = 0.5 * inital_step_size
+        else:
+            inital_step_size = 1.05 * inital_step_size
+            
 
         while not armijo_condition(previous_J, current_J, step_size, previous_d, current_d, kappa_arm=1e-4):
             step_size = 0.5 * step_size
@@ -81,6 +84,19 @@ def gradient_descent_linearized_problem(
         if (i % 10 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J}, norm gradient = {np.linalg.norm(model.compute_linearized_gradient(q, current_d, alpha).to_numpy())}.")
             logger.info(f"  inital_step_size = {str(inital_step_size)}")
+
+        buffer.pop(0)
+        buffer.append(current_J)
+        #stagnation check
+        if i > 3:
+            # print(buffer)
+            # print(abs(buffer[0] - buffer[1]))
+            # print(abs(buffer[1] - buffer[2]))
+            if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] -buffer[2]) < MACHINE_EPS:
+                logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
+                break
+            
+
 
 
     if converged:
@@ -140,16 +156,16 @@ def gradient_descent_non_linearized_problem(
         # TODO Barzilai-Bornwein
         if not armijo_condition(previous_J, current_J, step_size, previous_q, current_q, kappa_arm=1e-4):
             #if inital_step_size > 1:
-            inital_step_size = 0.5 * inital_step_size
-        # else:
-        #     inital_step_size = 1.05 * inital_step_size
+            inital_step_size = 0.95 * inital_step_size
+        else:
+            inital_step_size = 1.05 * inital_step_size
 
         while not armijo_condition(previous_J, current_J, step_size, previous_q, current_q, kappa_arm=1e-4):
             step_size = 0.5 * step_size
             current_q = previous_q - step_size * grad
             current_J = model.compute_objective(current_q, alpha)
 
-        if (i % 100 == 0):
+        if (i % 1 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J}, norm gradient = {np.linalg.norm(model.compute_gradient(current_q, alpha).to_numpy())}.")
             logger.info(f"  inital_step_size = {str(inital_step_size)}")
 
