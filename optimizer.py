@@ -7,7 +7,7 @@ import numpy as np
 from pymor.vectorarrays.interface import VectorArray
 
 from model import InstationaryModelIP
-from gradient_descent import gradient_descent
+from gradient_descent import gradient_descent_linearized_problem
 
 class Optimizer:
     def __init__(self, 
@@ -89,12 +89,12 @@ class FOMOptimizer(Optimizer):
             regularization_qualification = False
             count = 1
 
-            d_start = q.copy().to_numpy()
+            d_start = q.to_numpy().copy()
             d_start[:,:] = 0
             d_start = self.FOM.Q.make_array(d_start)
 
             max_iter = 1e4
-            tol = 1e-8
+            tol = 1e-10
             inital_step_size = 1e7
             #TODO 
             d = self.solve_linearized_problem(q=q,
@@ -128,7 +128,8 @@ class FOMOptimizer(Optimizer):
                     alpha = max(alpha/2,1e-14)
                 else:
                     raise ValueError
-
+                
+                self.logger.info(f"Test alpha = {alpha}.")
                 d = self.solve_linearized_problem(q=q,
                                                   d_start=d_start,
                                                   alpha=alpha,
@@ -146,7 +147,6 @@ class FOMOptimizer(Optimizer):
                 regularization_qualification = condition_low and condition_up
                             
 
-                self.logger.info(f"Test alpha = {alpha}.")
                 self.logger.info(f"Try {count}: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}?")
                 self.logger.info(f"--------------------------------------------------------------------")
 
@@ -195,7 +195,7 @@ class FOMOptimizer(Optimizer):
                                  **kwargs : Dict) -> np.array:
         
         if method == 'gd':
-            return gradient_descent(self.FOM, q, d_start, alpha, **kwargs)
+            return gradient_descent_linearized_problem(self.FOM, q, d_start, alpha, **kwargs)
         elif method == 'cg':
             raise NotImplementedError
         else:

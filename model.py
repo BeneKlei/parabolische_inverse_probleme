@@ -137,7 +137,7 @@ class InstationaryModelIP:
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         rhs = self.V.make_array(np.array([
-            - self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(d))
+            self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(d))
         ]))
         
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
@@ -163,7 +163,7 @@ class InstationaryModelIP:
 
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
-        rhs = - self.V.make_array(rhs)
+        rhs = self.V.make_array(rhs)
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
                                             initial_data = self.p_0, 
@@ -312,16 +312,19 @@ class InstationaryModelIP:
 
 #%% compute functions                            
     def compute_objective(self, 
-                          q: VectorArray) -> float:
+                          q: VectorArray,
+                          alpha : float = 0) -> float:
 
         u = self.solve_state(q)
-        return self.objective(u, q)
+        return self.objective(u, q, alpha)
     
     def compute_gradient(self,
-                         q: VectorArray) -> float:
+                         q: VectorArray,
+                         alpha : float = 0) -> float:
+        
         u = self.solve_state(q)
         p = self.solve_adjoint(q, u)
-        return self.gradient(u, p)
+        return self.gradient(u, p, alpha)
         
 
     def compute_linearized_objective(self,
