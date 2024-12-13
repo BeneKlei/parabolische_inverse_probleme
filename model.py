@@ -203,7 +203,7 @@ class InstationaryModelIP:
         
         return out
     
-    def gradient_linarized_regularization_term(self, q, d, alpha):
+    def gradient_linearized_regularization_term(self, q, d, alpha):
         return alpha * (self.products['prod_Q'].apply(q + d) - self.linear_reg_term.as_range_array())
     
     def objective(self, 
@@ -229,6 +229,7 @@ class InstationaryModelIP:
             return out
 
     def gradient(self,
+                 q: VectorArray,
                  u: VectorArray,
                  p: VectorArray,
                  alpha: float = 0) -> VectorArray:
@@ -245,15 +246,18 @@ class InstationaryModelIP:
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.dims['nt']):
             grad[idx] = - self.B(u[idx]).B_u_ad(p[idx], 'grad') 
-
-        return self.Q.make_array(grad)
+        
+        if alpha >0:
+            return self.Q.make_array(grad)+ self.gradient_regularization_term(q, alpha)
+        else:
+            return self.Q.make_array(grad)
 
     def linearized_gradient(self,
                             q: VectorArray,
                             d: VectorArray,
                             u: VectorArray,
                             lin_p: VectorArray,
-                            alpha : float) -> VectorArray:
+                            alpha : float = 0) -> VectorArray:
         
         for x in [q, d, u, lin_p]:
             assert isinstance(x, VectorArray)
@@ -270,15 +274,18 @@ class InstationaryModelIP:
         for idx in range(0, self.dims['nt']):
             grad[idx] = - self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
         grad = self.Q.make_array(grad)
-
-        return grad + alpha * self.products['prod_Q'].apply(q + d - self.q_circ)
+        
+        if alpha >0:
+           return grad + self.gradient_linearized_regularization_term(q, d, alpha)
+        else:
+            return grad 
     
     def linearized_objective(self,
                              q: VectorArray,
                              d: VectorArray,
                              u: VectorArray,
                              lin_u: VectorArray,
-                             alpha : float) -> float:
+                             alpha : float = 0) -> float:
     
         for x in [q, d,u,lin_u]:
             assert isinstance(x, VectorArray)
@@ -309,16 +316,18 @@ class InstationaryModelIP:
         raise NotImplementedError
                              
     def compute_objective(self, 
-                          q: VectorArray) -> float:
+                          q: VectorArray,
+                          alpha: float =0) -> float:
 
         u = self.solve_state(q)
-        return self.objective(u, q)
+        return self.objective(u, q, alpha)
     
     def compute_gradient(self,
-                         q: VectorArray) -> float:
+                         q: VectorArray,
+                         alpha: float = 0) -> float:
         u = self.solve_state(q)
         p = self.solve_adjoint(q, u)
-        return self.gradient(u, p)
+        return self.gradient(q, u, p, alpha)
         
 
     def compute_linearized_objective(self,
