@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union
+from typing import Union, Dict
 
 from pymor.discretizers.builtin.grids.interfaces import BoundaryInfo, Grid
 from pymor.operators.numpy import NumpyMatrixOperator
@@ -36,7 +36,8 @@ class UnAssembledEvaluator:
                  constant_operator : Operator,
                  reaction_problem: bool,
                  grid: Grid,
-                 boundary_info: BoundaryInfo):
+                 boundary_info: BoundaryInfo,
+                 dims: Dict):
         
         assert grid is not None
         assert boundary_info is not None
@@ -80,13 +81,15 @@ class UnAssembledA(UnAssembledEvaluator):
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
-                 Q : VectorSpace):
+                 Q : VectorSpace,
+                 dims : Dict):
         
         super().__init__(
             constant_operator = constant_operator,
             reaction_problem = reaction_problem,
             grid = grid,
-            boundary_info = boundary_info            
+            boundary_info = boundary_info,    
+            dims = dims
         )
         self.Q = Q
         
@@ -193,14 +196,16 @@ class UnAssembledB(UnAssembledEvaluator):
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
-                 V : VectorSpace):
+                 V : VectorSpace,
+                 dims : Dict):
         
         super().__init__(
             constant_operator = None,
             reaction_problem = reaction_problem,
             grid = grid,
-            boundary_info = boundary_info)
-    
+            boundary_info = boundary_info,
+            dims = dims)
+        self.dims = dims
         self.V = V
     
     def B_u_unassembled_reaction(self, 
@@ -209,7 +214,7 @@ class UnAssembledB(UnAssembledEvaluator):
                                  v : NumpyVectorArray):
         if isinstance(v, NumpyVectorArray):
             # TODO Get true var
-            v = v.to_numpy().reshape((121,))
+            v = v.to_numpy().reshape((self.dims['state_dim'],))
         elif isinstance(v,np.ndarray):
             pass
         else:

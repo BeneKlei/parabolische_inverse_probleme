@@ -66,14 +66,16 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         reaction_problem = ('reaction' in problem_type),
         grid = primal_fom_data['grid'],
         boundary_info = primal_fom_data['boundary_info'],
-        Q = Q_h
+        Q = Q_h,
+        dims = dims
     )
     
     B = UnAssembledB(
         reaction_problem = ('reaction' in problem_type),
         grid = primal_fom_data['grid'],
         boundary_info = primal_fom_data['boundary_info'],
-        V = V_h
+        V = V_h,
+        dims = dims
     )
 
     ############################### Cost ###############################
@@ -113,13 +115,13 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
     linear_reg_term = NumpyMatrixOperator(
         matrix = products['prod_Q'].matrix.T @ q_circ.to_numpy().T,
-        source_id = None,
-        range_id = range.id
+        source_id =  Q_h.id,
+        range_id = Q_h.id
     )
     bilinear_reg_term = NumpyMatrixOperator(
         matrix = products['prod_Q'].matrix,
-        source_id = source.id,
-        range_id = range.id
+        source_id =  Q_h.id,
+        range_id = Q_h.id
     )
     
     building_blocks = (

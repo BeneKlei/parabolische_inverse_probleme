@@ -86,10 +86,10 @@ def gradient_descent(
     else:
         logger.info(f"NOT converged after {int(max_iter)} iterations.")
 
-    print(current_J)
-    print(q)
-    print(current_d)
-    print(model.compute_linearized_objective(q, current_d, alpha))
+    # print(current_J)
+    # print(q)
+    # print(current_d)
+    # print(model.compute_linearized_objective(q, current_d, alpha))
     logger.info(f"objective = {current_J}, norm gradient = {np.linalg.norm(model.compute_linearized_gradient(q, current_d, alpha).to_numpy())}.")
 
     return current_d
