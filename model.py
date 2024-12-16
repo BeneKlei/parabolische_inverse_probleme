@@ -252,8 +252,14 @@ class InstationaryModelIP:
                       self.constant_cost_term
                       )
         if alpha > 0:
+            # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+            # print(out)
+            # print(self.linearized_regularization_term(q, d))
+            # print(out + alpha * self.linearized_regularization_term(q, d))
             return out + alpha * self.linearized_regularization_term(q, d)
         else:
+            # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+            # print(out)
             return out
         
 

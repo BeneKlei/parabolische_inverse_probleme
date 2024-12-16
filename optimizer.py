@@ -9,6 +9,8 @@ from pymor.vectorarrays.interface import VectorArray
 from model import InstationaryModelIP
 from gradient_descent import gradient_descent_linearized_problem
 
+MACHINE_EPS = 1e-16
+
 class Optimizer:
     def __init__(self, 
                  optimizer_parameter: Dict, 
@@ -73,6 +75,7 @@ class FOMOptimizer(Optimizer):
 
         while J >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"########################################################")
+            self.logger.info(f"J = {J:3.4e} is still not sufficent; J > tol+tau*noise_level: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f"Start main loop iteration i = {i}: J = {J:3.4e}.")
 
             regularization_qualification = False
@@ -83,15 +86,15 @@ class FOMOptimizer(Optimizer):
             d_start = self.FOM.Q.make_array(d_start)
 
             max_iter = 1e4
-            tol = 1e-14
-            inital_step_size = 1e2
+            gc_tol = 1e-14
+            inital_step_size = 1
             #TODO 
             d = self.solve_linearized_problem(q=q,
                                               d_start=d_start,
                                               alpha=alpha,
                                               method='gd',
                                               max_iter=max_iter,
-                                              tol=tol,
+                                              tol=gc_tol,
                                               inital_step_size=inital_step_size)
             
             lin_u = self.FOM.solve_linearized_state(q, d, u)
@@ -103,7 +106,9 @@ class FOMOptimizer(Optimizer):
 
             self.logger.info(f"alpha = {alpha} does not satisfy selection criteria.")
             self.logger.info(f"{theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}?")
-            self.logger.info(f"Searching for alpha:") 
+
+            if (not regularization_qualification) and (count < reg_loop_max):
+                self.logger.info(f"Searching for alpha:") 
 
             while (not regularization_qualification) and (count < reg_loop_max) :
                 
@@ -120,7 +125,7 @@ class FOMOptimizer(Optimizer):
                                                   alpha=alpha,
                                                   method='gd',
                                                   max_iter=max_iter,
-                                                  tol=tol,
+                                                  tol=gc_tol,
                                                   inital_step_size=inital_step_size)
 
                 lin_u = self.FOM.solve_linearized_state(q, d, u)
@@ -151,9 +156,12 @@ class FOMOptimizer(Optimizer):
             self.statistics['J'].append(J)
             self.statistics['alpha'].append(alpha)
         
-            # stagnation check
-            # if i > 3:
-            #     raise NotImplementedError
+            #stagnation check
+            if i > 3:
+                buffer = self.statistics['J'][-3:]
+                if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] -buffer[2]) < MACHINE_EPS:
+                    self.logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
+                    break
 
             i += 1
             self.statistics['time_steps'].append((timer()- start_time))

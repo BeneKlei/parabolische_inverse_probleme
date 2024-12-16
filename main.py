@@ -32,7 +32,7 @@ set_defaults({
 })
 
 N = 10                                                                      # FE Dofs = (N+1)^2                                                
-noise_level = 1e-5        
+noise_level = 0
 nt = 50
 fine_N = 2 * N
 
@@ -55,7 +55,7 @@ model_parameter = {
     'T_initial' : 0,
     'T_final' : 1,
     'noise_percentage' : None,
-    'noise_level' : 0.00,
+    'noise_level' : noise_level,
     'q_circ' : q_circ, 
     'q_exact' : None,
     'bounds' : bounds,
@@ -63,17 +63,6 @@ model_parameter = {
     'parameters' : None
 }
 
-optimizer_parameter = {
-    'noise_level' : model_parameter['noise_level'],
-    'tau' : 1e-10,
-    'tol' : 1e-10,
-    'q_0' : q_circ,
-    'alpha_0' : 1e-6,
-    'i_max' : 50,
-    'reg_loop_max' : 50,
-    'theta' : 0.25,
-    'Theta' : 0.75
-}
 
 print('Construct problem..')                                                     
 analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(
@@ -99,10 +88,10 @@ FOM = InstationaryModelIP(
     model_parameter = model_parameter
 )
 
-if 1:
+if 0:
     # Gradient tests 
     
-    objective 
+    #objective 
     FOM.derivative_check(FOM.compute_objective, FOM.compute_gradient)
     
     # gradient regularization term
@@ -136,17 +125,14 @@ if 1:
 
     # d_est = gradient_descent_linearized_problem(FOM, q=FOM.Q.make_array(q_circ), d_start=d_start, alpha=0, max_iter=1e5, tol=1e-12, inital_step_size=1e8)
         
-
-
-
-if 0:
+if 1:
     q_start = 0*np.ones((nt, dims['par_dim']))
     optimizer_parameter = {
         'noise_level' : model_parameter['noise_level'],
-        'tau' : 1e-10,
-        'tol' : 1e-10,
+        'tau' : 1,
+        'tol' : 1e-9,
         'q_0' : q_start,
-        'alpha_0' : 1,
+        'alpha_0' : 1e-3,
         'i_max' : 50,
         'reg_loop_max' : 50,
         'theta' : 0.25,
@@ -158,5 +144,16 @@ if 0:
         optimizer_parameter = optimizer_parameter
     )
     optimizer.logger.setLevel(logging.DEBUG)
-    
-    optimizer.solve()
+    q_est = optimizer.solve()
+
+    q_exact = FOM.Q.make_array([np.array(q_exact) for _ in range(dims['nt'])])
+    FOM.visualizer.visualize(q_est, title="q_est")
+    FOM.visualizer.visualize(q_exact, title="q_exact")
+    print("Differnce to q_exact:")
+    print("L^inf") 
+    print(np.max(np.abs((q_est - q_exact).to_numpy())))
+    print("Q-Norm") 
+    norm_delta_q = np.sqrt(np.sum(FOM.products['prod_Q'].pairwise_apply2(q_est - q_exact, q_est - q_exact)))
+    norm_q_exact = np.sqrt(np.sum(FOM.products['prod_Q'].pairwise_apply2(q_exact, q_exact)))
+    print(norm_delta_q)
+    print(norm_q_exact)
