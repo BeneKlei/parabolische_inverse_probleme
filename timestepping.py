@@ -33,6 +33,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
     
         A, F, M, U0, t0, t1, nt = operator, rhs, mass, initial_data, initial_time, end_time, self.nt
         mu = None
+        dt_F = None
         
         assert isinstance(F, (type(None), Operator, VectorArray))
         assert isinstance(M, (type(None), Operator))
@@ -48,8 +49,6 @@ class ImplicitEulerTimeStepper(TimeStepper):
         num_values = num_values or nt + 1
         dt = (t1 - t0) / nt
         DT = (t1 - t0) / (num_values - 1)
-
-
 
         if F is None:
             F_time_dep = False
@@ -123,6 +122,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
 
         t = t0
         U = U0.copy()
+        
         if mu is None:
             mu = Mu()
 

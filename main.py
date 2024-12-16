@@ -1,17 +1,22 @@
 import numpy as np
 import logging
-import sys
-sys.path.append('./')
+from discretizer import discretize_instationary_IP
+from pathlib import Path
 
 from pymor.basic import *
 from pymor.basic import *
-import numpy as np
-from problems import whole_problem
-from discretizer import discretize_instationary_IP
 from pymor.parameters.base import ParameterSpace
+
+import sys
+sys.path.append('../')
+print(sys.path)
+
+sys.exit()
 
 from model import InstationaryModelIP
 from optimizer import FOMOptimizer
+from problems import whole_problem
+
 #from gradient_descent import gradient_descent_non_linearized_problem
 
 logger = logging.getLogger()
@@ -130,7 +135,8 @@ if 1:
     optimizer_parameter = {
         'noise_level' : model_parameter['noise_level'],
         'tau' : 1,
-        'tol' : 1e-9,
+        #'tol' : 1e-9,
+        'tol' : 1e-3,
         'q_0' : q_start,
         'alpha_0' : 1e-3,
         'i_max' : 50,
@@ -157,3 +163,7 @@ if 1:
     norm_q_exact = np.sqrt(np.sum(FOM.products['prod_Q'].pairwise_apply2(q_exact, q_exact)))
     print(f'Absolute error: {norm_delta_q}.')
     print(f'Relative error: {norm_delta_q / norm_q_exact * 100} %.')
+
+    save_path = Path("./test.pkl")
+    print(f"Save statistics to {save_path}")
+    optimizer

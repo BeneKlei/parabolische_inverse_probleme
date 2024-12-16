@@ -110,7 +110,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     q_circ = model_params['q_circ']
     assert type(q_circ) == np.ndarray
     q_circ = Q_h.make_array(q_circ)
-    assert (len(q_circ) == dims['nt'])
+    assert len(q_circ) in [dims['nt'], 1]
 
     constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
     linear_reg_term = NumpyMatrixOperator(

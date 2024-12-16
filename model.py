@@ -78,8 +78,7 @@ class InstationaryModelIP:
 #%% solve methods
     def solve_state(self, q: VectorArray) -> VectorArray:
         assert q in self.Q
-        assert isinstance(q, VectorArray)
-        assert len(q) == (self.dims['nt'])
+        assert len(q) in [self.dims['nt'], 1]
 
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
@@ -101,9 +100,8 @@ class InstationaryModelIP:
         assert q in self.Q
         assert u in self.V
 
-        for x in [q,u]:
-            assert isinstance(x, VectorArray)
-            assert len(x) == (self.dims['nt'])
+        assert len(q) in [self.dims['nt'], 1]
+        assert len(u) == self.dims['nt']
 
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
@@ -130,10 +128,9 @@ class InstationaryModelIP:
         assert q in self.Q
         assert d in self.Q
         assert u in self.V
-
-        for x in [q,d,u]:
-            assert isinstance(x, VectorArray)
-            assert len(x) == (self.dims['nt'])
+        assert len(q) in [self.dims['nt'], 1]
+        assert len(d) in [self.dims['nt'], 1]
+        assert len(u) == self.dims['nt']
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         rhs = self.V.make_array(np.array([
@@ -160,6 +157,9 @@ class InstationaryModelIP:
         assert q in self.Q
         assert u in self.V
         assert lin_u in self.V
+        assert len(q) in [self.dims['nt'], 1]
+        assert len(u) == self.dims['nt']
+        assert len(lin_u) == self.dims['nt']
 
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
@@ -184,9 +184,13 @@ class InstationaryModelIP:
                   u: Union[VectorArray, np.ndarray],
                   q: VectorArray = None,
                   alpha: float = 0) -> float:
+        
+        if q:
+            assert q in self.Q
+            assert len(q) in [self.dims['nt'], 1]
 
-        assert isinstance(u, (VectorArray, np.ndarray))
         assert len(u) == (self.dims['nt'])
+        assert u in self.V
         
         # compute tracking term
         out = 0.5 * self.delta_t * np.sum(self.bilinear_cost_term.pairwise_apply2(u,u) 
@@ -208,10 +212,8 @@ class InstationaryModelIP:
         
         assert u in self.V
         assert p in self.V
-
-        for x in [u,p]:
-            assert isinstance(x, VectorArray)
-            assert len(x) == (self.dims['nt'])
+        assert len(u) == self.dims['nt']
+        assert len(p) == self.dims['nt']
 
         grad = np.empty((self.dims['nt'], self.dims['state_dim']))
         
@@ -232,10 +234,11 @@ class InstationaryModelIP:
                             u: VectorArray,
                             lin_u: VectorArray,
                             alpha : float) -> float:
-    
-        for x in [q, d,u,lin_u]:
-            assert isinstance(x, VectorArray)
-            assert len(x) == (self.dims['nt'])
+
+        assert len(q) in [self.dims['nt'], 1]
+        assert len(d) in [self.dims['nt'], 1]
+        assert len(u) == self.dims['nt']
+        assert len(lin_u) == self.dims['nt']
 
         assert q in self.Q
         assert d in self.Q
@@ -249,8 +252,7 @@ class InstationaryModelIP:
         out = 0.5 * self.delta_t * np.sum( \
                       self.bilinear_cost_term.pairwise_apply2(u_q_d,u_q_d) + \
                       (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u_q_d) + \
-                      self.constant_cost_term
-                      )
+                      self.constant_cost_term)
         if alpha > 0:
             # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             # print(out)
@@ -270,9 +272,11 @@ class InstationaryModelIP:
                             lin_p: VectorArray,
                             alpha : float) -> VectorArray:
         
-        for x in [q, d, u, lin_p]:
-            assert isinstance(x, VectorArray)
-            assert len(x) == (self.dims['nt'])
+        assert len(q) in [self.dims['nt'], 1]
+        assert len(d) in [self.dims['nt'], 1]
+        assert len(u) == self.dims['nt']
+        assert len(lin_p) == self.dims['nt']
+        assert len(q) == len(d)
 
         assert q in self.Q
         assert d in self.Q
@@ -285,6 +289,9 @@ class InstationaryModelIP:
         for idx in range(0, self.dims['nt']):
             grad[idx] = self.B(u[idx]).B_u_ad(lin_p[idx], 'grad')        
 
+        if len(q) == 1:
+            grad = self.delta_t * np.sum(grad, axis=0, keepdims=True) 
+
         if alpha > 0:
             return self.Q.make_array(grad) + alpha * self.linarized_gradient_regularization_term(q,d)
         else:
@@ -296,25 +303,61 @@ class InstationaryModelIP:
 #%% regularization
     def regularization_term(self, 
                             q: VectorArray) -> float:
-        return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q,q) 
-                                          + (-2)  * self.linear_reg_term.as_range_array().pairwise_inner(q) 
-                                          + self.constant_reg_term)
+        assert len(q) in [self.dims['nt'], 1]        
+        assert q in self.Q
+        
+        if len(q) == self.dims['nt']:    
+            return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q,q) 
+                                            + (-2) * self.linear_reg_term.as_range_array().pairwise_inner(q) 
+                                            + self.constant_reg_term)
+        else:
+            return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q,q)
+                                            + (-2) * q.inner(self.linear_reg_term.as_range_array())
+                                            + self.constant_reg_term)
         
     def gradient_regularization_term(self, 
                                      q: VectorArray) -> float:
-        return self.products['prod_Q'].apply(q) - self.linear_reg_term.as_range_array()
+        assert len(q) in [self.dims['nt'], 1]        
+        assert q in self.Q
+
+        return - self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q) 
+        
            
     def linearized_regularization_term(self, 
                                        q: VectorArray,
                                        d: VectorArray) -> float:
-        return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
-                                           + (-2)  * self.linear_reg_term.as_range_array().pairwise_inner(q+d) 
-                                           + self.constant_reg_term)
+        assert len(q) in [self.dims['nt'], 1]
+        assert len(d) in [self.dims['nt'], 1]
+        assert len(q) == len(d)
+        
+        assert q in self.Q
+        assert d in self.Q
+        
+        if len(q) == self.dims['nt']:
+            return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
+                                            + (-2) * self.linear_reg_term.as_range_array().pairwise_inner(q+d) 
+                                            + self.constant_reg_term)
+        else:
+            return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
+                                            + (-2) * (q+d).inner(self.linear_reg_term.as_range_array())
+                                            + self.constant_reg_term)
         
     def linarized_gradient_regularization_term(self,
                                                q: VectorArray,
                                                d: VectorArray) -> float:
-        return self.products['prod_Q'].apply(q + d) - self.linear_reg_term.as_range_array()
+        assert len(q) in [self.dims['nt'], 1]
+        assert len(d) in [self.dims['nt'], 1]
+        assert len(q) == len(d)
+        
+        assert q in self.Q
+        assert d in self.Q
+
+        if len(q) == self.dims['nt']:
+            return - self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d)
+        else:
+            return (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d)) * self.delta_t * self.dims['nt']
+        
+        
 
 #%% compute functions                            
     def compute_objective(self, 
@@ -366,8 +409,10 @@ class InstationaryModelIP:
         
         Eps = np.array([1,1e-1,1e-2,1e-3,1e-4,1e-5,1e-6])
         
-        q  = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
-        dq = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
+        # q  = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
+        # dq = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
+        q  = self.Q.make_array(np.random.random((1, self.dims['par_dim'])))
+        dq = self.Q.make_array(np.random.random((1, self.dims['par_dim'])))
         T = np.zeros(np.shape(Eps))
         T2 = T
         ff = f(q)

@@ -1,9 +1,10 @@
 import logging
+import numpy as np
 from abc import abstractmethod
 from typing import Dict, Union
 from timeit import default_timer as timer
-import numpy as np
 from pathlib import Path
+from datetime import datetime
 
 from pymor.vectorarrays.interface import VectorArray
 from pymor.core.pickle import dump
@@ -51,14 +52,18 @@ class Optimizer:
     def solve(self) -> VectorArray:
         pass
 
-    # def save_statistics(self,
-    #                     path: Union[str, Path]) -> None:
-        
-        
+    def save_statistics(self,
+                        path: Union[str, Path]) -> None:
+        path = Path(path)
+        assert path.suffix in ['.pkl', 'pickle']
+        assert path.parent.exists()
 
-    #     with open(path, 'wb') as file:
-    #         dump(self., file)
-
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename_with_timestamp = f"{timestamp}_{path.stem}{path.suffix}"
+        path_with_timestamp = path.parent / filename_with_timestamp
+        
+        with open(path_with_timestamp, 'wb') as file:
+            dump(self.statistics, file)
 
     
 class FOMOptimizer(Optimizer):
@@ -160,8 +165,6 @@ class FOMOptimizer(Optimizer):
                 self.logger.info(f"Not found valid alpha before reaching maximum number of tries :  {reg_loop_max}. \n \
                                    Using the last alpha tested = {alpha}.")
             q += d
-            #TODO Some sign error?
-            #q -= d
             u = self.FOM.solve_state(q)
             J = self.FOM.objective(u)        
 
