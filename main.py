@@ -12,7 +12,7 @@ from pymor.parameters.base import ParameterSpace
 
 from model import InstationaryModelIP
 from optimizer import FOMOptimizer
-from gradient_descent import gradient_descent_non_linearized_problem
+#from gradient_descent import gradient_descent_non_linearized_problem
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -155,5 +155,5 @@ if 1:
     print("Q-Norm") 
     norm_delta_q = np.sqrt(np.sum(FOM.products['prod_Q'].pairwise_apply2(q_est - q_exact, q_est - q_exact)))
     norm_q_exact = np.sqrt(np.sum(FOM.products['prod_Q'].pairwise_apply2(q_exact, q_exact)))
-    print(norm_delta_q)
-    print(norm_q_exact)
+    print(f'Absolute error: {norm_delta_q}.')
+    print(f'Relative error: {norm_delta_q / norm_q_exact * 100} %.')

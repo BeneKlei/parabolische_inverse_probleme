@@ -1,10 +1,13 @@
 import logging
 from abc import abstractmethod
-from typing import Dict
+from typing import Dict, Union
 from timeit import default_timer as timer
 import numpy as np
+from pathlib import Path
 
 from pymor.vectorarrays.interface import VectorArray
+from pymor.core.pickle import dump
+
 
 from model import InstationaryModelIP
 from gradient_descent import gradient_descent_linearized_problem
@@ -48,6 +51,15 @@ class Optimizer:
     def solve(self) -> VectorArray:
         pass
 
+    # def save_statistics(self,
+    #                     path: Union[str, Path]) -> None:
+        
+        
+
+    #     with open(path, 'wb') as file:
+    #         dump(self., file)
+
+
     
 class FOMOptimizer(Optimizer):
     def solve(self) -> VectorArray:
@@ -72,6 +84,7 @@ class FOMOptimizer(Optimizer):
         self.statistics['J'].append(J)
         self.statistics['alpha'].append(alpha)
 
+        # TODO Color logger for better readablity.
 
         while J >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"########################################################")
