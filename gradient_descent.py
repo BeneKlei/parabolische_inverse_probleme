@@ -64,7 +64,12 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     delta_iterate = previous_iterate - pre_previous_iterate
     delta_gradient = previous_gradient - pre_previous_gradient
     # TODO What is the inner product on Q^K
-    step_size = product.pairwise_apply2(delta_iterate, delta_gradient).sum() / product.pairwise_apply2(delta_gradient, delta_gradient).sum()
+    #step_size = product.pairwise_apply2(delta_iterate, delta_gradient).sum() / product.pairwise_apply2(delta_gradient, delta_gradient).sum()
+
+    step_size = product(delta_iterate, delta_iterate) / product(delta_iterate, delta_gradient)
+
+    #step_size = product(delta_iterate, delta_gradient) / product(delta_gradient, delta_gradient)
+
     current_iterate = previous_iterate - step_size * search_direction
     current_value = func(current_iterate)
 
@@ -143,7 +148,7 @@ def gradient_descent_linearized_problem(
                 pre_previous_iterate = buffer_d[-2],
                 previous_gradient = buffer_nabla_J[-1],
                 pre_previous_gradient = buffer_nabla_J[-2],
-                product=model.products['prod_Q'],
+                product=model.products['bochner_prod_Q'],
                 search_direction = grad,
                 func = lambda d: model.compute_linearized_objective(q, d, alpha))
 

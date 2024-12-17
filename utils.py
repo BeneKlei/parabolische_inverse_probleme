@@ -12,8 +12,10 @@ from scipy.sparse import csr_matrix
 def construct_noise_data(analytical_problem : InstationaryModel, 
                          model_params : Dict):
 
-    assert 'q_exact' in model_params
-    u_exact = analytical_problem.solve(model_params['q_exact'])    
+    q_exact = np.array([model_params['q_exact'][0]])    
+    assert len(q_exact) == 1
+        
+    u_exact = analytical_problem.solve(q_exact)    
     noise = np.random.rand(u_exact.dim,)   
     noise_np = u_exact.space.from_numpy(noise)
     noise_L2_norm = np.sqrt(analytical_problem.products['l2'].apply2(noise_np,noise_np))[0,0]  # get l2 norm of noise

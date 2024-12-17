@@ -72,8 +72,8 @@ class InstationaryModelIP:
             nt = self.dims['nt']
         )
 
-        assert self.model_parameter['T_final'] > self.model_parameter['T_initial']
-        self.delta_t = (self.model_parameter['T_final'] - self.model_parameter['T_initial']) / self.dims['nt']
+        self.delta_t = self.model_parameter['delta_t']
+        
 
 #%% solve methods
     def solve_state(self, q: VectorArray) -> VectorArray:

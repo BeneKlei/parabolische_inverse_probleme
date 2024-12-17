@@ -3,12 +3,8 @@ import numpy as np
 from abc import abstractmethod
 from typing import Dict, Union
 from timeit import default_timer as timer
-from pathlib import Path
-from datetime import datetime
 
 from pymor.vectorarrays.interface import VectorArray
-from pymor.core.pickle import dump
-
 
 from model import InstationaryModelIP
 from gradient_descent import gradient_descent_linearized_problem
@@ -31,6 +27,7 @@ class Optimizer:
             'time_steps' : [],
             'alpha' : [],
             'J' : [],
+            'norm_nabla_J' : [],
             'total_runtime' : np.nan,
             'stagnation_flag' : False,
             'optimizer_parameter' : self.optimizer_parameter.copy()
@@ -52,18 +49,6 @@ class Optimizer:
     def solve(self) -> VectorArray:
         pass
 
-    def save_statistics(self,
-                        path: Union[str, Path]) -> None:
-        path = Path(path)
-        assert path.suffix in ['.pkl', 'pickle']
-        assert path.parent.exists()
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename_with_timestamp = f"{timestamp}_{path.stem}{path.suffix}"
-        path_with_timestamp = path.parent / filename_with_timestamp
-        
-        with open(path_with_timestamp, 'wb') as file:
-            dump(self.statistics, file)
 
     
 class FOMOptimizer(Optimizer):
@@ -75,7 +60,9 @@ class FOMOptimizer(Optimizer):
         q = self.FOM.Q.make_array(q)
     
         u = self.FOM.solve_state(q)
+        p = self.FOM.solve_adjoint(q, u)
         J = self.FOM.objective(u)
+        nabla_J = self.FOM.gradient(u, p)
         
         tol = self.optimizer_parameter['tol']
         tau = self.optimizer_parameter['tau']
@@ -87,12 +74,13 @@ class FOMOptimizer(Optimizer):
 
         self.statistics['q'].append(q)
         self.statistics['J'].append(J)
+        self.statistics['norm_nabla_J'].append(np.linalg.norm(nabla_J.to_numpy()))
         self.statistics['alpha'].append(alpha)
 
         # TODO Color logger for better readablity.
 
         while J >= tol+tau*noise_level and i<i_max:
-            self.logger.info(f"########################################################")
+            self.logger.info(f"###############################################################")
             self.logger.info(f"J = {J:3.4e} is still not sufficent; J > tol+tau*noise_level: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f"Start main loop iteration i = {i}: J = {J:3.4e}.")
 
@@ -133,7 +121,8 @@ class FOMOptimizer(Optimizer):
                 if not condition_low:
                     alpha *= 1.5  
                 elif not condition_up:
-                    alpha = max(alpha/2,1e-14)
+                    alpha = alpha/2
+                    #alpha = max(alpha/2,1e-14)
                 else:
                     raise ValueError
                 
@@ -166,10 +155,13 @@ class FOMOptimizer(Optimizer):
                                    Using the last alpha tested = {alpha}.")
             q += d
             u = self.FOM.solve_state(q)
-            J = self.FOM.objective(u)        
+            p = self.FOM.solve_adjoint(q, u)
+            J = self.FOM.objective(u)
+            nabla_J = self.FOM.gradient(u, p)
 
             self.statistics['q'].append(q)
             self.statistics['J'].append(J)
+            self.statistics['norm_nabla_J'].append(np.linalg.norm(nabla_J.to_numpy()))
             self.statistics['alpha'].append(alpha)
         
             #stagnation check
@@ -181,9 +173,9 @@ class FOMOptimizer(Optimizer):
 
             i += 1
             self.statistics['time_steps'].append((timer()- start_time))
-            self.logger.info(f'i = {i}, J = {J:3.4e}, alpha = {alpha:1.4e}')
+            self.logger.info(f'i = {i}, J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')
         
-        self.statistics['total_runtime'] = (timer() - start_time)
+        self.statistics['total_runtime'] = (timer() - start_time)        
         return q
 
 

@@ -7,11 +7,25 @@ from pymor.discretizers.builtin import discretize_instationary_cg
 from pymor.operators.constructions import IdentityOperator
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.numpy import NumpyMatrixOperator
-from utils import construct_noise_data
+import pymor.vectorarrays as VectorArray
 from pymor.discretizers.builtin.grids.rect import RectGrid
-from evaluators import UnAssembledA, UnAssembledB
 
-from utils import split_constant_and_parameterized_operator
+from evaluators import UnAssembledA, UnAssembledB
+from utils import split_constant_and_parameterized_operator, construct_noise_data
+
+def bochner_product(v : VectorArray,
+                    w : VectorArray,
+                    delta_t : float,
+                    product : NumpyMatrixOperator) -> float:
+
+    assert product.source == product.range
+    assert v in product.range
+    assert w in product.range
+    assert len(v) == len(w)
+
+    return np.sum(delta_t * product.pairwise_apply2(v,w))
+
+
 
 def discretize_instationary_IP(analytical_problem : InstationaryProblem, 
                                model_params : Dict,
@@ -22,7 +36,8 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         'prod_H' : None,
         'prod_Q' : None,
         'prod_V' : None,
-        'prod_C' : None
+        'prod_C' : None,
+        'bochner_prod_Q' : None,
     }
 
     ############################### PDE ###############################
@@ -45,7 +60,9 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         source_id = Q_h.id,
         range_id = Q_h.id
     )
-
+    delta_t = model_params['delta_t']
+    products['bochner_prod_Q'] = lambda v, w : bochner_product(v,w,delta_t,products['prod_Q'])
+    
     V_h = primal_fom.operator.source
     products['prod_V'] = primal_fom.products['h1']
     products['prod_H'] = primal_fom.products['l2']
