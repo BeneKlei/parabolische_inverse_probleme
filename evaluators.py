@@ -184,7 +184,7 @@ class AssembledA(AssembledEvaluator):
 
     def __call__(self, q: VectorArray) -> NumpyMatrixOperator:
         assert q in self.Q
-        # TODO Check _assemble_A_q can be vectorized
+        # TODO Can _assemble_A_q be vectorized?
         assert len(q) == 1
 
         q_as_par = self.parameters.parse(q.to_numpy()[0])

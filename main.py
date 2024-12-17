@@ -35,7 +35,8 @@ set_defaults({
     # 'pymor.algorithms.gram_schmidt.gram_schmidt.rtol' : 1e-15,
 })
 
-N = 100
+#N = 100
+N = 10
 par_dim = (N+1)**2
 fine_N = 2 * N
 
