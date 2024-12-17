@@ -35,7 +35,7 @@ set_defaults({
     # 'pymor.algorithms.gram_schmidt.gram_schmidt.rtol' : 1e-15,
 })
 
-N = 10                                                                      # FE Dofs = (N+1)^2                                                
+N = 100
 par_dim = (N+1)**2
 fine_N = 2 * N
 
@@ -44,8 +44,9 @@ T_final = 1
 nt = 50
 delta_t = (T_final - T_initial) / nt
 q_time_dep = False
+#q_time_dep = True
 
-noise_level = 0.00
+noise_level = 1e-5
 bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
 assert T_final > T_initial
@@ -109,10 +110,11 @@ FOM = InstationaryModelIP(
     model_parameter = model_parameter
 )
 
-if q_time_dep:
-    q_start = 0*np.ones((nt, par_dim))
-else:
-    q_start = 0*np.ones((1, par_dim))
+# if q_time_dep:
+#     q_start = 0*np.ones((nt, par_dim))
+# else:
+#     q_start = 0*np.ones((1, par_dim))
+q_start = q_circ
 
 if 0:
     # Gradient tests 
@@ -136,11 +138,11 @@ if 0:
 if 1:
     optimizer_parameter = {
         'noise_level' : model_parameter['noise_level'],
-        'tau' : 1,
+        'tau' : 1e-4,
         'tol' : 1e-13,
         'q_0' : q_start,
-        'alpha_0' : 1e-4,
-        #'alpha_0' : 0,
+        'alpha_0' : 1e-5,
+        #'alpha_0' : 1e-1,
         'i_max' : 50,
         'reg_loop_max' : 50,
         'theta' : 0.25,

@@ -107,7 +107,7 @@ class InstationaryModelIP:
 
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
-        rhs = self.V.make_array(rhs)
+        rhs = self.delta_t * self.V.make_array(rhs)
 
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
@@ -170,7 +170,7 @@ class InstationaryModelIP:
 
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
-        rhs = self.V.make_array(rhs)
+        rhs = self.delta_t * self.V.make_array(rhs)
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
                                             initial_data = self.p_0, 
@@ -331,7 +331,11 @@ class InstationaryModelIP:
         assert len(q) in [self.dims['nt'], 1]        
         assert q in self.Q
 
-        return - self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q) 
+        out = self.delta_t * (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q))
+        if self.q_time_dep:
+            return out 
+        else:
+            return self.dims['nt'] * out
         
            
     def linearized_regularization_term(self, 
@@ -365,10 +369,11 @@ class InstationaryModelIP:
         assert q in self.Q
         assert d in self.Q
 
+        out = self.delta_t * (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d))
         if self.q_time_dep:
-            return - self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d)
+            return out
         else:
-            return (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d)) * self.dims['nt']
+            return self.dims['nt'] * out
             
         
         
