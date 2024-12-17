@@ -13,14 +13,15 @@ import matplotlib.pyplot as plt
 # TODO 
 # - And assert correct space
 # - Add caching
+# - Switch np tp pyMOR
+# - Switch len(q) == 1 to q_time_dep
 
 # Notes caching:
 # - Is q t dep A(q) can be stored for all time steps or calculated on the fly.
 #   - The later is maybe possible for ROMs not for FOM
 # 
 
-# TODO 
-# Switch np tp pyMOR
+
 
 class InstationaryModelIP:
     def __init__(self,
@@ -73,6 +74,7 @@ class InstationaryModelIP:
         )
 
         self.delta_t = self.model_parameter['delta_t']
+        self.q_time_dep = model_parameter['q_time_dep']
         
 
 #%% solve methods
@@ -133,9 +135,14 @@ class InstationaryModelIP:
         assert len(u) == self.dims['nt']
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
-        rhs = self.V.make_array(np.array([
-            self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(d))
-        ]))
+        if self.q_time_dep:
+            rhs = self.V.make_array(np.array([
+                self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(u))
+            ]))
+        else:
+            rhs = self.V.make_array(np.array([
+                self.B(u[idx]).B_u(d[0]).to_numpy()[0] for idx in range(len(u))
+            ]))
         
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
@@ -220,6 +227,9 @@ class InstationaryModelIP:
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.dims['nt']):
             grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
+
+        if not self.q_time_dep:
+            grad = np.sum(grad, axis=0, keepdims=True) 
         
         if alpha > 0:
             assert q is not None
@@ -289,8 +299,8 @@ class InstationaryModelIP:
         for idx in range(0, self.dims['nt']):
             grad[idx] = self.B(u[idx]).B_u_ad(lin_p[idx], 'grad')        
 
-        if len(q) == 1:
-            grad = self.delta_t * np.sum(grad, axis=0, keepdims=True) 
+        if not self.q_time_dep:
+            grad = np.sum(grad, axis=0, keepdims=True) 
 
         if alpha > 0:
             return self.Q.make_array(grad) + alpha * self.linarized_gradient_regularization_term(q,d)
@@ -306,7 +316,7 @@ class InstationaryModelIP:
         assert len(q) in [self.dims['nt'], 1]        
         assert q in self.Q
         
-        if len(q) == self.dims['nt']:    
+        if self.q_time_dep:
             return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q,q) 
                                             + (-2) * self.linear_reg_term.as_range_array().pairwise_inner(q) 
                                             + self.constant_reg_term)
@@ -314,6 +324,7 @@ class InstationaryModelIP:
             return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q,q)
                                             + (-2) * q.inner(self.linear_reg_term.as_range_array())
                                             + self.constant_reg_term)
+            
         
     def gradient_regularization_term(self, 
                                      q: VectorArray) -> float:
@@ -333,7 +344,7 @@ class InstationaryModelIP:
         assert q in self.Q
         assert d in self.Q
         
-        if len(q) == self.dims['nt']:
+        if self.q_time_dep:
             return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
                                             + (-2) * self.linear_reg_term.as_range_array().pairwise_inner(q+d) 
                                             + self.constant_reg_term)
@@ -342,6 +353,8 @@ class InstationaryModelIP:
                                             + (-2) * (q+d).inner(self.linear_reg_term.as_range_array())
                                             + self.constant_reg_term)
         
+            
+            
     def linarized_gradient_regularization_term(self,
                                                q: VectorArray,
                                                d: VectorArray) -> float:
@@ -352,10 +365,11 @@ class InstationaryModelIP:
         assert q in self.Q
         assert d in self.Q
 
-        if len(q) == self.dims['nt']:
+        if self.q_time_dep:
             return - self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d)
         else:
-            return (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d)) * self.delta_t * self.dims['nt']
+            return (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d)) * self.dims['nt']
+            
         
         
 
