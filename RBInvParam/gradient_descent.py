@@ -5,7 +5,7 @@ from typing import Callable, Tuple
 from pymor.vectorarrays.numpy import NumpyVectorArray
 from pymor.operators.numpy import NumpyMatrixOperator
 
-from model import InstationaryModelIP
+from RBInvParam.model import InstationaryModelIP
 
 
 MACHINE_EPS = 1e-16

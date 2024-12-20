@@ -12,7 +12,8 @@ from pymor.operators.constructions import LincombOperator
 from pymor.parameters.base import Parameters
 from pymor.vectorarrays.interface import VectorSpace
 
-from utils.discretization import Struct, build_projection
+from RBInvParam.utils.discretization import Struct, build_projection
+
 
 LAGRANGE_SHAPE_FUNCTIONS = {1: [lambda X: (1 - X[..., 0]) * (1 - X[..., 1]),
                     lambda X: (1 - X[..., 1]) * (X[..., 0]),

@@ -9,11 +9,10 @@ from pymor.operators.constructions import LincombOperator
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.parameters.functionals import ProjectionParameterFunctional
 from pymor.parameters.base import Parameters
-#from pymor.operators.interface import Operator
 
-from model import InstationaryModelIP
-from evaluators import AssembledA, AssembledB
-from utils.discretization import split_constant_and_parameterized_operator
+from RBInvParam.model import InstationaryModelIP
+from RBInvParam.evaluators import AssembledA, AssembledB
+from RBInvParam.utils.discretization import split_constant_and_parameterized_operator
 
 class InstationaryModelIPReductor(ProjectionBasedReductor):
     def __init__(self, 

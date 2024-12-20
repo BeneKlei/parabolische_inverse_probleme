@@ -1,20 +1,18 @@
 import numpy as np
 from pathlib import Path
 import logging
-import sys
-sys.path.append('../')
 
 from pymor.basic import *
 from pymor.parameters.base import ParameterSpace
 
-from model import InstationaryModelIP
-from optimizer import FOMOptimizer
-from problems.problems import whole_problem
-from discretizer import discretize_instationary_IP
-from utils.io import save_dict_to_pkl
-from utils.logger import get_default_logger
+from RBInvParam.model import InstationaryModelIP
+from RBInvParam.optimizer import FOMOptimizer
+from RBInvParam.problems.problems import whole_problem
+from RBInvParam.discretizer import discretize_instationary_IP
+from RBInvParam.utils.io import save_dict_to_pkl
+from RBInvParam.utils.logger import get_default_logger
 
-from gradient_descent import gradient_descent_non_linearized_problem
+from RBInvParam.gradient_descent import gradient_descent_non_linearized_problem
 
 # TODO
 # - Find better way to handle time independ parameter
@@ -37,8 +35,10 @@ N = 10
 par_dim = (N+1)**2
 fine_N = 2 * N
 
+
 T_initial = 0
 T_final = 1
+# TODO Here is a Bug
 nt = 50
 delta_t = (T_final - T_initial) / nt
 q_time_dep = False
@@ -66,6 +66,13 @@ dims = {
     'output_dim': 1,                                                                                                                                                                         # options to preassemble affine components or not
 }
 
+problem_parameter = {
+    'N' : N,
+    'parameter_location' : 'reaction',
+    'boundary_conditions' : 'dirichlet',
+    'exact_parameter' : 'Kirchner',
+}
+
 model_parameter = {
     'T_initial' : T_initial,
     'T_final' : T_final,
@@ -81,12 +88,7 @@ model_parameter = {
 
 
 logger.debug('Construct problem..')                                                     
-analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(
-                                                        N = N,
-                                                        parameter_location = 'reaction',
-                                                        boundary_conditions = 'dirichlet',
-                                                        exact_parameter = 'Kirchner',
-                                                       )
+analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(**problem_parameter)
 
 model_parameter['parameters'] = analytical_problem.parameters
 if q_time_dep:                                                 
@@ -95,10 +97,7 @@ else:
     model_parameter['q_exact'] = np.array([q_exact])
 
 logger.debug('Discretizing problem...')                                                
-building_blocks = discretize_instationary_IP(analytical_problem,
-                                             model_parameter,
-                                             dims, 
-                                             problem_type) 
+building_blocks = discretize_instationary_IP(analytical_problem,model_parameter,dims, problem_type) 
 
 
 FOM = InstationaryModelIP(                 

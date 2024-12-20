@@ -6,10 +6,10 @@ from timeit import default_timer as timer
 
 from pymor.vectorarrays.interface import VectorArray
 
-from model import InstationaryModelIP
-from gradient_descent import gradient_descent_linearized_problem
-from reductor import InstationaryModelIPReductor
-from utils.logger import get_default_logger
+from RBInvParam.model import InstationaryModelIP
+from RBInvParam.gradient_descent import gradient_descent_linearized_problem
+from RBInvParam.reductor import InstationaryModelIPReductor
+from RBInvParam.utils.logger import get_default_logger
 
 MACHINE_EPS = 1e-16
 

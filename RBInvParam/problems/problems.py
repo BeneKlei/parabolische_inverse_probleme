@@ -17,7 +17,7 @@ import numpy as np
 from pymor.basic import *
 from pymor.analyticalproblems.instationary import InstationaryProblem
 
-from problems.utils import thermal_block_problem_h1, twodhatfunction
+from RBInvParam.problems.utils import thermal_block_problem_h1, twodhatfunction
 
 def whole_problem(N = 100, contrast_parameter = 2, parameter_location = 'diffusion', boundary_conditions = 'dirichlet', exact_parameter = 'PacMan', parameter_elements = 'P1'):    
     # check input and set problem type

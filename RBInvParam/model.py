@@ -6,8 +6,8 @@ from pymor.vectorarrays.interface import VectorArray
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.interface import VectorSpace
 
-from evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
-from timestepping import ImplicitEulerTimeStepper
+from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
+from RBInvParam.timestepping import ImplicitEulerTimeStepper
 
 import matplotlib.pyplot as plt
 # TODO 
@@ -255,23 +255,14 @@ class InstationaryModelIP:
         assert u in self.V
         assert lin_u in self.V
 
-        # #TODO Split into parts
-        # q_ = q + d - self.q_circ
-        # regularization_term = self.products['prod_Q'].pairwise_apply2(q_, q_)
         u_q_d = u + lin_u
         out = 0.5 * self.delta_t * np.sum( \
                       self.bilinear_cost_term.pairwise_apply2(u_q_d,u_q_d) + \
                       (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u_q_d) + \
                       self.constant_cost_term)
         if alpha > 0:
-            # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-            # print(out)
-            # print(self.linearized_regularization_term(q, d))
-            # print(out + alpha * self.linearized_regularization_term(q, d))
             return out + alpha * self.linearized_regularization_term(q, d)
         else:
-            # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-            # print(out)
             return out
         
 
