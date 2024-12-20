@@ -1,0 +1,62 @@
+import pytest
+import importlib.util
+from pathlib import Path
+
+from pymor.basic import *
+from pymor.tools.floatcmp import float_cmp_all
+from pymor.core.pickle import load
+
+from RBInvParam.utils.io import load_FOM_from_config
+from RBInvParam.utils.logger import get_default_logger
+
+CWD = Path(__file__).parent.resolve()
+spec = importlib.util.spec_from_file_location('configs',  CWD / '../configs.py')
+configs = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(configs)
+CONFIGS = configs.CONFIGS
+
+set_log_levels({
+    'pymor' : 'WARN'
+})
+
+ABS_TOL = 1e-14
+REL_TOL = 1e-14
+
+logger = get_default_logger()
+
+def test_model() -> None:
+    for config_name, config in CONFIGS.items():        
+        FOM = load_FOM_from_config(config, logger=logger)
+
+        path = CWD / Path(f'./{config_name}.pkl')
+        assert path.exists()
+        with open(path, 'rb') as file:
+            solutions = load(file)
+
+        qs = solutions['qs']
+        ds = solutions['ds']
+        alphas = solutions['alphas']
+        us = solutions['us']
+        ps = solutions['ps']
+        lin_us = solutions['lin_us']
+        lin_ps = solutions['lin_ps']
+        Js = solutions['Js']
+        nabla_Js = solutions['nabla_Js']
+        lin_Js = solutions['lin_Js']
+        nabla_lin_Js = solutions['nabla_lin_Js']
+
+        for idx in range(len(qs)):
+            logger.info(f"Check sample {idx}")
+
+            assert float_cmp_all(us[idx].to_numpy(), FOM.solve_state(qs[idx]).to_numpy(), REL_TOL, ABS_TOL)
+            assert float_cmp_all(ps[idx].to_numpy(), FOM.solve_adjoint(qs[idx], us[idx]).to_numpy(), REL_TOL, ABS_TOL)
+            assert float_cmp_all(lin_us[idx].to_numpy(), FOM.solve_linearized_state(qs[idx], ds[idx], us[idx]).to_numpy(), REL_TOL, ABS_TOL)
+            assert float_cmp_all(lin_ps[idx].to_numpy(), FOM.solve_linearized_adjoint(qs[idx], us[idx], lin_us[idx]).to_numpy(), REL_TOL, ABS_TOL)
+            assert float_cmp_all(Js[idx], FOM.objective(us[idx], qs[idx], alpha=0), REL_TOL, ABS_TOL)
+            assert float_cmp_all(nabla_Js[idx].to_numpy(), FOM.gradient(us[idx], ps[idx], qs[idx], alpha=0).to_numpy(), REL_TOL, ABS_TOL)
+            assert float_cmp_all(lin_Js[idx], FOM.linearized_objective(qs[idx], ds[idx], us[idx], lin_us[idx], alphas[idx]), REL_TOL, ABS_TOL)
+            assert float_cmp_all(nabla_lin_Js[idx].to_numpy(), FOM.linearized_gradient(qs[idx], ds[idx], us[idx], lin_ps[idx], alphas[idx]).to_numpy(), REL_TOL, ABS_TOL)
+
+
+if __name__ == '__main__':
+    test_model()
