@@ -9,14 +9,16 @@ from pymor.parameters.base import ParameterSpace
 
 from model import InstationaryModelIP
 from optimizer import FOMOptimizer
-from problems import whole_problem
+from problems.problems import whole_problem
 from discretizer import discretize_instationary_IP
-from helpers import save_dict_to_pkl
+from utils.io import save_dict_to_pkl
 
 from gradient_descent import gradient_descent_non_linearized_problem
 
 # TODO
 # - Find better way to handle time independ parameter
+
+#########################################################################################''
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -30,10 +32,9 @@ set_log_levels({
     'pymor' : 'WARN'
 })
 
-set_defaults({
-    # 'pymor.algorithms.gram_schmidt.gram_schmidt.atol' : 1e-15,
-    # 'pymor.algorithms.gram_schmidt.gram_schmidt.rtol' : 1e-15,
-})
+set_defaults({})
+
+#########################################################################################''
 
 #N = 100
 N = 10

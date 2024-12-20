@@ -11,7 +11,8 @@ import pymor.vectorarrays as VectorArray
 from pymor.discretizers.builtin.grids.rect import RectGrid
 
 from evaluators import UnAssembledA, UnAssembledB
-from utils import split_constant_and_parameterized_operator, construct_noise_data
+from utils.discretization import split_constant_and_parameterized_operator, \
+    construct_noise_data
 
 def bochner_product(v : VectorArray,
                     w : VectorArray,

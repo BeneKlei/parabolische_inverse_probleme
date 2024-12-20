@@ -12,13 +12,14 @@
 # Description:
 # This file prepares the analytical PDE problem which gets handed with to the discretizer.
 
-from pymor.basic import *
 import numpy as np
-from helpers import thermal_block_problem_h1, twodhatfunction
+
+from pymor.basic import *
 from pymor.analyticalproblems.instationary import InstationaryProblem
 
-def whole_problem(N = 100, contrast_parameter = 2, parameter_location = 'diffusion', boundary_conditions = 'dirichlet', exact_parameter = 'PacMan', parameter_elements = 'P1'):
-    
+from problems.utils import thermal_block_problem_h1, twodhatfunction
+
+def whole_problem(N = 100, contrast_parameter = 2, parameter_location = 'diffusion', boundary_conditions = 'dirichlet', exact_parameter = 'PacMan', parameter_elements = 'P1'):    
     # check input and set problem type
     assert parameter_location in {'diffusion', 'reaction' }, 'Change parameter location to "diffusion" or "dirichlet"'
     assert boundary_conditions in {'dirichlet', 'robin' }, 'Change boundary conditions to "dirichlet" or "robin"'

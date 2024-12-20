@@ -227,11 +227,6 @@ def gradient_descent_non_linearized_problem(
         buffer_nabla_J.append(grad.copy())
 
         norm_grad = np.linalg.norm(grad.to_numpy())
-
-        if np.linalg.norm(grad.to_numpy()) < tol:
-            last_i = i
-            converged = True
-            break
         
         if norm_grad < tol:
             last_i = i

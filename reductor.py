@@ -13,7 +13,7 @@ from pymor.parameters.base import Parameters
 
 from model import InstationaryModelIP
 from evaluators import AssembledA, AssembledB
-from utils import split_constant_and_parameterized_operator
+from utils.discretization import split_constant_and_parameterized_operator
 
 class InstationaryModelIPReductor(ProjectionBasedReductor):
     def __init__(self, 

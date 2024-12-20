@@ -1,10 +1,10 @@
 import numpy as np
 from typing import Union, Dict
 
+import pymor.vectorarrays as VectorArray
 from pymor.discretizers.builtin.grids.interfaces import BoundaryInfo, Grid
 from pymor.operators.numpy import NumpyMatrixOperator
 from scipy.sparse import coo_matrix, csc_matrix
-import pymor.vectorarrays as VectorArray
 from pymor.discretizers.builtin.grids.referenceelements import square
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.numpy import NumpyVectorArray
@@ -12,7 +12,7 @@ from pymor.operators.constructions import LincombOperator
 from pymor.parameters.base import Parameters
 from pymor.vectorarrays.interface import VectorSpace
 
-from utils import Struct, build_projection
+from utils.discretization import Struct, build_projection
 
 LAGRANGE_SHAPE_FUNCTIONS = {1: [lambda X: (1 - X[..., 0]) * (1 - X[..., 1]),
                     lambda X: (1 - X[..., 1]) * (X[..., 0]),
