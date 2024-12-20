@@ -1,6 +1,6 @@
 import numpy as np
-import logging
 from pathlib import Path
+import logging
 import sys
 sys.path.append('../')
 
@@ -12,6 +12,7 @@ from optimizer import FOMOptimizer
 from problems.problems import whole_problem
 from discretizer import discretize_instationary_IP
 from utils.io import save_dict_to_pkl
+from utils.logger import get_default_logger
 
 from gradient_descent import gradient_descent_non_linearized_problem
 
@@ -20,13 +21,8 @@ from gradient_descent import gradient_descent_non_linearized_problem
 
 #########################################################################################''
 
-logger = logging.getLogger()
+logger = get_default_logger(use_timestemp=True)
 logger.setLevel(logging.DEBUG)
-
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-
-logger.addHandler(handler)
 
 set_log_levels({
     'pymor' : 'WARN'
@@ -84,7 +80,7 @@ model_parameter = {
 }
 
 
-print('Construct problem..')                                                     
+logger.debug('Construct problem..')                                                     
 analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(
                                                         N = N,
                                                         parameter_location = 'reaction',
@@ -98,12 +94,11 @@ if q_time_dep:
 else:
     model_parameter['q_exact'] = np.array([q_exact])
 
-print('Discretizing problem...')                                                
+logger.debug('Discretizing problem...')                                                
 building_blocks = discretize_instationary_IP(analytical_problem,
                                              model_parameter,
                                              dims, 
                                              problem_type) 
-
 
 
 FOM = InstationaryModelIP(                 
@@ -153,25 +148,25 @@ if 1:
 
     optimizer = FOMOptimizer(
         FOM = FOM,
-        optimizer_parameter = optimizer_parameter
+        optimizer_parameter = optimizer_parameter,
+        logger = logger
     )
-    optimizer.logger.setLevel(logging.DEBUG)
     q_est = optimizer.solve()
 
     q_exact = FOM.Q.make_array(model_parameter['q_exact'])
     FOM.visualizer.visualize(q_est, title="q_est")
     FOM.visualizer.visualize(q_exact, title="q_exact")
-    print("Differnce to q_exact:")
-    print("L^inf") 
-    print(f"{np.max(np.abs((q_est - q_exact).to_numpy())):3.4e}")
-    print("Q-Norm") 
+    logger.debug("Differnce to q_exact:")
+    logger.debug("L^inf") 
+    logger.debug(f"{np.max(np.abs((q_est - q_exact).to_numpy())):3.4e}")
+    logger.debug("Q-Norm") 
     norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'](q_est - q_exact, q_est - q_exact))
     norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'](q_exact, q_exact))
-    print(f"Absolute error: {norm_delta_q:3.4e}")
-    print(f"Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
+    logger.debug(f"Absolute error: {norm_delta_q:3.4e}")
+    logger.debug(f"Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
     save_path = Path("./dumps/test.pkl")
-    print(f"Save statistics to {save_path}")
+    logger.debug(f"Save statistics to {save_path}")
 
     data = {
         'dims' : dims,

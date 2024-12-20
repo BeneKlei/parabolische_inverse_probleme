@@ -9,20 +9,28 @@ from pymor.vectorarrays.interface import VectorArray
 from model import InstationaryModelIP
 from gradient_descent import gradient_descent_linearized_problem
 from reductor import InstationaryModelIPReductor
+from utils.logger import get_default_logger
 
 MACHINE_EPS = 1e-16
 
 class Optimizer:
     def __init__(self, 
                  optimizer_parameter: Dict, 
-                 FOM : InstationaryModelIP) -> None:
+                 FOM : InstationaryModelIP,
+                 logger: logging.Logger = None) -> None:
+                 
         self.FOM = FOM
         self.optimizer_parameter = optimizer_parameter
         self._check_optimizer_parameter()    
         logging.basicConfig()
 
         # TODO Add class and function logger
-        self.logger = logging.getLogger(self.__class__.__name__)
+        if logger:
+            self.logger = logger
+        else:
+            self.logger = get_default_logger(self.__class__.__name__)
+            self.logger.setLevel(logging.DEBUG)
+
         self.IRGNM_idx = 0
 
 
@@ -65,10 +73,6 @@ class Optimizer:
             'total_runtime' : np.nan,
             'stagnation_flag' : False,
         }
-
-        # TODO Own logger here
-        # TODO Color logger for better readablity.
-
         start_time = timer()
         i = 0
 
@@ -85,10 +89,22 @@ class Optimizer:
         IRGNM_statistics['alpha'].append(alpha)
 
 
+        self.logger.debug("Running IRGNM: ")
+        self.logger.debug(f"  J : {alpha_0:3.4e}")
+        self.logger.debug(f"  norm_nabla_J : {np.linalg.norm(nabla_J.to_numpy()):3.4e}")
+        self.logger.debug(f"  alpha_0 : {alpha_0:3.4e}")
+        self.logger.debug(f"  tol : {tol:3.4e}")
+        self.logger.debug(f"  tau : {tau:3.4e}")
+        self.logger.debug(f"  noise_level : {noise_level:3.4e}")
+        self.logger.debug(f"  theta : {theta:3.4e}")
+        self.logger.debug(f"  Theta : {Theta:3.4e}")
+
         while J >= tol+tau*noise_level and i<i_max:
-            self.logger.info(f"###############################################################")
-            self.logger.info(f"J = {J:3.4e} is still not sufficent; J > tol+tau*noise_level: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
-            self.logger.info(f"Start main loop iteration i = {i}: J = {J:3.4e}.")
+            self.logger.info(f"##############################################################################################################################")
+            self.logger.warning(f"IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
+            self.logger.info(f'Start IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')            
+            self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
+            self.logger.info(f"Try 0: test alpha = {alpha}.")
 
             regularization_qualification = False
             count = 1
@@ -108,7 +124,8 @@ class Optimizer:
                                               method='gd',
                                               max_iter=max_iter,
                                               tol=gc_tol,
-                                              inital_step_size=inital_step_size)
+                                              inital_step_size=inital_step_size, 
+                                              logger = self.logger)
             
             lin_u = model.solve_linearized_state(q, d, u)
             lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0)
@@ -117,13 +134,11 @@ class Optimizer:
             condition_up = 2* lin_J < Theta*J
             regularization_qualification = condition_low and condition_up
 
-            self.logger.info(f"alpha = {alpha} does not satisfy selection criteria.")
-            self.logger.info(f"{theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}?")
-
             if (not regularization_qualification) and (count < reg_loop_max):
+                self.logger.warning(f"Used alpha = {alpha} does NOT satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
                 self.logger.info(f"Searching for alpha:") 
 
-            while (not regularization_qualification) and (count < reg_loop_max) :
+            while (not regularization_qualification) and (count < reg_loop_max):
                 
                 if not condition_low:
                     alpha *= 1.5  
@@ -133,7 +148,8 @@ class Optimizer:
                 else:
                     raise ValueError
                 
-                self.logger.info(f"Test alpha = {alpha}.")
+                self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
+                self.logger.info(f"Try {count}: test alpha = {alpha}.")
                 d = self.solve_linearized_problem(model=model,
                                                   q=q,
                                                   d_start=d_start,
@@ -141,7 +157,8 @@ class Optimizer:
                                                   method='gd',
                                                   max_iter=max_iter,
                                                   tol=gc_tol,
-                                                  inital_step_size=inital_step_size)
+                                                  inital_step_size=inital_step_size,
+                                                  logger = self.logger)
 
                 lin_u = model.solve_linearized_state(q, d, u)
                 lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0)
@@ -150,17 +167,18 @@ class Optimizer:
                 condition_up = 2* lin_J < Theta*J
                 regularization_qualification = condition_low and condition_up
                             
-
-                self.logger.info(f"Try {count}: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}?")
-                self.logger.info(f"--------------------------------------------------------------------")
+                if (not regularization_qualification) and (count < reg_loop_max):
+                    self.logger.warning(f"Used alpha = {alpha} does NOT satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
+                else:
+                    self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
 
                 count += 1
 
             if (count < reg_loop_max):
-                self.logger.info(f"Found valid alpha = {alpha}.")
+                self.logger.warning(f"Used alpha = {alpha} does satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
             else:
-                self.logger.info(f"Not found valid alpha before reaching maximum number of tries :  {reg_loop_max}. \n \
-                                   Using the last alpha tested = {alpha}.")
+                self.logger.error(f"Not found valid alpha before reaching maximum number of tries :  {reg_loop_max}. \n \
+                                    Using the last alpha tested = {alpha}.")
             q += d
             u = model.solve_state(q)
             p = model.solve_adjoint(q, u)
@@ -179,9 +197,12 @@ class Optimizer:
                     self.logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
                     break
 
-            i += 1
             IRGNM_statistics['time_steps'].append((timer()- start_time))
-            self.logger.info(f'i = {i}, J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')
+            self.logger.info(f'Statistics IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')
+            i += 1
+            if not(J >= tol+tau*noise_level and i<i_max):
+                self.logger.info(f"##############################################################################################################################")
+
         
         IRGNM_statistics['total_runtime'] = (timer() - start_time)        
         return (q, IRGNM_statistics)
@@ -208,9 +229,10 @@ class Optimizer:
 class FOMOptimizer(Optimizer):
     def __init__(self, 
                  optimizer_parameter: Dict, 
-                 FOM : InstationaryModelIP) -> None:
+                 FOM : InstationaryModelIP,
+                 logger: logging.Logger = None) -> None:
 
-        super().__init__(optimizer_parameter, FOM)
+        super().__init__(optimizer_parameter, FOM, logger)
         self.statistics = {
             'q' : [],
             'time_steps' : [],

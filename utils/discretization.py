@@ -25,12 +25,9 @@ def construct_noise_data(analytical_problem : InstationaryModel,
         noise_scaling = u_exact.space.from_numpy(noise_level*noise/noise_L2_norm) 
         u_noise = u_exact + noise_scaling    
         percentage = noise_level/noise_L2_norm
-        print(f'noise percentage is {percentage}')
-        print(f'noise_level is {noise_level}')
-
 
     u_noise = u_exact + noise_scaling
-    return u_noise
+    return u_noise, percentage
 
 def build_projection(grid):
     rows = []

@@ -1,19 +1,23 @@
 import numpy as np
 import scipy
 from typing import Dict
+import logging
+import inspect
 
 import pymor.models.basic as InstationaryProblem
+import pymor.vectorarrays as VectorArray
 from pymor.discretizers.builtin import discretize_instationary_cg
 from pymor.operators.constructions import IdentityOperator
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.numpy import NumpyMatrixOperator
-import pymor.vectorarrays as VectorArray
 from pymor.discretizers.builtin.grids.rect import RectGrid
 
 from evaluators import UnAssembledA, UnAssembledB
 from utils.discretization import split_constant_and_parameterized_operator, \
     construct_noise_data
+from utils.logger import get_default_logger
 
+# TODO Refactor this
 def bochner_product(v : VectorArray,
                     w : VectorArray,
                     delta_t : float,
@@ -31,8 +35,15 @@ def bochner_product(v : VectorArray,
 def discretize_instationary_IP(analytical_problem : InstationaryProblem, 
                                model_params : Dict,
                                dims : Dict,
-                               problem_type: str
-                               ):
+                               problem_type: str,
+                               logger: logging.Logger = None) -> Dict:
+
+    if logger:
+        logger = logger
+    else:
+        logger = get_default_logger(inspect.getframeinfo(inspect.currentframe()).function)
+        logger.setLevel(logging.DEBUG)              
+                            
     products = {
         'prod_H' : None,
         'prod_Q' : None,
@@ -106,10 +117,13 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
             range_id = range.id,
         )
         
-    u_delta = construct_noise_data(primal_fom, model_params)
+    u_delta, percentage = construct_noise_data(primal_fom, model_params)
     y_delta = C.apply(u_delta)[1:]
     assert (len(y_delta) == dims['nt'])
     assert (y_delta.space == C.range) 
+
+    logger.debug(f'noise percentage is {percentage:3.4e}')
+    logger.debug(f'noise_level is {model_params["noise_level"]:3.4e}')
 
     constant_cost_term = y_delta.pairwise_inner(y_delta, product=products['prod_C'])    
     linear_cost_term = NumpyMatrixOperator(

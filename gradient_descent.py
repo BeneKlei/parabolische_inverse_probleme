@@ -116,7 +116,7 @@ def gradient_descent_linearized_problem(
     buffer_J.pop(0)
     buffer_J.append(current_J)
 
-    logger.info(f"Initial objective = {current_J}.")
+    logger.info(f"Initial objective = {current_J:3.4e}.")
     
     for i in range(int(max_iter)):
         previous_d = current_d.copy()
@@ -155,7 +155,6 @@ def gradient_descent_linearized_problem(
 
         if (i % 10 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {np.linalg.norm(model.compute_linearized_gradient(q, current_d, alpha).to_numpy()):3.4e}.")
-            #logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J}, norm gradient = {np.linalg.norm(model.compute_linearized_gradient(q, current_d, alpha).to_numpy())}.")
 
         buffer_d.pop(0)
         buffer_d.append(current_d)
@@ -170,9 +169,9 @@ def gradient_descent_linearized_problem(
                 break
 
     if converged:
-        logger.info(f"Converged at iteration {last_i} of {int(max_iter)}.")
+        logger.info(f"Gradient decent converged at iteration {last_i} of {int(max_iter)}.")
     else:
-        logger.info(f"NOT converged after {int(max_iter)} iterations.")
+        logger.info(f"Gradient decent NOT converged after {int(max_iter)} iterations.")
 
     logger.info(f"objective = {current_J:3.4e}, norm gradient = {np.linalg.norm(model.compute_linearized_gradient(q, current_d, alpha).to_numpy()):3.4e}.")
 
