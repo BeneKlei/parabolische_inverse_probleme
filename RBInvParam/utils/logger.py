@@ -43,16 +43,17 @@ def get_default_logger(logger_name: str = None,
                        logfile_path: Union[str, Path] = None,
                        use_timestemp: bool = False) -> logging.Logger:
 
-    if not logfile_path:
-        logfile_path = Path('./logs/log')
+    # if not logfile_path:
+    #     logfile_path = Path('./logs/log')
 
-    logfile_path = Path(logfile_path)
-    assert logfile_path.parent.exists()
+    if logfile_path:
+        logfile_path = Path(logfile_path)
+        assert logfile_path.parent.exists()
 
-    if use_timestemp:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename_with_timestamp = f"{timestamp}_{logfile_path.stem}{logfile_path.suffix}"
-        logfile_path = logfile_path.parent / filename_with_timestamp
+        if use_timestemp:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename_with_timestamp = f"{timestamp}_{logfile_path.stem}{logfile_path.suffix}"
+            logfile_path = logfile_path.parent / filename_with_timestamp
 
     log_format = '[%(asctime)s][%(funcName)s] - %(message)s'
 
@@ -60,20 +61,14 @@ def get_default_logger(logger_name: str = None,
     logger = logging.getLogger(logger_name)
     logger.propagate = False
 
-    # Stream handler for console output
     console_handler = logging.StreamHandler(sys.stdout)
-
-    # File handler
-    file_handler = logging.FileHandler(logfile_path)
-
-    # Set initial plain formatters
     colored_formatter = ColoredFormatter(log_format)
-    plain_formatter = PlainFormatter(log_format)
-
     console_handler.setFormatter(colored_formatter)
-    file_handler.setFormatter(plain_formatter)
-
-    # Add handlers to logger
     logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
+
+    if logfile_path:
+        file_handler = logging.FileHandler(logfile_path)
+        plain_formatter = PlainFormatter(log_format)
+        file_handler.setFormatter(plain_formatter)
+        logger.addHandler(file_handler)
     return logger

@@ -19,7 +19,7 @@ from RBInvParam.gradient_descent import gradient_descent_non_linearized_problem
 
 #########################################################################################''
 
-logger = get_default_logger(use_timestemp=True)
+logger = get_default_logger(logfile_path='./logs/log.log', use_timestemp=True)
 logger.setLevel(logging.DEBUG)
 
 set_log_levels({
@@ -30,108 +30,90 @@ set_defaults({})
 
 #########################################################################################''
 
-#N = 100
-N = 10
-par_dim = (N+1)**2
-fine_N = 2 * N
+def main():
+
+    #N = 100
+    N = 10
+    par_dim = (N+1)**2
+    fine_N = 2 * N
 
 
-T_initial = 0
-T_final = 1
-# TODO Here is a Bug
-nt = 50
-delta_t = (T_final - T_initial) / nt
-q_time_dep = False
-#q_time_dep = True
+    T_initial = 0
+    T_final = 1
+    # TODO Here is a Bug
+    nt = 50
+    delta_t = (T_final - T_initial) / nt
+    q_time_dep = False
+    #q_time_dep = True
 
-noise_level = 1e-5
-bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
+    noise_level = 1e-5
+    bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
-assert T_final > T_initial
-if q_time_dep:
-    q_circ = 3*np.ones((nt, par_dim))
-else:
-    q_circ = 3*np.ones((1, par_dim))
-
-
-dims = {
-    'N': N,
-    'nt': nt,
-    'fine_N': fine_N,
-    'state_dim': (N+1)**2,
-    'fine_state_dim': (fine_N+1)**2,
-    'diameter': np.sqrt(2)/N,
-    'fine_diameter': np.sqrt(2)/fine_N,
-    'par_dim': par_dim,
-    'output_dim': 1,                                                                                                                                                                         # options to preassemble affine components or not
-}
-
-problem_parameter = {
-    'N' : N,
-    'parameter_location' : 'reaction',
-    'boundary_conditions' : 'dirichlet',
-    'exact_parameter' : 'Kirchner',
-}
-
-model_parameter = {
-    'T_initial' : T_initial,
-    'T_final' : T_final,
-    'delta_t' : delta_t,
-    'noise_percentage' : None,
-    'noise_level' : noise_level,
-    'q_circ' : q_circ, 
-    'q_exact' : None,
-    'q_time_dep' : q_time_dep,
-    'bounds' : bounds,
-    'parameters' : None
-}
+    assert T_final > T_initial
+    if q_time_dep:
+        q_circ = 3*np.ones((nt, par_dim))
+    else:
+        q_circ = 3*np.ones((1, par_dim))
 
 
-logger.debug('Construct problem..')                                                     
-analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(**problem_parameter)
+    dims = {
+        'N': N,
+        'nt': nt,
+        'fine_N': fine_N,
+        'state_dim': (N+1)**2,
+        'fine_state_dim': (fine_N+1)**2,
+        'diameter': np.sqrt(2)/N,
+        'fine_diameter': np.sqrt(2)/fine_N,
+        'par_dim': par_dim,
+        'output_dim': 1,                                                                                                                                                                         # options to preassemble affine components or not
+    }
 
-model_parameter['parameters'] = analytical_problem.parameters
-if q_time_dep:                                                 
-    model_parameter['q_exact'] = np.array([q_exact for _ in range(dims['nt'])])
-else:
-    model_parameter['q_exact'] = np.array([q_exact])
+    problem_parameter = {
+        'N' : N,
+        'parameter_location' : 'reaction',
+        'boundary_conditions' : 'dirichlet',
+        'exact_parameter' : 'Kirchner',
+    }
 
-logger.debug('Discretizing problem...')                                                
-building_blocks = discretize_instationary_IP(analytical_problem,model_parameter,dims, problem_type) 
-
-
-FOM = InstationaryModelIP(                 
-    *building_blocks,
-    dims = dims,
-    model_parameter = model_parameter
-)
-
-# if q_time_dep:
-#     q_start = 0*np.ones((nt, par_dim))
-# else:
-#     q_start = 0*np.ones((1, par_dim))
-q_start = q_circ
-
-if 0:
-    # Gradient tests 
-    
-    # #objective 
-    # FOM.derivative_check(FOM.compute_objective, FOM.compute_gradient)
-    
-    # # gradient regularization term
-    # alpha = 1e0
-    # FOM.derivative_check(lambda q: alpha * FOM.regularization_term(q), lambda q: alpha * FOM.gradient_regularization_term(q))
-    
-    # # linarized objective
-    # alpha = 1e-0
-    # q = FOM.numpy_to_pymor(q_circ)
-    # FOM.derivative_check(lambda d : FOM.compute_linearized_objective(q, d, alpha), lambda d: FOM.compute_linearized_gradient(q, d, alpha))
-
-    gradient_descent_non_linearized_problem(FOM,q_start, 0, max_iter=1e4, tol=1e-13)
+    model_parameter = {
+        'T_initial' : T_initial,
+        'T_final' : T_final,
+        'delta_t' : delta_t,
+        'noise_percentage' : None,
+        'noise_level' : noise_level,
+        'q_circ' : q_circ, 
+        'q_exact' : None,
+        'q_time_dep' : q_time_dep,
+        'bounds' : bounds,
+        'parameters' : None
+    }
 
 
-        
-if 1:
+    logger.debug('Construct problem..')                                                     
+    analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(**problem_parameter)
+
+    model_parameter['parameters'] = analytical_problem.parameters
+    if q_time_dep:                                                 
+        model_parameter['q_exact'] = np.array([q_exact for _ in range(dims['nt'])])
+    else:
+        model_parameter['q_exact'] = np.array([q_exact])
+
+    logger.debug('Discretizing problem...')                                                
+    building_blocks = discretize_instationary_IP(analytical_problem,model_parameter,dims, problem_type) 
+
+
+    FOM = InstationaryModelIP(                 
+        *building_blocks,
+        dims = dims,
+        model_parameter = model_parameter
+    )
+
+    # if q_time_dep:
+    #     q_start = 0*np.ones((nt, par_dim))
+    # else:
+    #     q_start = 0*np.ones((1, par_dim))
+    q_start = q_circ
+
     optimizer_parameter = {
         'noise_level' : model_parameter['noise_level'],
         'tau' : 1e-4,
@@ -176,4 +158,5 @@ if 1:
 
     save_dict_to_pkl(path=save_path, data=data)
 
-    
+if __name__ == '__main__':
+    main()

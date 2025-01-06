@@ -203,11 +203,8 @@ class Optimizer:
             if not(J >= tol+tau*noise_level and i<i_max):
                 self.logger.info(f"##############################################################################################################################")
 
-        
         IRGNM_statistics['total_runtime'] = (timer() - start_time)        
-        return (q, IRGNM_statistics)
-
-        
+        return (q, IRGNM_statistics)        
 
     def solve_linearized_problem(self,
                                 model : InstationaryModelIP, 

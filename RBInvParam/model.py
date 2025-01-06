@@ -288,7 +288,7 @@ class InstationaryModelIP:
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.dims['nt']):
-            grad[idx] = self.B(u[idx]).B_u_ad(lin_p[idx], 'grad')        
+            grad[idx] = self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
 
         if not self.q_time_dep:
             grad = np.sum(grad, axis=0, keepdims=True) 
@@ -366,8 +366,6 @@ class InstationaryModelIP:
         else:
             return self.dims['nt'] * out
             
-        
-        
 
 #%% compute functions                            
     def compute_objective(self, 
@@ -412,52 +410,3 @@ class InstationaryModelIP:
     
     def numpy_to_pymor(self,q):
         return self.Q.make_array(q)
-
-    def derivative_check(self,f, df, mode = 1):
-        
-        print('derivative check ...')
-        
-        Eps = np.array([1,1e-1,1e-2,1e-3,1e-4,1e-5,1e-6])
-        
-        # q  = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
-        # dq = self.Q.make_array(np.random.random((self.dims['nt'], self.dims['par_dim'])))
-        q  = self.Q.make_array(np.random.random((1, self.dims['par_dim'])))
-        dq = self.Q.make_array(np.random.random((1, self.dims['par_dim'])))
-        T = np.zeros(np.shape(Eps))
-        T2 = T
-        ff = f(q)
-        
-        # Compute central & right-side difference quotient
-        for i in range(len(Eps)):
-            #print(Eps[i])
-            f_plus = f(q+Eps[i]*dq)
-            f_minus = f(q-Eps[i]*dq)
-            
-            dfq_np = df(q).to_numpy().T
-            dq_np = dq.to_numpy().T
-            df_dq = self.delta_t * np.sum(np.sum(dfq_np*dq_np, axis = 0))
-            
-            T[i] = abs( ( (f_plus - f_minus)/(2*Eps[i]) ) - df_dq )
-            T2[i] =  abs( ( (f_plus - ff)/(Eps[i]) ) - df_dq )
-            
-        #Plot
-        # plt.figure()
-        # plt.xlabel('$eps$')
-        # plt.ylabel('$J$')
-        # plt.loglog(Eps, Eps**2, label='O(eps^2)')
-        # plt.loglog(Eps, T,'ro--', label='Test')
-        # plt.legend(loc='upper left')
-        # plt.grid()
-        # plt.title("Central difference quotient")
-        plt.figure()
-        plt.xlabel('$eps$')
-        plt.ylabel('$J$')
-        plt.loglog(Eps, Eps, label='O(eps)')
-        plt.loglog(Eps, T2, 'ro--',label='Test')
-        plt.legend(loc='upper left')
-        plt.grid()
-        plt.title("Rightside difference quotient")
-        plt.show()
-        # print(T)
-        # print(Eps)
-        # print(Eps**2)

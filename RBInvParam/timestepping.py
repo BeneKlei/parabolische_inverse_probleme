@@ -105,9 +105,6 @@ class ImplicitEulerTimeStepper(TimeStepper):
         #            self.solver_options)
         options = None
         M_dt_A = None    
-
-
-        
         
         if isinstance(A, Operator):
             M_dt_A = (M + A * dt).with_(solver_options=options)
@@ -154,7 +151,9 @@ class ImplicitEulerTimeStepper(TimeStepper):
                 rhs = _rhs + dt_F
             else:
                 rhs = _rhs
+                
             U = M_dt_A.apply_inverse(rhs, mu=mu, initial_guess=U)
+
             while t - t0 + (min(dt, DT) * 0.5) >= num_ret_values * DT:
                 num_ret_values += 1
                 yield U, t
