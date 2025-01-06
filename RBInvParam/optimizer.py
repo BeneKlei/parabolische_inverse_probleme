@@ -40,10 +40,15 @@ class Optimizer:
         assert self.optimizer_parameter['tau'] > 0
         assert self.optimizer_parameter['alpha_0'] >= 0
         assert self.optimizer_parameter['i_max'] >= 1
+
+        if 'i_max_inner' in self.optimizer_parameter.keys():
+            assert self.optimizer_parameter['i_max_inner'] >= 1
+
         #assert self.optimizer_parameter['reg_loop_max'] >= 1
         assert 0 < self.optimizer_parameter['theta'] \
                  < self.optimizer_parameter['Theta'] \
                  < 1
+        
     
     def IRGNM(self,
               model: InstationaryModelIP,
@@ -88,20 +93,20 @@ class Optimizer:
         IRGNM_statistics['norm_nabla_J'].append(np.linalg.norm(nabla_J.to_numpy()))
         IRGNM_statistics['alpha'].append(alpha)
 
-
         self.logger.debug("Running IRGNM: ")
-        self.logger.debug(f"  J : {alpha_0:3.4e}")
+        self.logger.debug(f"  J : {J:3.4e}")
         self.logger.debug(f"  norm_nabla_J : {np.linalg.norm(nabla_J.to_numpy()):3.4e}")
         self.logger.debug(f"  alpha_0 : {alpha_0:3.4e}")
         self.logger.debug(f"  tol : {tol:3.4e}")
         self.logger.debug(f"  tau : {tau:3.4e}")
-        self.logger.debug(f"  noise_level : {noise_level:3.4e}")
+        self.logger.debug(f"  i_max : {i_max:3.4e}")
+        self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
         self.logger.debug(f"  theta : {theta:3.4e}")
         self.logger.debug(f"  Theta : {Theta:3.4e}")
 
         while J >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"##############################################################################################################################")
-            self.logger.warning(f"IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
+            self.logger.warning(f"IRGNM: Iteration {i} J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')            
             self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
             self.logger.info(f"Try 0: test alpha = {alpha}.")
@@ -193,7 +198,8 @@ class Optimizer:
             if i > 3:
                 buffer = IRGNM_statistics['J'][-3:]
                 if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] -buffer[2]) < MACHINE_EPS:
-                    self.logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
+                    IRGNM_statistics['stagnation_flag'] = True
+                    self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
 
             IRGNM_statistics['time_steps'].append((timer()- start_time))
@@ -270,10 +276,119 @@ class QrROMOptimizer(Optimizer):
 
         super().__init__(optimizer_parameter, FOM)
         self.reductor = InstationaryModelIPReductor(FOM)
+        self.Q_r_ROM = None
+
+        self.statistics = {
+            'q' : [],
+            'inner_loop_time_steps' : [],
+            'alpha' : [],
+            'J' : [],
+            'norm_nabla_J' : [],
+            'total_runtime' : np.nan,
+            'stagnation_flag' : False,
+            'optimizer_parameter' : self.optimizer_parameter.copy()
+        }
 
     def solve(self):
-        while not self._check_termination_criteria():
-            pass
+        alpha_0 = self.optimizer_parameter['alpha_0']
+        tol = self.optimizer_parameter['tol']
+        tau = self.optimizer_parameter['tau']
+        i_max = self.optimizer_parameter['i_max']
+        i_max_inner = self.optimizer_parameter['i_max_inner']
+        reg_loop_max = self.optimizer_parameter['reg_loop_max']
+        noise_level = self.optimizer_parameter['noise_level']
+        theta = self.optimizer_parameter['theta']
+        Theta = self.optimizer_parameter['Theta']
+
+
+        self.logger.debug("Running Q_r-IRGNM:")
+        self.logger.debug(f"  J : {J:3.4e}")
+        self.logger.debug(f"  norm_nabla_J : {np.linalg.norm(nabla_J.to_numpy()):3.4e}")
+        self.logger.debug(f"  alpha_0 : {alpha_0:3.4e}")
+        self.logger.debug(f"  tol : {tol:3.4e}")
+        self.logger.debug(f"  tau : {tau:3.4e}")
+        self.logger.debug(f"  i_max : {i_max:3.4e}")
+        self.logger.debug(f"  i_max_inner : {i_max_inner:3.4e}")
+        self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
+        self.logger.debug(f"  noise_level : {noise_level:3.4e}")
+        self.logger.debug(f"  theta : {theta:3.4e}")
+        self.logger.debug(f"  Theta : {Theta:3.4e}")
+
+        start_time = timer()
+        i = 0
+        alpha = alpha_0
+        delta = noise_level
+
+
+        q = self.FOM.Q.make_array(self.optimizer_parameter['q_0'].copy())
+        u = self.FOM.solve_state(q)
+        p = self.FOM.solve_adjoint(q, u)
+        J = self.FOM.objective(u)
+        nabla_J = self.FOM.gradient(u, p)
+
+        self.statistics['q'].append(q)
+        self.statistics['alpha'].append(alpha)
+        self.statistics['J'].append(J)
+        self.statistics['norm_nabla_J'].append(np.linalg.norm(nabla_J.to_numpy()))
+        
+        q_basis_extention = self.FOM.Q.empty()
+        q_basis_extention.append(nabla_J)
+        q_basis_extention.append(q)
+        q_basis_extention.append(self.FOM.Q.make_array(self.FOM.model_parameter['q_circ']))
+
+        self.reductor.extend_basis(
+             U = q_basis_extention,
+             basis = 'parameter_basis'
+        )
+        self.Q_r_ROM = self.reductor.reduce()
+
+        while J >= tol+tau*noise_level and i<i_max:
+            self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+            self.logger.warning(f"Q_r-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
+            self.logger.info(f'Start Q_r-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')
+
+            q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
+            q_r = self.Q_r_ROM.Q.make_array()
+
+            q_r, IRGNM_statistic = self.IRGNM(model = self.Q_r_ROM,
+                                              q_0 = q_r,
+                                              alpha_0 = alpha,
+                                              tol = tol,
+                                              tau = tau,
+                                              noise_level = self.noise_rule(delta),
+                                              i_max = i_max_inner,
+                                              theta = theta,
+                                              Theta = Theta,
+                                              reg_loop_max = reg_loop_max)
+            
+
+            q = self.reductor.reconstruct(q_r, basis='parameter_basis')
+            u = self.FOM.solve_state(q)
+            p = self.FOM.solve_adjoint(q, u)
+            J = self.FOM.objective(u)
+            nabla_J = self.FOM.gradient(u, p)
+            alpha = IRGNM_statistic['alpha'][1]
+
+            self.statistics['q'].append(q)
+            self.statistics['alpha'].append(alpha)
+            self.statistics['J'].append(J)
+            self.statistics['norm_nabla_J'].append(np.linalg.norm(nabla_J.to_numpy()))
+
+            if i > 3:
+                buffer = self.statistics['J'][-3:]
+                if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] - buffer[2]) < MACHINE_EPS:
+                    self.statistics['stagnation_flag'] = True
+                    self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
+                    break
+
+            self.reductor.extend_basis(
+                U = nabla_J,
+                basis = 'parameter_basis'
+            )
+            self.Q_r_ROM = self.reductor.reduce()
+
+        self.statistics['total_runtime'] = (timer() - start_time)        
+        
 
     def _initialize_optimization(self):    
         pass    

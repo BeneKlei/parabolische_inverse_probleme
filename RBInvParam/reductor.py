@@ -88,8 +88,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         return LincombOperator(operators, coefficients)
 
-
-
     def project_operators(self) -> Dict:
         state_basis = self.bases['state_basis']
         parameter_basis = self.bases['parameter_basis']

@@ -124,7 +124,8 @@ def main():
         'i_max' : 50,
         'reg_loop_max' : 50,
         'theta' : 0.25,
-        'Theta' : 0.75
+        'Theta' : 0.75,
+        'i_max_inner' : np.nan,
     }
 
     optimizer = FOMOptimizer(
