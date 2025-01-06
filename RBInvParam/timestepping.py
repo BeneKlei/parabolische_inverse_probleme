@@ -112,6 +112,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
         elif isinstance(A, (UnAssembledA, AssembledA)) and not q_time_dep:
             A_q = A(q[0])
             M_dt_A = (M + A_q * dt).with_(solver_options=options)
+            M_dt_A = M_dt_A.assemble(mu=mu)
 
         # If the lhs not time-dependend assemble it for all time steps.
         # if (M_dt_A is not None) and (not _depends_on_time(M_dt_A, mu)):
@@ -143,7 +144,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
             if q_time_dep:
                 assert isinstance(A, (UnAssembledA, AssembledA))
                 A_q = A(q[n])
-                M_dt_A = (M + A_q * dt).with_(solver_options=options)
+                M_dt_A = (M + A_q * dt).with_(solver_options=options)                
 
             assert M_dt_A is not None
 

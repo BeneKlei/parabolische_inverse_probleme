@@ -30,8 +30,8 @@ set_defaults({})
 
 #########################################################################################''
 
-N = 10
-#N = 100
+#N = 10
+N = 100
 par_dim = (N+1)**2
 fine_N = 2 * N
 
@@ -41,8 +41,8 @@ T_final = 1
 # TODO Here is a Bug
 nt = 50
 delta_t = (T_final - T_initial) / nt
-#q_time_dep = False
-q_time_dep = True
+q_time_dep = False
+#q_time_dep = True
 
 noise_level = 1e-5
 bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -111,8 +111,8 @@ FOM = InstationaryModelIP(
 import cProfile
 import os
 
-# if os.path.exists('profiling_results.prof'):
-#     os.remove('profiling_results.prof')
+if os.path.exists('profiling_results.prof'):
+    os.remove('profiling_results.prof')
     
 pr = cProfile.Profile()
 
@@ -120,7 +120,6 @@ q = FOM.Q.make_array(q_circ)
 d = FOM.Q.make_array(q_circ)
 
 pr.enable()
-FOM.compute_linearized_gradient(q, d, alpha=1)
 FOM.compute_linearized_gradient(q, d, alpha=1)
 pr.disable()
 

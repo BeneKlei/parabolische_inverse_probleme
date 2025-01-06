@@ -116,7 +116,6 @@ class Optimizer:
             max_iter = 1e4
             gc_tol = 1e-14
             inital_step_size = 1
-            #TODO 
             d = self.solve_linearized_problem(model=model,
                                               q=q,
                                               d_start=d_start,
