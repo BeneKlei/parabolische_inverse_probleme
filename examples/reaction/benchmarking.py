@@ -1,18 +1,14 @@
 import numpy as np
-from pathlib import Path
 import logging
 
 from pymor.basic import *
-from pymor.parameters.base import ParameterSpace
 
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.optimizer import FOMOptimizer
 from RBInvParam.problems.problems import whole_problem
 from RBInvParam.discretizer import discretize_instationary_IP
-from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
+from RBInvParam.reductor import InstationaryModelIPReductor
 
-from RBInvParam.gradient_descent import gradient_descent_non_linearized_problem
 
 # TODO
 # - Find better way to handle time independ parameter
@@ -103,8 +99,28 @@ building_blocks = discretize_instationary_IP(analytical_problem,model_parameter,
 FOM = InstationaryModelIP(                 
     *building_blocks,
     dims = dims,
-    model_parameter = model_parameter
+    model_parameter = model_parameter,
+    name='reaction_FOM'
 )
+reductor = InstationaryModelIPReductor(FOM)
+
+q = FOM.Q.make_array(q_circ)
+u = FOM.solve_state(q)
+p = FOM.solve_adjoint(q, u)
+J = FOM.objective(u)
+nabla_J = FOM.gradient(u, p)
+
+reductor.extend_basis(
+    U = nabla_J,
+    basis = 'parameter_basis'
+)
+Q_r_ROM = reductor.reduce()
+d = FOM.Q.make_array(q_circ)
+
+q_r = reductor.project_vectorarray(q, 'parameter_basis')
+q_r = Q_r_ROM.Q.make_array(q_r)
+d_r = reductor.project_vectorarray(d, 'parameter_basis')
+d_r = Q_r_ROM.Q.make_array(d_r)
 
 #########################################################################################
 
@@ -116,11 +132,10 @@ if os.path.exists('profiling_results.prof'):
     
 pr = cProfile.Profile()
 
-q = FOM.Q.make_array(q_circ)
-d = FOM.Q.make_array(q_circ)
 
 pr.enable()
-FOM.compute_linearized_gradient(q, d, alpha=1)
+#FOM.compute_linearized_gradient(q, d, alpha=1)
+Q_r_ROM.compute_linearized_gradient(q_r, d_r, alpha=1)
 pr.disable()
 
 pr.dump_stats('profiling_results.prof')

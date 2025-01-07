@@ -162,11 +162,11 @@ def gradient_descent_linearized_problem(
         buffer_J.pop(0)
         buffer_J.append(current_J)    
 
-        #stagnation check
-        if i > 10:
-            if abs(buffer_J[0] - buffer_J[1]) < MACHINE_EPS and abs(buffer_J[1] - buffer_J[2]) < MACHINE_EPS:
-                logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
-                break
+        # #stagnation check
+        # if i > 10:
+        #     if abs(buffer_J[0] - buffer_J[1]) < MACHINE_EPS and abs(buffer_J[1] - buffer_J[2]) < MACHINE_EPS:
+        #         logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
+        #         break
 
     if converged:
         logger.info(f"Gradient decent converged at iteration {last_i} of {int(max_iter)}.")

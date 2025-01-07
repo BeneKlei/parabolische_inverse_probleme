@@ -43,9 +43,7 @@ class InstationaryModelIP(ImmutableObject):
                  visualizer,
                  dims: Dict,
                  model_parameter: Dict,
-                 name: str):
-
-        self.name = name
+                 name: str = None):
 
         self.u_0 = u_0
         assert np.all(u_0.to_numpy() == 0)
@@ -78,6 +76,9 @@ class InstationaryModelIP(ImmutableObject):
 
         self.delta_t = self.model_parameter['delta_t']
         self.q_time_dep = model_parameter['q_time_dep']
+
+        if name:
+            self.model_parameter['name'] = name
         
 
 #%% solve methods

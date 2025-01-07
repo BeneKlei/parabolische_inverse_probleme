@@ -40,8 +40,8 @@ def main():
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
     noise_level = 1e-5
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -73,6 +73,7 @@ def main():
     }
 
     model_parameter = {
+        'name' : 'reaction_FOM',
         'T_initial' : T_initial,
         'T_final' : T_final,
         'delta_t' : delta_t,
@@ -102,8 +103,7 @@ def main():
     FOM = InstationaryModelIP(
         *building_blocks,
         dims = dims,
-        model_parameter = model_parameter,
-        name = 'reaction_FOM'
+        model_parameter = model_parameter
     )
 
     # if q_time_dep:

@@ -76,6 +76,7 @@ def main():
     }
 
     model_parameter = {
+        'name' : 'reaction_FOM', 
         'T_initial' : T_initial,
         'T_final' : T_final,
         'delta_t' : delta_t,
@@ -106,7 +107,6 @@ def main():
         *building_blocks,
         dims = dims,
         model_parameter = model_parameter,
-        name='reaction_FOM'
     )
 
     # if q_time_dep:

@@ -109,7 +109,7 @@ class Optimizer:
             self.logger.warning(f"IRGNM: Iteration {i} J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')            
             self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
-            self.logger.info(f"Try 0: test alpha = {alpha}.")
+            self.logger.info(f"Try 0: test alpha = {alpha:3.4e}.")
 
             regularization_qualification = False
             count = 1
@@ -139,7 +139,7 @@ class Optimizer:
             regularization_qualification = condition_low and condition_up
 
             if (not regularization_qualification) and (count < reg_loop_max):
-                self.logger.warning(f"Used alpha = {alpha} does NOT satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
+                self.logger.warning(f"Used alpha = {alpha:3.4e} does NOT satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
                 self.logger.info(f"Searching for alpha:") 
 
             while (not regularization_qualification) and (count < reg_loop_max):
@@ -153,7 +153,7 @@ class Optimizer:
                     raise ValueError
                 
                 self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
-                self.logger.info(f"Try {count}: test alpha = {alpha}.")
+                self.logger.info(f"Try {count}: test alpha = {alpha:3.4e}.")
                 d = self.solve_linearized_problem(model=model,
                                                   q=q,
                                                   d_start=d_start,
@@ -348,6 +348,7 @@ class QrROMOptimizer(Optimizer):
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             self.logger.warning(f"Q_r-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start Q_r-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')
+            self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
             q_r = self.Q_r_ROM.Q.make_array(q_r)

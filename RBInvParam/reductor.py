@@ -204,9 +204,9 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             *(projected_operators.values()),
             visualizer=self.FOM.visualizer,
             dims = dims,
-            model_parameter = model_parameter,
-            name = self.FOM.name # Will be reset to self.FOM.name + '_reduced' by pymor
+            model_parameter = model_parameter        
         )
+
 
     def assemble_error_estimator(self):
         pass
