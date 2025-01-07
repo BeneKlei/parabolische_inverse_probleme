@@ -40,10 +40,11 @@ def main():
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
-    noise_level = 1e-5
+    #noise_level = 1e-5
+    noise_level = 0
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
@@ -115,12 +116,14 @@ def main():
     optimizer_parameter = {
         'noise_level' : model_parameter['noise_level'],
         'tau' : 1e-4,
-        'tol' : 1e-13,
+        #'tol' : 1e-13,
+        'tol' : 1e-9,
+        #'tol' : 1e-5,
         'q_0' : q_start,
         'alpha_0' : 1e-5,
         'i_max' : 50,
         'i_max_inner' : 2,
-        'reg_loop_max' : 50,
+        'reg_loop_max' : 10,
         'theta' : 0.25,
         'Theta' : 0.75,
     }
@@ -137,14 +140,14 @@ def main():
     FOM.visualizer.visualize(q_exact, title="q_exact")
     logger.debug("Differnce to q_exact:")
     logger.debug("L^inf") 
-    logger.debug(f"{np.max(np.abs((q_est - q_exact).to_numpy())):3.4e}")
+    logger.debug(f"  {np.max(np.abs((q_est - q_exact).to_numpy())):3.4e}")
     logger.debug("Q-Norm") 
-    norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'](q_est - q_exact, q_est - q_exact))
-    norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'](q_exact, q_exact))
-    logger.debug(f"Absolute error: {norm_delta_q:3.4e}")
-    logger.debug(f"Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
+    norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_est - q_exact, q_est - q_exact))
+    norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))
+    logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
+    logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
-    save_path = Path("./dumps/test.pkl")
+    save_path = Path("./logs/test.pkl")
     logger.debug(f"Save statistics to {save_path}")
 
     data = {

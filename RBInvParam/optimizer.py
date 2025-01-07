@@ -65,7 +65,7 @@ class Optimizer:
         assert q_0 in model.Q
         assert tol > 0
         assert tau > 0
-        assert noise_level > 0
+        assert noise_level >= 0
         assert 0 < theta < Theta < 1
 
         IRGNM_statistics = {
@@ -106,7 +106,7 @@ class Optimizer:
 
         while J >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"##############################################################################################################################")
-            self.logger.warning(f"IRGNM: Iteration {i} J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
+            self.logger.warning(f"IRGNM: Iteration {i} | J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')            
             self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
             self.logger.info(f"Try 0: test alpha = {alpha:3.4e}.")
@@ -172,17 +172,17 @@ class Optimizer:
                 regularization_qualification = condition_low and condition_up
                             
                 if (not regularization_qualification) and (count < reg_loop_max):
-                    self.logger.warning(f"Used alpha = {alpha} does NOT satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
+                    self.logger.warning(f"Used alpha = {alpha:3.4e} does NOT satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
                 else:
                     self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
 
                 count += 1
 
             if (count < reg_loop_max):
-                self.logger.warning(f"Used alpha = {alpha} does satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
+                self.logger.warning(f"Used alpha = {alpha:3.4e} does satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
             else:
-                self.logger.error(f"Not found valid alpha before reaching maximum number of tries :  {reg_loop_max}. \n \
-                                    Using the last alpha tested = {alpha}.")
+                self.logger.error(f"Not found valid alpha before reaching maximum number of tries : {reg_loop_max}.\n\
+                                   Using the last alpha tested = {alpha:3.4e}.")
             q += d
             u = model.solve_state(q)
             p = model.solve_adjoint(q, u)
@@ -225,7 +225,6 @@ class Optimizer:
             raise NotImplementedError
         else:
             raise ValueError
-
 
     
 class FOMOptimizer(Optimizer):
@@ -276,8 +275,10 @@ class QrROMOptimizer(Optimizer):
                  logger: logging.Logger = None) -> None:
 
         super().__init__(optimizer_parameter, FOM, logger)
-        self.reductor = InstationaryModelIPReductor(FOM)
-        self.Q_r_ROM = None
+        self.reductor = InstationaryModelIPReductor(
+            FOM
+        )
+        self.Qr_ROM = None
 
         self.statistics = {
             'q' : [],
@@ -290,7 +291,7 @@ class QrROMOptimizer(Optimizer):
             'optimizer_parameter' : self.optimizer_parameter.copy()
         }
 
-    def solve(self):
+    def solve(self) -> VectorArray:
         alpha_0 = self.optimizer_parameter['alpha_0']
         tol = self.optimizer_parameter['tol']
         tau = self.optimizer_parameter['tau']
@@ -319,7 +320,7 @@ class QrROMOptimizer(Optimizer):
         self.statistics['norm_nabla_J'].append(np.linalg.norm(nabla_J.to_numpy()))
 
 
-        self.logger.debug("Running Q_r-IRGNM:")
+        self.logger.debug("Running Qr-IRGNM:")
         self.logger.debug(f"  J : {J:3.4e}")
         self.logger.debug(f"  norm_nabla_J : {np.linalg.norm(nabla_J.to_numpy()):3.4e}")
         self.logger.debug(f"  alpha_0 : {alpha_0:3.4e}")
@@ -332,7 +333,7 @@ class QrROMOptimizer(Optimizer):
         self.logger.debug(f"  theta : {theta:3.4e}")
         self.logger.debug(f"  Theta : {Theta:3.4e}")
         
-        self.logger.debug(f"Extending Q_r-space")
+        self.logger.debug(f"Extending Qr-space")
         q_basis_extention = self.FOM.Q.empty()
         q_basis_extention.append(nabla_J)
         q_basis_extention.append(q)
@@ -342,18 +343,20 @@ class QrROMOptimizer(Optimizer):
              U = q_basis_extention,
              basis = 'parameter_basis'
         )
-        self.Q_r_ROM = self.reductor.reduce()
+        self.Qr_ROM = self.reductor.reduce()
+        self.logger.debug(f"Dim Qr-space = {self.reductor.get_dim('parameter_basis')}")
+        self.logger.debug(f"Dim Vr-space = {self.reductor.get_dim('state_basis')}")
 
         while J >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-            self.logger.warning(f"Q_r-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
-            self.logger.info(f'Start Q_r-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')
+            self.logger.warning(f"Qr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
+            self.logger.info(f'Start Qr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
-            q_r = self.Q_r_ROM.Q.make_array(q_r)
+            q_r = self.Qr_ROM.Q.make_array(q_r)
 
-            q_r, IRGNM_statistic = self.IRGNM(model = self.Q_r_ROM,
+            q_r, IRGNM_statistic = self.IRGNM(model = self.Qr_ROM,
                                               q_0 = q_r,
                                               alpha_0 = alpha,
                                               tol = tol,
@@ -384,14 +387,17 @@ class QrROMOptimizer(Optimizer):
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
             
-            self.logger.debug(f"Extending Q_r-space")
+            self.logger.debug(f"Extending Qr-space")
             self.reductor.extend_basis(
                 U = nabla_J,
                 basis = 'parameter_basis'
             )
-            self.Q_r_ROM = self.reductor.reduce()
+            self.Qr_ROM = self.reductor.reduce()
+            self.logger.debug(f"Dim Qr-space = {self.reductor.get_dim('parameter_basis')}")
+            self.logger.debug(f"Dim Vr-space = {self.reductor.get_dim('state_basis')}")
 
         self.statistics['total_runtime'] = (timer() - start_time)        
+        return q
         
 
     def _initialize_optimization(self):    

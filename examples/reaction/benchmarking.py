@@ -114,13 +114,13 @@ reductor.extend_basis(
     U = nabla_J,
     basis = 'parameter_basis'
 )
-Q_r_ROM = reductor.reduce()
+Qr_ROM = reductor.reduce()
 d = FOM.Q.make_array(q_circ)
 
 q_r = reductor.project_vectorarray(q, 'parameter_basis')
-q_r = Q_r_ROM.Q.make_array(q_r)
+q_r = Qr_ROM.Q.make_array(q_r)
 d_r = reductor.project_vectorarray(d, 'parameter_basis')
-d_r = Q_r_ROM.Q.make_array(d_r)
+d_r = Qr_ROM.Q.make_array(d_r)
 
 #########################################################################################
 
@@ -135,7 +135,7 @@ pr = cProfile.Profile()
 
 pr.enable()
 #FOM.compute_linearized_gradient(q, d, alpha=1)
-Q_r_ROM.compute_linearized_gradient(q_r, d_r, alpha=1)
+Qr_ROM.compute_linearized_gradient(q_r, d_r, alpha=1)
 pr.disable()
 
 pr.dump_stats('profiling_results.prof')

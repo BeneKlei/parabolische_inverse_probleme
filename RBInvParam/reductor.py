@@ -1,5 +1,6 @@
 from typing import Dict
 import numpy as np
+import logging
 
 from pymor.reductors.basic import ProjectionBasedReductor
 from pymor.algorithms.projection import project, project_to_subbasis
@@ -14,12 +15,15 @@ from RBInvParam.model import InstationaryModelIP
 from RBInvParam.evaluators import AssembledA, AssembledB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator
 from RBInvParam.products import BochnerProductOperator
+from RBInvParam.utils.logger import get_default_logger
+
 
 class InstationaryModelIPReductor(ProjectionBasedReductor):
     def __init__(self, 
                  FOM: InstationaryModelIP, 
                  check_orthonormality: bool =False, 
-                 check_tol: float =1e-3):
+                 check_tol: float =1e-3,
+                 logger: logging.Logger = None):
         
         assert isinstance(FOM, InstationaryModelIP)
         assert 'prod_V' in FOM.products.keys()
@@ -41,7 +45,16 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                          _products,
                          check_orthonormality=check_orthonormality, 
                          check_tol=check_tol)
-    
+        
+
+        # logging.basicConfig()
+        # if logger:
+        #     self._logger = logger
+        # else:
+        #     self._logger = get_default_logger(self.__class__.__name__)
+        #     self._logger.setLevel(logging.DEBUG)
+        #     print(self._logger)
+        #     print(self.logger)
 
     def project_vectorarray(self, 
                             x : VectorArray,
@@ -55,6 +68,19 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         else:
             #return _basis.lincomb(x.inner(_basis, self.products[basis]))
             return x.inner(_basis, self.products[basis])
+        
+    def get_dim(self, basis: str) -> int:
+        _basis = self.bases[basis]
+        if len(_basis) == 0:
+            if basis == 'state_basis':
+                return self.FOM.dims['state_dim']
+            elif basis == 'parameter_basis':
+                return self.FOM.dims['par_dim']
+            else:
+                raise ValueError
+
+        else:
+            return len(_basis)
         
     
     def _assemble_reduced_operator(self) -> LincombOperator:

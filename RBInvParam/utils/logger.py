@@ -9,21 +9,12 @@ from datetime import datetime
 COLORS = {
     'DEBUG': '\033[94m',    # Blue
     'INFO': '',             # Default color
-    #'INFO': '\033[92m',    # Green
     'WARNING': '\033[93m',  # Yellow
     'ERROR': '\033[91m',    # Red
     'CRITICAL': '\033[95m', # Magenta
     'RESET': '\033[0m'      # Reset
 }
 
-# COLORS = {
-#     'DEBUG': '\033[96m',    # Cyan
-#     'INFO': '\033[97m',     # White
-#     'WARNING': '\033[95m',  # Purple
-#     'ERROR': '\033[91m',    # Red
-#     'CRITICAL': '\033[91;1m', # Bright Red (Bold)
-#     'RESET': '\033[0m'      # Reset
-# }
 
 class ColoredFormatter(logging.Formatter):    
     def format(self, record):

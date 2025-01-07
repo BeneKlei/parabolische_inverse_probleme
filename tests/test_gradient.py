@@ -180,9 +180,9 @@ def test_Qr_ROM_linearized_objective_gradient()-> None:
 # q = FOM.Q.make_array(FOM.model_parameter['q_circ'])
 # d = FOM.Q.make_array(q)
 # q_r = reductor.project_vectorarray(q, 'parameter_basis')
-# q_r = Q_r_ROM.Q.make_array(q_r)
+# q_r = Qr_ROM.Q.make_array(q_r)
 # d_r = reductor.project_vectorarray(d, 'parameter_basis')
-# d_r = Q_r_ROM.Q.make_array(d_r)
+# d_r = Qr_ROM.Q.make_array(d_r)
 
 
 
