@@ -3,23 +3,20 @@ from pathlib import Path
 import logging
 
 from pymor.basic import *
-from pymor.parameters.base import ParameterSpace
 
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.optimizer import FOMOptimizer
+from RBInvParam.optimizer import QrROMOptimizer
 from RBInvParam.problems.problems import whole_problem
 from RBInvParam.discretizer import discretize_instationary_IP
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
-
-from RBInvParam.gradient_descent import gradient_descent_non_linearized_problem
 
 # TODO
 # - Find better way to handle time independ parameter
 
 #########################################################################################''
 
-logger = get_default_logger(logfile_path='./logs/log.log', use_timestemp=True)
+logger = get_default_logger(logfile_path='./logs/Qr_IRGNM.log', use_timestemp=True)
 logger.setLevel(logging.DEBUG)
 
 set_log_levels({
@@ -32,8 +29,8 @@ set_defaults({})
 
 def main():
 
-    N = 100
-    #N = 10
+    #N = 100
+    N = 10
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -43,8 +40,8 @@ def main():
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
     noise_level = 1e-5
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -102,10 +99,11 @@ def main():
     building_blocks = discretize_instationary_IP(analytical_problem,model_parameter,dims, problem_type) 
 
 
-    FOM = InstationaryModelIP(                 
+    FOM = InstationaryModelIP(
         *building_blocks,
         dims = dims,
-        model_parameter = model_parameter
+        model_parameter = model_parameter,
+        name = 'reaction_FOM'
     )
 
     # if q_time_dep:
@@ -120,15 +118,14 @@ def main():
         'tol' : 1e-13,
         'q_0' : q_start,
         'alpha_0' : 1e-5,
-        #'alpha_0' : 1e-1,
         'i_max' : 50,
+        'i_max_inner' : 2,
         'reg_loop_max' : 50,
         'theta' : 0.25,
         'Theta' : 0.75,
-        'i_max_inner' : np.nan,
     }
 
-    optimizer = FOMOptimizer(
+    optimizer = QrROMOptimizer(
         FOM = FOM,
         optimizer_parameter = optimizer_parameter,
         logger = logger

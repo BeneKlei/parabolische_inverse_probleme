@@ -69,9 +69,9 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
 
     # TODO What is the inner product on Q^K
 
-    #step_size = product(delta_iterate, delta_iterate) / product(delta_iterate, delta_gradient)
-    step_size = product(delta_iterate, delta_gradient) / product(delta_gradient, delta_gradient)
-
+    #step_size = product.apply2(delta_iterate, delta_iterate) / product.apply2(delta_iterate, delta_gradient)
+    step_size = product.apply2(delta_iterate, delta_gradient) / product.apply2(delta_gradient, delta_gradient)
+    
     current_iterate = previous_iterate - step_size * search_direction
     current_value = func(current_iterate)
 

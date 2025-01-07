@@ -13,6 +13,7 @@ from pymor.parameters.base import Parameters
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.evaluators import AssembledA, AssembledB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator
+from RBInvParam.products import BochnerProductOperator
 
 class InstationaryModelIPReductor(ProjectionBasedReductor):
     def __init__(self, 
@@ -21,8 +22,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                  check_tol: float =1e-3):
         
         assert isinstance(FOM, InstationaryModelIP)
-        assert 'prod_V' in products.keys()
-        assert 'prod_Q' in products.keys()
+        assert 'prod_V' in FOM.products.keys()
+        assert 'prod_Q' in FOM.products.keys()
 
         bases = {
             'state_basis' : FOM.V.empty(),
@@ -34,6 +35,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'parameter_basis' : FOM.products['prod_Q']
         }
 
+        self.FOM = FOM
         super().__init__(FOM, 
                          bases, 
                          _products,
@@ -129,6 +131,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             constant_operator = constant_operator,
             V = V
         )
+        prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
 
         projected_operators = {
             'u_0' : V.make_array(self.project_vectorarray(self.FOM.u_0, basis='state_basis')),
@@ -143,29 +146,45 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'V' : V,
             'q_circ' : Q.make_array(self.project_vectorarray(self.FOM.q_circ, basis='parameter_basis')),
             'constant_reg_term' : self.FOM.constant_reg_term,
-            'linear_reg_term' : project(self.FOM.linear_reg_term, state_basis, None),
-            'bilinear_reg_term' : project(self.FOM.bilinear_reg_term, state_basis, state_basis),
+            'linear_reg_term' : project(self.FOM.linear_reg_term, parameter_basis, None),
+            'bilinear_reg_term' : project(self.FOM.bilinear_reg_term, parameter_basis, parameter_basis),
             'products' : {
                 'prod_H' : project(self.FOM.products['prod_H'], state_basis, state_basis),
-                'prod_Q' : project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis),
+                'prod_Q' : prod_Q,
                 'prod_V' : project(self.FOM.products['prod_V'], state_basis, state_basis),
                 'prod_C' : self.FOM.products['prod_C'],
-                'bochner_prod_Q' : None # TODO Build bochner_prod_Q in discretizer.py as NumpyMatrixOperator 
+                'bochner_prod_Q' : BochnerProductOperator(
+                    product=prod_Q,
+                    delta_t=self.FOM.delta_t
+                )
             }
 
         }
         return projected_operators 
 
-    def build_rom(self):
+    def build_rom(self, 
+                  projected_operators : Dict, 
+                  error_estimator : Dict = None):
+        
+        if len(self.bases['parameter_basis']) == 0:
+            par_dim = self.FOM.dims['par_dim']
+        else:
+            par_dim = len(self.bases['parameter_basis'])
+        
+        if len(self.bases['state_basis']) == 0:
+            state_dim = self.FOM.dims['state_dim']
+        else:
+            state_dim = len(self.bases['state_basis'])
+        
         dims = {
             'N': None,
             'nt': self.FOM.dims['nt'],
             'fine_N': None,
-            'state_dim': len(self.bases['state_basis']),
+            'state_dim': state_dim,
             'fine_state_dim': None,
             'diameter': None,
             'fine_diameter': None,
-            'par_dim': len(self.bases['parameter_basis']),
+            'par_dim': par_dim,
             'output_dim': self.FOM.dims['output_dim']                                                                                                                                                                     # options to preassemble affine components or not
         }
 
@@ -182,10 +201,11 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         })
         
         return InstationaryModelIP(
-            *(self.project_operators().values()),
+            *(projected_operators.values()),
             visualizer=self.FOM.visualizer,
             dims = dims,
-            model_parameter = model_parameter
+            model_parameter = model_parameter,
+            name = self.FOM.name # Will be reset to self.FOM.name + '_reduced' by pymor
         )
 
     def assemble_error_estimator(self):

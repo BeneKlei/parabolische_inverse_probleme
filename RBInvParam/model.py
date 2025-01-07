@@ -5,11 +5,11 @@ from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.vectorarrays.interface import VectorArray
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.interface import VectorSpace
+from pymor.core.base import ImmutableObject
 
 from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
 from RBInvParam.timestepping import ImplicitEulerTimeStepper
 
-import matplotlib.pyplot as plt
 # TODO 
 # - And assert correct space
 # - Add caching
@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 
 
-class InstationaryModelIP:
+class InstationaryModelIP(ImmutableObject):
     def __init__(self,
                  u_0 : VectorArray, 
                  M : Operator,
@@ -42,7 +42,10 @@ class InstationaryModelIP:
                  products : Dict,
                  visualizer,
                  dims: Dict,
-                 model_parameter: Dict):
+                 model_parameter: Dict,
+                 name: str):
+
+        self.name = name
 
         self.u_0 = u_0
         assert np.all(u_0.to_numpy() == 0)
@@ -139,7 +142,7 @@ class InstationaryModelIP:
             rhs = self.V.make_array(np.array([
                 self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(u))
             ]))
-        else:
+        else:            
             rhs = self.V.make_array(np.array([
                 self.B(u[idx]).B_u(d[0]).to_numpy()[0] for idx in range(len(u))
             ]))
@@ -222,11 +225,11 @@ class InstationaryModelIP:
         assert len(u) == self.dims['nt']
         assert len(p) == self.dims['nt']
 
-        grad = np.empty((self.dims['nt'], self.dims['state_dim']))
-        
+        grad = np.empty((self.dims['nt'], self.dims['par_dim']))    
+
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.dims['nt']):
-            grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad') 
+            grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad')
 
         if not self.q_time_dep:
             grad = np.sum(grad, axis=0, keepdims=True) 
@@ -284,7 +287,7 @@ class InstationaryModelIP:
         assert u in self.V
         assert lin_p in self.V
 
-        grad = np.empty((self.dims['nt'], self.dims['state_dim']))
+        grad = np.empty((self.dims['nt'], self.dims['par_dim']))
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.dims['nt']):

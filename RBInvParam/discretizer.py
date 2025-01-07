@@ -5,9 +5,8 @@ import logging
 import inspect
 
 import pymor.models.basic as InstationaryProblem
-import pymor.vectorarrays as VectorArray
+from pymor.vectorarrays.interface import VectorArray
 from pymor.discretizers.builtin import discretize_instationary_cg
-from pymor.operators.constructions import IdentityOperator
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.discretizers.builtin.grids.rect import RectGrid
@@ -16,19 +15,21 @@ from RBInvParam.evaluators import UnAssembledA, UnAssembledB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator, \
     construct_noise_data
 from RBInvParam.utils.logger import get_default_logger
+from RBInvParam.products import BochnerProductOperator
 
 # TODO Refactor this
-def bochner_product(v : VectorArray,
-                    w : VectorArray,
-                    delta_t : float,
-                    product : NumpyMatrixOperator) -> float:
+# def bochner_product(v : VectorArray,
+#                     w : VectorArray,
+#                     delta_t : float,
+#                     product : NumpyMatrixOperator) -> float:
 
-    assert product.source == product.range
-    assert v in product.range
-    assert w in product.range
-    assert len(v) == len(w)
+#     assert product.source == product.range
+#     assert v in product.range
+#     assert w in product.range
+#     assert len(v) == len(w)
 
-    return np.sum(delta_t * product.pairwise_apply2(v,w))
+#     return np.sum(delta_t * product.pairwise_apply2(v,w))
+
 
 def discretize_instationary_IP(analytical_problem : InstationaryProblem, 
                                model_params : Dict,
@@ -71,7 +72,12 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         range_id = Q_h.id
     )
     delta_t = model_params['delta_t']
-    products['bochner_prod_Q'] = lambda v, w : bochner_product(v,w,delta_t,products['prod_Q'])
+    products['bochner_prod_Q'] = BochnerProductOperator(
+        product=products['prod_Q'],
+        delta_t=delta_t
+    )
+    
+    #lambda v, w : bochner_product(v,w,delta_t,products['prod_Q'])
     
     V_h = primal_fom.operator.source
     products['prod_V'] = primal_fom.products['h1']

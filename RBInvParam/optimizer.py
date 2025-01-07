@@ -272,9 +272,10 @@ class FOMOptimizer(Optimizer):
 class QrROMOptimizer(Optimizer):
     def __init__(self, 
                  optimizer_parameter: Dict, 
-                 FOM : InstationaryModelIP) -> None:
+                 FOM : InstationaryModelIP,
+                 logger: logging.Logger = None) -> None:
 
-        super().__init__(optimizer_parameter, FOM)
+        super().__init__(optimizer_parameter, FOM, logger)
         self.reductor = InstationaryModelIPReductor(FOM)
         self.Q_r_ROM = None
 
@@ -300,6 +301,23 @@ class QrROMOptimizer(Optimizer):
         theta = self.optimizer_parameter['theta']
         Theta = self.optimizer_parameter['Theta']
 
+        start_time = timer()
+        i = 0
+        alpha = alpha_0
+        delta = noise_level
+
+
+        q = self.FOM.Q.make_array(self.optimizer_parameter['q_0'].copy())
+        u = self.FOM.solve_state(q)
+        p = self.FOM.solve_adjoint(q, u)
+        J = self.FOM.objective(u)
+        nabla_J = self.FOM.gradient(u, p)
+        
+        self.statistics['q'].append(q)
+        self.statistics['alpha'].append(alpha)
+        self.statistics['J'].append(J)
+        self.statistics['norm_nabla_J'].append(np.linalg.norm(nabla_J.to_numpy()))
+
 
         self.logger.debug("Running Q_r-IRGNM:")
         self.logger.debug(f"  J : {J:3.4e}")
@@ -313,24 +331,8 @@ class QrROMOptimizer(Optimizer):
         self.logger.debug(f"  noise_level : {noise_level:3.4e}")
         self.logger.debug(f"  theta : {theta:3.4e}")
         self.logger.debug(f"  Theta : {Theta:3.4e}")
-
-        start_time = timer()
-        i = 0
-        alpha = alpha_0
-        delta = noise_level
-
-
-        q = self.FOM.Q.make_array(self.optimizer_parameter['q_0'].copy())
-        u = self.FOM.solve_state(q)
-        p = self.FOM.solve_adjoint(q, u)
-        J = self.FOM.objective(u)
-        nabla_J = self.FOM.gradient(u, p)
-
-        self.statistics['q'].append(q)
-        self.statistics['alpha'].append(alpha)
-        self.statistics['J'].append(J)
-        self.statistics['norm_nabla_J'].append(np.linalg.norm(nabla_J.to_numpy()))
         
+        self.logger.debug(f"Extending Q_r-space")
         q_basis_extention = self.FOM.Q.empty()
         q_basis_extention.append(nabla_J)
         q_basis_extention.append(q)
@@ -348,14 +350,14 @@ class QrROMOptimizer(Optimizer):
             self.logger.info(f'Start Q_r-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')
 
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
-            q_r = self.Q_r_ROM.Q.make_array()
+            q_r = self.Q_r_ROM.Q.make_array(q_r)
 
             q_r, IRGNM_statistic = self.IRGNM(model = self.Q_r_ROM,
                                               q_0 = q_r,
                                               alpha_0 = alpha,
                                               tol = tol,
                                               tau = tau,
-                                              noise_level = self.noise_rule(delta),
+                                              noise_level = delta,
                                               i_max = i_max_inner,
                                               theta = theta,
                                               Theta = Theta,
@@ -380,7 +382,8 @@ class QrROMOptimizer(Optimizer):
                     self.statistics['stagnation_flag'] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
-
+            
+            self.logger.debug(f"Extending Q_r-space")
             self.reductor.extend_basis(
                 U = nabla_J,
                 basis = 'parameter_basis'
