@@ -6,14 +6,14 @@ from pymor.basic import *
 from pymor.tools.floatcmp import float_cmp_all
 from pymor.core.pickle import load
 
-from RBInvParam.utils.io import load_FOM_from_config
+from RBInvParam.problems.problems import build_InstationaryModelIP
 from RBInvParam.utils.logger import get_default_logger
 
 CWD = Path(__file__).parent.resolve()
-spec = importlib.util.spec_from_file_location('configs',  CWD / '../configs.py')
-configs = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(configs)
-CONFIGS = configs.CONFIGS
+spec = importlib.util.spec_from_file_location('setups',  CWD / '../setups.py')
+setups = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(setups)
+SETUPS = setups.SETUPS
 
 set_log_levels({
     'pymor' : 'WARN'
@@ -24,10 +24,10 @@ REL_TOL = 1e-14
 
 logger = get_default_logger()
 
-for config_name, config in CONFIGS.items():        
-    FOM = load_FOM_from_config(config, logger=logger)
+for setup_name, setup in SETUPS.items():        
+    _, FOM = build_InstationaryModelIP(setup, logger) 
 
-    path = CWD / Path(f'./{config_name}.pkl')
+    path = CWD / Path(f'./{setup_name}.pkl')
     assert path.exists()
     with open(path, 'rb') as file:
         solutions = load(file)

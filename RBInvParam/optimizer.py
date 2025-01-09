@@ -13,6 +13,11 @@ from RBInvParam.utils.logger import get_default_logger
 
 MACHINE_EPS = 1e-16
 
+# TODOs:
+# - Fix logger for reductor
+# - Use colors also in the log-files
+# - Refactor AssembledB
+
 class Optimizer:
     def __init__(self, 
                  optimizer_parameter: Dict, 
@@ -36,19 +41,33 @@ class Optimizer:
 
     
     def _check_optimizer_parameter(self) -> None:
-        assert self.optimizer_parameter['noise_level'] >= 0
-        assert self.optimizer_parameter['tau'] > 0
+        keys = self.optimizer_parameter.keys()
+
         assert self.optimizer_parameter['alpha_0'] >= 0
-        assert self.optimizer_parameter['i_max'] >= 1
-
-        if 'i_max_inner' in self.optimizer_parameter.keys():
-            assert self.optimizer_parameter['i_max_inner'] >= 1
-
-        #assert self.optimizer_parameter['reg_loop_max'] >= 1
+        assert self.optimizer_parameter['tol'] > 0
+        assert self.optimizer_parameter['tau'] > 0
+        assert self.optimizer_parameter['noise_level'] >= 0
         assert 0 < self.optimizer_parameter['theta'] \
                  < self.optimizer_parameter['Theta'] \
                  < 1
-        
+        if 'tau_tilde' in keys:
+            assert self.optimizer_parameter['tau_tilde'] > 0
+
+        assert self.optimizer_parameter['i_max'] >= 1
+        if 'i_max_inner' in keys:
+            assert self.optimizer_parameter['i_max_inner'] >= 1
+        assert self.optimizer_parameter['reg_loop_max'] >= 1
+
+        if 'eta0' in keys:
+            assert self.optimizer_parameter['eta0'] > 0
+        if 'kappa_arm' in keys:
+            assert self.optimizer_parameter['kappa_arm'] > 0
+        if 'beta_1' in keys:
+            assert 0 < self.optimizer_parameter['beta_1'] < 1
+        if 'beta_2' in keys:
+            assert 3/4 <= self.optimizer_parameter['beta_2'] < 1
+        if 'beta_3' in keys:
+            assert 0 < self.optimizer_parameter['beta_3'] < 1    
     
     def IRGNM(self,
               model: InstationaryModelIP,
@@ -57,9 +76,9 @@ class Optimizer:
               tol : float,
               tau : float,
               noise_level : float,
-              i_max : int,
               theta: float, 
               Theta : float,
+              i_max : int,
               reg_loop_max: int) -> Tuple[VectorArray, Dict]: 
 
         assert q_0 in model.Q
@@ -96,13 +115,15 @@ class Optimizer:
         self.logger.debug("Running IRGNM: ")
         self.logger.debug(f"  J : {J:3.4e}")
         self.logger.debug(f"  norm_nabla_J : {np.linalg.norm(nabla_J.to_numpy()):3.4e}")
+        self.logger.debug(f"                ")
         self.logger.debug(f"  alpha_0 : {alpha_0:3.4e}")
         self.logger.debug(f"  tol : {tol:3.4e}")
         self.logger.debug(f"  tau : {tau:3.4e}")
-        self.logger.debug(f"  i_max : {i_max:3.4e}")
-        self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
         self.logger.debug(f"  theta : {theta:3.4e}")
         self.logger.debug(f"  Theta : {Theta:3.4e}")
+        self.logger.debug(f"                ")
+        self.logger.debug(f"  i_max : {i_max:3.4e}")
+        self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
 
         while J >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"##############################################################################################################################")
@@ -253,9 +274,9 @@ class FOMOptimizer(Optimizer):
                                         tol = self.optimizer_parameter['tol'],
                                         tau = self.optimizer_parameter['tau'],
                                         noise_level = self.optimizer_parameter['noise_level'],
-                                        i_max = self.optimizer_parameter['i_max'],
                                         theta = self.optimizer_parameter['theta'],
                                         Theta = self.optimizer_parameter['Theta'],
+                                        i_max = self.optimizer_parameter['i_max'],
                                         reg_loop_max = self.optimizer_parameter['reg_loop_max'])
 
         self.statistics['q'] = IRGNM_statistic['q']
@@ -278,7 +299,7 @@ class QrROMOptimizer(Optimizer):
         self.reductor = InstationaryModelIPReductor(
             FOM
         )
-        self.Qr_ROM = None
+        self.QrROM = None
 
         self.statistics = {
             'q' : [],
@@ -295,18 +316,18 @@ class QrROMOptimizer(Optimizer):
         alpha_0 = self.optimizer_parameter['alpha_0']
         tol = self.optimizer_parameter['tol']
         tau = self.optimizer_parameter['tau']
-        i_max = self.optimizer_parameter['i_max']
-        i_max_inner = self.optimizer_parameter['i_max_inner']
-        reg_loop_max = self.optimizer_parameter['reg_loop_max']
         noise_level = self.optimizer_parameter['noise_level']
         theta = self.optimizer_parameter['theta']
         Theta = self.optimizer_parameter['Theta']
 
+        i_max = self.optimizer_parameter['i_max']
+        reg_loop_max = self.optimizer_parameter['reg_loop_max']
+        i_max_inner = self.optimizer_parameter['i_max_inner']
+        
         start_time = timer()
         i = 0
         alpha = alpha_0
         delta = noise_level
-
 
         q = self.FOM.Q.make_array(self.optimizer_parameter['q_0'].copy())
         u = self.FOM.solve_state(q)
@@ -323,27 +344,30 @@ class QrROMOptimizer(Optimizer):
         self.logger.debug("Running Qr-IRGNM:")
         self.logger.debug(f"  J : {J:3.4e}")
         self.logger.debug(f"  norm_nabla_J : {np.linalg.norm(nabla_J.to_numpy()):3.4e}")
+        self.logger.debug(f"                ")
         self.logger.debug(f"  alpha_0 : {alpha_0:3.4e}")
         self.logger.debug(f"  tol : {tol:3.4e}")
         self.logger.debug(f"  tau : {tau:3.4e}")
-        self.logger.debug(f"  i_max : {i_max:3.4e}")
-        self.logger.debug(f"  i_max_inner : {i_max_inner:3.4e}")
-        self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
         self.logger.debug(f"  noise_level : {noise_level:3.4e}")
         self.logger.debug(f"  theta : {theta:3.4e}")
         self.logger.debug(f"  Theta : {Theta:3.4e}")
+        self.logger.debug(f"                ")
+        self.logger.debug(f"  i_max : {i_max:3.4e}")
+        self.logger.debug(f"  i_max_inner : {i_max_inner:3.4e}")
+        self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
         
         self.logger.debug(f"Extending Qr-space")
-        q_basis_extention = self.FOM.Q.empty()
-        q_basis_extention.append(nabla_J)
-        q_basis_extention.append(q)
-        q_basis_extention.append(self.FOM.Q.make_array(self.FOM.model_parameter['q_circ']))
+        parameter_shapshots = self.FOM.Q.empty()
+        parameter_shapshots.append(nabla_J)
+        parameter_shapshots.append(q)
+        parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.model_parameter['q_circ']))
 
         self.reductor.extend_basis(
-             U = q_basis_extention,
+             U = parameter_shapshots,
              basis = 'parameter_basis'
         )
-        self.Qr_ROM = self.reductor.reduce()
+        self.QrROM = self.reductor.reduce()
+
         self.logger.debug(f"Dim Qr-space = {self.reductor.get_dim('parameter_basis')}")
         self.logger.debug(f"Dim Vr-space = {self.reductor.get_dim('state_basis')}")
 
@@ -354,9 +378,9 @@ class QrROMOptimizer(Optimizer):
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
-            q_r = self.Qr_ROM.Q.make_array(q_r)
+            q_r = self.QrROM.Q.make_array(q_r)
 
-            q_r, IRGNM_statistic = self.IRGNM(model = self.Qr_ROM,
+            q_r, IRGNM_statistic = self.IRGNM(model = self.QrROM,
                                               q_0 = q_r,
                                               alpha_0 = alpha,
                                               tol = tol,
@@ -392,25 +416,178 @@ class QrROMOptimizer(Optimizer):
                 U = nabla_J,
                 basis = 'parameter_basis'
             )
-            self.Qr_ROM = self.reductor.reduce()
+            self.QrROM = self.reductor.reduce()
             self.logger.debug(f"Dim Qr-space = {self.reductor.get_dim('parameter_basis')}")
             self.logger.debug(f"Dim Vr-space = {self.reductor.get_dim('state_basis')}")
 
         self.statistics['total_runtime'] = (timer() - start_time)        
         return q
         
+# class QrVrROMOptimizer(Optimizer):
+#     def __init__(self, 
+#                  optimizer_parameter: Dict, 
+#                  FOM : InstationaryModelIP,
+#                  logger: logging.Logger = None) -> None:
 
-    def _initialize_optimization(self):    
-        pass    
+#         super().__init__(optimizer_parameter, FOM, logger)
+#         self.reductor = InstationaryModelIPReductor(
+#             FOM
+#         )
+#         self.QrVrROM = None
 
-    def _get_regulatization(self):
-        pass
-    
-    def _solve_subproblem(self):
-        pass
+#         self.statistics = {
+#             'q' : [],
+#             'inner_loop_time_steps' : [],
+#             'alpha' : [],
+#             'J' : [],
+#             'norm_nabla_J' : [],
+#             'total_runtime' : np.nan,
+#             'stagnation_flag' : False,
+#             'optimizer_parameter' : self.optimizer_parameter.copy(),
+#             ....
+#         }
 
-    def _get_q_AGC(self):
-        pass
+#     def solve(self) -> VectorArray :
+#         alpha_0 = self.optimizer_parameter['alpha_0']
+#         tol = self.optimizer_parameter['tol']
+#         tau = self.optimizer_parameter['tau']
+#         noise_level = self.optimizer_parameter['noise_level']
+#         theta = self.optimizer_parameter['theta']
+#         Theta = self.optimizer_parameter['Theta']
+#         tau_tilde = self.optimizer_parameter['tau_tilde']
 
-    def _check_q_trial(self) -> bool:
-        pass
+#         i_max = self.optimizer_parameter['i_max']
+#         reg_loop_max = self.optimizer_parameter['reg_loop_max']
+#         i_max_inner = self.optimizer_parameter['i_max_inner']
+
+#         eta0 = self.optimizer_parameter['eta0']
+#         kappa_arm = self.optimizer_parameter['kappa_arm']
+#         beta_1 = self.optimizer_parameter['beta_1']
+#         beta_2 = self.optimizer_parameter['beta_2']
+#         beta_3 = self.optimizer_parameter['beta_3']
+
+#         start_time = timer()
+#         i = 0
+#         alpha = alpha_0
+#         delta = noise_level
+
+#         q = self.FOM.Q.make_array(self.optimizer_parameter['q_0'].copy())
+#         u = self.FOM.solve_state(q)
+#         p = self.FOM.solve_adjoint(q, u)
+#         J = self.FOM.objective(u)
+#         nabla_J = self.FOM.gradient(u, p)
+        
+#         self.statistics['q'].append(q)
+#         self.statistics['alpha'].append(alpha)
+#         self.statistics['J'].append(J)
+#         self.statistics['norm_nabla_J'].append(np.linalg.norm(nabla_J.to_numpy()))
+
+#         self.logger.debug("Running Qr-Vr-IRGNM:")
+#         self.logger.debug(f"  J : {J:3.4e}")
+#         self.logger.debug(f"  norm_nabla_J : {np.linalg.norm(nabla_J.to_numpy()):3.4e}")
+#         self.logger.debug(f"                ")
+#         self.logger.debug(f"  alpha_0 : {alpha_0:3.4e}")
+#         self.logger.debug(f"  tol : {tol:3.4e}")
+#         self.logger.debug(f"  tau : {tau:3.4e}")
+#         self.logger.debug(f"  noise_level : {noise_level:3.4e}")
+#         self.logger.debug(f"  theta : {theta:3.4e}")
+#         self.logger.debug(f"  Theta : {Theta:3.4e}")
+#         self.logger.debug(f"  tau_tilde : {tau_tilde:3.4e}")
+#         self.logger.debug(f"                ")
+#         self.logger.debug(f"  i_max : {i_max:3.4e}")
+#         self.logger.debug(f"  i_max_inner : {i_max_inner:3.4e}")
+#         self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
+#         self.logger.debug(f"                ")
+#         self.logger.debug(f"  eta0 : {eta0:3.4e}")
+#         self.logger.debug(f"  kappa_arm : {kappa_arm:3.4e}")
+#         self.logger.debug(f"  beta_1 : {beta_1:3.4e}")
+#         self.logger.debug(f"  beta_2 : {beta_2:3.4e}")
+#         self.logger.debug(f"  beta_3 : {beta_3:3.4e}")
+
+
+#         self.logger.debug(f"Extending Qr-space")
+#         parameter_shapshots = self.FOM.Q.empty()
+#         parameter_shapshots.append(nabla_J)
+#         parameter_shapshots.append(q)
+#         parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.model_parameter['q_circ']))
+
+#         self.reductor.extend_basis(
+#              U = parameter_shapshots,
+#              basis = 'parameter_basis'
+#         )
+
+#         self.logger.debug(f"Extending Vr-space")
+#         state_shapshots = self.FOM.V.empty()
+#         # TODO HaPOD
+#         state_shapshots.append(u)
+#         state_shapshots.append(p)
+        
+#         self.reductor.extend_basis(
+#              U = state_shapshots,
+#              basis = 'state_basis'
+#         )
+
+#         self.QrVrROM = self.reductor.reduce()
+        
+#         self.logger.debug(f"Dim Qr-space = {self.reductor.get_dim('parameter_basis')}")
+#         self.logger.debug(f"Dim Vr-space = {self.reductor.get_dim('state_basis')}")
+
+#         while J >= tol+tau*noise_level and i<i_max:
+#             # self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+#             # self.logger.warning(f"Qr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
+#             # self.logger.info(f'Start Qr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {np.linalg.norm(nabla_J.to_numpy()):3.4e}, alpha = {alpha:1.4e}')
+#             # self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+
+#             ########################################### AGC ###########################################
+#             # TODO 
+#             ########################################### IRGNM ###########################################
+#             # TODO 
+#             ########################################### Armijo ###########################################
+#             # TODO 
+#             ########################################### Accept / Reject ###########################################
+
+
+
+#             q = self.reductor.reconstruct(q_r, basis='parameter_basis')
+#             u = self.FOM.solve_state(q)
+#             p = self.FOM.solve_adjoint(q, u)
+#             J = self.FOM.objective(u)
+#             nabla_J = self.FOM.gradient(u, p)
+#             alpha = IRGNM_statistic['alpha'][1]
+
+#             self.statistics['q'].append(q)
+#             self.statistics['alpha'].append(alpha)
+#             self.statistics['J'].append(J)
+#             self.statistics['norm_nabla_J'].append(np.linalg.norm(nabla_J.to_numpy()))
+
+#             if i > 3:
+#                 buffer = self.statistics['J'][-3:]
+#                 if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] - buffer[2]) < MACHINE_EPS:
+#                     self.statistics['stagnation_flag'] = True
+#                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
+#                     break
+
+#             self.logger.debug(f"Extending Qr-space")
+#             self.reductor.extend_basis(
+#                 U = nabla_J,
+#                 basis = 'parameter_basis'
+#             )
+#             self.logger.debug(f"Extending Vr-space")
+#             state_shapshots = self.FOM.V.empty()
+#             # TODO HaPOD
+#             state_shapshots.append(u)
+#             state_shapshots.append(p)
+            
+#             self.reductor.extend_basis(
+#                 U = state_shapshots,
+#                 basis = 'state_basis'
+#             )
+
+#             self.QrVrROM = self.reductor.reduce()
+#             self.logger.debug(f"Dim Qr-space = {self.reductor.get_dim('parameter_basis')}")
+#             self.logger.debug(f"Dim Vr-space = {self.reductor.get_dim('state_basis')}")
+
+#         self.statistics['total_runtime'] = (timer() - start_time)        
+
+
+#         return q

@@ -1,6 +1,6 @@
 import numpy as np
 
-default_config_q_time_dep = {
+default_setup_q_time_dep = {
     'dims' : {
         'N': 10,
         'nt': 50,
@@ -34,7 +34,7 @@ default_config_q_time_dep = {
     'optimizer_parameter' : None
 }
 
-default_config_q_non_time_dep = {
+default_setup_q_non_time_dep = {
     'dims' : {
         'N': 10,
         'nt': 50,
@@ -67,7 +67,7 @@ default_config_q_non_time_dep = {
     },
     'optimizer_parameter' : None
 }
-CONFIGS = {
-    'default_config_q_time_dep' : default_config_q_time_dep,
-    'default_config_q_non_time_dep' : default_config_q_non_time_dep
+SETUPS = {
+    'default_setup_q_time_dep' : default_setup_q_time_dep,
+    'default_setup_q_non_time_dep' : default_setup_q_non_time_dep
 }

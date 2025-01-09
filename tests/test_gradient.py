@@ -8,7 +8,7 @@ from typing import Tuple, List
 
 from pymor.basic import *
 
-from RBInvParam.utils.io import load_FOM_from_config
+from RBInvParam.problems.problems import build_InstationaryModelIP
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.reductor import InstationaryModelIPReductor
 
@@ -17,10 +17,10 @@ from RBInvParam.reductor import InstationaryModelIPReductor
     # os.remove('')
 
 CWD = Path(__file__).parent.resolve()
-spec = importlib.util.spec_from_file_location('configs',  CWD / './configs.py')
-configs = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(configs)
-CONFIGS = configs.CONFIGS
+spec = importlib.util.spec_from_file_location('setups',  CWD / './setups.py')
+setups = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(setups)
+SETUPS = setups.SETUPS
 
 set_log_levels({
     'pymor' : 'WARN'
@@ -31,12 +31,11 @@ REL_TOL = 1e-14
 
 logger = get_default_logger()
 
-#TODO This is wrong for more than one config
-#for config_name, config in CONFIGS.items():
-config = CONFIGS['default_config_q_time_dep']
-#config = CONFIGS['default_config_q_non_time_dep']
+#TODO This is wrong for more than one setup
+setup = SETUPS['default_setup_q_time_dep']
+#setup = SETUPS['default_config_q_non_time_dep']
 
-FOM = load_FOM_from_config(config, logger=logger)
+_, FOM = build_InstationaryModelIP(setup, logger=logger)
 
 reductor = InstationaryModelIPReductor(FOM)
 
@@ -50,7 +49,7 @@ reductor.extend_basis(
     U = nabla_J,
     basis = 'parameter_basis'
 )
-Qr_ROM = reductor.reduce()
+QrROM = reductor.reduce()
 
 
 
@@ -134,8 +133,8 @@ def test_FOM_linearized_objective_gradient()-> None:
 
 #################################### Qr-ROM ####################################
 
-def test_Qr_ROM_objective_gradient()-> None:
-    model = Qr_ROM
+def test_QrROM_objective_gradient()-> None:
+    model = QrROM
     eps, diff_quot = derivative_check(
         model,
         model.compute_objective, 
@@ -145,9 +144,9 @@ def test_Qr_ROM_objective_gradient()-> None:
     assert np.all(eps > diff_quot)
 
 
-def test_Qr_ROM_regularization_term_gradient() -> None:
+def test_QrROM_regularization_term_gradient() -> None:
     alpha = 1e0
-    model = Qr_ROM
+    model = QrROM
     eps, diff_quot = derivative_check(
         model,
         lambda q: alpha * model.regularization_term(q), 
@@ -157,9 +156,9 @@ def test_Qr_ROM_regularization_term_gradient() -> None:
     assert np.all(eps > diff_quot)
 
 
-def test_Qr_ROM_linearized_objective_gradient()-> None:
+def test_QrROM_linearized_objective_gradient()-> None:
     alpha = 1e0
-    model = Qr_ROM
+    model = QrROM
     q = model.Q.make_array(model.model_parameter['q_circ'])
     eps, diff_quot = derivative_check(
         model,
@@ -180,9 +179,9 @@ def test_Qr_ROM_linearized_objective_gradient()-> None:
 # q = FOM.Q.make_array(FOM.model_parameter['q_circ'])
 # d = FOM.Q.make_array(q)
 # q_r = reductor.project_vectorarray(q, 'parameter_basis')
-# q_r = Qr_ROM.Q.make_array(q_r)
+# q_r = QrROM.Q.make_array(q_r)
 # d_r = reductor.project_vectorarray(d, 'parameter_basis')
-# d_r = Qr_ROM.Q.make_array(d_r)
+# d_r = QrROM.Q.make_array(d_r)
 
 
 

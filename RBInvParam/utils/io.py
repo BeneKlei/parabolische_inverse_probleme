@@ -11,7 +11,8 @@ from RBInvParam.problems.problems import whole_problem
 from RBInvParam.discretizer import discretize_instationary_IP
 
 def save_dict_to_pkl(path: Union[str, Path],
-                     data: Dict) -> None:
+                     data: Dict,
+                     use_timestamp: bool = True) -> None:
 
     path = Path(path)
     assert path.suffix in ['.pkl', 'pickle']
@@ -19,11 +20,14 @@ def save_dict_to_pkl(path: Union[str, Path],
 
     assert isinstance(data, Dict)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename_with_timestamp = f"{timestamp}_{path.stem}{path.suffix}"
-    path_with_timestamp = path.parent / filename_with_timestamp
+    if use_timestamp:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename_with_timestamp = f"{timestamp}_{path.stem}{path.suffix}"
+        path_ = path.parent / filename_with_timestamp
+    else:
+        path_ = path
     
-    with open(path_with_timestamp, 'wb') as file:
+    with open(path_, 'wb') as file:
         dump(data, file)
 
 def load_FOM_from_config(config : Dict,

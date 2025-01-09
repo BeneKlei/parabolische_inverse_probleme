@@ -45,7 +45,9 @@ def get_default_logger(logger_name: str = None,
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename_with_timestamp = f"{timestamp}_{logfile_path.stem}{logfile_path.suffix}"
             logfile_path = logfile_path.parent / filename_with_timestamp
-
+        
+        assert not logfile_path.exists()
+    
     log_format = '[%(asctime)s][%(funcName)s] - %(message)s'
 
     # Create a logger

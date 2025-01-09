@@ -13,11 +13,17 @@
 # This file prepares the analytical PDE problem which gets handed with to the discretizer.
 
 import numpy as np
+import logging
+from typing import Dict, Tuple
 
 from pymor.basic import *
 from pymor.analyticalproblems.instationary import InstationaryProblem
 
 from RBInvParam.problems.utils import thermal_block_problem_h1, twodhatfunction
+from RBInvParam.model import InstationaryModelIP
+from RBInvParam.discretizer import discretize_instationary_IP
+from RBInvParam.utils.logger import get_default_logger
+
 
 def whole_problem(N = 100, contrast_parameter = 2, parameter_location = 'diffusion', boundary_conditions = 'dirichlet', exact_parameter = 'PacMan', parameter_elements = 'P1'):    
     # check input and set problem type
@@ -188,3 +194,35 @@ def whole_problem(N = 100, contrast_parameter = 2, parameter_location = 'diffusi
     )
 
     return problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem
+
+
+
+def build_InstationaryModelIP(setup : Dict,
+                              logger : logging.Logger = None) -> Tuple[Dict,InstationaryModelIP]:
+    
+    if not logger:
+        logger = get_default_logger()
+
+    logger.debug('Construct problem..')                                                     
+    analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(**setup['problem_parameter'])
+    
+
+    setup['model_parameter']['parameters'] = analytical_problem.parameters
+    if setup['model_parameter']['q_time_dep']:                                                 
+        setup['model_parameter']['q_exact'] = np.array([q_exact for _ in range(setup['dims']['nt'])])
+    else:
+        setup['model_parameter']['q_exact'] = np.array([q_exact])
+        
+    logger.debug('Discretizing problem...')                                                
+    building_blocks = discretize_instationary_IP(analytical_problem,
+                                                 setup['model_parameter'],
+                                                 setup['dims'], 
+                                                 problem_type)
+     
+    setup['model_parameter']['q_exact'] = building_blocks[8].make_array(setup['model_parameter']['q_exact'])
+
+    return (setup, InstationaryModelIP(                 
+        *building_blocks,
+        dims = setup['dims'],
+        model_parameter = setup['model_parameter'],
+    ))

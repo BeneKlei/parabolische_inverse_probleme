@@ -17,9 +17,9 @@ plt.rcParams.update({
 from pymor.basic import *
 from pymor.core.pickle import load
 
-from model import InstationaryModelIP
-from problems import whole_problem
-from discretizer import discretize_instationary_IP
+from RBInvParam.model import InstationaryModelIP
+from RBInvParam.problems.problems import whole_problem
+from RBInvParam.discretizer import discretize_instationary_IP
 
 set_log_levels({
     'pymor' : 'WARN'
