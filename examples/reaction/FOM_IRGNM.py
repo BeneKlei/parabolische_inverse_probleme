@@ -14,7 +14,7 @@ from RBInvParam.problems.problems import build_InstationaryModelIP
 
 #########################################################################################''
 
-logger = get_default_logger(logfile_path='./logs/FOM_IRGNM.log', use_timestemp=False)
+logger = get_default_logger(logfile_path='./logs/FOM_IRGNM.log', use_timestemp=True)
 logger.setLevel(logging.DEBUG)
 
 set_log_levels({
@@ -27,8 +27,8 @@ set_defaults({})
 
 def main():
 
-    N = 100
-    #N = 10
+    #N = 100
+    N = 10
     par_dim = (N+1)**2
     fine_N = 2 * N
 

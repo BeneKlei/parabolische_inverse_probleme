@@ -5,6 +5,7 @@ from typing import Dict, Union, Tuple
 from timeit import default_timer as timer
 
 from pymor.vectorarrays.interface import VectorArray
+from pymor.algorithms.hapod import inc_vectorarray_hapod
 
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.gradient_descent import gradient_descent_linearized_problem
@@ -311,6 +312,26 @@ class QrROMOptimizer(Optimizer):
             'stagnation_flag' : False,
             'optimizer_parameter' : self.optimizer_parameter.copy()
         }
+    
+    def _HaPOD(self, 
+               shapshots: VectorArray, 
+               basis: str) -> Tuple[VectorArray, np.array]:
+    
+        if len(self.reductor.bases[basis]) != 0:
+            projected_shapshots = self.reductor.bases[basis].lincomb(
+                self.reductor.project_vectorarray(shapshots, basis=basis)
+            )
+            shapshots.axpy(-1,projected_shapshots)
+                
+        shapshots, svals, _ = \
+        inc_vectorarray_hapod(steps=len(shapshots)/20, 
+                              U=shapshots, 
+                              eps=1e-16,
+                              omega=0.01,                
+                              product=self.FOM.products['prod_Q'])
+
+        return shapshots, svals
+
 
     def solve(self) -> VectorArray:
         alpha_0 = self.optimizer_parameter['alpha_0']
@@ -362,6 +383,10 @@ class QrROMOptimizer(Optimizer):
         parameter_shapshots.append(q)
         parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.model_parameter['q_circ']))
 
+        if self.FOM.model_parameter['q_time_dep']:
+            self.logger.debug(f"Performing HaPOD on parameter snapshots.")
+            parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, basis='parameter_basis')
+
         self.reductor.extend_basis(
              U = parameter_shapshots,
              basis = 'parameter_basis'
@@ -412,8 +437,15 @@ class QrROMOptimizer(Optimizer):
                     break
             
             self.logger.debug(f"Extending Qr-space")
+            parameter_shapshots = self.FOM.Q.empty()
+            parameter_shapshots.append(nabla_J)
+            
+            if self.FOM.model_parameter['q_time_dep']:
+                self.logger.debug(f"Performing HaPOD on parameter snapshots.")
+                parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, basis='parameter_basis')
+
             self.reductor.extend_basis(
-                U = nabla_J,
+                U = parameter_shapshots,
                 basis = 'parameter_basis'
             )
             self.QrROM = self.reductor.reduce()

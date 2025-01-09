@@ -55,7 +55,7 @@ QrROM = reductor.reduce()
 
 
 def derivative_check(model,f, df, save_path, mode = 1) -> Tuple[List, List]:
-    Eps = np.array([1,1e-1,1e-2,1e-3,1e-4,1e-5,1e-6])
+    Eps = np.array([10**(-i) for i in range(0,17)])
     
     if model.model_parameter['q_time_dep']:
         q  = model.Q.make_array(np.random.random((model.dims['nt'], model.dims['par_dim'])))
