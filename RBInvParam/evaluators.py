@@ -38,6 +38,8 @@ class UnAssembledEvaluator:
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
+                 source : VectorSpace,
+                 range : VectorSpace,
                  dims: Dict):
         
         assert grid is not None
@@ -50,12 +52,15 @@ class UnAssembledEvaluator:
         self.boundary_info = boundary_info
         self.quadrature_order = 2
 
+        self.source = source
+        self.range = range
+
         self.nodes_to_element_projection, _, _ = build_projection(self.grid)
         self._prepare()
 
-        if constant_operator:
-            self.source = self.constant_operator.source
-            self.range = self.constant_operator.range
+        # if constant_operator:
+        #     self.source = self.constant_operator.source
+        #     self.range = self.constant_operator.range
 
     def _prepare(self):
         g = self.grid
@@ -182,7 +187,6 @@ class AssembledA(AssembledEvaluator):
         self.Q = Q
         self.parameters = parameters
 
-
     def __call__(self, q: VectorArray) -> NumpyMatrixOperator:
         assert q in self.Q
         # TODO Can _assemble_A_q be vectorized?
@@ -190,7 +194,7 @@ class AssembledA(AssembledEvaluator):
 
         q_as_par = self.parameters.parse(q.to_numpy()[0])
         return self.unconstant_operator.assemble(q_as_par) + self.constant_operator
-
+    
 
 class UnAssembledB(UnAssembledEvaluator):
     def __init__(self,

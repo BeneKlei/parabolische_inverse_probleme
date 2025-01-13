@@ -6,9 +6,11 @@ from pymor.vectorarrays.interface import VectorArray
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.interface import VectorSpace
 from pymor.core.base import ImmutableObject
+from pymor.operators.constructions import ZeroOperator
 
 from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
 from RBInvParam.timestepping import ImplicitEulerTimeStepper
+from RBInvParam.residuals import StateResidualOperator,AdjointResidualOperator
 
 # TODO 
 # - And assert correct space
@@ -28,7 +30,7 @@ class InstationaryModelIP(ImmutableObject):
                  u_0 : VectorArray, 
                  M : Operator,
                  A : Union[UnAssembledA, AssembledA],
-                 f : VectorArray,
+                 L : VectorArray,
                  B : Union[UnAssembledB, AssembledB],
                  constant_cost_term: float,
                  linear_cost_term: NumpyMatrixOperator,
@@ -39,6 +41,8 @@ class InstationaryModelIP(ImmutableObject):
                  constant_reg_term: float,
                  linear_reg_term: NumpyMatrixOperator,
                  bilinear_reg_term: NumpyMatrixOperator,
+                 state_residual_operator: Union[ZeroOperator, StateResidualOperator],
+                 adjoint_residual_operator: Union[ZeroOperator, AdjointResidualOperator],
                  products : Dict,
                  visualizer,
                  dims: Dict,
@@ -51,10 +55,9 @@ class InstationaryModelIP(ImmutableObject):
         self.linearized_u_0 = u_0.copy()
         self.linearized_p_0 = u_0.copy()
 
-
         self.M = M 
         self.A = A 
-        self.f = f 
+        self.L = L 
         self.B = B 
         self.constant_cost_term = constant_cost_term 
         self.linear_cost_term = linear_cost_term 
@@ -65,33 +68,63 @@ class InstationaryModelIP(ImmutableObject):
         self.constant_reg_term = constant_reg_term 
         self.linear_reg_term = linear_reg_term 
         self.bilinear_reg_term = bilinear_reg_term 
+        self.state_residual_operator = state_residual_operator
+        self.adjoint_residual_operator = adjoint_residual_operator
         self.products = products
         self.visualizer = visualizer
         self.dims = dims
         self.model_parameter = model_parameter
 
-        self.timestepper = ImplicitEulerTimeStepper(
-            nt = self.dims['nt']
-        )
-
+        self.nt = self.dims['nt']
         self.delta_t = self.model_parameter['delta_t']
         self.q_time_dep = model_parameter['q_time_dep']
 
+        self.timestepper = ImplicitEulerTimeStepper(
+            nt = self.nt
+        )
+
         if name:
             self.model_parameter['name'] = name
-        
+
+        assert self.M.source == self.M.range
+        assert self.A.source == self.A.range
+        assert self.M.source == self.A.source
+        assert self.A.range == self.V
+        assert L in self.A.range
+        assert self.A.Q == self.Q
+        assert self.q_circ in self.Q
+
+        assert self.bilinear_cost_term.source == self.bilinear_cost_term.range
+        assert self.bilinear_cost_term.source == self.A.range
+        assert self.linear_cost_term.range == self.A.range
+        assert len(self.linear_cost_term.as_range_array()) == self.dims['nt']
+
+        assert self.bilinear_reg_term.source == self.bilinear_reg_term.range
+        assert self.bilinear_reg_term.source == self.A.range
+        assert self.linear_reg_term.range == self.A.range
+        assert len(self.linear_reg_term.as_range_array()) == self.dims['nt']
+
+        assert isinstance(state_residual_operator, (ZeroOperator, StateResidualOperator))
+        assert isinstance(adjoint_residual_operator, (ZeroOperator, AdjointResidualOperator))
+
+        self.state_residual_operator.source == self.A.source
+        self.adjoint_residual_operator.source == self.A.source
 
 #%% solve methods
     def solve_state(self, q: VectorArray) -> VectorArray:
         assert q in self.Q
-        assert len(q) in [self.dims['nt'], 1]
+
+        if self.q_time_dep:
+            assert len(q) == self.dims['nt']
+        else:
+            assert len(q) == 1
 
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
                                             end_time = self.model_parameter['T_final'], 
                                             initial_data = self.u_0, 
                                             q=q,
                                             operator = self.A, 
-                                            rhs=self.f, 
+                                            rhs=self.L, 
                                             mass=self.M)
         
         u = self.V.empty(reserve= self.dims['nt'])
@@ -106,11 +139,16 @@ class InstationaryModelIP(ImmutableObject):
         assert q in self.Q
         assert u in self.V
 
-        assert len(q) in [self.dims['nt'], 1]
+        if self.q_time_dep:
+            assert len(q) == self.dims['nt']
+        else:
+            assert len(q) == 1
+
         assert len(u) == self.dims['nt']
 
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
+        # TODO Make def with delta_t consitent and move it the disctetirzer
         rhs = self.delta_t * self.V.make_array(rhs)
 
         iterator = self.timestepper.iterate(initial_time = self.model_parameter['T_initial'], 
@@ -134,7 +172,10 @@ class InstationaryModelIP(ImmutableObject):
         assert q in self.Q
         assert d in self.Q
         assert u in self.V
-        assert len(q) in [self.dims['nt'], 1]
+        if self.q_time_dep:
+            assert len(q) == self.dims['nt']
+        else:
+            assert len(q) == 1
         assert len(d) in [self.dims['nt'], 1]
         assert len(u) == self.dims['nt']
         
@@ -168,7 +209,10 @@ class InstationaryModelIP(ImmutableObject):
         assert q in self.Q
         assert u in self.V
         assert lin_u in self.V
-        assert len(q) in [self.dims['nt'], 1]
+        if self.q_time_dep:
+            assert len(q) == self.dims['nt']
+        else:
+            assert len(q) == 1
         assert len(u) == self.dims['nt']
         assert len(lin_u) == self.dims['nt']
 
@@ -198,7 +242,10 @@ class InstationaryModelIP(ImmutableObject):
         
         if q:
             assert q in self.Q
-            assert len(q) in [self.dims['nt'], 1]
+            if self.q_time_dep:
+                assert len(q) == self.dims['nt']
+            else:
+                assert len(q) == 1
 
         assert len(u) == (self.dims['nt'])
         assert u in self.V
@@ -249,7 +296,10 @@ class InstationaryModelIP(ImmutableObject):
                             lin_u: VectorArray,
                             alpha : float) -> float:
 
-        assert len(q) in [self.dims['nt'], 1]
+        if self.q_time_dep:
+            assert len(q) == self.dims['nt']
+        else:
+            assert len(q) == 1
         assert len(d) in [self.dims['nt'], 1]
         assert len(u) == self.dims['nt']
         assert len(lin_u) == self.dims['nt']
@@ -269,7 +319,6 @@ class InstationaryModelIP(ImmutableObject):
         else:
             return out
         
-
     def linearized_gradient(self,
                             q: VectorArray,
                             d: VectorArray,
@@ -277,11 +326,14 @@ class InstationaryModelIP(ImmutableObject):
                             lin_p: VectorArray,
                             alpha : float) -> VectorArray:
         
-        assert len(q) in [self.dims['nt'], 1]
-        assert len(d) in [self.dims['nt'], 1]
+        if self.q_time_dep:
+            assert len(q) == self.dims['nt']
+        else:
+            assert len(q) == 1
+        assert len(q) == len(d)
         assert len(u) == self.dims['nt']
         assert len(lin_p) == self.dims['nt']
-        assert len(q) == len(d)
+        
 
         assert q in self.Q
         assert d in self.Q
@@ -308,8 +360,11 @@ class InstationaryModelIP(ImmutableObject):
 #%% regularization
     def regularization_term(self, 
                             q: VectorArray) -> float:
-        assert len(q) in [self.dims['nt'], 1]        
         assert q in self.Q
+        if self.q_time_dep:
+            assert len(q) == self.dims['nt']
+        else:
+            assert len(q) == 1
         
         if self.q_time_dep:
             return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q,q) 
@@ -323,8 +378,11 @@ class InstationaryModelIP(ImmutableObject):
         
     def gradient_regularization_term(self, 
                                      q: VectorArray) -> float:
-        assert len(q) in [self.dims['nt'], 1]        
         assert q in self.Q
+        if self.q_time_dep:
+            assert len(q) == self.dims['nt']
+        else:
+            assert len(q) == 1
 
         out = self.delta_t * (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q))
         if self.q_time_dep:
@@ -336,8 +394,10 @@ class InstationaryModelIP(ImmutableObject):
     def linearized_regularization_term(self, 
                                        q: VectorArray,
                                        d: VectorArray) -> float:
-        assert len(q) in [self.dims['nt'], 1]
-        assert len(d) in [self.dims['nt'], 1]
+        if self.q_time_dep:
+            assert len(q) == self.dims['nt']
+        else:
+            assert len(q) == 1
         assert len(q) == len(d)
         
         assert q in self.Q
@@ -357,8 +417,10 @@ class InstationaryModelIP(ImmutableObject):
     def linarized_gradient_regularization_term(self,
                                                q: VectorArray,
                                                d: VectorArray) -> float:
-        assert len(q) in [self.dims['nt'], 1]
-        assert len(d) in [self.dims['nt'], 1]
+        if self.q_time_dep:
+            assert len(q) == self.dims['nt']
+        else:
+            assert len(q) == 1
         assert len(q) == len(d)
         
         assert q in self.Q
@@ -369,7 +431,55 @@ class InstationaryModelIP(ImmutableObject):
             return out
         else:
             return self.dims['nt'] * out
-            
+
+#%% error estimator
+
+    def estimate_state_error(self,
+                             u: VectorArray,
+                             q: VectorArray) -> float:
+        
+        assert len(u) == self.nt
+        
+
+        if isinstance(self.state_residual_operator , ZeroOperator):
+            r = ZeroOperator.apply(u).norm2(product=0)
+        else:
+            alpha_q = ...
+
+            u_old = self.Q.zero(reserve=self.nt)
+            u_old[1:] = u[1:]
+            # TODO THIS IS NOT CORRECT YET. Has to be Riesz repr!
+            r = self.state_residual_operator.apply(
+                u = u, 
+                u_old = u_old,
+                q = q
+            ).norm2(product=None)
+
+        return np.sqrt(self.delta_t / alpha_q * r)
+
+
+    def estimate_adjoint_error(self,
+                               u: VectorArray,
+                               p: VectorArray) -> float:
+        pass
+
+    def estimate_objective_error(self) -> float:
+        pass
+
+    def estimate_gradient_error(self) -> float:
+        raise NotImplementedError
+
+    def estimate_linarized_state_error(self) -> float:
+        raise NotImplementedError
+
+    def estimate_linarized_adjoint_error(self) -> float:
+        raise NotImplementedError
+
+    def estimate_linarized_objective_error(self) -> float:
+        raise NotImplementedError
+
+    def estimate_linarized_gradient_error(self) -> float:
+        raise NotImplementedError
 
 #%% compute functions                            
     def compute_objective(self, 

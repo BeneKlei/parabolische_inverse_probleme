@@ -144,7 +144,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
             if q_time_dep:
                 assert isinstance(A, (UnAssembledA, AssembledA))
                 A_q = A(q[n])
-                M_dt_A = (M + A_q * dt).with_(solver_options=options)                
+                M_dt_A = (M + A_q * dt).with_(solver_options=options)
 
             assert M_dt_A is not None
 

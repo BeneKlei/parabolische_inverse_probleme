@@ -37,8 +37,8 @@ T_final = 1
 # TODO Here is a Bug
 nt = 50
 delta_t = (T_final - T_initial) / nt
-q_time_dep = False
-#q_time_dep = True
+#q_time_dep = False
+q_time_dep = True
 
 noise_level = 1e-5
 bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -132,12 +132,15 @@ if os.path.exists('profiling_results.prof'):
     
 pr = cProfile.Profile()
 
-
+#QrROM.compute_linearized_gradient(q_r, d_r, alpha=1)
 pr.enable()
+print("Starting")
 #FOM.compute_linearized_gradient(q, d, alpha=1)
 QrROM.compute_linearized_gradient(q_r, d_r, alpha=1)
+# import sys
+# sys.exit()
 pr.disable()
 
-pr.dump_stats('profiling_results.prof')
+#pr.dump_stats('profiling_results_QrROM_q_dep_refactored.prof')
 
-os.system('snakeviz profiling_results.prof')
+#os.system('snakeviz profiling_results.prof')
