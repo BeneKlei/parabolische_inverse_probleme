@@ -10,6 +10,7 @@ from pymor.discretizers.builtin import discretize_instationary_cg
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.discretizers.builtin.grids.rect import RectGrid
+from pymor.operators.constructions import ZeroOperator
 
 from RBInvParam.evaluators import UnAssembledA, UnAssembledB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator, \
@@ -88,7 +89,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     
     u_0 = primal_fom.initial_data.as_range_array()
     M = primal_fom.mass
-    f = primal_fom.rhs
+    L = primal_fom.rhs
 
     _, constant_operator = split_constant_and_parameterized_operator(
         primal_fom.operator
@@ -99,6 +100,8 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         reaction_problem = ('reaction' in problem_type),
         grid = primal_fom_data['grid'],
         boundary_info = primal_fom_data['boundary_info'],
+        source=V_h,
+        range=V_h,
         Q = Q_h,
         dims = dims
     )
@@ -107,6 +110,8 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         reaction_problem = ('reaction' in problem_type),
         grid = primal_fom_data['grid'],
         boundary_info = primal_fom_data['boundary_info'],
+        source=Q_h,
+        range=V_h,
         V = V_h,
         dims = dims
     )
@@ -159,25 +164,30 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         source_id =  Q_h.id,
         range_id = Q_h.id
     )
-    
-    building_blocks = (
-        u_0, 
-        M,
-        A,
-        f,
-        B,
-        constant_cost_term,
-        linear_cost_term,
-        bilinear_cost_term,
-        Q_h,
-        V_h,
-        q_circ,
-        constant_reg_term,
-        linear_reg_term,
-        bilinear_reg_term,
-        products,
-        visualizer
-    )
+
+    state_residual_operator = ZeroOperator(source=source,range=range)
+    adjoint_residual_operator = ZeroOperator(source=source,range=range)
+
+    building_blocks = {
+        'u_0' : u_0, 
+        'M' : M,
+        'A' : A,
+        'L' : L,
+        'B' : B,
+        'constant_cost_term' : constant_cost_term,
+        'linear_cost_term' : linear_cost_term,
+        'bilinear_cost_term' : bilinear_cost_term,
+        'Q' : Q_h,
+        'V' : V_h,
+        'q_circ' : q_circ,
+        'constant_reg_term' : constant_reg_term,
+        'linear_reg_term' : linear_reg_term,
+        'bilinear_reg_term' : bilinear_reg_term,
+        'state_residual_operator' : state_residual_operator,
+        'adjoint_residual_operator' : adjoint_residual_operator,
+        'products' : products,
+        'visualizer' : visualizer
+    }
 
     assert all(v is not None for v in building_blocks) 
     return building_blocks

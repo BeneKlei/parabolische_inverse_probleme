@@ -381,9 +381,9 @@ class QrROMOptimizer(Optimizer):
         parameter_shapshots = self.FOM.Q.empty()
         parameter_shapshots.append(nabla_J)
         parameter_shapshots.append(q)
-        parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.model_parameter['q_circ']))
+        parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
 
-        if self.FOM.model_parameter['q_time_dep']:
+        if self.FOM.setup['model_parameter']['q_time_dep']:
             self.logger.debug(f"Performing HaPOD on parameter snapshots.")
             parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, basis='parameter_basis')
 
@@ -393,8 +393,8 @@ class QrROMOptimizer(Optimizer):
         )
         self.QrROM = self.reductor.reduce()
 
-        self.logger.debug(f"Dim Qr-space = {self.reductor.get_dim('parameter_basis')}")
-        self.logger.debug(f"Dim Vr-space = {self.reductor.get_dim('state_basis')}")
+        self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
+        self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
         while J >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
@@ -449,8 +449,8 @@ class QrROMOptimizer(Optimizer):
                 basis = 'parameter_basis'
             )
             self.QrROM = self.reductor.reduce()
-            self.logger.debug(f"Dim Qr-space = {self.reductor.get_dim('parameter_basis')}")
-            self.logger.debug(f"Dim Vr-space = {self.reductor.get_dim('state_basis')}")
+            self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
+            self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
         self.statistics['total_runtime'] = (timer() - start_time)        
         return q
@@ -561,8 +561,8 @@ class QrROMOptimizer(Optimizer):
 
 #         self.QrVrROM = self.reductor.reduce()
         
-#         self.logger.debug(f"Dim Qr-space = {self.reductor.get_dim('parameter_basis')}")
-#         self.logger.debug(f"Dim Vr-space = {self.reductor.get_dim('state_basis')}")
+#         self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
+#         self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
 #         while J >= tol+tau*noise_level and i<i_max:
 #             # self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
@@ -616,8 +616,8 @@ class QrROMOptimizer(Optimizer):
 #             )
 
 #             self.QrVrROM = self.reductor.reduce()
-#             self.logger.debug(f"Dim Qr-space = {self.reductor.get_dim('parameter_basis')}")
-#             self.logger.debug(f"Dim Vr-space = {self.reductor.get_dim('state_basis')}")
+#             self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
+#             self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
 #         self.statistics['total_runtime'] = (timer() - start_time)        
 

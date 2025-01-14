@@ -219,10 +219,9 @@ def build_InstationaryModelIP(setup : Dict,
                                                  setup['dims'], 
                                                  problem_type)
      
-    setup['model_parameter']['q_exact'] = building_blocks[8].make_array(setup['model_parameter']['q_exact'])
+    setup['model_parameter']['q_exact'] = building_blocks['Q'].make_array(setup['model_parameter']['q_exact'])
+    building_blocks['setup'] = setup
 
     return (setup, InstationaryModelIP(                 
-        *building_blocks,
-        dims = setup['dims'],
-        model_parameter = setup['model_parameter'],
+        **building_blocks,
     ))

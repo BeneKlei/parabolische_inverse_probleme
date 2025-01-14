@@ -58,10 +58,6 @@ class UnAssembledEvaluator:
         self.nodes_to_element_projection, _, _ = build_projection(self.grid)
         self._prepare()
 
-        # if constant_operator:
-        #     self.source = self.constant_operator.source
-        #     self.range = self.constant_operator.range
-
     def _prepare(self):
         g = self.grid
         q, w = g.reference_element.quadrature(
@@ -87,6 +83,8 @@ class UnAssembledA(UnAssembledEvaluator):
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
+                 source : VectorSpace,
+                 range : VectorSpace,
                  Q : VectorSpace,
                  dims : Dict):
         
@@ -95,8 +93,10 @@ class UnAssembledA(UnAssembledEvaluator):
             reaction_problem = reaction_problem,
             grid = grid,
             boundary_info = boundary_info,    
-            dims = dims
-        )
+            source = source,
+            range = range,
+            dims = dims)
+
         self.Q = Q
         
     
@@ -159,7 +159,9 @@ class UnAssembledA(UnAssembledEvaluator):
 class AssembledEvaluator():
     def __init__(self,
                  unconstant_operator: Operator,
-                 constant_operator : Operator):
+                 constant_operator : Operator,
+                 source : VectorSpace,
+                 range : VectorSpace):
         
         assert isinstance(unconstant_operator, LincombOperator)
         assert unconstant_operator or constant_operator
@@ -171,19 +173,23 @@ class AssembledEvaluator():
             assert self.unconstant_operator.source == self.constant_operator.source
             assert self.unconstant_operator.range == self.constant_operator.range
 
-        self.source = self.constant_operator.source
-        self.range = self.constant_operator.range
+        self.source = source
+        self.range = range
 
 
 class AssembledA(AssembledEvaluator):    
     def __init__(self, 
                  unconstant_operator: Operator,
                  constant_operator : Operator,
+                 source : VectorSpace,
+                 range : VectorSpace,
                  Q : VectorSpace,
                  parameters: Parameters):
         
         super().__init__(unconstant_operator, 
-                         constant_operator)
+                         constant_operator,
+                         source = source,
+                         range = range)
         self.Q = Q
         self.parameters = parameters
 
@@ -192,6 +198,7 @@ class AssembledA(AssembledEvaluator):
         # TODO Can _assemble_A_q be vectorized?
         assert len(q) == 1
 
+        # TODO Why not direct via numpy?
         q_as_par = self.parameters.parse(q.to_numpy()[0])
         return self.unconstant_operator.assemble(q_as_par) + self.constant_operator
     
@@ -201,6 +208,8 @@ class UnAssembledB(UnAssembledEvaluator):
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
+                 source : VectorSpace,
+                 range : VectorSpace,
                  V : VectorSpace,
                  dims : Dict):
         
@@ -209,7 +218,10 @@ class UnAssembledB(UnAssembledEvaluator):
             reaction_problem = reaction_problem,
             grid = grid,
             boundary_info = boundary_info,
+            source=source,
+            range=range,
             dims = dims)
+
         self.dims = dims
         self.V = V
     
@@ -274,10 +286,14 @@ class AssembledB(AssembledEvaluator):
     def __init__(self, 
                 unconstant_operator: Operator,
                 constant_operator : Operator,
+                source : VectorSpace,
+                range : VectorSpace,
                 V : VectorSpace):
     
         super().__init__(unconstant_operator, 
-                         constant_operator)
+                         constant_operator,
+                         source = source,
+                         range = range)
         self.V = V
         
 

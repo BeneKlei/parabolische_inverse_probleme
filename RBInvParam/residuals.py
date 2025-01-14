@@ -7,6 +7,13 @@ from pymor.vectorarrays.interface import VectorArray, VectorSpace
 
 from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
 
+# Assembly ResidualOps
+# - Assemble it first naively, i.e. do not use projection to an (approximate) image basis
+#   - Constructing this basis can be to costly
+#   - Rememeber that the error is not used solving the linear problem 
+#   - But only in backtracking from the obtained direction 
+
+
 class ImplicitEulerResidualOperator(Operator):
     def __init__(self,
                  M : Operator,

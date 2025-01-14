@@ -1,10 +1,10 @@
-from typing import Dict
+from typing import Dict, Tuple, Union
 import numpy as np
 import logging
 
 from pymor.reductors.basic import ProjectionBasedReductor
 from pymor.algorithms.projection import project, project_to_subbasis
-from pymor.vectorarrays.interface import VectorArray
+from pymor.vectorarrays.interface import VectorArray, VectorSpace
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.constructions import LincombOperator
 from pymor.operators.numpy import NumpyMatrixOperator
@@ -16,6 +16,7 @@ from RBInvParam.evaluators import AssembledA, AssembledB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.utils.logger import get_default_logger
+from RBInvParam.residuals import StateResidualOperator, AdjointResidualOperator
 
 
 class InstationaryModelIPReductor(ProjectionBasedReductor):
@@ -69,37 +70,43 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             #return _basis.lincomb(x.inner(_basis, self.products[basis]))
             return x.inner(_basis, self.products[basis])
         
-    def get_dim(self, basis: str) -> int:
+    def get_bases_dim(self, basis: str) -> int:
+        assert basis in ['state_basis', 'parameter_basis']
         _basis = self.bases[basis]
+
         if len(_basis) == 0:
             if basis == 'state_basis':
-                return self.FOM.dims['state_dim']
+                return self.FOM.setup['dims']['state_dim']
             elif basis == 'parameter_basis':
-                return self.FOM.dims['par_dim']
+                return self.FOM.setup['dims']['par_dim']
             else:
                 raise ValueError
 
         else:
             return len(_basis)
-        
+
+    def _get_projection_basis(self, basis: str) -> Union[None, VectorArray]:
+        assert basis in ['state_basis', 'parameter_basis']
+        _basis = self.bases[basis]
+
+        if len(_basis) == 0:
+            if basis == 'state_basis':
+                return None
+            elif basis == 'parameter_basis':
+                raise NotImplementedError
+            else:
+                raise ValueError
+        else:
+            return _basis
     
-    def _assemble_reduced_operator(self) -> LincombOperator:
+    def _assemble_parameter_reduced_A(self) -> LincombOperator:
         # TODO Handle basis extention via offset
-        state_basis = self.bases['state_basis']
-        parameter_basis = self.bases['parameter_basis']
+        parameter_basis = self._get_projection_basis('parameter_basis')
 
-        if len(parameter_basis) == 0:
-            raise NotImplementedError
+        assert len(self.FOM.setup['model_parameter']['parameters']) == 1
+        parameter_name = list(self.FOM.setup['model_parameter']['parameters'].keys())[0] 
 
-        if len(state_basis) == 0:
-            state_basis = None
-
-        assert len(self.FOM.model_parameter['parameters']) == 1
-        parameter_name = list(self.FOM.model_parameter['parameters'].keys())[0] 
-
-        operators = [project(self.FOM.A.constant_operator, 
-                             state_basis, 
-                             state_basis)]
+        operators = [self.FOM.A.constant_operator]
         coefficients = [1]
 
         for i in range(len(parameter_basis)):
@@ -108,7 +115,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             A_q = NumpyMatrixOperator(A_q,
                                       source_id = self.FOM.A.source.id, 
                                       range_id = self.FOM.A.range.id)
-            A_q = project(A_q, state_basis, state_basis)
             operators.append(A_q)
             coefficients.append(
                 ProjectionParameterFunctional(parameter_name, len(parameter_basis), i)
@@ -116,25 +122,68 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         return LincombOperator(operators, coefficients)
 
+    def _build_setup(self) -> Dict:
+
+        if len(self.bases['parameter_basis']) == 0:
+            par_dim = self.FOM.setup['dims']['par_dim']
+        else:
+            par_dim = len(self.bases['parameter_basis'])
+        
+        if len(self.bases['state_basis']) == 0:
+            state_dim = self.FOM.setup['dims']['state_dim']
+        else:
+            state_dim = len(self.bases['state_basis'])
+        
+        dims = {
+            'N': None,
+            'nt': self.FOM.nt,
+            'fine_N': None,
+            'state_dim': state_dim,
+            'fine_state_dim': None,
+            'diameter': None,
+            'fine_diameter': None,
+            'par_dim': par_dim,
+            'output_dim': self.FOM.setup['dims']['output_dim']                                                                                                                                                                     # options to preassemble affine components or not
+        }
+
+        model_parameter = self.FOM.setup['model_parameter'].copy()
+        model_parameter['q_circ'] = self.project_vectorarray(self.FOM.q_circ, basis='parameter_basis')
+        model_parameter['q_exact'] = None
+        model_parameter['bounds'] = \
+        [self.bases['parameter_basis'].to_numpy().dot(self.FOM.setup['model_parameter']['bounds'][0]), 
+         self.bases['parameter_basis'].to_numpy().dot(self.FOM.setup['model_parameter']['bounds'][1]) ]
+        
+        # TODO Check how A(q) can be calc without parameter
+        # At the moment only unique kind of parameter is supported.
+        assert len(self.FOM.setup['model_parameter']['parameters']) == 1
+        projected_parameters = Parameters(
+            {list(self.FOM.setup['model_parameter']['parameters'].keys())[0] : \
+             len(self.bases['parameter_basis'])}
+        )
+        model_parameter['parameters'] = projected_parameters
+
+        problem_parameter = self.FOM.setup['problem_parameter'].copy()
+        problem_parameter['N'] = None
+
+        return {
+            'dims' : dims, 
+            'problem_parameter' : problem_parameter, 
+            'model_parameter' : model_parameter, 
+        }
+
     def project_operators(self) -> Dict:
-        state_basis = self.bases['state_basis']
-        parameter_basis = self.bases['parameter_basis']
+        state_basis = self._get_projection_basis('state_basis')
+        parameter_basis = self._get_projection_basis('parameter_basis')
 
-        if len(state_basis) == 0:
-            state_basis = None
-
-        if len(parameter_basis) == 0:
-            parameter_basis = None
+        assembled_parameter_reduced_A = self._assemble_parameter_reduced_A()
 
         unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
-            complete_operator=self._assemble_reduced_operator()
+            complete_operator=project(assembled_parameter_reduced_A,
+                                      state_basis,
+                                      state_basis)
         )
 
-        # At the moment only unique kind of parameter is supported.
-        assert len(self.FOM.model_parameter['parameters']) == 1
-        projected_parameters = Parameters(
-            {list(self.FOM.model_parameter['parameters'].keys())[0] : len(self.bases['parameter_basis'])}
-        )
+        setup = self._build_setup()
         
         if parameter_basis:
             Q = NumpyVectorSpace(dim = len(parameter_basis))
@@ -149,21 +198,47 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         A = AssembledA(
             unconstant_operator = unconstant_operator,
             constant_operator = constant_operator,
-            parameters=projected_parameters,
-            Q = Q
+            source = V,
+            range = V,
+            Q = Q,
+            parameters=setup['model_parameter']['parameters']
         )
         B = AssembledB(
             unconstant_operator = unconstant_operator, 
             constant_operator = constant_operator,
+            source = Q,
+            range = V,
             V = V
         )
+
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
+        products = {
+            'prod_H' : project(self.FOM.products['prod_H'], state_basis, state_basis),
+            'prod_Q' : prod_Q,
+            'prod_V' : project(self.FOM.products['prod_V'], state_basis, state_basis),
+            'prod_C' : self.FOM.products['prod_C'],
+            'bochner_prod_Q' : BochnerProductOperator(
+                product=prod_Q,
+                delta_t=self.FOM.delta_t
+            )
+        }
+        
+        from pymor.operators.constructions import ZeroOperator
+        state_residual_operator = ZeroOperator(source=V,range=V)
+        adjoint_residual_operator = ZeroOperator(source=V,range=V)
+
+        # state_residual_operator, adjoint_residual_operator = \
+        # self._assemble_error_estimator(assembled_parameter_reduced_A = assembled_parameter_reduced_A,
+        #                                Q = Q,
+        #                                V = V,
+        #                                products = products,
+        #                                setup = setup)
 
         projected_operators = {
             'u_0' : V.make_array(self.project_vectorarray(self.FOM.u_0, basis='state_basis')),
             'M' : project(self.FOM.M, state_basis, state_basis),
             'A' : A,
-            'f' : project(self.FOM.f, state_basis, None),
+            'L' : project(self.FOM.L, state_basis, None),
             'B' : B, 
             'constant_cost_term' : self.FOM.constant_cost_term,
             'linear_cost_term' : project(self.FOM.linear_cost_term, state_basis, None),
@@ -174,68 +249,70 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'constant_reg_term' : self.FOM.constant_reg_term,
             'linear_reg_term' : project(self.FOM.linear_reg_term, parameter_basis, None),
             'bilinear_reg_term' : project(self.FOM.bilinear_reg_term, parameter_basis, parameter_basis),
-            'products' : {
-                'prod_H' : project(self.FOM.products['prod_H'], state_basis, state_basis),
-                'prod_Q' : prod_Q,
-                'prod_V' : project(self.FOM.products['prod_V'], state_basis, state_basis),
-                'prod_C' : self.FOM.products['prod_C'],
-                'bochner_prod_Q' : BochnerProductOperator(
-                    product=prod_Q,
-                    delta_t=self.FOM.delta_t
-                )
-            }
-
+            'state_residual_operator' : state_residual_operator,
+            'adjoint_residual_operator' : adjoint_residual_operator,
+            'products' : products,
+            'visualizer' : self.FOM.visualizer,
+            'setup' : setup
         }
         return projected_operators 
 
     def build_rom(self, 
                   projected_operators : Dict, 
                   error_estimator : Dict = None):
-        
-        if len(self.bases['parameter_basis']) == 0:
-            par_dim = self.FOM.dims['par_dim']
-        else:
-            par_dim = len(self.bases['parameter_basis'])
-        
-        if len(self.bases['state_basis']) == 0:
-            state_dim = self.FOM.dims['state_dim']
-        else:
-            state_dim = len(self.bases['state_basis'])
-        
-        dims = {
-            'N': None,
-            'nt': self.FOM.dims['nt'],
-            'fine_N': None,
-            'state_dim': state_dim,
-            'fine_state_dim': None,
-            'diameter': None,
-            'fine_diameter': None,
-            'par_dim': par_dim,
-            'output_dim': self.FOM.dims['output_dim']                                                                                                                                                                     # options to preassemble affine components or not
-        }
-
-        model_parameter = self.FOM.model_parameter.copy()
-        model_parameter['q_circ'] = self.project_vectorarray(self.FOM.q_circ, basis='parameter_basis')
-        model_parameter['q_exact'] = None
-        model_parameter['bounds'] = [self.bases['parameter_basis'].to_numpy().dot(self.FOM.model_parameter['bounds'][0]), 
-                                     self.bases['parameter_basis'].to_numpy().dot(self.FOM.model_parameter['bounds'][1]) ]
-        
-        # At the moment only unique kind of parameter is supported.
-        assert len(model_parameter['parameters']) == 1
-        model_parameter['parameters'] = Parameters({
-            list(self.FOM.model_parameter['parameters'].keys())[0] : len(self.bases['parameter_basis'])
-        })
-        
+                  
         return InstationaryModelIP(
-            *(projected_operators.values()),
-            visualizer=self.FOM.visualizer,
-            dims = dims,
-            model_parameter = model_parameter        
+            **projected_operators,
         )
 
+    # def reduce(self) -> InstationaryModelIP:
+    #     raise NotImplementedError
 
-    def assemble_error_estimator(self):
-        pass
+    def _estimate_residual_image_basis(self) -> VectorArray:
+        raise NotImplementedError
+
+    def _assemble_error_estimator(self,
+                                  assembled_parameter_reduced_A: LincombOperator,
+                                  Q : VectorSpace,
+                                  V : VectorSpace,
+                                  products : Dict,
+                                  setup: Dict) -> Tuple[StateResidualOperator, AdjointResidualOperator]:
+
+        assert isinstance(assembled_parameter_reduced_A, LincombOperator)
+        state_basis = self._get_projection_basis('state_basis')
+        residual_image_basis = self._estimate_residual_image_basis()
+
+        unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
+            complete_operator=project(op = assembled_parameter_reduced_A, 
+                                      range_basis = residual_image_basis, 
+                                      source_basis = state_basis)
+        )
+
+        A = AssembledA(
+            unconstant_operator = unconstant_operator,
+            constant_operator = constant_operator,
+            source = V,
+            range = V,
+            Q = Q,
+            parameters=setup['model_parameter']['parameters']
+        )
+
+        projected_quantities = {
+            'M' : project(self.FOM.M, residual_image_basis, state_basis),
+            'A' : A,
+            'L' : project(self.FOM.L, residual_image_basis, None),
+            'linear_cost_term' : project(self.FOM.linear_cost_term, residual_image_basis, None),
+            'bilinear_cost_term' : project(self.FOM.bilinear_cost_term, residual_image_basis, state_basis),
+            'Q' : Q,
+            'V' : V,
+            'products': products,
+            'setup' : setup
+        }
+
+        state_residual_operator = StateResidualOperator()
+        adjoint_residual_operator = AdjointResidualOperator()
+        return state_residual_operator, adjoint_residual_operator
+
 
     # TODO write subbasis variants for project_operator and assemble_error_estimator
     def for_subbasis(self):
