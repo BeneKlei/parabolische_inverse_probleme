@@ -5,12 +5,11 @@ import logging
 import inspect
 
 import pymor.models.basic as InstationaryProblem
-from pymor.vectorarrays.interface import VectorArray
 from pymor.discretizers.builtin import discretize_instationary_cg
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.discretizers.builtin.grids.rect import RectGrid
-from pymor.operators.constructions import ZeroOperator
+from pymor.parameters.base import Mu
 
 from RBInvParam.evaluators import UnAssembledA, UnAssembledB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator, \
@@ -77,11 +76,15 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         product=products['prod_Q'],
         delta_t=delta_t
     )
-    
     #lambda v, w : bochner_product(v,w,delta_t,products['prod_Q'])
     
     V_h = primal_fom.operator.source
     products['prod_V'] = primal_fom.products['h1']
+    products['bochner_prod_V'] = BochnerProductOperator(
+        product=products['prod_V'],
+        delta_t=delta_t
+    )
+
     products['prod_H'] = primal_fom.products['l2']
 
 
@@ -89,7 +92,21 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     
     u_0 = primal_fom.initial_data.as_range_array()
     M = primal_fom.mass
-    L = primal_fom.rhs
+
+    #L = primal_fom.rhs
+
+    t = model_params['T_initial']
+    # The rhs does NOT depend on q
+    assert len(primal_fom.rhs.parameters) in [0,1]
+    if 't' not in primal_fom.rhs.parameters:
+        L = primal_fom.rhs.as_range_array()
+    else:
+        L = V_h.zeros(reserve=dims['nt'])
+        mu = Mu()
+        for n in range(dims['nt']): 
+            t += model_params['delta_t']
+            mu = mu.with_(t=t)
+            L[n] = primal_fom.rhs.as_range_array(mu)
 
     _, constant_operator = split_constant_and_parameterized_operator(
         primal_fom.operator
@@ -156,17 +173,14 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
     linear_reg_term = NumpyMatrixOperator(
         matrix = products['prod_Q'].matrix.T @ q_circ.to_numpy().T,
-        source_id =  Q_h.id,
+        source_id = Q_h.id,
         range_id = Q_h.id
     )
     bilinear_reg_term = NumpyMatrixOperator(
         matrix = products['prod_Q'].matrix,
-        source_id =  Q_h.id,
+        source_id = Q_h.id,
         range_id = Q_h.id
     )
-
-    state_residual_operator = ZeroOperator(source=source,range=range)
-    adjoint_residual_operator = ZeroOperator(source=source,range=range)
 
     building_blocks = {
         'u_0' : u_0, 
@@ -183,8 +197,8 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         'constant_reg_term' : constant_reg_term,
         'linear_reg_term' : linear_reg_term,
         'bilinear_reg_term' : bilinear_reg_term,
-        'state_residual_operator' : state_residual_operator,
-        'adjoint_residual_operator' : adjoint_residual_operator,
+        'state_error_estimator' : None,
+        'adjoint_error_estimator' : None,
         'products' : products,
         'visualizer' : visualizer
     }

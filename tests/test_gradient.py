@@ -49,7 +49,7 @@ reductor.extend_basis(
     U = nabla_J,
     basis = 'parameter_basis'
 )
-QrROM = reductor.reduce()
+QrFOM = reductor.reduce()
 
 def derivative_check(model : InstationaryModelIP ,
                      f : Callable, 
@@ -133,8 +133,8 @@ def test_FOM_linearized_objective_gradient()-> None:
 
 #################################### Qr-ROM ####################################
 
-def test_QrROM_objective_gradient()-> None:
-    model = QrROM
+def test_QrFOM_objective_gradient()-> None:
+    model = QrFOM
     eps, diff_quot = derivative_check(
         model,
         model.compute_objective, 
@@ -144,9 +144,9 @@ def test_QrROM_objective_gradient()-> None:
     assert np.all(eps > diff_quot)
 
 
-def test_QrROM_regularization_term_gradient() -> None:
+def test_QrFOM_regularization_term_gradient() -> None:
     alpha = 1e0
-    model = QrROM
+    model = QrFOM
     eps, diff_quot = derivative_check(
         model,
         lambda q: alpha * model.regularization_term(q), 
@@ -156,9 +156,9 @@ def test_QrROM_regularization_term_gradient() -> None:
     assert np.all(eps > diff_quot)
 
 
-def test_QrROM_linearized_objective_gradient()-> None:
+def test_QrFOM_linearized_objective_gradient()-> None:
     alpha = 1e0
-    model = QrROM
+    model = QrFOM
     q = model.Q.make_array(model.model_parameter['q_circ'])
     eps, diff_quot = derivative_check(
         model,
@@ -179,9 +179,9 @@ def test_QrROM_linearized_objective_gradient()-> None:
 # q = FOM.Q.make_array(FOM.model_parameter['q_circ'])
 # d = FOM.Q.make_array(q)
 # q_r = reductor.project_vectorarray(q, 'parameter_basis')
-# q_r = QrROM.Q.make_array(q_r)
+# q_r = QrFOM.Q.make_array(q_r)
 # d_r = reductor.project_vectorarray(d, 'parameter_basis')
-# d_r = QrROM.Q.make_array(d_r)
+# d_r = QrFOM.Q.make_array(d_r)
 
 
 

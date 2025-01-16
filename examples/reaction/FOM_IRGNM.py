@@ -38,8 +38,8 @@ def main():
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
     noise_level = 1e-8
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -95,8 +95,7 @@ def main():
     optimizer_parameter = {
         'noise_level' : setup['model_parameter']['noise_level'],
         'tau' : 3.5,
-        #'tol' : 1e-8,
-        'tol' : 1e-4,
+        'tol' : 1e-8,
         'q_0' : q_start,
         'alpha_0' : 1e-5,
         'i_max' : 50,

@@ -63,6 +63,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
             assert F in A.range
             if len(F) == 1:
                 F_time_dep = False
+                dt_F = F * dt
             elif len(F) == (self.nt):
                 F_time_dep = True
             else: 
@@ -72,8 +73,6 @@ class ImplicitEulerTimeStepper(TimeStepper):
             # Should never happend
             raise AttributeError
     
-        
-
         if isinstance(A, Operator):
             pass
         elif isinstance(A, (UnAssembledA, AssembledA)):

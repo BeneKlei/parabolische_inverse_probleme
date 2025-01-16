@@ -1,6 +1,7 @@
 from typing import Dict, Tuple, Union
 import numpy as np
 import logging
+import scipy
 
 from pymor.reductors.basic import ProjectionBasedReductor
 from pymor.algorithms.projection import project, project_to_subbasis
@@ -10,6 +11,7 @@ from pymor.operators.constructions import LincombOperator
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.parameters.functionals import ProjectionParameterFunctional
 from pymor.parameters.base import Parameters
+from pymor.tools.floatcmp import float_cmp_all
 
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.evaluators import AssembledA, AssembledB
@@ -17,24 +19,38 @@ from RBInvParam.utils.discretization import split_constant_and_parameterized_ope
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.residuals import StateResidualOperator, AdjointResidualOperator
+from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator
 
 
 class InstationaryModelIPReductor(ProjectionBasedReductor):
     def __init__(self, 
                  FOM: InstationaryModelIP, 
                  check_orthonormality: bool =False, 
-                 check_tol: float =1e-3,
-                 logger: logging.Logger = None):
+                 check_tol: float = 1e-3,
+                 logger: logging.Logger = None,
+                 use_residual_image_basis: bool = False):
         
         assert isinstance(FOM, InstationaryModelIP)
         assert 'prod_V' in FOM.products.keys()
         assert 'prod_Q' in FOM.products.keys()
 
+        # logging.basicConfig()
+        # if logger:
+        #     self._logger = logger
+        # else:
+        #     self._logger = get_default_logger(self.__class__.__name__)
+        #     self._logger.setLevel(logging.DEBUG)
+        #     print(self._logger)
+        #     print(self.logger)
+
         bases = {
             'state_basis' : FOM.V.empty(),
-            'parameter_basis' : FOM.Q.empty()
+            'parameter_basis' : FOM.Q.empty(),
+            'state_residual_image_basis' : FOM.Q.empty(),
+            'adjoint_residual_image_basis' : FOM.Q.empty(),
         }
 
+        #TODO Remove this if not derived class
         _products = {
             'state_basis' : FOM.products['prod_V'],
             'parameter_basis' : FOM.products['prod_Q']
@@ -46,16 +62,16 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                          _products,
                          check_orthonormality=check_orthonormality, 
                          check_tol=check_tol)
+
+        self.use_residual_image_basis = use_residual_image_basis 
+        if self.use_residual_image_basis:
+            pass
+            #TODO Log here
+        else:
+            pass
+            #TODO Log here
         
 
-        # logging.basicConfig()
-        # if logger:
-        #     self._logger = logger
-        # else:
-        #     self._logger = get_default_logger(self.__class__.__name__)
-        #     self._logger.setLevel(logging.DEBUG)
-        #     print(self._logger)
-        #     print(self.logger)
 
     def project_vectorarray(self, 
                             x : VectorArray,
@@ -71,31 +87,26 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             return x.inner(_basis, self.products[basis])
         
     def get_bases_dim(self, basis: str) -> int:
-        assert basis in ['state_basis', 'parameter_basis']
+        assert basis in self.bases.keys()
         _basis = self.bases[basis]
 
         if len(_basis) == 0:
-            if basis == 'state_basis':
-                return self.FOM.setup['dims']['state_dim']
-            elif basis == 'parameter_basis':
-                return self.FOM.setup['dims']['par_dim']
+            if basis == 'parameter_basis':
+                return self.FOM.setup['dims']['par_dim']        
             else:
-                raise ValueError
-
+                return self.FOM.setup['dims']['state_dim']
         else:
             return len(_basis)
 
     def _get_projection_basis(self, basis: str) -> Union[None, VectorArray]:
-        assert basis in ['state_basis', 'parameter_basis']
+        assert basis in self.bases.keys()
         _basis = self.bases[basis]
 
         if len(_basis) == 0:
-            if basis == 'state_basis':
-                return None
-            elif basis == 'parameter_basis':
+            if basis == 'parameter_basis':
                 raise NotImplementedError
             else:
-                raise ValueError
+                return None
         else:
             return _basis
     
@@ -223,16 +234,12 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             )
         }
         
-        from pymor.operators.constructions import ZeroOperator
-        state_residual_operator = ZeroOperator(source=V,range=V)
-        adjoint_residual_operator = ZeroOperator(source=V,range=V)
-
-        # state_residual_operator, adjoint_residual_operator = \
-        # self._assemble_error_estimator(assembled_parameter_reduced_A = assembled_parameter_reduced_A,
-        #                                Q = Q,
-        #                                V = V,
-        #                                products = products,
-        #                                setup = setup)
+        state_error_estimator, adjoint_error_estimator = \
+        self._assemble_error_estimator(assembled_parameter_reduced_A = assembled_parameter_reduced_A,
+                                       Q = Q,
+                                       V = V,
+                                       products = products,
+                                       setup = setup)
 
         projected_operators = {
             'u_0' : V.make_array(self.project_vectorarray(self.FOM.u_0, basis='state_basis')),
@@ -249,8 +256,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'constant_reg_term' : self.FOM.constant_reg_term,
             'linear_reg_term' : project(self.FOM.linear_reg_term, parameter_basis, None),
             'bilinear_reg_term' : project(self.FOM.bilinear_reg_term, parameter_basis, parameter_basis),
-            'state_residual_operator' : state_residual_operator,
-            'adjoint_residual_operator' : adjoint_residual_operator,
+            'state_error_estimator' : state_error_estimator,
+            'adjoint_error_estimator' : adjoint_error_estimator,
             'products' : products,
             'visualizer' : self.FOM.visualizer,
             'setup' : setup
@@ -268,7 +275,9 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     # def reduce(self) -> InstationaryModelIP:
     #     raise NotImplementedError
 
-    def _estimate_residual_image_basis(self) -> VectorArray:
+    def _estimate_residual_image_basis(self,
+                                       basis: str) -> VectorArray:
+        assert basis in ['state_residual_image_basis', 'adjoint_residual_image_basis']
         raise NotImplementedError
 
     def _assemble_error_estimator(self,
@@ -280,14 +289,36 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         assert isinstance(assembled_parameter_reduced_A, LincombOperator)
         state_basis = self._get_projection_basis('state_basis')
-        residual_image_basis = self._estimate_residual_image_basis()
 
+        if self.use_residual_image_basis:
+            self.bases['state_residual_image_basis'] = self._estimate_residual_image_basis(
+                basis = 'state_residual_image_basis'
+            )
+
+            self.bases['adjoint_residual_image_basis'] = self._estimate_residual_image_basis(
+                basis = 'adjoint_residual_image_basis'
+            )
+
+        state_residual_image_basis = self._get_projection_basis('state_residual_image_basis')
+        adjoint_residual_image_basis = self._get_projection_basis('adjoint_residual_image_basis')
+        
+        # At the moment we allow only that both residuals have the same image basis
+        assert state_residual_image_basis == adjoint_residual_image_basis
+        residual_image_basis = state_residual_image_basis
+    
+        if residual_image_basis is None:
+            riesz_representative = True
+        else:
+            riesz_representative = False            
+            raise NotImplementedError
+        
         unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
             complete_operator=project(op = assembled_parameter_reduced_A, 
                                       range_basis = residual_image_basis, 
                                       source_basis = state_basis)
         )
 
+        M = project(self.FOM.M, residual_image_basis, state_basis)
         A = AssembledA(
             unconstant_operator = unconstant_operator,
             constant_operator = constant_operator,
@@ -297,21 +328,69 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             parameters=setup['model_parameter']['parameters']
         )
 
-        projected_quantities = {
-            'M' : project(self.FOM.M, residual_image_basis, state_basis),
+        projected_state_quantities = {
+            'M' : M,
             'A' : A,
             'L' : project(self.FOM.L, residual_image_basis, None),
-            'linear_cost_term' : project(self.FOM.linear_cost_term, residual_image_basis, None),
-            'bilinear_cost_term' : project(self.FOM.bilinear_cost_term, residual_image_basis, state_basis),
             'Q' : Q,
             'V' : V,
+            'riesz_representative' : riesz_representative,
             'products': products,
             'setup' : setup
         }
 
-        state_residual_operator = StateResidualOperator()
-        adjoint_residual_operator = AdjointResidualOperator()
-        return state_residual_operator, adjoint_residual_operator
+        projected_adjoint_quantities = {
+            'M' : M,
+            'A' : A,
+            'linear_cost_term' : project(self.FOM.linear_cost_term, residual_image_basis, None),
+            'bilinear_cost_term' : project(self.FOM.bilinear_cost_term, residual_image_basis, state_basis),
+            'Q' : Q,
+            'V' : V,
+            'riesz_representative' : riesz_representative,
+            'products': products,
+            'setup' : setup
+        }
+
+        state_residual_operator = StateResidualOperator(**projected_state_quantities)
+        adjoint_residual_operator = AdjointResidualOperator(**projected_adjoint_quantities)
+
+        coercivity_estimator = None
+
+        if residual_image_basis:
+            orthonormal_basis = float_cmp_all(
+                self.FOM.Q.make_array(scipy.sparse.identity(self.FOM.setup['dims']['state_dim'])),
+                self.FOM.products['prod_V'].apply2(residual_image_basis, residual_image_basis),
+                rtol = 1e-16,
+                atol = 1e-16,
+            )
+        else:
+            orthonormal_basis = False
+                
+        if orthonormal_basis:
+            product = None
+        else:
+            product = project(self.FOM.products['prod_V'], 
+                              residual_image_basis, 
+                              residual_image_basis, 
+                              product=None)
+
+        state_error_estiamtor = StateErrorEstimator(
+            state_residual_operator = state_residual_operator,
+            coercivity_estimator = coercivity_estimator,
+            Q = Q,
+            V = V,
+            product = product,
+            setup = setup
+        )
+        adjoint_error_estiamtor = AdjointErrorEstimator(
+            adjoint_residual_operator = adjoint_residual_operator,
+            Q = Q,
+            V = V,
+            product = product,
+            setup = setup
+        )
+        
+        return state_error_estiamtor, adjoint_error_estiamtor
 
 
     # TODO write subbasis variants for project_operator and assemble_error_estimator

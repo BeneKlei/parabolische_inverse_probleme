@@ -1,4 +1,3 @@
-import numpy as np
 from typing import Dict, Union
 
 from pymor.operators.numpy import NumpyMatrixOperator
@@ -20,17 +19,21 @@ class ImplicitEulerResidualOperator(Operator):
                  A : Union[UnAssembledA, AssembledA],
                  Q : VectorSpace,
                  V : VectorSpace,
+                 riesz_representative : bool,
                  products : Dict,
-                 dims: Dict,
-                 model_parameter: Dict):
+                 setup: Dict):
         
         self.products = products
-        self.dims = dims
-        self.model_parameter = model_parameter
+        self.setup = setup
+        self.riesz_representative = riesz_representative
 
-        self.delta_t = self.model_parameter['delta_t']
-        self.q_time_dep = self.model_parameter['q_time_dep']
-        self.nt = self.dims['nt']
+        if riesz_representative:
+            assert 'prod_V' in self.products
+            self.products['prod_V'].range == V
+
+        self.delta_t = self.setup['model_parameter']['delta_t']
+        self.q_time_dep = self.setup['model_parameter']['q_time_dep']
+        self.nt = self.setup['dims']['nt']
         
         self.M = M
         self.A = A
@@ -66,14 +69,19 @@ class ImplicitEulerResidualOperator(Operator):
         else:
             assert len(q) == len(u)
 
-        Au = self.V.zeros(reserve = len(u)) 
         if self.q_time_dep:
+            Au = self.V.empty(reserve = len(u)) 
             for i in range(len(u)):
-                Au[i] = self.A(q[i]).apply(u[i])
+                Au.append(self.A(q[i]).apply(u[i]))
         else:
             Au = self.A(q[0]).apply(u)
-            
-        return rhs - Au - 1/ self.delta_t * self.M.apply(u - u_old)
+
+        R = - Au - 1/ self.delta_t * self.M.apply(u - u_old) + rhs
+        
+        if self.riesz_representative:
+            return self.products['prod_V'].apply_inverse(R)
+        else:
+            return R
         
 
 class StateResidualOperator(ImplicitEulerResidualOperator):
@@ -82,33 +90,33 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
                  A : Union[UnAssembledA, AssembledA],
                  L : VectorArray,
                  Q : VectorSpace,
-                 V : VectorSpace, 
+                 V : VectorSpace,
+                 riesz_representative : bool,
                  products : Dict,
-                 dims: Dict,
-                 model_parameter: Dict):
+                 setup: Dict):
         
         super().__init__(M = M,
                          A = A,
                          Q = Q,
                          V = V,
+                         riesz_representative = riesz_representative,
                          products = products,
-                         dims = dims,
-                         model_parameter = model_parameter)
+                         setup = setup)
         
         self.L = L
-
-        assert L in self.V
-        assert len(L) == self.nt
+        assert self.L in self.V
+        assert isinstance(self.L, VectorArray)
+        assert len(self.L) in [1, self.nt]
 
     def apply(self,
-              U: VectorArray,
-              U_old: VectorArray,
+              u: VectorArray,
+              u_old: VectorArray,
               q: VectorArray) -> VectorArray:
         
-        assert len(U) == len(U_old) == self.nt
+        assert len(u) == len(u_old) == self.nt
         return self._apply(rhs = self.L,
-                           U = U,
-                           U_old = U_old,
+                           u = u,
+                           u_old = u_old,
                            q=q)
 
         
@@ -119,18 +127,18 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
                  linear_cost_term: NumpyMatrixOperator,
                  bilinear_cost_term: NumpyMatrixOperator,
                  Q : VectorSpace,
-                 V : VectorSpace, 
+                 V : VectorSpace,
+                 riesz_representative : bool,
                  products : Dict,
-                 dims: Dict,
-                 model_parameter: Dict):
+                 setup : Dict):
         
         super().__init__(M = M,
                          A = A, # A is symmetric
                          Q = Q,
                          V = V,
+                         riesz_representative = riesz_representative,
                          products = products,
-                         dims = dims,
-                         model_parameter = model_parameter)
+                         setup = setup)
             
         self.bilinear_cost_term = bilinear_cost_term
         self.linear_cost_term = linear_cost_term
@@ -138,7 +146,7 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
         assert self.bilinear_cost_term.source == self.bilinear_cost_term.range
         assert self.bilinear_cost_term.source == self.A.range
         assert self.linear_cost_term.range == self.A.range
-        assert len(self.linear_cost_term.as_range_array()) == self.dims['nt']
+        assert len(self.linear_cost_term.as_range_array()) == self.setup['dims']['nt']
         
 
     def apply(self,
@@ -150,11 +158,9 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
         assert len(p) == len(p_old) == len(u) == self.nt
         
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
-        #rhs = np.flip(rhs.to_numpy(), axis=0)
-        # TODO Make def with delta_t consitent and move it the disctetirzer
-        rhs = self.delta_t * self.V.make_array(rhs)
+        rhs *= self.delta_t
 
         return self._apply(rhs = rhs,
-                           u = p_old,
-                           u_old = p,
+                           u = p,
+                           u_old = p_old,
                            q=q)

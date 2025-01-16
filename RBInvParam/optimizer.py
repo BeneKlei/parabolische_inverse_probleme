@@ -290,7 +290,7 @@ class FOMOptimizer(Optimizer):
 
         return q
         
-class QrROMOptimizer(Optimizer):
+class QrFOMOptimizer(Optimizer):
     def __init__(self, 
                  optimizer_parameter: Dict, 
                  FOM : InstationaryModelIP,
@@ -300,7 +300,7 @@ class QrROMOptimizer(Optimizer):
         self.reductor = InstationaryModelIPReductor(
             FOM
         )
-        self.QrROM = None
+        self.QrFOM = None
 
         self.statistics = {
             'q' : [],
@@ -391,7 +391,7 @@ class QrROMOptimizer(Optimizer):
              U = parameter_shapshots,
              basis = 'parameter_basis'
         )
-        self.QrROM = self.reductor.reduce()
+        self.QrFOM = self.reductor.reduce()
 
         self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
         self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
@@ -403,9 +403,9 @@ class QrROMOptimizer(Optimizer):
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
-            q_r = self.QrROM.Q.make_array(q_r)
+            q_r = self.QrFOM.Q.make_array(q_r)
 
-            q_r, IRGNM_statistic = self.IRGNM(model = self.QrROM,
+            q_r, IRGNM_statistic = self.IRGNM(model = self.QrFOM,
                                               q_0 = q_r,
                                               alpha_0 = alpha,
                                               tol = tol,
@@ -448,7 +448,7 @@ class QrROMOptimizer(Optimizer):
                 U = parameter_shapshots,
                 basis = 'parameter_basis'
             )
-            self.QrROM = self.reductor.reduce()
+            self.QrFOM = self.reductor.reduce()
             self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
             self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 

@@ -4,7 +4,7 @@ import logging
 
 from pymor.basic import *
 
-from RBInvParam.optimizer import QrROMOptimizer
+from RBInvParam.optimizer import QrFOMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
 
@@ -27,8 +27,8 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    #N = 100
-    N = 10
+    N = 100
+    #N = 10
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -38,8 +38,8 @@ def main():
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
     noise_level = 1e-8
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -94,8 +94,7 @@ def main():
     optimizer_parameter = {
         'noise_level' : setup['model_parameter']['noise_level'],
         'tau' : 3.5,
-        #'tol' : 1e-8,
-        'tol' : 1e-4,
+        'tol' : 1e-8,
         'q_0' : q_start,
         'alpha_0' : 1e-5,
         'i_max' : 50,
@@ -105,7 +104,7 @@ def main():
         'Theta' : 0.75,
     }
 
-    optimizer = QrROMOptimizer(
+    optimizer = QrFOMOptimizer(
         FOM = FOM,
         optimizer_parameter = optimizer_parameter,
         logger = logger
@@ -124,7 +123,7 @@ def main():
     logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
-    save_path = Path(f"./dumps/FOM_IRGNM_{N}.pkl")
+    save_path = Path(f"./dumps/Qr_IRGNM_{N}.pkl")
     logger.debug(f"Save statistics to {save_path}")
 
     data = {

@@ -10,7 +10,7 @@ from pymor.operators.constructions import ZeroOperator
 
 from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
 from RBInvParam.timestepping import ImplicitEulerTimeStepper
-from RBInvParam.residuals import StateResidualOperator,AdjointResidualOperator
+from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator
 
 # TODO 
 # - Add caching
@@ -39,8 +39,8 @@ class InstationaryModelIP(ImmutableObject):
                  constant_reg_term: float,
                  linear_reg_term: NumpyMatrixOperator,
                  bilinear_reg_term: NumpyMatrixOperator,
-                 state_residual_operator: Union[ZeroOperator, StateResidualOperator],
-                 adjoint_residual_operator: Union[ZeroOperator, AdjointResidualOperator],
+                 state_error_estimator: None,
+                 adjoint_error_estimator: None,
                  products : Dict,
                  visualizer,
                  setup : Dict,
@@ -65,8 +65,8 @@ class InstationaryModelIP(ImmutableObject):
         self.constant_reg_term = constant_reg_term 
         self.linear_reg_term = linear_reg_term 
         self.bilinear_reg_term = bilinear_reg_term 
-        self.state_residual_operator = state_residual_operator
-        self.adjoint_residual_operator = adjoint_residual_operator
+        self.state_error_estimator = state_error_estimator
+        self.adjoint_error_estimator = adjoint_error_estimator
         self.products = products
         self.visualizer = visualizer
         self.setup = setup
@@ -90,7 +90,9 @@ class InstationaryModelIP(ImmutableObject):
         assert self.A.source == self.A.range
         assert self.M.source == self.A.source
         assert self.A.range == self.V
-        assert self.L.range == self.A.range
+        assert isinstance(self.L, VectorArray)
+        assert len(self.L) in [1, self.nt]
+        assert self.L in self.V
         assert self.A.Q == self.Q
         assert self.q_circ in self.Q
 
@@ -100,16 +102,16 @@ class InstationaryModelIP(ImmutableObject):
         assert len(self.linear_cost_term.as_range_array()) == self.nt
         assert self.bilinear_reg_term.source == self.bilinear_reg_term.range
         assert self.bilinear_reg_term.source == self.Q
-        assert self.linear_reg_term.range == self.Q
-        assert len(self.linear_reg_term.as_range_array()) == self.nt
+        assert self.linear_reg_term.range == self.Q    
 
-        assert isinstance(state_residual_operator, (ZeroOperator, StateResidualOperator))
-        assert isinstance(adjoint_residual_operator, (ZeroOperator, AdjointResidualOperator))
-
-        self.state_residual_operator.source == self.A.source
-        self.state_residual_operator.range == self.A.range
-        self.adjoint_residual_operator.source == self.A.source
-        self.adjoint_residual_operator.range == self.A.range
+        if state_error_estimator:
+            assert isinstance(state_error_estimator, (StateErrorEstimator))
+            assert self.state_error_estimator.state_residual_operator.source == self.A.source
+            assert self.state_error_estimator.state_residual_operator.range == self.A.range
+        if adjoint_error_estimator:
+            assert isinstance(adjoint_error_estimator, (AdjointErrorEstimator))
+            assert self.adjoint_error_estimator.adjoint_residual_operator.source == self.A.source
+            assert self.adjoint_error_estimator.adjoint_residual_operator.range == self.A.range
 
 #%% solve methods
     def solve_state(self, q: VectorArray) -> VectorArray:
@@ -301,7 +303,7 @@ class InstationaryModelIP(ImmutableObject):
             assert len(q) == self.nt
         else:
             assert len(q) == 1
-        assert len(d) == self.nt
+        assert len(d) == len(q)
         assert len(u) == self.nt
         assert len(lin_u) == self.nt
 
@@ -436,37 +438,45 @@ class InstationaryModelIP(ImmutableObject):
 #%% error estimator
 
     def estimate_state_error(self,
-                             u: VectorArray,
-                             q: VectorArray) -> float:
+                             q: VectorArray,
+                             u: VectorArray) -> float:        
         
         assert len(u) == self.nt
-        
+        assert q in self.Q
+        assert u in self.V
 
-        if isinstance(self.state_residual_operator , ZeroOperator):
-            r = ZeroOperator.apply(u).norm2(product=0)
+        if self.state_error_estimator:
+            return self.state_error_estimator.estimate_error(
+                q = q,
+                u = u         
+            )
         else:
-            # TODO THIS IS NOT CORRECT YET. Has to be Riesz repr!
-            alpha_q = 1
-
-            u_old = self.Q.zero(reserve=self.nt)
-            u_old[1:] = u[1:]
-            # TODO THIS IS NOT CORRECT YET. Has to be Riesz repr!
-            r = self.state_residual_operator.apply(
-                u = u, 
-                u_old = u_old,
-                q = q
-            ).norm2(product=None)
-
-        return np.sqrt(self.delta_t / alpha_q * r)
-
-
+            return 0.0
+            
     def estimate_adjoint_error(self,
+                               q: VectorArray,
                                u: VectorArray,
                                p: VectorArray) -> float:
-        pass
+        
+        assert len(u) == self.nt
+        assert len(u) == len(p)
+
+        assert q in self.Q
+        assert u in self.V
+        assert p in self.V
+
+        if self.state_error_estimator:
+            return self.adjoint_error_estimator.estimate_error(
+                q = q,
+                u = u,
+                p = p           
+            )
+        else:
+            return 0.0
+            
 
     def estimate_objective_error(self) -> float:
-        pass
+        raise NotImplementedError
 
     def estimate_gradient_error(self) -> float:
         raise NotImplementedError
