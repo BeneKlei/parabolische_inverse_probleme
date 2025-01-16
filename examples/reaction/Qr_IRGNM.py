@@ -27,8 +27,8 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    N = 100
-    #N = 10
+    #N = 100
+    N = 10
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -124,7 +124,7 @@ def main():
     logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
-    save_path = Path("./dumps/Qr_IRGNM.pkl")
+    save_path = Path(f"./dumps/FOM_IRGNM_{N}.pkl")
     logger.debug(f"Save statistics to {save_path}")
 
     data = {
