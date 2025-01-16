@@ -43,15 +43,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         logger = get_default_logger(inspect.getframeinfo(inspect.currentframe()).function)
         logger.setLevel(logging.DEBUG)              
                             
-    products = {
-        'prod_H' : None,
-        'prod_Q' : None,
-        'prod_V' : None,
-        'prod_C' : None,
-        'bochner_prod_Q' : None,
-    }
-
-    ############################### PDE ###############################
+    ############################### FOM ###############################
     primal_fom, primal_fom_data = discretize_instationary_cg(analytical_problem,
                                                diameter=dims['diameter'],
                                                preassemble= False,
@@ -63,40 +55,62 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
 
 
     Q_h = NumpyVectorSpace(dim = dims['par_dim'], id='PARAM')
+    V_h = primal_fom.operator.source
+
     assert Q_h.dim == source.dim
     assert Q_h.dim == range.dim
 
+    visualizer = primal_fom.visualizer
+    
+    ############################### Products ###############################
+
+    products = {
+        'prod_H' : None,
+        'prod_Q' : None,
+        'prod_V' : None,
+        'prod_C' : None,
+        'bochner_prod_Q' : None,
+        'bochner_prod_V' : None,
+    }
+
+
+    # TODO
+    raise NotImplementedError    
+    for prod_name in model_params['products'].values():
+        cond_1 = prod_name in ['h1', 'l2']
+        
+    
+
+    l2 = primal_fom.products['l2'].assemble().matrix
+    h1 = primal_fom.products['h1'].assemble().matrix
+
+    products['prod_H'] = primal_fom.products[model_params['products']['prod_H']]
     products['prod_Q'] = NumpyMatrixOperator(
         matrix = primal_fom.products['l2'].assemble().matrix,
         source_id = Q_h.id,
         range_id = Q_h.id
     )
+    products['prod_V'] = primal_fom.products['h1']
+    products['prod_C'] = primal_fom.products['l2'].assemble().matrix
+    
+
     delta_t = model_params['delta_t']
     products['bochner_prod_Q'] = BochnerProductOperator(
         product=products['prod_Q'],
         delta_t=delta_t
     )
-    #lambda v, w : bochner_product(v,w,delta_t,products['prod_Q'])
-    
-    V_h = primal_fom.operator.source
-    products['prod_V'] = primal_fom.products['h1']
     products['bochner_prod_V'] = BochnerProductOperator(
         product=products['prod_V'],
         delta_t=delta_t
     )
 
-    products['prod_H'] = primal_fom.products['l2']
+    ############################### Operators ###############################
 
-
-    visualizer = primal_fom.visualizer
-    
     u_0 = primal_fom.initial_data.as_range_array()
     M = primal_fom.mass
 
-    #L = primal_fom.rhs
-
     t = model_params['T_initial']
-    # The rhs does NOT depend on q
+    # The rhs is assumed to NOT depend on q
     assert len(primal_fom.rhs.parameters) in [0,1]
     if 't' not in primal_fom.rhs.parameters:
         L = primal_fom.rhs.as_range_array()
@@ -135,13 +149,11 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
 
     ############################### Cost ###############################
 
-    if 1:
-        products['prod_C'] = primal_fom.products['l2']
-        C = NumpyMatrixOperator(
-            scipy.sparse.identity(range.dim),
-            source_id = source.id,
-            range_id = range.id,
-        )
+    C = NumpyMatrixOperator(
+        scipy.sparse.identity(range.dim),
+        source_id = source.id,
+        range_id = range.id,
+    )
         
     u_delta, percentage = construct_noise_data(primal_fom, model_params)
     y_delta = C.apply(u_delta)[1:]

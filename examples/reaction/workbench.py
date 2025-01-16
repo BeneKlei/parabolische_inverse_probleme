@@ -68,6 +68,7 @@ setup = {
         'parameter_location' : 'reaction',
         'boundary_conditions' : 'dirichlet',
         'exact_parameter' : 'Kirchner',
+        'state_space_product' : 'h1' 
     },
     'model_parameter' : {
         'name' : 'reaction_FOM', 

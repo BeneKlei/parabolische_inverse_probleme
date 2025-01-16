@@ -223,13 +223,19 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         )
 
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
+        prod_V = project(self.FOM.products['prod_V'], state_basis, state_basis)
+
         products = {
             'prod_H' : project(self.FOM.products['prod_H'], state_basis, state_basis),
             'prod_Q' : prod_Q,
-            'prod_V' : project(self.FOM.products['prod_V'], state_basis, state_basis),
+            'prod_V' : prod_V,
             'prod_C' : self.FOM.products['prod_C'],
             'bochner_prod_Q' : BochnerProductOperator(
                 product=prod_Q,
+                delta_t=self.FOM.delta_t
+            ),
+            'bochner_prod_V' : BochnerProductOperator(
+                product=prod_V,
                 delta_t=self.FOM.delta_t
             )
         }
@@ -354,8 +360,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         state_residual_operator = StateResidualOperator(**projected_state_quantities)
         adjoint_residual_operator = AdjointResidualOperator(**projected_adjoint_quantities)
 
-        coercivity_estimator = None
-
         if residual_image_basis:
             orthonormal_basis = float_cmp_all(
                 self.FOM.Q.make_array(scipy.sparse.identity(self.FOM.setup['dims']['state_dim'])),
@@ -376,7 +380,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         state_error_estiamtor = StateErrorEstimator(
             state_residual_operator = state_residual_operator,
-            coercivity_estimator = coercivity_estimator,
             Q = Q,
             V = V,
             product = product,

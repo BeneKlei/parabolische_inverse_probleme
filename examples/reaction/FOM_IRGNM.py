@@ -79,7 +79,15 @@ def main():
             'q_exact' : None,
             'q_time_dep' : q_time_dep,
             'bounds' : bounds,
-            'parameters' : None
+            'parameters' : None,
+            'products' : {
+                'prod_H' : 'l2',
+                'prod_Q' : 'l2',
+                'prod_V' : 'h1',
+                'prod_C' : 'l2',
+                'bochner_prod_Q' : 'bochner_l2',
+                'bochner_prod_V' : 'bochner_h1'
+            }
         }
     }
 

@@ -25,7 +25,13 @@ from RBInvParam.discretizer import discretize_instationary_IP
 from RBInvParam.utils.logger import get_default_logger
 
 
-def whole_problem(N = 100, contrast_parameter = 2, parameter_location = 'diffusion', boundary_conditions = 'dirichlet', exact_parameter = 'PacMan', parameter_elements = 'P1'):    
+def whole_problem(N = 100, 
+                  contrast_parameter = 2, 
+                  parameter_location = 'diffusion', 
+                  boundary_conditions = 'dirichlet', 
+                  exact_parameter = 'PacMan', 
+                  parameter_elements = 'P1'):
+    
     # check input and set problem type
     assert parameter_location in {'diffusion', 'reaction' }, 'Change parameter location to "diffusion" or "dirichlet"'
     assert boundary_conditions in {'dirichlet', 'robin' }, 'Change boundary conditions to "dirichlet" or "robin"'
@@ -204,7 +210,8 @@ def build_InstationaryModelIP(setup : Dict,
         logger = get_default_logger()
 
     logger.debug('Construct problem..')                                                     
-    analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = whole_problem(**setup['problem_parameter'])
+    analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = \
+        whole_problem(**setup['problem_parameter'])
     
 
     setup['model_parameter']['parameters'] = analytical_problem.parameters
@@ -214,9 +221,11 @@ def build_InstationaryModelIP(setup : Dict,
         setup['model_parameter']['q_exact'] = np.array([q_exact])
         
     logger.debug('Discretizing problem...')                                                
+    # TODO Drop all these subsets and use directly setup
     building_blocks = discretize_instationary_IP(analytical_problem,
                                                  setup['model_parameter'],
-                                                 setup['dims'], 
+                                                 setup['dims'],
+                                                 setup['problem_parameter'],
                                                  problem_type)
      
     setup['model_parameter']['q_exact'] = building_blocks['Q'].make_array(setup['model_parameter']['q_exact'])
