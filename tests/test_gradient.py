@@ -4,14 +4,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
-from typing import Tuple, List
+from typing import Union, Callable, Tuple, List
 
 from pymor.basic import *
 
 from RBInvParam.problems.problems import build_InstationaryModelIP
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.reductor import InstationaryModelIPReductor
-
+from RBInvParam.model import InstationaryModelIP
 
 # import os
     # os.remove('')
@@ -51,10 +51,10 @@ reductor.extend_basis(
 )
 QrROM = reductor.reduce()
 
-
-
-
-def derivative_check(model,f, df, save_path, mode = 1) -> Tuple[List, List]:
+def derivative_check(model : InstationaryModelIP ,
+                     f : Callable, 
+                     df : Callable, 
+                     save_path: Union[str, Path]) -> Tuple[List, List]:
     Eps = np.array([10**(-i) for i in range(0,17)])
     
     if model.model_parameter['q_time_dep']:

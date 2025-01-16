@@ -94,7 +94,8 @@ def main():
     optimizer_parameter = {
         'noise_level' : setup['model_parameter']['noise_level'],
         'tau' : 3.5,
-        'tol' : 1e-8,
+        #'tol' : 1e-8,
+        'tol' : 1e-4,
         'q_0' : q_start,
         'alpha_0' : 1e-5,
         'i_max' : 50,
@@ -123,7 +124,7 @@ def main():
     logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
-    save_path = Path("./dumps/Qr_IRGNM.pkl")
+    save_path = Path(f"./dumps/FOM_IRGNM_{N}.pkl")
     logger.debug(f"Save statistics to {save_path}")
 
     data = {
