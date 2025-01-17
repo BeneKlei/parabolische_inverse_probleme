@@ -10,7 +10,8 @@ from pymor.operators.constructions import ZeroOperator
 
 from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
 from RBInvParam.timestepping import ImplicitEulerTimeStepper
-from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, CoercivityConstantEstimator
+from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, \
+    ObjectiveErrorEstimator, CoercivityConstantEstimator
 
 # TODO 
 # - Add caching
@@ -41,6 +42,7 @@ class InstationaryModelIP(ImmutableObject):
                  bilinear_reg_term: NumpyMatrixOperator,
                  state_error_estimator: Union[None, StateErrorEstimator],
                  adjoint_error_estimator: Union[None, AdjointErrorEstimator],
+                 objective_error_estimator: Union[None, ObjectiveErrorEstimator],
                  products : Dict,
                  visualizer,
                  setup : Dict,
@@ -68,6 +70,7 @@ class InstationaryModelIP(ImmutableObject):
         self.bilinear_reg_term = bilinear_reg_term 
         self.state_error_estimator = state_error_estimator
         self.adjoint_error_estimator = adjoint_error_estimator
+        self.objective_error_estimator = objective_error_estimator
         self.products = products
         self.visualizer = visualizer
         self.model_constants = model_constants
@@ -110,13 +113,20 @@ class InstationaryModelIP(ImmutableObject):
         assert self.linear_reg_term.range == self.Q    
 
         if self.state_error_estimator:
-            assert isinstance(state_error_estimator, (StateErrorEstimator))
+            assert isinstance(state_error_estimator, StateErrorEstimator)
+            assert 'A_coercivity_constant_estimator' in self.model_constants.keys()
             assert self.state_error_estimator.state_residual_operator.source == self.A.source
             assert self.state_error_estimator.state_residual_operator.range == self.A.range
         if self.adjoint_error_estimator:
-            assert isinstance(adjoint_error_estimator, (AdjointErrorEstimator))
+            assert isinstance(adjoint_error_estimator, AdjointErrorEstimator)
+            assert 'A_coercivity_constant_estimator' in self.model_constants.keys()
             assert self.adjoint_error_estimator.adjoint_residual_operator.source == self.A.source
             assert self.adjoint_error_estimator.adjoint_residual_operator.range == self.A.range
+        if self.objective_error_estimator:
+            assert isinstance(objective_error_estimator, ObjectiveErrorEstimator)
+            assert 'C_continuity_constant' in self.model_constants.keys()
+            assert self.state_error_estimator
+            assert self.adjoint_error_estimator
         if self.model_constants:
             assert 'A_coercivity_constant_estimator' in self.model_constants.keys()
             assert 'C_continuity_constant' in self.model_constants.keys()
@@ -494,9 +504,31 @@ class InstationaryModelIP(ImmutableObject):
             return 0.0
             
 
-    def estimate_objective_error(self) -> float:
-        raise NotImplementedError
+    def estimate_objective_error(self,
+                                 q: VectorArray,
+                                 u: VectorArray,
+                                 p: VectorArray) -> float:
+    
+        if self.objective_error_estimator:
+            estimated_state_error = self.estimate_state_error(
+                q = q,
+                u = u
+            )
 
+            estimated_adjont_error = self.estimated_adjont_error(
+                q = q,
+                u = u,
+                p = p
+            )
+
+            return self.objective_error_estimator.estimate_error(
+                q = q,
+                estimated_state_error = estimated_state_error,
+                estimated_adjont_error = estimated_adjont_error
+            )
+        else:
+            return 0.0
+    
     def estimate_gradient_error(self) -> float:
         raise NotImplementedError
 

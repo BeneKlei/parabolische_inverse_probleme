@@ -2,6 +2,7 @@ from typing import Dict, Tuple, Union
 import numpy as np
 import logging
 import scipy
+import copy
 
 from pymor.reductors.basic import ProjectionBasedReductor
 from pymor.algorithms.projection import project, project_to_subbasis
@@ -71,8 +72,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             pass
             #TODO Log here
         
-
-
     def project_vectorarray(self, 
                             x : VectorArray,
                             basis: str) -> np.array:
@@ -246,12 +245,12 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         }
 
         A_coercivity_constant_estimator = self.FOM.model_constants['A_coercivity_constant_estimator']
-        A_coercivity_constant_estimator = A_coercivity_constant_estimator.copy()
+        A_coercivity_constant_estimator = copy.copy(A_coercivity_constant_estimator)
         A_coercivity_constant_estimator.Q = Q
 
         model_constants = {
                 'A_coercivity_constant_estimator' : A_coercivity_constant_estimator,
-                'C_continuity_constant' : C_continuity_constant
+                'C_continuity_constant' : self.FOM.model_constants['C_continuity_constant']
         }
 
         state_error_estimator, adjoint_error_estimator = \
@@ -279,6 +278,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'bilinear_reg_term' : project(self.FOM.bilinear_reg_term, parameter_basis, parameter_basis),
             'state_error_estimator' : state_error_estimator,
             'adjoint_error_estimator' : adjoint_error_estimator,
+            'objective_error_estimator' : None,
             'products' : products,
             'visualizer' : self.FOM.visualizer,
             'model_constants' : model_constants,

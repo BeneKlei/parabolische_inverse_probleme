@@ -143,6 +143,26 @@ class AdjointErrorEstimator():
 
         return np.sqrt(self.delta_t / alpha_q * np.sum(r))
 
-# class ObjectiveErrorEstimator():
-#     def __init__(self):
-#         pass
+class ObjectiveErrorEstimator():
+    def __init__(self,
+                 A_coercivity_constant_estimator: CoercivityConstantEstimator,
+                 C_continuity_constant: float):
+
+        self.A_coercivity_constant_estimator = A_coercivity_constant_estimator
+        self.C_continuity_constant = C_continuity_constant
+
+
+    def estimate_error(self, 
+                       q: VectorArray,
+                       estimated_state_error: VectorArray,
+                       estimated_adjont_error: VectorArray) -> float:
+
+        # TODO Is this correct? I do not think so 
+        alpha_q = np.min(self.coercivity_constant_estimator(q))
+
+        ret = 0
+        ret += estimated_adjont_error * estimated_state_error / np.sqrt(alpha_q)
+        ret += self.C_continuity_constant**2 / (2 * alpha_q) * estimated_state_error**2
+
+        return ret 
+        

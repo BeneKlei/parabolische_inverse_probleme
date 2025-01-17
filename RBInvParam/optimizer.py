@@ -164,13 +164,17 @@ class Optimizer:
                 self.logger.warning(f"Used alpha = {alpha:3.4e} does NOT satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
                 self.logger.info(f"Searching for alpha:") 
 
+            loop_terminated = False
             while (not regularization_qualification) and (count < reg_loop_max):
+
+                if alpha <= 1e-14:
+                    loop_terminated = True
+                    break
                 
                 if not condition_low:
                     alpha *= 1.5  
                 elif not condition_up:
-                    alpha = alpha/2
-                    #alpha = max(alpha/2,1e-14)
+                    alpha = max(alpha/2,1e-14)
                 else:
                     raise ValueError
                 
@@ -200,7 +204,9 @@ class Optimizer:
 
                 count += 1
 
-            if (count < reg_loop_max):
+            loop_terminated = count >= reg_loop_max
+
+            if loop_terminated:
                 self.logger.warning(f"Used alpha = {alpha:3.4e} does satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
             else:
                 self.logger.error(f"Not found valid alpha before reaching maximum number of tries : {reg_loop_max}.\n\
@@ -248,7 +254,6 @@ class Optimizer:
         else:
             raise ValueError
 
-    
 class FOMOptimizer(Optimizer):
     def __init__(self, 
                  optimizer_parameter: Dict, 

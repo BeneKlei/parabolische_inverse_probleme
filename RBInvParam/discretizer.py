@@ -215,6 +215,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         'bilinear_reg_term' : bilinear_reg_term,
         'state_error_estimator' : None,
         'adjoint_error_estimator' : None,
+        'objective_error_estimator' : None,
         'products' : products,
         'visualizer' : visualizer,
         'model_constants' : None,
@@ -232,7 +233,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         source_id = V_h.id,
         range_id = V_h.id,
     )
-    C_continuity_constant = 1
+    C_continuity_constant = 1.0
 
         
     u_delta, percentage = construct_noise_data(model = dummy_model, 

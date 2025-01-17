@@ -28,7 +28,7 @@ REL_TOL = 1e-14
 logger = get_default_logger()
 
 for setup_name, setup in SETUPS.items():        
-    _, FOM = build_InstationaryModelIP(setup, logger) 
+    FOM = build_InstationaryModelIP(setup, logger) 
 
     path = CWD / Path(f'./{setup_name}.pkl')
     assert path.exists()

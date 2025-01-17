@@ -106,7 +106,8 @@ def main():
     optimizer_parameter = {
         'noise_level' : FOM.setup['model_parameter']['noise_level'],
         'tau' : 3.5,
-        'tol' : 1e-8,
+        'tol' : 1e-13,
+        #'tol' : 1e-8,
         'q_0' : q_start,
         'alpha_0' : 1e-5,
         'i_max' : 50,

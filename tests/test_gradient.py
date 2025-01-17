@@ -35,7 +35,7 @@ logger = get_default_logger()
 #setup = SETUPS['default_setup_q_time_dep']
 setup = SETUPS['default_setup_q_non_time_dep']
 
-_, FOM = build_InstationaryModelIP(setup, logger=logger)
+FOM = build_InstationaryModelIP(setup, logger=logger)
 
 reductor = InstationaryModelIPReductor(FOM)
 
