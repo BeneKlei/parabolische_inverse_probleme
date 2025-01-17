@@ -440,7 +440,7 @@ class QrFOMOptimizer(Optimizer):
             parameter_shapshots = self.FOM.Q.empty()
             parameter_shapshots.append(nabla_J)
             
-            if self.FOM.model_parameter['q_time_dep']:
+            if self.FOM.setup['model_parameter']['q_time_dep']:
                 self.logger.debug(f"Performing HaPOD on parameter snapshots.")
                 parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, basis='parameter_basis')
 

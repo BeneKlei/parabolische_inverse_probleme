@@ -32,16 +32,16 @@ def main():
     par_dim = (N+1)**2
     fine_N = 2 * N
 
-
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
-    noise_level = 1e-8
+    #noise_level = 1e-7
+    noise_level = 0.0
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
@@ -124,7 +124,7 @@ def main():
     q_est = optimizer.solve()
 
     
-        FOM.visualizer.visualize(q_est, title="q_est")
+    FOM.visualizer.visualize(q_est, title="q_est")
     FOM.visualizer.visualize(q_exact, title="q_exact")
     logger.debug("Differnce to q_exact:")
     logger.debug("L^inf") 

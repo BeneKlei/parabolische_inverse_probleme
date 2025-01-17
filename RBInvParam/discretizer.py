@@ -16,6 +16,7 @@ from RBInvParam.utils.discretization import split_constant_and_parameterized_ope
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.model import InstationaryModelIP
+from RBInvParam.error_estimator import CoercivityConstantEstimator
 
 def discretize_instationary_IP(analytical_problem : InstationaryProblem, 
                                setup : Dict,
@@ -155,6 +156,25 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         V = V_h
     )
 
+    ############################### Coercivity ###############################
+
+            
+    problem_type = setup['model_parameter']['problem_type']
+    assert product_names['prod_V'] == 'h1'
+    
+    if 'dirichlet' in problem_type and 'diffusion' in problem_type:
+        A_coercivity_constant_estimator_function = lambda q: abs(min(q.to_numpy()[0]))
+    elif 'dirichlet' in problem_type and 'reaction' in problem_type:
+        A_coercivity_constant_estimator_function = lambda q: 1
+    else:
+        raise ValueError('No matching problemtype given')
+
+    A_coercivity_constant_estimator = CoercivityConstantEstimator(
+        coercivity_estimator_function = A_coercivity_constant_estimator_function,
+        Q = Q_h,
+        q_time_dep = setup['model_parameter']['q_time_dep']
+    )
+    
     ############################### Regularization ###############################
 
     q_circ = setup['model_parameter']['q_circ']
@@ -197,6 +217,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         'adjoint_error_estimator' : None,
         'products' : products,
         'visualizer' : visualizer,
+        'model_constants' : None,
         'setup' : setup
     }
 
@@ -211,6 +232,8 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         source_id = V_h.id,
         range_id = V_h.id,
     )
+    C_continuity_constant = 1
+
         
     u_delta, percentage = construct_noise_data(model = dummy_model, 
                                                q_exact = setup['model_parameter']['q_exact'],
@@ -241,5 +264,9 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     building_blocks['constant_cost_term'] = constant_cost_term
     building_blocks['linear_cost_term'] = linear_cost_term
     building_blocks['bilinear_cost_term'] = bilinear_cost_term
+    building_blocks['model_constants'] = {
+        'A_coercivity_constant_estimator' : A_coercivity_constant_estimator,
+        'C_continuity_constant' : C_continuity_constant
+    }
 
     return building_blocks

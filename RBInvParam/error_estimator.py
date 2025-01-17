@@ -7,25 +7,33 @@ from pymor.vectorarrays.interface import VectorSpace
 
 from RBInvParam.residuals import StateResidualOperator, AdjointResidualOperator
 
-class CoercivityEstimator():
+class CoercivityConstantEstimator():
     def __init__(self, 
                  coercivity_estimator_function: Callable,
-                 Q: VectorSpace):
+                 Q: VectorSpace,
+                 q_time_dep: bool):
         
         self.coercivity_estimator_function = coercivity_estimator_function
         self.Q = Q
+        self.q_time_dep = q_time_dep
 
-    def __call__(self, q: VectorArray) -> float:
+    def __call__(self, q: VectorArray) -> np.ndarray:
         assert q in self.Q
-        ret = self.coercivity_estimator_function(q)
-        assert isinstance(ret, float)
-        assert ret > 0
-        return ret
-    
+
+        if self.q_time_dep:
+            alpha_qks = np.array([
+                self.coercivity_estimator_function(qk) for qk in q
+            ])
+        else:
+            alpha_qks = np.array([self.coercivity_estimator_function(q[0])])
+        
+        assert np.all(alpha_qks > 0)
+
     
 class StateErrorEstimator():
     def __init__(self,
                  state_residual_operator : StateResidualOperator,
+                 A_coercivity_constant_estimator: CoercivityConstantEstimator,
                  Q : VectorSpace,
                  V : VectorSpace,
                  product : Operator,
@@ -42,31 +50,14 @@ class StateErrorEstimator():
         self.delta_t = self.setup['model_parameter']['delta_t']
         self.nt = self.setup['dims']['nt']
         self.q_time_dep = self.setup['model_parameter']['q_time_dep']
-
-        self.setup_coercivity_estimator()
-
+        
+        self.A_coercivity_constant_estimator = A_coercivity_constant_estimator
+        assert self.Q == self.A_coercivity_constant_estimator.Q
         assert self.Q == self.state_residual_operator.Q
         assert self.V == self.state_residual_operator.V
         if product:
             assert self.state_residual_operator.range == product.source
 
-    def setup_coercivity_estimator(self) -> None:
-        pass
-        #raise NotImplementedError
-        # problem_type = self.setup['problem_parameter']['problem_type']
-        # assert self.setup['problem_parameter']['state_space_product'] == 'h1'
-        
-        # if 'dirichlet' in problem_type and 'diffusion' in problem_type:
-        #     coercivity_estimator_function = lambda q: abs(min(q.to_numpy()[0]))
-        # elif 'dirichlet' in problem_type and 'reaction' in problem_type:
-        #     coercivity_estimator_function = lambda q: 1
-        # else:
-        #     raise ValueError('No matching problemtype given')
-        
-        # self.coercivity_estimator = CoercivityEstimator(
-        #          coercivity_estimator_function = coercivity_estimator_function,
-        #          Q = self.Q)
-    
     def estimate_error(self, 
                        q: VectorArray,
                        u: VectorArray) -> float:
@@ -80,14 +71,7 @@ class StateErrorEstimator():
         assert u in self.V
         assert len(u) == self.nt
 
-        if self.q_time_dep:
-            alpha_qks = np.array([
-                self.coercivity_estimator(qk) for qk in q
-            ])
-            alpha_q = np.min(alpha_qks)
-        else:
-            alpha_q = self.coercivity_estimator(q[0])
-            
+        alpha_q = np.min(self.coercivity_constant_estimator(q))
         u_old = self.V.zeros(count=1)
         u_old.append(u[:-1])
 
@@ -102,6 +86,7 @@ class StateErrorEstimator():
 class AdjointErrorEstimator():
     def __init__(self,
                  adjoint_residual_operator : AdjointResidualOperator,
+                 A_coercivity_constant_estimator: CoercivityConstantEstimator,
                  Q : VectorSpace,
                  V : VectorSpace,
                  product : Operator,
@@ -119,6 +104,8 @@ class AdjointErrorEstimator():
         self.nt = self.setup['dims']['nt']
         self.q_time_dep = self.setup['model_parameter']['q_time_dep']
 
+        self.A_coercivity_constant_estimator = A_coercivity_constant_estimator
+        assert self.Q == self.A_coercivity_constant_estimator.Q
         assert self.Q == self.adjoint_residual_operator.Q
         assert self.V == self.adjoint_residual_operator.V
         if product:
@@ -141,14 +128,8 @@ class AdjointErrorEstimator():
         assert len(u) == self.nt
         assert len(u) == len(p)
 
-        if self.q_time_dep:
-            alpha_qks = np.array([
-                self.coercivity_estimator(qk) for qk in q
-            ])
-            alpha_q = np.min(alpha_qks)
-        else:
-            alpha_q = self.coercivity_estimator(q[0])
-        
+        alpha_q = np.min(self.coercivity_constant_estimator(q))
+
         p_old = self.V.empty()
         p_old.append(p[1:])
         p_old.append(self.V.zeros(count=1))

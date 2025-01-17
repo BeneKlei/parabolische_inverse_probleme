@@ -10,7 +10,7 @@ from pymor.operators.constructions import ZeroOperator
 
 from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
 from RBInvParam.timestepping import ImplicitEulerTimeStepper
-from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator
+from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, CoercivityConstantEstimator
 
 # TODO 
 # - Add caching
@@ -44,6 +44,7 @@ class InstationaryModelIP(ImmutableObject):
                  products : Dict,
                  visualizer,
                  setup : Dict,
+                 model_constants : Dict,
                  name: str = None):
 
         self.u_0 = u_0
@@ -69,6 +70,7 @@ class InstationaryModelIP(ImmutableObject):
         self.adjoint_error_estimator = adjoint_error_estimator
         self.products = products
         self.visualizer = visualizer
+        self.model_constants = model_constants
         self.setup = setup
         
 
@@ -107,14 +109,20 @@ class InstationaryModelIP(ImmutableObject):
         assert self.bilinear_reg_term.source == self.Q
         assert self.linear_reg_term.range == self.Q    
 
-        if state_error_estimator:
+        if self.state_error_estimator:
             assert isinstance(state_error_estimator, (StateErrorEstimator))
             assert self.state_error_estimator.state_residual_operator.source == self.A.source
             assert self.state_error_estimator.state_residual_operator.range == self.A.range
-        if adjoint_error_estimator:
+        if self.adjoint_error_estimator:
             assert isinstance(adjoint_error_estimator, (AdjointErrorEstimator))
             assert self.adjoint_error_estimator.adjoint_residual_operator.source == self.A.source
             assert self.adjoint_error_estimator.adjoint_residual_operator.range == self.A.range
+        if self.model_constants:
+            assert 'A_coercivity_constant_estimator' in self.model_constants.keys()
+            assert 'C_continuity_constant' in self.model_constants.keys()
+            assert isinstance(self.model_constants['A_coercivity_constant_estimator'], CoercivityConstantEstimator)
+            assert self.model_constants['A_coercivity_constant_estimator'].Q == self.Q
+    
 
 #%% solve methods
     def solve_state(self, q: VectorArray) -> VectorArray:

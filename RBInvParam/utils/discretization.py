@@ -36,7 +36,6 @@ def construct_noise_data(model : InstationaryModel,
     u_noise = u_exact + noise_scaling
     return u_noise, percentage
 
-
 def build_projection(grid):
     rows = []
     cols = []
@@ -55,7 +54,6 @@ def build_projection(grid):
         cols_switched.extend(entries_switched)  
     nodes_to_element_projection = csr_matrix((data, (rows, cols)))
     return nodes_to_element_projection, cols, cols_switched
-
 
 def split_constant_and_parameterized_operator(
         complete_operator : LincombOperator

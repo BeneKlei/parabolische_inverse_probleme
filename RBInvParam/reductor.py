@@ -19,7 +19,7 @@ from RBInvParam.utils.discretization import split_constant_and_parameterized_ope
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.residuals import StateResidualOperator, AdjointResidualOperator
-from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator
+from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, CoercivityConstantEstimator
 
 
 class InstationaryModelIPReductor(ProjectionBasedReductor):
@@ -244,9 +244,19 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                 nt = self.FOM.nt
             )
         }
-        
+
+        A_coercivity_constant_estimator = self.FOM.model_constants['A_coercivity_constant_estimator']
+        A_coercivity_constant_estimator = A_coercivity_constant_estimator.copy()
+        A_coercivity_constant_estimator.Q = Q
+
+        model_constants = {
+                'A_coercivity_constant_estimator' : A_coercivity_constant_estimator,
+                'C_continuity_constant' : C_continuity_constant
+        }
+
         state_error_estimator, adjoint_error_estimator = \
         self._assemble_error_estimator(assembled_parameter_reduced_A = assembled_parameter_reduced_A,
+                                       A_coercivity_constant_estimator = A_coercivity_constant_estimator,
                                        Q = Q,
                                        V = V,
                                        products = products,
@@ -271,6 +281,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'adjoint_error_estimator' : adjoint_error_estimator,
             'products' : products,
             'visualizer' : self.FOM.visualizer,
+            'model_constants' : model_constants,
             'setup' : setup
         }
         return projected_operators 
@@ -291,8 +302,10 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         assert basis in ['state_residual_image_basis', 'adjoint_residual_image_basis']
         raise NotImplementedError
 
+
     def _assemble_error_estimator(self,
                                   assembled_parameter_reduced_A: LincombOperator,
+                                  A_coercivity_constant_estimator: CoercivityConstantEstimator, 
                                   Q : VectorSpace,
                                   V : VectorSpace,
                                   products : Dict,
@@ -385,6 +398,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         state_error_estiamtor = StateErrorEstimator(
             state_residual_operator = state_residual_operator,
+            A_coercivity_constant_estimator = A_coercivity_constant_estimator,
             Q = Q,
             V = V,
             product = product,
@@ -392,6 +406,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         )
         adjoint_error_estiamtor = AdjointErrorEstimator(
             adjoint_residual_operator = adjoint_residual_operator,
+            A_coercivity_constant_estimator = A_coercivity_constant_estimator,
             Q = Q,
             V = V,
             product = product,

@@ -27,8 +27,8 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    #N = 100
-    N = 10
+    N = 100
+    #N = 10
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -38,10 +38,10 @@ def main():
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
-    noise_level = 1e-8
+    noise_level = 1e-7
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
