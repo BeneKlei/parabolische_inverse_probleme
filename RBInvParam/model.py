@@ -30,17 +30,17 @@ class InstationaryModelIP(ImmutableObject):
                  A : Union[UnAssembledA, AssembledA],
                  L : VectorArray,
                  B : Union[UnAssembledB, AssembledB],
-                 constant_cost_term: float,
-                 linear_cost_term: NumpyMatrixOperator,
-                 bilinear_cost_term: NumpyMatrixOperator,
+                 constant_cost_term: Union[None, float],
+                 linear_cost_term: Union[None, NumpyMatrixOperator],
+                 bilinear_cost_term: Union[None, NumpyMatrixOperator],
                  Q : VectorSpace,
                  V : VectorSpace,
                  q_circ: VectorArray,
                  constant_reg_term: float,
                  linear_reg_term: NumpyMatrixOperator,
                  bilinear_reg_term: NumpyMatrixOperator,
-                 state_error_estimator: None,
-                 adjoint_error_estimator: None,
+                 state_error_estimator: Union[None, StateErrorEstimator],
+                 adjoint_error_estimator: Union[None, AdjointErrorEstimator],
                  products : Dict,
                  visualizer,
                  setup : Dict,
@@ -96,10 +96,13 @@ class InstationaryModelIP(ImmutableObject):
         assert self.A.Q == self.Q
         assert self.q_circ in self.Q
 
-        assert self.bilinear_cost_term.source == self.bilinear_cost_term.range
-        assert self.bilinear_cost_term.source == self.A.range
-        assert self.linear_cost_term.range == self.A.range
-        assert len(self.linear_cost_term.as_range_array()) == self.nt
+        if self.bilinear_cost_term:
+            assert self.bilinear_cost_term.source == self.bilinear_cost_term.range
+            assert self.bilinear_cost_term.source == self.A.range
+        if self.linear_cost_term:
+            assert self.linear_cost_term.range == self.A.range
+            assert len(self.linear_cost_term.as_range_array()) == self.nt
+
         assert self.bilinear_reg_term.source == self.bilinear_reg_term.range
         assert self.bilinear_reg_term.source == self.Q
         assert self.linear_reg_term.range == self.Q    
@@ -139,6 +142,8 @@ class InstationaryModelIP(ImmutableObject):
                       q: VectorArray, 
                       u: VectorArray) -> VectorArray:
         
+        assert self.bilinear_cost_term 
+        assert self.linear_cost_term 
         assert q in self.Q
         assert u in self.V
 
@@ -208,7 +213,9 @@ class InstationaryModelIP(ImmutableObject):
                                  q: VectorArray,
                                  u: VectorArray,
                                  lin_u: VectorArray) -> VectorArray:
-    
+
+        assert self.bilinear_cost_term 
+        assert self.linear_cost_term
         assert q in self.Q
         assert u in self.V
         assert lin_u in self.V
@@ -252,6 +259,8 @@ class InstationaryModelIP(ImmutableObject):
 
         assert len(u) == self.nt
         assert u in self.V
+        assert self.bilinear_cost_term 
+        assert self.linear_cost_term
         
         # compute tracking term
         out = 0.5 * self.delta_t * np.sum(self.bilinear_cost_term.pairwise_apply2(u,u) 
@@ -280,7 +289,7 @@ class InstationaryModelIP(ImmutableObject):
 
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt):
-            grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad')
+            grad[idx] = self.delta_t * self.B(u[idx]).B_u_ad(p[idx], 'grad')
 
         if not self.q_time_dep:
             grad = np.sum(grad, axis=0, keepdims=True) 
@@ -311,6 +320,8 @@ class InstationaryModelIP(ImmutableObject):
         assert d in self.Q
         assert u in self.V
         assert lin_u in self.V
+        assert self.bilinear_cost_term 
+        assert self.linear_cost_term
 
         u_q_d = u + lin_u
         out = 0.5 * self.delta_t * np.sum( \
@@ -347,7 +358,7 @@ class InstationaryModelIP(ImmutableObject):
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt):
-            grad[idx] = self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
+            grad[idx] = self.delta_t * self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
 
         if not self.q_time_dep:
             grad = np.sum(grad, axis=0, keepdims=True) 
@@ -374,9 +385,9 @@ class InstationaryModelIP(ImmutableObject):
                                             + (-2) * self.linear_reg_term.as_range_array().pairwise_inner(q) 
                                             + self.constant_reg_term)
         else:
-            return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q,q)
-                                            + (-2) * q.inner(self.linear_reg_term.as_range_array())
-                                            + self.constant_reg_term)
+            return 0.5 * self.delta_t * self.nt * (self.bilinear_reg_term.pairwise_apply2(q,q)
+                                                   + (-2) * q.inner(self.linear_reg_term.as_range_array())
+                                                   + self.constant_reg_term)[0,0]
             
         
     def gradient_regularization_term(self, 
@@ -411,9 +422,9 @@ class InstationaryModelIP(ImmutableObject):
                                             + (-2) * self.linear_reg_term.as_range_array().pairwise_inner(q+d) 
                                             + self.constant_reg_term)
         else:
-            return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
-                                            + (-2) * (q+d).inner(self.linear_reg_term.as_range_array())
-                                            + self.constant_reg_term)
+            return 0.5 * self.delta_t * self.nt * (self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
+                                                + (-2) * (q+d).inner(self.linear_reg_term.as_range_array())
+                                                + self.constant_reg_term)[0,0]
         
             
             

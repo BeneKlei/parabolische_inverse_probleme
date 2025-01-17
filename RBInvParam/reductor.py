@@ -157,6 +157,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'output_dim': self.FOM.setup['dims']['output_dim']                                                                                                                                                                     # options to preassemble affine components or not
         }
 
+
         model_parameter = self.FOM.setup['model_parameter'].copy()
         model_parameter['q_circ'] = self.project_vectorarray(self.FOM.q_circ, basis='parameter_basis')
         model_parameter['q_exact'] = None
@@ -232,11 +233,15 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'prod_C' : self.FOM.products['prod_C'],
             'bochner_prod_Q' : BochnerProductOperator(
                 product=prod_Q,
-                delta_t=self.FOM.delta_t
+                delta_t=self.FOM.delta_t,
+                space = Q,
+                nt = self.FOM.nt
             ),
             'bochner_prod_V' : BochnerProductOperator(
                 product=prod_V,
-                delta_t=self.FOM.delta_t
+                delta_t=self.FOM.delta_t,
+                space = V,
+                nt = self.FOM.nt
             )
         }
         

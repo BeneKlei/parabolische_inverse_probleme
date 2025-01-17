@@ -39,8 +39,7 @@ class UnAssembledEvaluator:
                  grid: Grid,
                  boundary_info: BoundaryInfo,
                  source : VectorSpace,
-                 range : VectorSpace,
-                 dims: Dict):
+                 range : VectorSpace):
         
         assert grid is not None
         assert boundary_info is not None
@@ -85,8 +84,7 @@ class UnAssembledA(UnAssembledEvaluator):
                  boundary_info: BoundaryInfo,
                  source : VectorSpace,
                  range : VectorSpace,
-                 Q : VectorSpace,
-                 dims : Dict):
+                 Q : VectorSpace):
         
         super().__init__(
             constant_operator = constant_operator,
@@ -94,8 +92,7 @@ class UnAssembledA(UnAssembledEvaluator):
             grid = grid,
             boundary_info = boundary_info,    
             source = source,
-            range = range,
-            dims = dims)
+            range = range)
 
         self.Q = Q
         
@@ -210,8 +207,7 @@ class UnAssembledB(UnAssembledEvaluator):
                  boundary_info: BoundaryInfo,
                  source : VectorSpace,
                  range : VectorSpace,
-                 V : VectorSpace,
-                 dims : Dict):
+                 V : VectorSpace):
         
         super().__init__(
             constant_operator = None,
@@ -219,19 +215,21 @@ class UnAssembledB(UnAssembledEvaluator):
             grid = grid,
             boundary_info = boundary_info,
             source=source,
-            range=range,
-            dims = dims)
+            range=range)
 
-        self.dims = dims
         self.V = V
     
     def B_u_unassembled_reaction(self, 
                                  u, 
                                  A_u, 
                                  v : NumpyVectorArray):
+
+        # print(v.space)
+        # assert v in self.V
+        # v = v.to_numpy().reshape((self.V.dim,))
         if isinstance(v, NumpyVectorArray):
             # TODO Get true var
-            v = v.to_numpy().reshape((self.dims['state_dim'],))
+            v = v.to_numpy().reshape((self.V.dim,))
         elif isinstance(v,np.ndarray):
             pass
         else:

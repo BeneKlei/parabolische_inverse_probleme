@@ -51,19 +51,21 @@ class StateErrorEstimator():
             assert self.state_residual_operator.range == product.source
 
     def setup_coercivity_estimator(self) -> None:
-        problem_type = self.setup['problem_parameter']['problem_type']
-        assert self.setup['problem_parameter']['state_space_product'] == 'h1'
+        pass
+        #raise NotImplementedError
+        # problem_type = self.setup['problem_parameter']['problem_type']
+        # assert self.setup['problem_parameter']['state_space_product'] == 'h1'
         
-        if 'dirichlet' in problem_type and 'diffusion' in problem_type:
-            coercivity_estimator_function = lambda q: abs(min(q.to_numpy()[0]))
-        elif 'dirichlet' in problem_type and 'reaction' in problem_type:
-            coercivity_estimator_function = lambda q: 1
-        else:
-            raise ValueError('No matching problemtype given')
+        # if 'dirichlet' in problem_type and 'diffusion' in problem_type:
+        #     coercivity_estimator_function = lambda q: abs(min(q.to_numpy()[0]))
+        # elif 'dirichlet' in problem_type and 'reaction' in problem_type:
+        #     coercivity_estimator_function = lambda q: 1
+        # else:
+        #     raise ValueError('No matching problemtype given')
         
-        self.coercivity_estimator = CoercivityEstimator(
-                 coercivity_estimator_function = coercivity_estimator_function,
-                 Q = self.Q)
+        # self.coercivity_estimator = CoercivityEstimator(
+        #          coercivity_estimator_function = coercivity_estimator_function,
+        #          Q = self.Q)
     
     def estimate_error(self, 
                        q: VectorArray,

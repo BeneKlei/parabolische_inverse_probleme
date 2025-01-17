@@ -15,6 +15,9 @@ setups = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(setups)
 SETUPS = setups.SETUPS
 
+# import sys
+# sys.exit()
+
 set_log_levels({
     'pymor' : 'WARN'
 })

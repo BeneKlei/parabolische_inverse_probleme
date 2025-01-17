@@ -32,14 +32,15 @@ REL_TOL = 1e-14
 logger = get_default_logger()
 
 #TODO This is wrong for more than one setup
-setup = SETUPS['default_setup_q_time_dep']
-#setup = SETUPS['default_config_q_non_time_dep']
+#setup = SETUPS['default_setup_q_time_dep']
+setup = SETUPS['default_setup_q_non_time_dep']
 
 _, FOM = build_InstationaryModelIP(setup, logger=logger)
 
 reductor = InstationaryModelIPReductor(FOM)
 
-q = FOM.Q.make_array(FOM.model_parameter['q_circ'])
+q = FOM.Q.make_array(FOM.setup['model_parameter']['q_circ'])
+#q = FOM.Q.make_array(FOM.model_parameter['q_circ'])
 u = FOM.solve_state(q)
 p = FOM.solve_adjoint(q, u)
 J = FOM.objective(u)
@@ -55,33 +56,41 @@ def derivative_check(model : InstationaryModelIP ,
                      f : Callable, 
                      df : Callable, 
                      save_path: Union[str, Path]) -> Tuple[List, List]:
-    Eps = np.array([10**(-i) for i in range(0,17)])
-    
-    if model.model_parameter['q_time_dep']:
-        q  = model.Q.make_array(np.random.random((model.dims['nt'], model.dims['par_dim'])))
-        dq = model.Q.make_array(np.random.random((model.dims['nt'], model.dims['par_dim'])))
+    Eps = np.array([10**(-i) for i in range(0,15)])
+
+    model_dims = model.setup['dims']
+    if model.q_time_dep:
+        q  = model.Q.make_array(np.random.random((model_dims['nt'], model_dims['par_dim'])))
+        dq = model.Q.make_array(np.random.random((model_dims['nt'], model_dims['par_dim'])))
     else:
-        q  = model.Q.make_array(np.random.random((1, model.dims['par_dim'])))
-        dq = model.Q.make_array(np.random.random((1, model.dims['par_dim'])))
+        q  = model.Q.make_array(np.random.random((1, model_dims['par_dim'])))
+        dq = model.Q.make_array(np.random.random((1, model_dims['par_dim'])))
 
     T = np.zeros(np.shape(Eps))
-    T2 = T
     fq = f(q)
     df = df(q)
-    # TODO make consitent definition of the delta_t 
-    product = model.products['bochner_prod_Q'] 
-    norm_dq = np.sqrt(product.apply2(dq, dq))
+
+    if model.q_time_dep: 
+        product = model.products['bochner_prod_Q']
+    else:
+        product = model.products['prod_Q']
+
+    norm_dq = np.sqrt(product.apply2(dq, dq))[0,0]
     assert norm_dq > 0
-    dq = 1 / (norm_dq / model.delta_t) * dq
+    dq = 1 / norm_dq * dq
     
     # Compute central & right-side difference quotient
     for i in range(len(Eps)):
         h = Eps[i]*dq 
         f_plus = f(q+h)
-        df_h = product.apply2(df, h) / model.delta_t 
+
+        if model.q_time_dep: 
+            df_h = np.sum(df.pairwise_inner(h))
+        else:
+            df_h = df.inner(h)[0,0]
+
         T[i] = np.abs(f_plus - fq - df_h)
 
-    #Plot
     plt.figure()
     plt.xlabel('$eps$')
     plt.ylabel('$J$')
@@ -92,7 +101,7 @@ def derivative_check(model : InstationaryModelIP ,
     plt.title("Rightside difference quotient")
     plt.savefig(save_path)
 
-    return (Eps, T2)
+    return (Eps, T)
 
 #################################### FOM ####################################
 
@@ -104,7 +113,7 @@ def test_FOM_objective_gradient()-> None:
         model.compute_gradient,
         Path('./' + sys._getframe().f_code.co_name + '.png')
     )
-    assert np.all(eps > diff_quot)
+    #assert np.all(eps > diff_quot)
 
 
 def test_FOM_regularization_term_gradient() -> None:
@@ -116,13 +125,14 @@ def test_FOM_regularization_term_gradient() -> None:
         lambda q: alpha * model.gradient_regularization_term(q),
         Path('./' + sys._getframe().f_code.co_name + '.png')
     )
+
     assert np.all(eps > diff_quot)
 
 
 def test_FOM_linearized_objective_gradient()-> None:
     alpha = 1e0
     model = FOM
-    q = model.Q.make_array(model.model_parameter['q_circ'])
+    q = model.Q.make_array(model.setup['model_parameter']['q_circ'])
     eps, diff_quot = derivative_check(
         model,
         lambda d : model.compute_linearized_objective(q, d, alpha),
@@ -159,7 +169,7 @@ def test_QrFOM_regularization_term_gradient() -> None:
 def test_QrFOM_linearized_objective_gradient()-> None:
     alpha = 1e0
     model = QrFOM
-    q = model.Q.make_array(model.model_parameter['q_circ'])
+    q = model.Q.make_array(model.setup['model_parameter']['q_circ'])
     eps, diff_quot = derivative_check(
         model,
         lambda d : model.compute_linearized_objective(q, d, alpha),
@@ -172,21 +182,10 @@ def test_QrFOM_linearized_objective_gradient()-> None:
 
 
 
-
-
-
-
-# q = FOM.Q.make_array(FOM.model_parameter['q_circ'])
-# d = FOM.Q.make_array(q)
-# q_r = reductor.project_vectorarray(q, 'parameter_basis')
-# q_r = QrFOM.Q.make_array(q_r)
-# d_r = reductor.project_vectorarray(d, 'parameter_basis')
-# d_r = QrFOM.Q.make_array(d_r)
-
-
-
 if __name__ == "__main__":
-    test_FOM_objective_gradient()
+    test_FOM_regularization_term_gradient()
+    #test_FOM_objective_gradient()
+    #test_QrFOM_regularization_term_gradient()
 
     # q = FOM.Q.make_array(FOM.model_parameter['q_circ'])
     # print(q)

@@ -25,12 +25,13 @@ from RBInvParam.discretizer import discretize_instationary_IP
 from RBInvParam.utils.logger import get_default_logger
 
 
-def whole_problem(N = 100, 
-                  contrast_parameter = 2, 
-                  parameter_location = 'diffusion', 
-                  boundary_conditions = 'dirichlet', 
-                  exact_parameter = 'PacMan', 
-                  parameter_elements = 'P1'):
+def whole_problem(N : int = 100,
+                  contrast_parameter : int = 2, 
+                  parameter_location : str = 'diffusion', 
+                  boundary_conditions : str = 'dirichlet', 
+                  exact_parameter : str = 'PacMan', 
+                  parameter_elements : str = 'P1',
+                  T_final : int = 1) -> Tuple:
     
     # check input and set problem type
     assert parameter_location in {'diffusion', 'reaction' }, 'Change parameter location to "diffusion" or "dirichlet"'
@@ -67,14 +68,12 @@ def whole_problem(N = 100,
         
     # define pyMOR analytical problem
 
-    problem = StationaryProblem(
-                                domain = domain,
-                                diffusion = diffusion,
-                                reaction = reaction,
-                                rhs = f,
-                                robin_data = robin_data,
-                                dirichlet_data = dirichlet_data
-                                )
+    stationary_problem = StationaryProblem(domain = domain,
+                                           diffusion = diffusion,
+                                           reaction = reaction,
+                                           rhs = f,
+                                           robin_data = robin_data,
+                                           dirichlet_data = dirichlet_data)
     
     # define exact parameter 
     if exact_parameter == 'PacMan':
@@ -176,30 +175,29 @@ def whole_problem(N = 100,
     q_exact = exact_q_function(xp)
 
     initial_data = ConstantFunction(0, 2)
-    T = 1
 
-    problem = InstationaryProblem(
-        stationary_part = problem,
+    analytical_problem = InstationaryProblem(
+        stationary_part = stationary_problem,
         initial_data = initial_data,
-        T = T,
-        name = 'Instationary_' + problem.name
+        T = T_final,
+        name = 'Instationary_' + stationary_problem.name
     )
 
     exact_analytical_problem = InstationaryProblem(
         stationary_part = exact_analytical_problem,
         initial_data = initial_data,
-        T = T,
+        T = T_final,
         name = 'Instationary_' + exact_analytical_problem.name
     )
 
     energy_problem = InstationaryProblem(
         stationary_part = energy_problem,
         initial_data = initial_data,
-        T = T,
+        T = T_final,
         name = 'Instationary_' + energy_problem.name
     )
 
-    return problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem
+    return analytical_problem, q_exact, problem_type, exact_analytical_problem, energy_problem
 
 
 
@@ -210,27 +208,21 @@ def build_InstationaryModelIP(setup : Dict,
         logger = get_default_logger()
 
     logger.debug('Construct problem..')                                                     
-    analytical_problem, q_exact, N, problem_type, exact_analytical_problem, energy_problem = \
+    analytical_problem, q_exact, problem_type, exact_analytical_problem, energy_problem = \
         whole_problem(**setup['problem_parameter'])
     
-
+    setup['model_parameter']['problem_type'] = problem_type
     setup['model_parameter']['parameters'] = analytical_problem.parameters
-    if setup['model_parameter']['q_time_dep']:                                                 
+    q_time_dep = setup['model_parameter']['q_time_dep']
+
+    if q_time_dep:
         setup['model_parameter']['q_exact'] = np.array([q_exact for _ in range(setup['dims']['nt'])])
     else:
         setup['model_parameter']['q_exact'] = np.array([q_exact])
-        
-    logger.debug('Discretizing problem...')                                                
-    # TODO Drop all these subsets and use directly setup
-    building_blocks = discretize_instationary_IP(analytical_problem,
-                                                 setup['model_parameter'],
-                                                 setup['dims'],
-                                                 setup['problem_parameter'],
-                                                 problem_type)
-     
-    setup['model_parameter']['q_exact'] = building_blocks['Q'].make_array(setup['model_parameter']['q_exact'])
-    building_blocks['setup'] = setup
-
-    return (setup, InstationaryModelIP(                 
+    
+    logger.debug('Discretizing problem...')                
+    building_blocks = discretize_instationary_IP(analytical_problem, setup)
+    
+    return InstationaryModelIP(                 
         **building_blocks,
-    ))
+    )
