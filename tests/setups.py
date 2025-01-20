@@ -17,6 +17,7 @@ default_setup_q_time_dep = {
         'parameter_location' : 'reaction',
         'boundary_conditions' : 'dirichlet',
         'exact_parameter' : 'Kirchner',
+        'T_final' : 1
     },
     'model_parameter' : {
         'name' : 'reaction_FOM',
@@ -29,7 +30,15 @@ default_setup_q_time_dep = {
         'q_exact' : None,
         'q_time_dep' : True,
         'bounds' : [0.001*np.ones((121,)), 10e2*np.ones((121,))],
-        'parameters' : None
+        'parameters' : None,
+        'products' : {
+            'prod_H' : 'l2',
+            'prod_Q' : 'l2',
+            'prod_V' : 'h1',
+            'prod_C' : 'l2',
+            'bochner_prod_Q' : 'bochner_l2',
+            'bochner_prod_V' : 'bochner_h1'
+        }
     },
     'optimizer_parameter' : None
 }
@@ -51,6 +60,7 @@ default_setup_q_non_time_dep = {
         'parameter_location' : 'reaction',
         'boundary_conditions' : 'dirichlet',
         'exact_parameter' : 'Kirchner',
+        'T_final' : 1
     },
     'model_parameter' : {
         'name' : 'reaction_FOM',
@@ -63,7 +73,15 @@ default_setup_q_non_time_dep = {
         'q_exact' : None,
         'q_time_dep' : False,
         'bounds' : [0.001*np.ones((121,)), 10e2*np.ones((121,))],
-        'parameters' : None
+        'parameters' : None,
+        'products' : {
+            'prod_H' : 'l2',
+            'prod_Q' : 'l2',
+            'prod_V' : 'h1',
+            'prod_C' : 'l2',
+            'bochner_prod_Q' : 'bochner_l2',
+            'bochner_prod_V' : 'bochner_h1'
+        }
     },
     'optimizer_parameter' : None
 }

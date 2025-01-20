@@ -15,6 +15,9 @@ setups = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(setups)
 SETUPS = setups.SETUPS
 
+# import sys
+# sys.exit()
+
 set_log_levels({
     'pymor' : 'WARN'
 })
@@ -25,7 +28,7 @@ REL_TOL = 1e-14
 logger = get_default_logger()
 
 for setup_name, setup in SETUPS.items():        
-    _, FOM = build_InstationaryModelIP(setup, logger) 
+    FOM = build_InstationaryModelIP(setup, logger) 
 
     path = CWD / Path(f'./{setup_name}.pkl')
     assert path.exists()
@@ -47,7 +50,7 @@ for setup_name, setup in SETUPS.items():
 def test_us() -> None:
     for idx in range(len(qs)):
         assert float_cmp_all(us[idx].to_numpy(), FOM.solve_state(qs[idx]).to_numpy(), REL_TOL, ABS_TOL)
-
+        
 def test_ps() -> None:
     for idx in range(len(qs)):
         assert float_cmp_all(ps[idx].to_numpy(), FOM.solve_adjoint(qs[idx], us[idx]).to_numpy(), REL_TOL, ABS_TOL)
@@ -76,3 +79,6 @@ def test_nabla_lin_Js() -> None:
     for idx in range(len(qs)):
         assert float_cmp_all(nabla_lin_Js[idx].to_numpy(), FOM.linearized_gradient(qs[idx], ds[idx], us[idx], lin_ps[idx], alphas[idx]).to_numpy(), REL_TOL, ABS_TOL)
 
+
+if __name__ == '__main__':
+    test_us()

@@ -32,16 +32,16 @@ def main():
     par_dim = (N+1)**2
     fine_N = 2 * N
 
-
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
-    noise_level = 1e-8
+    #noise_level = 1e-7
+    noise_level = 0.0
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
@@ -63,13 +63,16 @@ def main():
             'output_dim': 1,                                                                                                                                                                         # options to preassemble affine components or not
         },
         'problem_parameter' : {
-            'N' : N,
+            'N': N,
+            'contrast_parameter' : 2,
             'parameter_location' : 'reaction',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'Kirchner',
+            'T_final' : T_final,
         },
         'model_parameter' : {
             'name' : 'reaction_FOM', 
+            'problem_type' : None,
             'T_initial' : T_initial,
             'T_final' : T_final,
             'delta_t' : delta_t,
@@ -79,12 +82,20 @@ def main():
             'q_exact' : None,
             'q_time_dep' : q_time_dep,
             'bounds' : bounds,
-            'parameters' : None
+            'parameters' : None,
+            'products' : {
+                'prod_H' : 'l2',
+                'prod_Q' : 'l2',
+                'prod_V' : 'h1',
+                'prod_C' : 'l2',
+                'bochner_prod_Q' : 'bochner_l2',
+                'bochner_prod_V' : 'bochner_h1'
+            }
         }
     }
 
-    setup, FOM = build_InstationaryModelIP(setup, logger)
-    q_exact = setup['model_parameter']['q_exact']
+    FOM = build_InstationaryModelIP(setup, logger)
+    q_exact = FOM.setup['model_parameter']['q_exact']
 
     # if q_time_dep:
     #     q_start = 0*np.ones((nt, par_dim))
@@ -93,9 +104,10 @@ def main():
     q_start = q_circ
 
     optimizer_parameter = {
-        'noise_level' : setup['model_parameter']['noise_level'],
+        'noise_level' : FOM.setup['model_parameter']['noise_level'],
         'tau' : 3.5,
-        'tol' : 1e-8,
+        'tol' : 1e-13,
+        #'tol' : 1e-8,
         'q_0' : q_start,
         'alpha_0' : 1e-5,
         'i_max' : 50,
@@ -117,18 +129,25 @@ def main():
     FOM.visualizer.visualize(q_exact, title="q_exact")
     logger.debug("Differnce to q_exact:")
     logger.debug("L^inf") 
-    logger.debug(f"{np.max(np.abs((q_est - q_exact).to_numpy())):3.4e}")
-    logger.debug("Q-Norm") 
-    norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_est - q_exact, q_est - q_exact))
-    norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))
+    delta_q = q_est - q_exact
+    logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
+    
+    if q_time_dep:
+        norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]
+        norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))[0,0]
+    else:
+        norm_delta_q = np.sqrt(FOM.products['prod_Q'].apply2(delta_q, delta_q))[0,0]
+        norm_q_exact = np.sqrt(FOM.products['prod_Q'].apply2(q_exact, q_exact))[0,0]
+    
     logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
-    save_path = Path("./dumps/FOM_IRGNM.pkl")
+
+    save_path = Path(f"./dumps/FOM_IRGNM_{N}.pkl")
     logger.debug(f"Save statistics to {save_path}")
 
     data = {
-        'setup' : setup,
+        'setup' : FOM.setup,
         'optimizer_statistics' : optimizer.statistics
     }
 

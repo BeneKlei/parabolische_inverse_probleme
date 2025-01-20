@@ -1,30 +1,37 @@
-from typing import Dict
+from typing import Dict,Tuple
 import numpy as np
 np.random.seed(0)
 
-import pymor.models.basic as InstationaryModel
+from pymor.models.basic import InstationaryModel
+from pymor.vectorarrays.interface import VectorArray
 from pymor.operators.constructions import LincombOperator
-from pymor.parameters.functionals import ProjectionParameterFunctional, \
-    ParameterFunctional
+from pymor.operators.interface import Operator
+from pymor.parameters.functionals import ProjectionParameterFunctional, ParameterFunctional
 from pymor.operators.numpy import NumpyMatrixOperator
 from scipy.sparse import csr_matrix
 
-def construct_noise_data(analytical_problem : InstationaryModel, 
-                         model_params : Dict):
+from RBInvParam.products import BochnerProductOperator
 
-    q_exact = np.array([model_params['q_exact'][0]])    
-    assert len(q_exact) == 1
-        
-    u_exact = analytical_problem.solve(q_exact)    
-    noise = np.random.rand(u_exact.dim,)   
-    noise_np = u_exact.space.from_numpy(noise)
-    noise_L2_norm = np.sqrt(analytical_problem.products['l2'].apply2(noise_np,noise_np))[0,0]  # get l2 norm of noise
+def construct_noise_data(model : InstationaryModel,
+                         q_exact : np.ndarray,
+                         noise_level : float,
+                         product: Operator, 
+                         time_depend_noise: bool = True) -> Tuple[VectorArray, float]:
+
+    u_exact = model.solve_state(q_exact)
+    if time_depend_noise:
+        noise = np.random.rand(len(u_exact), u_exact.dim)
+        assert isinstance(product, BochnerProductOperator)
+    else:
+        noise = np.random.rand(1, u_exact.dim)
     
-    if 1: # insert noise level                                                                
-        noise_level = model_params["noise_level"]
-        noise_scaling = u_exact.space.from_numpy(noise_level*noise/noise_L2_norm) 
-        u_noise = u_exact + noise_scaling    
-        percentage = noise_level/noise_L2_norm
+    noise = model.V.make_array(noise)
+    noise_norm = np.sqrt(product.apply2(noise,noise))[0,0]
+    assert noise_norm > 0
+    
+    noise_scaling = noise_level/noise_norm * noise
+    u_noise = u_exact + noise_scaling    
+    percentage = noise_level/noise_norm
 
     u_noise = u_exact + noise_scaling
     return u_noise, percentage
@@ -47,7 +54,6 @@ def build_projection(grid):
         cols_switched.extend(entries_switched)  
     nodes_to_element_projection = csr_matrix((data, (rows, cols)))
     return nodes_to_element_projection, cols, cols_switched
-
 
 def split_constant_and_parameterized_operator(
         complete_operator : LincombOperator

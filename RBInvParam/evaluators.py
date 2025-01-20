@@ -38,7 +38,8 @@ class UnAssembledEvaluator:
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
-                 dims: Dict):
+                 source : VectorSpace,
+                 range : VectorSpace):
         
         assert grid is not None
         assert boundary_info is not None
@@ -50,12 +51,11 @@ class UnAssembledEvaluator:
         self.boundary_info = boundary_info
         self.quadrature_order = 2
 
+        self.source = source
+        self.range = range
+
         self.nodes_to_element_projection, _, _ = build_projection(self.grid)
         self._prepare()
-
-        if constant_operator:
-            self.source = self.constant_operator.source
-            self.range = self.constant_operator.range
 
     def _prepare(self):
         g = self.grid
@@ -82,16 +82,18 @@ class UnAssembledA(UnAssembledEvaluator):
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
-                 Q : VectorSpace,
-                 dims : Dict):
+                 source : VectorSpace,
+                 range : VectorSpace,
+                 Q : VectorSpace):
         
         super().__init__(
             constant_operator = constant_operator,
             reaction_problem = reaction_problem,
             grid = grid,
             boundary_info = boundary_info,    
-            dims = dims
-        )
+            source = source,
+            range = range)
+
         self.Q = Q
         
     
@@ -154,7 +156,9 @@ class UnAssembledA(UnAssembledEvaluator):
 class AssembledEvaluator():
     def __init__(self,
                  unconstant_operator: Operator,
-                 constant_operator : Operator):
+                 constant_operator : Operator,
+                 source : VectorSpace,
+                 range : VectorSpace):
         
         assert isinstance(unconstant_operator, LincombOperator)
         assert unconstant_operator or constant_operator
@@ -166,56 +170,66 @@ class AssembledEvaluator():
             assert self.unconstant_operator.source == self.constant_operator.source
             assert self.unconstant_operator.range == self.constant_operator.range
 
-        self.source = self.constant_operator.source
-        self.range = self.constant_operator.range
+        self.source = source
+        self.range = range
 
 
 class AssembledA(AssembledEvaluator):    
     def __init__(self, 
                  unconstant_operator: Operator,
                  constant_operator : Operator,
+                 source : VectorSpace,
+                 range : VectorSpace,
                  Q : VectorSpace,
                  parameters: Parameters):
         
         super().__init__(unconstant_operator, 
-                         constant_operator)
+                         constant_operator,
+                         source = source,
+                         range = range)
         self.Q = Q
         self.parameters = parameters
-
 
     def __call__(self, q: VectorArray) -> NumpyMatrixOperator:
         assert q in self.Q
         # TODO Can _assemble_A_q be vectorized?
         assert len(q) == 1
 
+        # TODO Why not direct via numpy?
         q_as_par = self.parameters.parse(q.to_numpy()[0])
         return self.unconstant_operator.assemble(q_as_par) + self.constant_operator
-
+    
 
 class UnAssembledB(UnAssembledEvaluator):
     def __init__(self,
                  reaction_problem: bool,
                  grid: Grid,
                  boundary_info: BoundaryInfo,
-                 V : VectorSpace,
-                 dims : Dict):
+                 source : VectorSpace,
+                 range : VectorSpace,
+                 V : VectorSpace):
         
         super().__init__(
             constant_operator = None,
             reaction_problem = reaction_problem,
             grid = grid,
             boundary_info = boundary_info,
-            dims = dims)
-        self.dims = dims
+            source=source,
+            range=range)
+
         self.V = V
     
     def B_u_unassembled_reaction(self, 
                                  u, 
                                  A_u, 
                                  v : NumpyVectorArray):
+
+        # print(v.space)
+        # assert v in self.V
+        # v = v.to_numpy().reshape((self.V.dim,))
         if isinstance(v, NumpyVectorArray):
             # TODO Get true var
-            v = v.to_numpy().reshape((self.dims['state_dim'],))
+            v = v.to_numpy().reshape((self.V.dim,))
         elif isinstance(v,np.ndarray):
             pass
         else:
@@ -270,10 +284,14 @@ class AssembledB(AssembledEvaluator):
     def __init__(self, 
                 unconstant_operator: Operator,
                 constant_operator : Operator,
+                source : VectorSpace,
+                range : VectorSpace,
                 V : VectorSpace):
     
         super().__init__(unconstant_operator, 
-                         constant_operator)
+                         constant_operator,
+                         source = source,
+                         range = range)
         self.V = V
         
 
