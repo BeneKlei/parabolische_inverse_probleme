@@ -281,7 +281,7 @@ class InstationaryModelIP(ImmutableObject):
         assert self.linear_cost_term
         
         # compute tracking term
-        out = 0.5 * self.delta_t * np.sum(self.bilinear_cost_term.pairwise_apply2(u,u) 
+        out = 0.5 * self.delta_t * np.sum(self.bilinear_cost_term.pairwise_apply2(u,u)
                                           + (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u) 
                                           + self.constant_cost_term)
             
@@ -514,17 +514,22 @@ class InstationaryModelIP(ImmutableObject):
                 q = q,
                 u = u
             )
-
-            estimated_adjont_error = self.estimated_adjont_error(
+            adjoint_residuum = self.adjoint_error_estimator.compute_residuum(
                 q = q,
                 u = u,
                 p = p
             )
 
+            adjoint_residuum = np.sqrt(self.adjoint_error_estimator.delta_t * \
+                np.sum(adjoint_residuum.norm2(
+                    product=self.adjoint_error_estimator.product
+                )
+            ))
+    
             return self.objective_error_estimator.estimate_error(
                 q = q,
                 estimated_state_error = estimated_state_error,
-                estimated_adjont_error = estimated_adjont_error
+                adjoint_residuum = adjoint_residuum
             )
         else:
             return 0.0

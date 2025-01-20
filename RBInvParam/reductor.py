@@ -20,7 +20,8 @@ from RBInvParam.utils.discretization import split_constant_and_parameterized_ope
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.residuals import StateResidualOperator, AdjointResidualOperator
-from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, CoercivityConstantEstimator
+from RBInvParam.error_estimator import StateErrorEstimator, \
+    AdjointErrorEstimator, CoercivityConstantEstimator, ObjectiveErrorEstimator
 
 
 class InstationaryModelIPReductor(ProjectionBasedReductor):
@@ -260,6 +261,11 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                                        V = V,
                                        products = products,
                                        setup = setup)
+        
+        objective_error_estimator = ObjectiveErrorEstimator(
+            A_coercivity_constant_estimator = A_coercivity_constant_estimator,
+            C_continuity_constant = self.FOM.model_constants['C_continuity_constant']
+        )
 
         projected_operators = {
             'u_0' : V.make_array(self.project_vectorarray(self.FOM.u_0, basis='state_basis')),
@@ -278,7 +284,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'bilinear_reg_term' : project(self.FOM.bilinear_reg_term, parameter_basis, parameter_basis),
             'state_error_estimator' : state_error_estimator,
             'adjoint_error_estimator' : adjoint_error_estimator,
-            'objective_error_estimator' : None,
+            'objective_error_estimator' : objective_error_estimator,
             'products' : products,
             'visualizer' : self.FOM.visualizer,
             'model_constants' : model_constants,

@@ -7,6 +7,9 @@ from pymor.vectorarrays.interface import VectorSpace
 
 from RBInvParam.residuals import StateResidualOperator, AdjointResidualOperator
 
+# TODO 
+# - Write tests for error est.
+
 class CoercivityConstantEstimator():
     def __init__(self, 
                  coercivity_estimator_function: Callable,
@@ -28,6 +31,7 @@ class CoercivityConstantEstimator():
             alpha_qks = np.array([self.coercivity_estimator_function(q[0])])
         
         assert np.all(alpha_qks > 0)
+        return alpha_qks
 
     
 class StateErrorEstimator():
@@ -57,6 +61,30 @@ class StateErrorEstimator():
         assert self.V == self.state_residual_operator.V
         if product:
             assert self.state_residual_operator.range == product.source
+    
+    def compute_residuum(self, 
+                         q: VectorArray,
+                         u: VectorArray) -> VectorArray:
+        
+        if self.q_time_dep:
+            assert len(q) == self.nt
+        else:
+            assert len(q) == 1
+
+        assert q in self.Q
+        assert u in self.V
+        assert len(u) == self.nt
+
+        u_old = self.V.zeros(count=1)
+        u_old.append(u[:-1])
+
+        r = self.state_residual_operator.apply(
+            u = u, 
+            u_old = u_old,
+            q = q
+        )
+        return r
+        
 
     def estimate_error(self, 
                        q: VectorArray,
@@ -71,17 +99,9 @@ class StateErrorEstimator():
         assert u in self.V
         assert len(u) == self.nt
 
-        alpha_q = np.min(self.coercivity_constant_estimator(q))
-        u_old = self.V.zeros(count=1)
-        u_old.append(u[:-1])
-
-        r = self.state_residual_operator.apply(
-            u = u, 
-            u_old = u_old,
-            q = q
-        ).norm2(product=self.product)
-
-        return np.sqrt(self.delta_t / alpha_q * np.sum(r))
+        alpha_q = np.min(self.A_coercivity_constant_estimator(q))
+        r = self.compute_residuum(q, u)
+        return np.sqrt(self.delta_t / alpha_q * np.sum(r.norm2(product=self.product)))
              
 class AdjointErrorEstimator():
     def __init__(self,
@@ -110,12 +130,29 @@ class AdjointErrorEstimator():
         assert self.V == self.adjoint_residual_operator.V
         if product:
             assert self.adjoint_residual_operator.range == product.source
+    
+    def compute_residuum(self, 
+                         q: VectorArray,
+                         u: VectorArray,
+                         p: VectorArray) -> VectorArray:
+
+        p_old = self.V.empty()
+        p_old.append(p[1:])
+        p_old.append(self.V.zeros(count=1))
+
+        return self.adjoint_residual_operator.apply(
+            p = p, 
+            p_old = p_old,
+            u = u,
+            q = q
+        )
         
-        
+    
     def estimate_error(self, 
                        q: VectorArray,
                        u: VectorArray,
-                       p: VectorArray) -> float:
+                       p: VectorArray) -> VectorArray:
+        
         
         if self.q_time_dep:
             assert len(q) == self.nt
@@ -128,20 +165,7 @@ class AdjointErrorEstimator():
         assert len(u) == self.nt
         assert len(u) == len(p)
 
-        alpha_q = np.min(self.coercivity_constant_estimator(q))
-
-        p_old = self.V.empty()
-        p_old.append(p[1:])
-        p_old.append(self.V.zeros(count=1))
-
-        r = self.adjoint_residual_operator.apply(
-            p = p, 
-            p_old = p_old,
-            u = u,
-            q = q
-        ).norm2(product=self.product)
-
-        return np.sqrt(self.delta_t / alpha_q * np.sum(r))
+        raise NotImplementedError
 
 class ObjectiveErrorEstimator():
     def __init__(self,
@@ -154,14 +178,14 @@ class ObjectiveErrorEstimator():
 
     def estimate_error(self, 
                        q: VectorArray,
-                       estimated_state_error: VectorArray,
-                       estimated_adjont_error: VectorArray) -> float:
+                       estimated_state_error: float,
+                       adjoint_residuum: float) -> float:
 
         # TODO Is this correct? I do not think so 
-        alpha_q = np.min(self.coercivity_constant_estimator(q))
+        alpha_q = np.min(self.A_coercivity_constant_estimator(q))
 
         ret = 0
-        ret += estimated_adjont_error * estimated_state_error / np.sqrt(alpha_q)
+        ret += adjoint_residuum * estimated_state_error / np.sqrt(alpha_q)
         ret += self.C_continuity_constant**2 / (2 * alpha_q) * estimated_state_error**2
 
         return ret 

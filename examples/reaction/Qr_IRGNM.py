@@ -98,11 +98,7 @@ def main():
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
 
-    # if q_time_dep:
-    #     q_start = 0*np.ones((nt, par_dim))
-    # else:
-    #     q_start = 0*np.ones((1, par_dim))
-    q_start = q_circ
+
     # if q_time_dep:
     #     q_start = 0*np.ones((nt, par_dim))
     # else:

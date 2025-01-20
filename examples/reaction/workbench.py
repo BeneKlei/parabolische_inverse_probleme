@@ -64,14 +64,16 @@ setup = {
         'output_dim': 1,                                                                                                                                                                         # options to preassemble affine components or not
     },
     'problem_parameter' : {
-        'N' : N,
+        'N': N,
+        'contrast_parameter' : 2,
         'parameter_location' : 'reaction',
         'boundary_conditions' : 'dirichlet',
         'exact_parameter' : 'Kirchner',
-        'state_space_product' : 'h1' 
+        'T_final' : T_final,
     },
     'model_parameter' : {
         'name' : 'reaction_FOM', 
+        'problem_type' : None,
         'T_initial' : T_initial,
         'T_final' : T_final,
         'delta_t' : delta_t,
@@ -81,15 +83,20 @@ setup = {
         'q_exact' : None,
         'q_time_dep' : q_time_dep,
         'bounds' : bounds,
-        'parameters' : None
+        'parameters' : None,
+        'products' : {
+            'prod_H' : 'l2',
+            'prod_Q' : 'l2',
+            'prod_V' : 'h1',
+            'prod_C' : 'l2',
+            'bochner_prod_Q' : 'bochner_l2',
+            'bochner_prod_V' : 'bochner_h1'
+        }
     }
 }
 
-setup, FOM = build_InstationaryModelIP(setup, logger)
-q_exact = setup['model_parameter']['q_exact']
-
-
-
+FOM = build_InstationaryModelIP(setup, logger)
+q_exact = FOM.setup['model_parameter']['q_exact']
 reductor = InstationaryModelIPReductor(FOM)
 
 #q = FOM.Q.make_array(q_circ)
@@ -106,31 +113,38 @@ reductor.extend_basis(
 QrFOM = reductor.reduce()
 #d = FOM.Q.make_array(q_exact)
 
-q_r = reductor.project_vectorarray(q_exact, 'parameter_basis')
+q = 10 * q_exact
+q_r = reductor.project_vectorarray(q, 'parameter_basis')
 q_r = QrFOM.Q.make_array(q_r)
+
+
+print(FOM.compute_objective(q))
+print(QrFOM.compute_objective(q_r))
+
 # d_r = reductor.project_vectorarray(d, 'parameter_basis')
 # d_r = QrFOM.Q.make_array(d_r)
 
-u = FOM.solve_state(q_exact)
+u = FOM.solve_state(q)
 u_r = QrFOM.solve_state(q_r)
 
-p = FOM.solve_adjoint(q_exact, u)
+p = FOM.solve_adjoint(q, u)
 p_r = QrFOM.solve_adjoint(q_r, u_r)
 
+print(QrFOM.estimate_objective_error(q_r, u_r, p_r))
 
 delta_u = u - u_r
-print(np.sqrt(FOM.products['bochner_prod_V'].apply2(delta_u, delta_u)))
+print(np.sqrt(FOM.products['bochner_prod_V'].apply2(delta_u, delta_u)[0,0]))
 
 delta_p = p - p_r
-print(np.sqrt(FOM.products['bochner_prod_V'].apply2(delta_p, delta_p)))
+print(np.sqrt(FOM.products['bochner_prod_V'].apply2(delta_p, delta_p)[0,0]))
 
 print("###########################################")
 print(QrFOM.estimate_state_error(
     q = q_r, 
     u = u_r))
-print(QrFOM.estimate_adjoint_error(
-    q = q_r, 
-    u = u_r, 
-    p = p_r))
+# print(QrFOM.estimate_adjoint_error(
+#     q = q_r, 
+#     u = u_r, 
+#     p = p_r))
 
 #########################################################################################

@@ -206,7 +206,7 @@ class Optimizer:
 
             loop_terminated = count >= reg_loop_max
 
-            if loop_terminated:
+            if not loop_terminated:
                 self.logger.warning(f"Used alpha = {alpha:3.4e} does satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
             else:
                 self.logger.error(f"Not found valid alpha before reaching maximum number of tries : {reg_loop_max}.\n\
