@@ -16,9 +16,10 @@ def armijo_condition(
     step_size : float,
     previous : NumpyVectorArray,
     current : NumpyVectorArray,
+    product : NumpyMatrixOperator,
     kappa_arm: float = 1e-12) -> bool:
-     
-    norm_d = np.linalg.norm((previous - current).to_numpy())
+
+    norm_d = product.apply2(previous - current,previous - current)[0,0]
     lhs =  previous_J - current_J
     rhs = kappa_arm / step_size * norm_d**2
     
@@ -31,21 +32,37 @@ def armijo_condition(
 
     return lhs >= rhs
 
-def armijo_line_serach(
-        previous_iterate: NumpyVectorArray,
-        previous_value: float,
-        search_direction : NumpyVectorArray,
-        func: Callable,
-        inital_step_size: float) -> Tuple[NumpyVectorArray, float]:
+def armijo_line_serach(previous_iterate: NumpyVectorArray,
+                       previous_value: float,
+                       search_direction : NumpyVectorArray,
+                       func: Callable,
+                       product : NumpyMatrixOperator,
+                       inital_step_size: float) -> Tuple[NumpyVectorArray, float]:
 
         step_size = inital_step_size
         current_iterate = previous_iterate + step_size * search_direction
         current_value = func(current_iterate)
 
-        while not armijo_condition(previous_value, current_value, step_size, previous_iterate, current_iterate, kappa_arm=1e-12):
+        condition = armijo_condition(previous_value, 
+                                     current_value, 
+                                     step_size, 
+                                     previous_iterate, 
+                                     current_iterate,
+                                     product=product,
+                                     kappa_arm=1e-12)
+
+        while not condition:
             step_size = 0.5 * step_size
             current_iterate = previous_iterate + step_size * search_direction
             current_value = func(current_iterate)
+
+            condition = armijo_condition(previous_value, 
+                                         current_value, 
+                                         step_size, 
+                                         previous_iterate, 
+                                         current_iterate,
+                                         product=product,
+                                         kappa_arm=1e-12)
 
         return (current_iterate, current_value)
 
@@ -124,12 +141,17 @@ def gradient_descent_linearized_problem(
         buffer_nabla_J.pop(0)
         buffer_nabla_J.append(grad.copy())
 
-        norm_grad = np.linalg.norm(grad.to_numpy())
+        norm_grad = model.compute_gradient_norm(grad)
 
         if norm_grad < tol:
             last_i = i
             converged = True
             break
+
+        if model.q_time_dep:
+            product = model.products['bochner_prod_Q']
+        else:
+            product = model.products['prod_Q']
 
         if i < 2:
         #if i > -1:
@@ -139,15 +161,10 @@ def gradient_descent_linearized_problem(
                 previous_value = previous_J,
                 search_direction = -grad,
                 func = lambda d: model.compute_linearized_objective(q, d, alpha),
+                product=product,
                 inital_step_size = inital_step_size)       
 
         else:
-
-            if model.q_time_dep:
-                product = model.products['bochner_prod_Q']
-            else:
-                product = model.products['prod_Q']
-
             current_d, current_J = barzilai_borwein_line_serach(
                 previous_iterate =  buffer_d[-1],
                 pre_previous_iterate = buffer_d[-2],

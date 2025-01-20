@@ -83,7 +83,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if len(_basis) == 0:
             return x.to_numpy()
         else:
-            #return _basis.lincomb(x.inner(_basis, self.products[basis]))
             return x.inner(_basis, self.products[basis])
         
     def get_bases_dim(self, basis: str) -> int:
@@ -187,7 +186,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         state_basis = self._get_projection_basis('state_basis')
         parameter_basis = self._get_projection_basis('parameter_basis')
 
-        assembled_parameter_reduced_A = self._assemble_parameter_reduced_A()
+        assembled_parameter_reduced_A = self._assemble_parameter_reduced_A()        
 
         unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
             complete_operator=project(assembled_parameter_reduced_A,
@@ -222,6 +221,16 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             range = V,
             V = V
         )
+
+        if state_basis:
+            if isinstance(self.FOM.L, VectorArray):
+                L = V.make_array(
+                    self.FOM.L.inner(self.bases['state_basis'])
+                )
+            else:
+                L = project(self.FOM.L, state_basis, None)
+        else:
+            L = self.FOM.L
 
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
         prod_V = project(self.FOM.products['prod_V'], state_basis, state_basis)
@@ -259,7 +268,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                                        A_coercivity_constant_estimator = A_coercivity_constant_estimator,
                                        Q = Q,
                                        V = V,
-                                       products = products,
                                        setup = setup)
         
         objective_error_estimator = ObjectiveErrorEstimator(
@@ -271,7 +279,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'u_0' : V.make_array(self.project_vectorarray(self.FOM.u_0, basis='state_basis')),
             'M' : project(self.FOM.M, state_basis, state_basis),
             'A' : A,
-            'L' : project(self.FOM.L, state_basis, None),
+            'L' : L,
             'B' : B, 
             'constant_cost_term' : self.FOM.constant_cost_term,
             'linear_cost_term' : project(self.FOM.linear_cost_term, state_basis, None),
@@ -285,6 +293,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'state_error_estimator' : state_error_estimator,
             'adjoint_error_estimator' : adjoint_error_estimator,
             'objective_error_estimator' : objective_error_estimator,
+            'objective_error_estimator' : None,
             'products' : products,
             'visualizer' : self.FOM.visualizer,
             'model_constants' : model_constants,
@@ -300,8 +309,10 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             **projected_operators,
         )
 
-    # def reduce(self) -> InstationaryModelIP:
-    #     raise NotImplementedError
+    def reduce(self) -> InstationaryModelIP:
+        return self.build_rom(
+            projected_operators = self.project_operators()
+        )
 
     def _estimate_residual_image_basis(self,
                                        basis: str) -> VectorArray:
@@ -314,7 +325,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                                   A_coercivity_constant_estimator: CoercivityConstantEstimator, 
                                   Q : VectorSpace,
                                   V : VectorSpace,
-                                  products : Dict,
                                   setup: Dict) -> Tuple[StateResidualOperator, AdjointResidualOperator]:
 
         assert isinstance(assembled_parameter_reduced_A, LincombOperator)
@@ -338,8 +348,10 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     
         if residual_image_basis is None:
             riesz_representative = True
+            A_range = self.FOM.V
         else:
-            riesz_representative = False            
+            riesz_representative = False
+            A_range = NumpyVectorSpace(dim=len(residual_image_basis))
             raise NotImplementedError
         
         unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
@@ -353,19 +365,29 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             unconstant_operator = unconstant_operator,
             constant_operator = constant_operator,
             source = V,
-            range = V,
+            range = A_range,
             Q = Q,
             parameters=setup['model_parameter']['parameters']
         )
 
+        if residual_image_basis:
+            if isinstance(self.FOM.L, VectorArray):
+                L = A_range.make_array(
+                    self.FOM.L.inner(self.bases['state_basis'])
+                )
+            else:
+                L = project(self.FOM.L, residual_image_basis, None)
+        else:
+            L = self.FOM.L
+            
         projected_state_quantities = {
             'M' : M,
             'A' : A,
-            'L' : project(self.FOM.L, residual_image_basis, None),
+            'L' : L,
             'Q' : Q,
             'V' : V,
             'riesz_representative' : riesz_representative,
-            'products': products,
+            'products': self.FOM.products,
             'setup' : setup
         }
 
@@ -377,7 +399,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'Q' : Q,
             'V' : V,
             'riesz_representative' : riesz_representative,
-            'products': products,
+            'products': self.FOM.products,
             'setup' : setup
         }
 
@@ -418,7 +440,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             product = product,
             setup = setup
         )
-        
+
         return state_error_estiamtor, adjoint_error_estiamtor
 
 

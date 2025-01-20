@@ -44,8 +44,8 @@ class ImplicitEulerResidualOperator(Operator):
         self.source = A.source
         self.range = A.range
         
-        assert self.M.source == self.M.range
-        assert self.A.source == self.A.range
+        # assert self.M.source == self.M.range
+        # assert self.A.source == self.A.range
         assert self.M.source == self.A.source
         assert self.A.source == self.V
         assert self.A.Q == self.Q        
@@ -57,7 +57,7 @@ class ImplicitEulerResidualOperator(Operator):
                q: VectorArray) -> VectorArray:
         
         assert q in self.Q
-        assert rhs in self.V
+        assert rhs in self.A.range
         assert u in self.V
         assert u_old in self.V
 
@@ -104,7 +104,7 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
                          setup = setup)
         
         self.L = L
-        assert self.L in self.V
+        assert self.L in self.M.range
         assert isinstance(self.L, VectorArray)
         assert len(self.L) in [1, self.nt]
 
@@ -143,8 +143,9 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
         self.bilinear_cost_term = bilinear_cost_term
         self.linear_cost_term = linear_cost_term
 
-        assert self.bilinear_cost_term.source == self.bilinear_cost_term.range
-        assert self.bilinear_cost_term.source == self.A.range
+        #assert self.bilinear_cost_term.source == self.bilinear_cost_term.range
+        assert self.bilinear_cost_term.source == self.A.source
+        assert self.bilinear_cost_term.range == self.A.range
         assert self.linear_cost_term.range == self.A.range
         assert len(self.linear_cost_term.as_range_array()) == self.setup['dims']['nt']
         

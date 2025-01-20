@@ -35,6 +35,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
         A, F, M, U0, t0, t1, nt = operator, rhs, mass, initial_data, initial_time, end_time, self.nt
         mu = None
         dt_F = None
+
         
         assert isinstance(F, (type(None), Operator, VectorArray))
         assert isinstance(M, (type(None), Operator))
@@ -83,7 +84,7 @@ class ImplicitEulerTimeStepper(TimeStepper):
             else:
                 # Should never happend
                 raise AttributeError
-
+        
         if M is None:
             from pymor.operators.constructions import IdentityOperator
             M = IdentityOperator(A.source)
@@ -144,14 +145,14 @@ class ImplicitEulerTimeStepper(TimeStepper):
                 assert isinstance(A, (UnAssembledA, AssembledA))
                 A_q = A(q[n])
                 M_dt_A = (M + A_q * dt).with_(solver_options=options)
-
+        
             assert M_dt_A is not None
 
             if dt_F:
                 rhs = _rhs + dt_F
             else:
                 rhs = _rhs
-                
+            
             U = M_dt_A.apply_inverse(rhs, mu=mu, initial_guess=U)
 
             while t - t0 + (min(dt, DT) * 0.5) >= num_ret_values * DT:
