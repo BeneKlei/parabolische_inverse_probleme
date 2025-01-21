@@ -27,8 +27,8 @@ set_defaults({})
 
 def main():
 
-    N = 100
-    #N = 10
+    #N = 100
+    N = 10
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -101,6 +101,8 @@ def main():
     #     q_start = 0*np.ones((nt, par_dim))
     # else:
     #     q_start = 0*np.ones((1, par_dim))
+    # np.random.seed(42)
+    # q_start  = np.random.random((1, FOM.setup['dims']['par_dim']))
     q_start = q_circ
 
     optimizer_parameter = {
@@ -114,7 +116,7 @@ def main():
         'theta' : 0.25,
         'Theta' : 0.75,
         #####################
-        'i_max' : 50,
+        'i_max' : 25,
         'reg_loop_max' : 10,
         'i_max_inner' : 2,
     }

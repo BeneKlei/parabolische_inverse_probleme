@@ -293,7 +293,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'state_error_estimator' : state_error_estimator,
             'adjoint_error_estimator' : adjoint_error_estimator,
             'objective_error_estimator' : objective_error_estimator,
-            'objective_error_estimator' : None,
             'products' : products,
             'visualizer' : self.FOM.visualizer,
             'model_constants' : model_constants,

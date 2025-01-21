@@ -91,7 +91,6 @@ class Optimizer:
         model_unsufficent = False
 
         self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
-
         step_size = inital_step_size
         search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
         current_q = previous_q + step_size * search_direction
@@ -153,6 +152,15 @@ class Optimizer:
 
             TR_condition = J_rel_error <= eta
             condition = armijo_condition & TR_condition
+
+            #print("#################################")
+            # q = self.reductor.reconstruct(current_q, basis='parameter_basis')
+            # #q = self.FOM.Q.make_array(q)
+            # FOM_J = self.FOM.compute_objective(q)
+
+            # print(current_J)
+            # print(FOM_J)
+            # print(J_rel_error)
             
             i += 1
 
@@ -210,6 +218,7 @@ class Optimizer:
         }
         start_time = timer()
         i = 0
+        model_unsufficent = False
 
         alpha = alpha_0
         q = q_0.copy()
@@ -218,6 +227,7 @@ class Optimizer:
         J = model.objective(u)
         nabla_J = model.gradient(u, p)
         norm_nabla_J = model.compute_gradient_norm(nabla_J)
+
 
         IRGNM_statistics['q'].append(q)
         IRGNM_statistics['J'].append(J)
@@ -381,7 +391,7 @@ class Optimizer:
         self.logger.info(f'     Start J = {IRGNM_statistics['J'][0]:3.4e}; Final J = {IRGNM_statistics['J'][-1]:3.4e}.')
         self.logger.info(f'     Start alpha = {IRGNM_statistics['alpha'][0]:3.4e}; Final alpha = {IRGNM_statistics['alpha'][-1]:3.4e}.')
         self.logger.info(f'     Start norm_nabla_J = {IRGNM_statistics['norm_nabla_J'][0]:3.4e}; Final norm_nabla_J = {IRGNM_statistics['norm_nabla_J'][-1]:3.4e}.')
-        self.logger.info(f'     Euclidian distance final q and inital q = {np.linalg.norm(q.to_numpy() - q_0.to_numpy())_}')
+        self.logger.info(f'     Euclidian distance final q and inital q = {np.linalg.norm(q.to_numpy() - q_0.to_numpy()):3.4e}')
 
         IRGNM_statistics['total_runtime'] = (timer() - start_time)        
         return (q, IRGNM_statistics)        
@@ -678,6 +688,7 @@ class QrVrROMOptimizer(Optimizer):
         assert norm_nabla_J > 0
 
         inital_armijo_step_size = 0.5 / norm_nabla_J
+        inital_armijo_step_size = np.min([inital_armijo_step_size, 100])
         eta = eta0
         
         self.logger.debug("Running Qr-Vr-IRGNM:")
@@ -796,10 +807,9 @@ class QrVrROMOptimizer(Optimizer):
                 kappa_arm = kappa_arm,
             )
             
+            q_r = q_agc.copy()
             ########################################### IRGNM ###########################################
             if not model_unsufficent:
-                q_r = q_agc
-
                 TR_backtracking_params = {
                     'max_iter' : armijo_max_iter, 
                     'inital_step_size' : 1, 
@@ -837,15 +847,18 @@ class QrVrROMOptimizer(Optimizer):
                 rel_est_error_J_r = abs_est_error_J_r / J_r
             else:
                 rel_est_error_J_r = np.inf
+            
+            if abs_est_error_J_r <= MACHINE_EPS:
+                abs_est_error_J_r = 0.0
 
-            sufficent_condition = J_r + rel_est_error_J_r < J_r_AGC        
-            necessary_condition = J_r - rel_est_error_J_r > J_r_AGC
+            sufficent_condition = J_r + abs_est_error_J_r < J_r_AGC        
+            necessary_condition = J_r - abs_est_error_J_r > J_r_AGC
 
             self.logger.debug(f"    J_r_AGC = {J_r_AGC:3.4e}")
             self.logger.debug(f"    J_r = {J_r:3.4e}")
-            self.logger.debug(f"    rel_est_error_J_r = {rel_est_error_J_r:3.4e}")
-            self.logger.debug(f"    J_r + rel_est_error_J_r = {J_r + rel_est_error_J_r:3.4e}; sufficent_condition = {sufficent_condition}")
-            self.logger.debug(f"    J_r - rel_est_error_J_r = {J_r - rel_est_error_J_r:3.4e}; necessary_condition = {necessary_condition}")
+            self.logger.debug(f"    abs_est_error_J_r = {abs_est_error_J_r:3.4e}")
+            self.logger.debug(f"    J_r + abs_est_error_J_r = {J_r + abs_est_error_J_r:3.4e}; sufficent_condition = {sufficent_condition}")
+            self.logger.debug(f"    J_r - abs_est_error_J_r = {J_r - abs_est_error_J_r:3.4e}; necessary_condition = {necessary_condition}")
 
             rejected = False
             
@@ -964,7 +977,6 @@ class QrVrROMOptimizer(Optimizer):
                     self.statistics['stagnation_flag'] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
-
             i += 1
 
         self.statistics['total_runtime'] = (timer() - start_time)

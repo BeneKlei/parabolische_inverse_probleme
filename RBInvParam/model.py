@@ -506,7 +506,6 @@ class InstationaryModelIP(ImmutableObject):
                                  q: VectorArray,
                                  u: VectorArray,
                                  p: VectorArray) -> float:
-    
         if self.objective_error_estimator:
             estimated_state_error = self.estimate_state_error(
                 q = q,
