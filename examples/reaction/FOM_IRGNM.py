@@ -27,8 +27,8 @@ set_defaults({})
 
 def main():
 
-    #N = 100
-    N = 10
+    N = 100
+    #N = 10
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -104,17 +104,19 @@ def main():
     q_start = q_circ
 
     optimizer_parameter = {
-        'noise_level' : FOM.setup['model_parameter']['noise_level'],
-        'tau' : 3.5,
-        'tol' : 1e-13,
-        #'tol' : 1e-8,
         'q_0' : q_start,
-        'alpha_0' : 1e-5,
-        'i_max' : 50,
-        'i_max_inner' : 2,
-        'reg_loop_max' : 10,
+        'alpha_0' : 1e-3,
+        #'alpha_0' : 0.0,
+        #'tol' : 1e-8,
+        'tol' : 1e-13,
+        'tau' : 3.5,
+        'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.25,
         'Theta' : 0.75,
+        #####################
+        'i_max' : 50,
+        'reg_loop_max' : 10,
+        'i_max_inner' : 2,
     }
 
     optimizer = FOMOptimizer(
