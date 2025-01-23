@@ -33,7 +33,8 @@ class PlainFormatter(logging.Formatter):
 def get_default_logger(logger_name: str = None,
                        logfile_path: Union[str, Path] = None,
                        use_timestemp: bool = False) -> logging.Logger:
-
+        
+    logging.getLogger('asyncio').setLevel(logging.WARNING)
     # if not logfile_path:
     #     logfile_path = Path('./logs/log')
 

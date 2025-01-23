@@ -70,7 +70,7 @@ class ImplicitEulerResidualOperator(Operator):
             assert len(q) == len(u)
 
         if self.q_time_dep:
-            Au = self.V.empty(reserve = len(u)) 
+            Au = self.A.range.empty(reserve = len(u)) 
             for i in range(len(u)):
                 Au.append(self.A(q[i]).apply(u[i]))
         else:

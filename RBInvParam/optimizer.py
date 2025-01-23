@@ -8,6 +8,7 @@ from pymor.vectorarrays.interface import VectorArray
 from pymor.algorithms.hapod import inc_vectorarray_hapod
 from pymor.vectorarrays.numpy import NumpyVectorArray
 from pymor.operators.interface import Operator
+from pymor.core.base import BasicObject
 
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.gradient_descent import gradient_descent_linearized_problem
@@ -21,7 +22,7 @@ MACHINE_EPS = 1e-16
 # - Use colors also in the log-files
 # - Refactor AssembledB
 
-class Optimizer:
+class Optimizer(BasicObject):
     def __init__(self, 
                  optimizer_parameter: Dict, 
                  FOM : InstationaryModelIP,
@@ -34,11 +35,11 @@ class Optimizer:
 
         # TODO Add class and function logger
         if logger:
-            self.logger = logger
+            self._logger = logger
         else:
-            self.logger = get_default_logger(self.__class__.__name__)
-            self.logger.setLevel(logging.DEBUG)
-
+            self._logger = get_default_logger(self.__class__.__name__)
+            self._logger.setLevel(logging.DEBUG)
+        self.logger.debug(f"Setting up {self.__class__.__name__}")
         self.IRGNM_idx = 0
 
 

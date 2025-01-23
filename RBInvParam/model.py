@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Union
 import numpy as np
 
@@ -12,6 +13,8 @@ from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, Assemb
 from RBInvParam.timestepping import ImplicitEulerTimeStepper
 from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, \
     ObjectiveErrorEstimator, CoercivityConstantEstimator
+from RBInvParam.utils.logger import get_default_logger
+
 
 # TODO 
 # - Add caching
@@ -47,8 +50,17 @@ class InstationaryModelIP(ImmutableObject):
                  visualizer,
                  setup : Dict,
                  model_constants : Dict,
-                 name: str = None):
-
+                 name: str = None,
+                 logger: logging.Logger = None):
+        
+        logging.basicConfig()
+        if logger:
+            self._logger = logger
+        else:
+            self._logger = get_default_logger(self.__class__.__name__)
+            self._logger.setLevel(logging.DEBUG)
+        self.logger.debug(f"Setting up {self.__class__.__name__}")
+        
         self.u_0 = u_0
         assert np.all(u_0.to_numpy() == 0)
         self.p_0 = u_0.copy()

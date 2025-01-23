@@ -27,8 +27,8 @@ set_defaults({})
 
 def main():
 
-    #N = 100
-    N = 10
+    N = 100
+    #N = 10
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -37,8 +37,8 @@ def main():
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
     #noise_level = 1e-7
     noise_level = 0.0
@@ -110,7 +110,7 @@ def main():
         'alpha_0' : 1e-3,
         #'alpha_0' : 0.0,
         #'tol' : 1e-8,
-        'tol' : 1e-13,
+        'tol' : 1e-10,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.25,
