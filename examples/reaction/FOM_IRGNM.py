@@ -27,8 +27,8 @@ set_defaults({})
 
 def main():
 
-    #N = 100
-    N = 10
+    N = 100
+    #N = 10
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -37,11 +37,10 @@ def main():
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
-    #noise_level = 1e-7
-    noise_level = 0.0
+    noise_level = 1e-8
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
@@ -101,20 +100,22 @@ def main():
     #     q_start = 0*np.ones((nt, par_dim))
     # else:
     #     q_start = 0*np.ones((1, par_dim))
+    # np.random.seed(42)
+    # q_start  = np.random.random((1, FOM.setup['dims']['par_dim']))
     q_start = q_circ
 
     optimizer_parameter = {
-        'noise_level' : FOM.setup['model_parameter']['noise_level'],
-        'tau' : 3.5,
-        'tol' : 1e-13,
-        #'tol' : 1e-8,
         'q_0' : q_start,
         'alpha_0' : 1e-5,
-        'i_max' : 50,
-        'i_max_inner' : 2,
-        'reg_loop_max' : 10,
+        'tol' : 1e-9,
+        'tau' : 3.5,
+        'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.25,
         'Theta' : 0.75,
+        #####################
+        'i_max' : 25,
+        'reg_loop_max' : 10,
+        'i_max_inner' : 2,
     }
 
     optimizer = FOMOptimizer(
@@ -143,7 +144,7 @@ def main():
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
 
-    save_path = Path(f"./dumps/FOM_IRGNM_{N}.pkl")
+    save_path = Path(f"./dumps/FOM_IRGNM_{N}_with_delta.pkl")
     logger.debug(f"Save statistics to {save_path}")
 
     data = {

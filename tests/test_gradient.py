@@ -33,7 +33,7 @@ logger = get_default_logger()
 
 #TODO This is wrong for more than one setup
 #setup = SETUPS['default_setup_q_time_dep']
-setup = SETUPS['default_setup_q_non_time_dep']
+setup = SETUPS['diffusion_setup_q_time_dep']
 
 FOM = build_InstationaryModelIP(setup, logger=logger)
 
@@ -51,6 +51,18 @@ reductor.extend_basis(
     basis = 'parameter_basis'
 )
 QrFOM = reductor.reduce()
+
+
+state_shapshots = FOM.V.empty()
+# TODO HaPOD
+state_shapshots.append(u)
+state_shapshots.append(p)
+
+reductor.extend_basis(
+    U = state_shapshots,
+    basis = 'state_basis'
+)
+QrVrROM = reductor.reduce()
 
 def derivative_check(model : InstationaryModelIP ,
                      f : Callable, 
@@ -111,7 +123,7 @@ def test_FOM_objective_gradient()-> None:
         model,
         model.compute_objective, 
         model.compute_gradient,
-        Path('./' + sys._getframe().f_code.co_name + '.png')
+        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
     )
     #assert np.all(eps > diff_quot)
 
@@ -123,7 +135,7 @@ def test_FOM_regularization_term_gradient() -> None:
         model,
         lambda q: alpha * model.regularization_term(q), 
         lambda q: alpha * model.gradient_regularization_term(q),
-        Path('./' + sys._getframe().f_code.co_name + '.png')
+        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
     )
 
     assert np.all(eps > diff_quot)
@@ -137,11 +149,11 @@ def test_FOM_linearized_objective_gradient()-> None:
         model,
         lambda d : model.compute_linearized_objective(q, d, alpha),
         lambda d: model.compute_linearized_gradient(q, d, alpha),
-        Path('./' + sys._getframe().f_code.co_name + '.png')
+        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
     )
     assert np.all(eps > diff_quot)
 
-#################################### Qr-ROM ####################################
+#################################### Qr-FOM ####################################
 
 def test_QrFOM_objective_gradient()-> None:
     model = QrFOM
@@ -149,7 +161,7 @@ def test_QrFOM_objective_gradient()-> None:
         model,
         model.compute_objective, 
         model.compute_gradient,
-        Path('./' + sys._getframe().f_code.co_name + '.png')
+        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
     )
     assert np.all(eps > diff_quot)
 
@@ -161,7 +173,7 @@ def test_QrFOM_regularization_term_gradient() -> None:
         model,
         lambda q: alpha * model.regularization_term(q), 
         lambda q: alpha * model.gradient_regularization_term(q),
-        Path('./' + sys._getframe().f_code.co_name + '.png')
+        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
     )
     assert np.all(eps > diff_quot)
 
@@ -174,11 +186,46 @@ def test_QrFOM_linearized_objective_gradient()-> None:
         model,
         lambda d : model.compute_linearized_objective(q, d, alpha),
         lambda d: model.compute_linearized_gradient(q, d, alpha),
-        Path('./' + sys._getframe().f_code.co_name + '.png')
+        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
+    )
+    assert np.all(eps > diff_quot)
+
+#################################### Qr-VrROM ####################################
+
+def test_QrVrROM_objective_gradient()-> None:
+    model = QrVrROM
+    eps, diff_quot = derivative_check(
+        model,
+        model.compute_objective, 
+        model.compute_gradient,
+        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
     )
     assert np.all(eps > diff_quot)
 
 
+def test_QrVrROM_regularization_term_gradient() -> None:
+    alpha = 1e0
+    model = QrVrROM
+    eps, diff_quot = derivative_check(
+        model,
+        lambda q: alpha * model.regularization_term(q), 
+        lambda q: alpha * model.gradient_regularization_term(q),
+        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
+    )
+    assert np.all(eps > diff_quot)
+
+
+def test_QrVrROM_linearized_objective_gradient()-> None:
+    alpha = 1e0
+    model = QrVrROM
+    q = model.Q.make_array(model.setup['model_parameter']['q_circ'])
+    eps, diff_quot = derivative_check(
+        model,
+        lambda d : model.compute_linearized_objective(q, d, alpha),
+        lambda d: model.compute_linearized_gradient(q, d, alpha),
+        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
+    )
+    assert np.all(eps > diff_quot)
 
 
 

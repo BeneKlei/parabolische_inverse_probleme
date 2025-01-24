@@ -27,8 +27,8 @@ set_defaults({})
 
 #########################################################################################''
 
-N = 10
-#N = 100
+#N = 10
+N = 100
 par_dim = (N+1)**2
 fine_N = 2 * N
 
@@ -38,8 +38,8 @@ T_final = 1
 # TODO Here is a Bug
 nt = 50
 delta_t = (T_final - T_initial) / nt
-#q_time_dep = False
-q_time_dep = True
+q_time_dep = False
+#q_time_dep = True
 
 noise_level = 1e-5
 bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -99,38 +99,57 @@ FOM = build_InstationaryModelIP(setup, logger)
 q_exact = FOM.setup['model_parameter']['q_exact']
 reductor = InstationaryModelIPReductor(FOM)
 
-#q = FOM.Q.make_array(q_circ)
-#u = FOM.solve_state(q)
-# p = FOM.solve_adjoint(q, u)
-# J = FOM.objective(u)
-# nabla_J = FOM.gradient(u, p)
+q = q_circ
+q = FOM.Q.make_array(q)
+u = FOM.solve_state(q)
+p = FOM.solve_adjoint(q, u)
+J = FOM.objective(u)
+nabla_J = FOM.gradient(u, p)
 
 reductor.extend_basis(
-    U = q_exact,
+    U = q,
     basis = 'parameter_basis'
 )
 
-QrFOM = reductor.reduce()
+state_shapshots = FOM.V.empty()
+state_shapshots.append(u)
+state_shapshots.append(p)
+
+# self.logger.debug(f"Performing HaPOD on state snapshots.")
+# state_shapshots, _ = self._HaPOD(shapshots=state_shapshots, 
+#                                     basis='state_basis',
+#                                     product=self.FOM.products['prod_V'])
+
+reductor.extend_basis(
+        U = state_shapshots,
+        basis = 'state_basis'
+)
+
+QrVrROM = reductor.reduce()
+
+#QrFOM = reductor.reduce()
 #d = FOM.Q.make_array(q_exact)
 
-q = 10 * q_exact
 q_r = reductor.project_vectorarray(q, 'parameter_basis')
-q_r = QrFOM.Q.make_array(q_r)
+q_r = QrVrROM.Q.make_array(q_r)
 
 
 print(FOM.compute_objective(q))
-print(QrFOM.compute_objective(q_r))
+print(QrVrROM.compute_objective(q_r))
 
 # d_r = reductor.project_vectorarray(d, 'parameter_basis')
 # d_r = QrFOM.Q.make_array(d_r)
 
 u = FOM.solve_state(q)
-u_r = QrFOM.solve_state(q_r)
+u_r = QrVrROM.solve_state(q_r)
 
 p = FOM.solve_adjoint(q, u)
-p_r = QrFOM.solve_adjoint(q_r, u_r)
+p_r = QrVrROM.solve_adjoint(q_r, u_r)
 
-print(QrFOM.estimate_objective_error(q_r, u_r, p_r))
+print(QrVrROM.estimate_objective_error(q_r, u_r, p_r))
+import sys
+sys.exit()
+
 
 delta_u = u - u_r
 print(np.sqrt(FOM.products['bochner_prod_V'].apply2(delta_u, delta_u)[0,0]))

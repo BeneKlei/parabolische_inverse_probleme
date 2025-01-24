@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Union
 import numpy as np
 
@@ -12,6 +13,8 @@ from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, Assemb
 from RBInvParam.timestepping import ImplicitEulerTimeStepper
 from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, \
     ObjectiveErrorEstimator, CoercivityConstantEstimator
+from RBInvParam.utils.logger import get_default_logger
+
 
 # TODO 
 # - Add caching
@@ -47,8 +50,17 @@ class InstationaryModelIP(ImmutableObject):
                  visualizer,
                  setup : Dict,
                  model_constants : Dict,
-                 name: str = None):
-
+                 name: str = None,
+                 logger: logging.Logger = None):
+        
+        logging.basicConfig()
+        if logger:
+            self._logger = logger
+        else:
+            self._logger = get_default_logger(self.__class__.__name__)
+            self._logger.setLevel(logging.DEBUG)
+        self.logger.debug(f"Setting up {self.__class__.__name__}")
+        
         self.u_0 = u_0
         assert np.all(u_0.to_numpy() == 0)
         self.p_0 = u_0.copy()
@@ -116,12 +128,10 @@ class InstationaryModelIP(ImmutableObject):
             assert isinstance(state_error_estimator, StateErrorEstimator)
             assert 'A_coercivity_constant_estimator' in self.model_constants.keys()
             assert self.state_error_estimator.state_residual_operator.source == self.A.source
-            assert self.state_error_estimator.state_residual_operator.range == self.A.range
         if self.adjoint_error_estimator:
             assert isinstance(adjoint_error_estimator, AdjointErrorEstimator)
             assert 'A_coercivity_constant_estimator' in self.model_constants.keys()
             assert self.adjoint_error_estimator.adjoint_residual_operator.source == self.A.source
-            assert self.adjoint_error_estimator.adjoint_residual_operator.range == self.A.range
         if self.objective_error_estimator:
             assert isinstance(objective_error_estimator, ObjectiveErrorEstimator)
             assert 'C_continuity_constant' in self.model_constants.keys()
@@ -282,7 +292,7 @@ class InstationaryModelIP(ImmutableObject):
         
         # compute tracking term
         out = 0.5 * self.delta_t * np.sum(self.bilinear_cost_term.pairwise_apply2(u,u)
-                                          + (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u) 
+                                          + (-2) * self.linear_cost_term.as_range_array().pairwise_inner(u) 
                                           + self.constant_cost_term)
             
         if alpha > 0:
@@ -508,7 +518,6 @@ class InstationaryModelIP(ImmutableObject):
                                  q: VectorArray,
                                  u: VectorArray,
                                  p: VectorArray) -> float:
-    
         if self.objective_error_estimator:
             estimated_state_error = self.estimate_state_error(
                 q = q,
@@ -548,8 +557,8 @@ class InstationaryModelIP(ImmutableObject):
 
     def estimate_linarized_gradient_error(self) -> float:
         raise NotImplementedError
-
-#%% compute functions                            
+    
+#%% compute functions                 
     def compute_objective(self, 
                           q: VectorArray,
                           alpha : float = 0) -> float:
@@ -587,6 +596,22 @@ class InstationaryModelIP(ImmutableObject):
         return self.linearized_gradient(q, d, u, lin_p, alpha)
  
 #%% helpers
+    def compute_gradient_norm(self,
+                              nabla_J: VectorArray) -> float:   
+        assert nabla_J in self.Q
+        if self.q_time_dep:
+            return np.sqrt(self.products['prod_Q'].apply2(nabla_J, nabla_J) / self.delta_t)[0,0]
+        else:
+            return np.sqrt(self.products['prod_Q'].apply2(nabla_J, nabla_J))[0,0]
+
+    def compute_gradient_norm(self,
+                              V: VectorArray) -> float:
+        assert V in self.Q
+        if self.q_time_dep:
+            return np.sqrt(self.products['bochner_prod_Q'].apply2(V, V))[0,0]
+        else:
+            return np.sqrt(self.products['prod_Q'].apply2(V, V))[0,0]
+    
     def pymor_to_numpy(self,q):
         return q.to_numpy()
     
