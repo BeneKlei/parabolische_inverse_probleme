@@ -40,8 +40,7 @@ def main():
     #q_time_dep = False
     q_time_dep = True
 
-    #noise_level = 1e-7
-    noise_level = 0.0
+    noise_level = 1e-8
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
@@ -107,10 +106,8 @@ def main():
 
     optimizer_parameter = {
         'q_0' : q_start,
-        'alpha_0' : 1e-3,
-        #'alpha_0' : 0.0,
-        #'tol' : 1e-8,
-        'tol' : 1e-10,
+        'alpha_0' : 1e-5,
+        'tol' : 1e-9,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.25,
@@ -147,7 +144,7 @@ def main():
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
 
-    save_path = Path(f"./dumps/FOM_IRGNM_{N}.pkl")
+    save_path = Path(f"./dumps/FOM_IRGNM_{N}_with_delta.pkl")
     logger.debug(f"Save statistics to {save_path}")
 
     data = {

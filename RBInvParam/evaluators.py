@@ -43,7 +43,7 @@ class UnAssembledEvaluator:
         
         assert grid is not None
         assert boundary_info is not None
-        assert reaction_problem 
+        #assert reaction_problem 
     
         self.constant_operator = constant_operator
         self.reaction_problem = reaction_problem
@@ -269,13 +269,16 @@ class UnAssembledB(UnAssembledEvaluator):
             A = coo_matrix((SF_INTS, (SF_I0, SF_I1)), shape=(g.size(g.dim), g.size(g.dim)))
             del SF_INTS, SF_I0, SF_I1
             A_u = csc_matrix(A).copy()
+
             # TODO Replace this by proper functions with type checking
             B_u.B_u = lambda d:  self.B_u_unassembled_reaction(u,A_u, d) # numpy -> pymor
             B_u.B_u_ad = lambda p, mode:  self.B_u_unassembled_reaction(u, A_u, p.to_numpy()[0]).to_numpy()[0]  # pymor -> numpy
         else:
+            
             # TODO Replace this by proper functions with type checking
             B_u_mat = self.assemble_B_u_advection(u)
-            B_u.B_u = lambda d: u.space.from_numpy(B_u_mat.dot(d))
+
+            B_u.B_u = lambda d: self.V.from_numpy((B_u_mat.dot(d.to_numpy().T).T))
             B_u.B_u_ad = lambda p, mode: B_u_mat.T.dot(p.to_numpy()[0])    
         return B_u
     

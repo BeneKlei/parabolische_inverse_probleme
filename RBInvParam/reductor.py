@@ -312,7 +312,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         assert basis in ['state_residual_image_basis', 'adjoint_residual_image_basis']
         raise NotImplementedError
 
-
     def assemble_error_estimator(self,
                                  assembled_parameter_reduced_A: LincombOperator,
                                  Q : VectorSpace,
@@ -456,8 +455,3 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         }
 
         return error_estimator
-
-
-    # TODO write subbasis variants for project_operator and assemble_error_estimator
-    def for_subbasis(self):
-        pass
