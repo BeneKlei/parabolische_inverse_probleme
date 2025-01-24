@@ -182,7 +182,7 @@ def IRGNM_FOM(IRGNM_setup, fom_IP, tol, q0):
         #print(f'Regularization parameters {history["Alpha"]}.')
     return q, history
 
-#%% Qr IRGNM
+# Qr IRGNM
 
 def Qr_IRGNM(IRGNM_setup, fom_IP, tol, q0, initial_Qsnapshots = [], k_max = None):
     

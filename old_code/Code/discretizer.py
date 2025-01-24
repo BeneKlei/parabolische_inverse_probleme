@@ -13,13 +13,15 @@
 # The discretizer function that creates a full-order model out of the analytical problem.
 
 import numpy as np
+
 from pymor.discretizers.builtin import discretize_stationary_cg
 from pymor.operators.constructions import LincombOperator
 from pymor.parameters.functionals import ProjectionParameterFunctional, ParameterFunctional
 from pymor.operators.numpy import NumpyMatrixOperator
+from pymor.algorithms.preassemble import preassemble as preassemble_
+
 from model import StationaryModelIP
 from scipy.sparse import csr_matrix
-from pymor.algorithms.preassemble import preassemble as preassemble_
 
 def discretize_stationary_IP(analytical_problem, diameter, opt_data,
                              exact_analytical_problem,

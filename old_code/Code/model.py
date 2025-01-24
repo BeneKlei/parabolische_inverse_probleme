@@ -538,7 +538,7 @@ class StationaryModelIP(StationaryModel):
         cmap=cm.get_cmap('viridis')
         normalizer=Normalize(min_q,max_q)
         im=cm.ScalarMappable(norm=normalizer, cmap=cmap)
-        title_strings = [r'$q^e$', r'$q^{FOM}$', r'$q^{Q_r}$', r'$q^{Q_r-V_r}$']
+        title_strings = [r'$q^e$', r'$q^{FOM}$', r'$q^{Qr}$', r'$q^{Qr-V_r}$']
         plt.subplots_adjust(left=0.1,
                             bottom=0.1,
                             right=0.9,
