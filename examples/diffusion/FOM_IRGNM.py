@@ -27,8 +27,8 @@ set_defaults({})
 
 def main():
 
-    #N = 100
-    N = 10
+    N = 100
+    #N = 10
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -67,7 +67,7 @@ def main():
             'contrast_parameter' : 2,
             'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
-            'exact_parameter' : 'Kirchner',
+            'exact_parameter' : 'PacMan',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -96,6 +96,12 @@ def main():
 
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
+
+    # FOM.visualizer.visualize(q_exact)
+
+    # import sys
+    # sys.exit()
+
 
     # if q_time_dep:
     #     q_start = 0*np.ones((nt, par_dim))

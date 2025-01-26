@@ -275,7 +275,7 @@ def gradient_descent_non_linearized_problem(
 
 
         if (i % 10 == 0):
-            logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {np.linalg.norm(model.compute_gradient(current_q, alpha).to_numpy()):3.4e}.")
+            logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {buffer_nabla_J[-1]:3.4e}.")
         
         buffer_q.pop(0)
         buffer_q.append(current_q)
