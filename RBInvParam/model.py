@@ -97,7 +97,9 @@ class InstationaryModelIP(ImmutableObject):
         self.q_time_dep = self.setup['model_parameter']['q_time_dep']
 
         self.timestepper = ImplicitEulerTimeStepper(
-            nt = self.nt
+            nt = self.nt,
+            Q = self.Q,
+            V = self.V
         )
 
         if name:
@@ -573,8 +575,7 @@ class InstationaryModelIP(ImmutableObject):
         u = self.solve_state(q)
         p = self.solve_adjoint(q, u)
         return self.gradient(u, p, alpha)
-        
-
+    
     def compute_linearized_objective(self,
                                      q: VectorArray,
                                      d: VectorArray,
@@ -595,6 +596,9 @@ class InstationaryModelIP(ImmutableObject):
 
         return self.linearized_gradient(q, d, u, lin_p, alpha)
  
+
+
+
 #%% helpers
     def compute_gradient_norm(self,
                               nabla_J: VectorArray) -> float:   
