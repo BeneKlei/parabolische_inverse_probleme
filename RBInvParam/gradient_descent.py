@@ -140,7 +140,6 @@ def gradient_descent_linearized_problem(
         grad = model.compute_linearized_gradient(q, previous_d, alpha)
         buffer_nabla_J.pop(0)
         buffer_nabla_J.append(grad.copy())
-
         norm_grad = model.compute_gradient_norm(grad)
 
         if norm_grad < tol:
@@ -154,7 +153,6 @@ def gradient_descent_linearized_problem(
             product = model.products['prod_Q']
 
         if i < 2:
-        #if i > -1:
             grad.scal(1.0 / norm_grad)
             current_d, current_J = armijo_line_serach(
                 previous_iterate = previous_d,
@@ -175,7 +173,7 @@ def gradient_descent_linearized_problem(
                 func = lambda d: model.compute_linearized_objective(q, d, alpha))
 
         if (i % 10 == 0):
-            logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {np.linalg.norm(model.compute_linearized_gradient(q, current_d, alpha).to_numpy()):3.4e}.")
+            logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {model.compute_gradient_norm(buffer_nabla_J[-1]):3.4e}.")
 
         buffer_d.pop(0)
         buffer_d.append(current_d)
@@ -183,11 +181,11 @@ def gradient_descent_linearized_problem(
         buffer_J.pop(0)
         buffer_J.append(current_J)    
 
-        # #stagnation check
-        # if i > 10:
-        #     if abs(buffer_J[0] - buffer_J[1]) < MACHINE_EPS and abs(buffer_J[1] - buffer_J[2]) < MACHINE_EPS:
-        #         logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
-        #         break
+        #stagnation check
+        if i > 5:
+            if abs(buffer_J[0] - buffer_J[1]) < MACHINE_EPS and abs(buffer_J[1] - buffer_J[2]) < MACHINE_EPS:
+                logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
+                break
 
     if converged:
         logger.info(f"Gradient decent converged at iteration {last_i} of {int(max_iter)}.")

@@ -853,7 +853,7 @@ class QrVrROMOptimizer(Optimizer):
                 abs_est_error_J_r = 0.0
 
             sufficent_condition = J_r + abs_est_error_J_r < J_r_AGC        
-            necessary_condition = J_r - abs_est_error_J_r > J_r_AGC
+            necessary_condition = J_r - abs_est_error_J_r <= J_r_AGC
 
             self.logger.debug(f"    J_r_AGC = {J_r_AGC:3.4e}")
             self.logger.debug(f"    J_r = {J_r:3.4e}")
