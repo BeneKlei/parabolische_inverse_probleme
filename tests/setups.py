@@ -100,9 +100,9 @@ diffusion_setup_q_time_dep = {
     },
     'problem_parameter' : {
         'N' : 10,
-        'parameter_location' : 'reaction',
+        'parameter_location' : 'diffusion',
         'boundary_conditions' : 'dirichlet',
-        'exact_parameter' : 'Kirchner',
+        'exact_parameter' : 'PacMan',
         'T_final' : 1
     },
     'model_parameter' : {
@@ -128,12 +128,6 @@ diffusion_setup_q_time_dep = {
     },
     'optimizer_parameter' : None
 }
-
-
-
-
-
-
 
 SETUPS = {
     'default_setup_q_time_dep' : default_setup_q_time_dep,

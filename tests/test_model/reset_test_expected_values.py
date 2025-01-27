@@ -52,7 +52,7 @@ def reset_test_expected_values(setup_name: str = None,
             sys.exit(-1)
 
         setup = SETUPS[setup_name]
-        _, FOM = build_InstationaryModelIP(setup, logger) 
+        FOM = build_InstationaryModelIP(setup, logger) 
 
         if data_given:
             assert np.all([q in FOM.Q for q in qs])
