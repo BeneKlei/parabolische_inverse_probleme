@@ -262,9 +262,15 @@ class Optimizer(BasicObject):
             d_start[:,:] = 0
             d_start = model.Q.make_array(d_start)
 
+            # TODO Move these to config
             max_iter = 1e4
             gc_tol = 1e-14
             inital_step_size = 1
+
+            use_cached_operators = False
+            if use_cached_operators:
+                model.timestepper.cache_operators(q=q, target='M_dt_A_q')
+
             d = self.solve_linearized_problem(model=model,
                                               q=q,
                                               d_start=d_start,
@@ -273,7 +279,8 @@ class Optimizer(BasicObject):
                                               max_iter=max_iter,
                                               tol=gc_tol,
                                               inital_step_size=inital_step_size, 
-                                              logger = self.logger)
+                                              logger = self.logger,
+                                              use_cached_operators=use_cached_operators)
             
             lin_u = model.solve_linearized_state(q, d, u)
             lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0)
@@ -310,7 +317,8 @@ class Optimizer(BasicObject):
                                                   max_iter=max_iter,
                                                   tol=gc_tol,
                                                   inital_step_size=inital_step_size,
-                                                  logger = self.logger)
+                                                  logger = self.logger,
+                                                  use_cached_operators=use_cached_operators)
 
                 lin_u = model.solve_linearized_state(q, d, u)
                 lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0)
@@ -348,7 +356,11 @@ class Optimizer(BasicObject):
             else:
                 q += d
 
+            if use_cached_operators:
+                model.timestepper.delete_cached_operators()
+
             ########################################### Final ###########################################
+            print(timer() - start_time)
 
             u = model.solve_state(q)
             p = model.solve_adjoint(q, u)
@@ -403,10 +415,16 @@ class Optimizer(BasicObject):
                                 d_start : np.array,
                                 alpha : float,
                                 method : str,
+                                use_cached_operators: bool,
                                 **kwargs : Dict) -> np.array:
     
         if method == 'gd':
-            return gradient_descent_linearized_problem(model, q, d_start, alpha, **kwargs)
+            return gradient_descent_linearized_problem(model, 
+                                                       q, 
+                                                       d_start, 
+                                                       alpha, 
+                                                       use_cached_operators=use_cached_operators,
+                                                       **kwargs)
         elif method == 'cg':
             raise NotImplementedError
         else:

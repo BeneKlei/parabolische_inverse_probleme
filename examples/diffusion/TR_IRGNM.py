@@ -4,17 +4,16 @@ import logging
 
 from pymor.basic import *
 
-from RBInvParam.optimizer import FOMOptimizer
+from RBInvParam.optimizer import QrVrROMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
 
 from RBInvParam.problems.problems import build_InstationaryModelIP
-# TODO
-# - Find better way to handle time independ parameter
 
 #########################################################################################''
 
-logger = get_default_logger(logfile_path='./logs/FOM_IRGNM.log', use_timestemp=True)
+
+logger = get_default_logger(logfile_path='./logs/Qr_IRGNM.log', use_timestemp=True)
 logger.setLevel(logging.DEBUG)
 
 set_log_levels({
@@ -26,21 +25,22 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-
-    N = 100
-    #N = 10
+    #N = 100
+    N = 10
     par_dim = (N+1)**2
     fine_N = 2 * N
+
 
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
-    noise_level = 1e-8
+    #noise_level = 1e-8
+    noise_level = 0.0
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
@@ -64,9 +64,9 @@ def main():
         'problem_parameter' : {
             'N': N,
             'contrast_parameter' : 2,
-            'parameter_location' : 'reaction',
+            'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
-            'exact_parameter' : 'Kirchner',
+            'exact_parameter' : 'PacMan',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -96,36 +96,47 @@ def main():
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
 
+
     # if q_time_dep:
     #     q_start = 0*np.ones((nt, par_dim))
     # else:
     #     q_start = 0*np.ones((1, par_dim))
-    # np.random.seed(42)
-    # q_start  = np.random.random((1, FOM.setup['dims']['par_dim']))
+    #np.random.seed(42)
+    #q_start = np.random.random((1, FOM.setup['dims']['par_dim'])) 
+    #+ 10 * q_circ
+    #q_start = 10 * q_circ
     q_start = q_circ
 
     optimizer_parameter = {
         'q_0' : q_start,
-        'alpha_0' : 0,
+        'alpha_0' : 1e1,
+        #'alpha_0' : 0.0,
         'tol' : 1e-9,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.25,
         'Theta' : 0.75,
+        'tau_tilde' : 3.5,
         #####################
         'i_max' : 25,
         'reg_loop_max' : 10,
         'i_max_inner' : 2,
+        'armijo_max_iter' : 100,
+        #####################
+        'eta0' : 1e-1,
+        'kappa_arm' : 1e-12,
+        'beta_1' : 1-1e-16,
+        'beta_2' : 3/4,
+        'beta_3' : 0.5,
     }
 
-    optimizer = FOMOptimizer(
+    optimizer = QrVrROMOptimizer(
         FOM = FOM,
         optimizer_parameter = optimizer_parameter,
         logger = logger
     )
     q_est = optimizer.solve()
 
-    
     FOM.visualizer.visualize(q_est, title="q_est")
     FOM.visualizer.visualize(q_exact, title="q_exact")
     logger.debug("Differnce to q_exact:")
@@ -143,12 +154,11 @@ def main():
     logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
-
-    save_path = Path(f"./dumps/FOM_IRGNM_{N}_with_delta.pkl")
+    save_path = Path(f"./dumps/TR_IRGNM_{N}_with_delta.pkl")
     logger.debug(f"Save statistics to {save_path}")
 
     data = {
-        'setup' : FOM.setup,
+        'setup' : setup,
         'optimizer_statistics' : optimizer.statistics
     }
 

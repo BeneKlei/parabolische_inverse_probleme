@@ -98,8 +98,13 @@ class InstationaryModelIP(ImmutableObject):
 
         self.timestepper = ImplicitEulerTimeStepper(
             nt = self.nt,
+            M = self.M,
+            A = self.A,
             Q = self.Q,
-            V = self.V
+            V = self.V,
+            T_initial= self.T_initial,
+            T_final= self.T_final,
+            setup = self.setup
         )
 
         if name:
@@ -147,7 +152,9 @@ class InstationaryModelIP(ImmutableObject):
     
 
 #%% solve methods
-    def solve_state(self, q: VectorArray) -> VectorArray:
+    def solve_state(self, 
+                    q: VectorArray,
+                    use_cached_operators: bool = False) -> VectorArray:
         assert q in self.Q
 
         if self.q_time_dep:
@@ -155,13 +162,10 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
-        iterator = self.timestepper.iterate(initial_time = self.T_initial, 
-                                            end_time = self.T_final, 
-                                            initial_data = self.u_0, 
+        iterator = self.timestepper.iterate(initial_data = self.u_0, 
                                             q=q,
-                                            operator = self.A, 
-                                            rhs=self.L, 
-                                            mass=self.M)
+                                            rhs=self.L,
+                                            use_cached_operators=use_cached_operators)
         
         u = self.V.empty(reserve= self.nt)
         for u_n, _ in iterator:
@@ -170,7 +174,8 @@ class InstationaryModelIP(ImmutableObject):
 
     def solve_adjoint(self, 
                       q: VectorArray, 
-                      u: VectorArray) -> VectorArray:
+                      u: VectorArray,
+                      use_cached_operators: bool = False) -> VectorArray:
         
         assert self.bilinear_cost_term 
         assert self.linear_cost_term 
@@ -189,13 +194,10 @@ class InstationaryModelIP(ImmutableObject):
         # TODO Make def with delta_t consitent and move it the disctetirzer
         rhs = self.delta_t * self.V.make_array(rhs)
 
-        iterator = self.timestepper.iterate(initial_time = self.T_initial,
-                                            end_time = self.T_final,
-                                            initial_data = self.p_0, 
+        iterator = self.timestepper.iterate(initial_data = self.p_0, 
                                             q=q,
-                                            operator = self.A, 
-                                            rhs=rhs, 
-                                            mass=self.M)
+                                            rhs=rhs,
+                                            use_cached_operators=use_cached_operators)
         
         p = self.V.empty(reserve= self.nt)
         for p_n, _ in iterator:
@@ -205,7 +207,8 @@ class InstationaryModelIP(ImmutableObject):
     def solve_linearized_state(self,
                                q: VectorArray,
                                d: VectorArray,
-                               u: VectorArray) -> VectorArray:
+                               u: VectorArray,
+                               use_cached_operators: bool = False) -> VectorArray:
         
         assert q in self.Q
         assert d in self.Q
@@ -227,13 +230,11 @@ class InstationaryModelIP(ImmutableObject):
                 self.B(u[idx]).B_u(d[0]).to_numpy()[0] for idx in range(len(u))
             ]))
         
-        iterator = self.timestepper.iterate(initial_time = self.T_initial,
-                                            end_time = self.T_final,
-                                            initial_data = self.linearized_u_0, 
+        iterator = self.timestepper.iterate(initial_data = self.linearized_u_0, 
                                             q=q,
-                                            operator = self.A, 
-                                            rhs=rhs, 
-                                            mass=self.M)        
+                                            rhs=rhs,
+                                            use_cached_operators=use_cached_operators)
+        
         lin_u = self.V.empty(reserve= self.nt)
         for lin_u_n, _ in iterator:
             lin_u.append(lin_u_n)
@@ -242,7 +243,8 @@ class InstationaryModelIP(ImmutableObject):
     def solve_linearized_adjoint(self,
                                  q: VectorArray,
                                  u: VectorArray,
-                                 lin_u: VectorArray) -> VectorArray:
+                                 lin_u: VectorArray,
+                                 use_cached_operators: bool = False) -> VectorArray:
 
         assert self.bilinear_cost_term 
         assert self.linear_cost_term
@@ -259,14 +261,9 @@ class InstationaryModelIP(ImmutableObject):
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
         rhs = self.delta_t * self.V.make_array(rhs)
-        iterator = self.timestepper.iterate(initial_time = self.T_initial,
-                                            end_time = self.T_final,
-                                            initial_data = self.p_0, 
+        iterator = self.timestepper.iterate(initial_data = self.p_0, 
                                             q=q,
-                                            operator = self.A, 
-                                            rhs=rhs, 
-                                            mass=self.M,
-                                            )
+                                            rhs=rhs,use_cached_operators=use_cached_operators)
         
         lin_p = self.V.empty(reserve= self.nt)
         for lin_p_n, _ in iterator:
@@ -418,8 +415,7 @@ class InstationaryModelIP(ImmutableObject):
             return 0.5 * self.delta_t * self.nt * (self.bilinear_reg_term.pairwise_apply2(q,q)
                                                    + (-2) * q.inner(self.linear_reg_term.as_range_array())
                                                    + self.constant_reg_term)[0,0]
-            
-        
+                 
     def gradient_regularization_term(self, 
                                      q: VectorArray) -> float:
         assert q in self.Q
@@ -434,7 +430,6 @@ class InstationaryModelIP(ImmutableObject):
         else:
             return self.nt * out
         
-           
     def linearized_regularization_term(self, 
                                        q: VectorArray,
                                        d: VectorArray) -> float:
@@ -455,9 +450,7 @@ class InstationaryModelIP(ImmutableObject):
             return 0.5 * self.delta_t * self.nt * (self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
                                                 + (-2) * (q+d).inner(self.linear_reg_term.as_range_array())
                                                 + self.constant_reg_term)[0,0]
-        
-            
-            
+                
     def linarized_gradient_regularization_term(self,
                                                q: VectorArray,
                                                d: VectorArray) -> float:
@@ -478,6 +471,7 @@ class InstationaryModelIP(ImmutableObject):
 
 #%% error estimator
 
+    # TODO Enable cache also for error est, i.e. A_q
     def estimate_state_error(self,
                              q: VectorArray,
                              u: VectorArray) -> float:        
@@ -515,7 +509,6 @@ class InstationaryModelIP(ImmutableObject):
         else:
             return 0.0
             
-
     def estimate_objective_error(self,
                                  q: VectorArray,
                                  u: VectorArray,
@@ -563,41 +556,42 @@ class InstationaryModelIP(ImmutableObject):
 #%% compute functions                 
     def compute_objective(self, 
                           q: VectorArray,
-                          alpha : float = 0) -> float:
+                          alpha : float = 0,
+                          use_cached_operators: bool = False) -> float:
 
-        u = self.solve_state(q)
+        u = self.solve_state(q, use_cached_operators=use_cached_operators)
         return self.objective(u, q, alpha)
     
     def compute_gradient(self,
                          q: VectorArray,
-                         alpha : float = 0) -> float:
+                         alpha : float = 0,
+                         use_cached_operators: bool = False) -> float:
         
-        u = self.solve_state(q)
-        p = self.solve_adjoint(q, u)
-        return self.gradient(u, p, alpha)
+        u = self.solve_state(q, use_cached_operators=use_cached_operators)
+        p = self.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+        return self.gradient(u, p, alpha,)
     
     def compute_linearized_objective(self,
                                      q: VectorArray,
                                      d: VectorArray,
-                                     alpha : float) -> float:
+                                     alpha : float,
+                                     use_cached_operators: bool = False) -> float:
 
-        u = self.solve_state(q)
-        lin_u = self.solve_linearized_state(q, d, u)
+        u = self.solve_state(q, use_cached_operators=use_cached_operators)
+        lin_u = self.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
         return self.linearized_objective(q, d, u, lin_u, alpha)
 
     def compute_linearized_gradient(self,
                                     q: VectorArray,
                                     d: VectorArray,
-                                    alpha : float) -> float:
+                                    alpha : float,
+                                    use_cached_operators: bool = False) -> float:
 
         u = self.solve_state(q)
-        lin_u = self.solve_linearized_state(q, d, u)
-        lin_p = self.solve_linearized_adjoint(q, u, lin_u)
+        lin_u = self.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
+        lin_p = self.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
         return self.linearized_gradient(q, d, u, lin_p, alpha)
- 
-
-
 
 #%% helpers
     def compute_gradient_norm(self,

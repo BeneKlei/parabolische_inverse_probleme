@@ -40,7 +40,8 @@ def main():
     #q_time_dep = False
     q_time_dep = True
 
-    noise_level = 1e-8
+    #noise_level = 1e-7
+    noise_level = 0.0
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
@@ -64,9 +65,9 @@ def main():
         'problem_parameter' : {
             'N': N,
             'contrast_parameter' : 2,
-            'parameter_location' : 'reaction',
+            'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
-            'exact_parameter' : 'Kirchner',
+            'exact_parameter' : 'PacMan',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -94,65 +95,47 @@ def main():
     }
 
     FOM = build_InstationaryModelIP(setup, logger)
-    q_exact = FOM.setup['model_parameter']['q_exact']
-
-    # if q_time_dep:
-    #     q_start = 0*np.ones((nt, par_dim))
-    # else:
-    #     q_start = 0*np.ones((1, par_dim))
-    # np.random.seed(42)
-    # q_start  = np.random.random((1, FOM.setup['dims']['par_dim']))
-    q_start = q_circ
-
-    optimizer_parameter = {
-        'q_0' : q_start,
-        'alpha_0' : 0,
-        'tol' : 1e-9,
-        'tau' : 3.5,
-        'noise_level' : setup['model_parameter']['noise_level'],
-        'theta' : 0.25,
-        'Theta' : 0.75,
-        #####################
-        'i_max' : 25,
-        'reg_loop_max' : 10,
-        'i_max_inner' : 2,
-    }
-
-    optimizer = FOMOptimizer(
-        FOM = FOM,
-        optimizer_parameter = optimizer_parameter,
-        logger = logger
-    )
-    q_est = optimizer.solve()
-
+    #q_exact = FOM.setup['model_parameter']['q_exact']
     
-    FOM.visualizer.visualize(q_est, title="q_est")
-    FOM.visualizer.visualize(q_exact, title="q_exact")
-    logger.debug("Differnce to q_exact:")
-    logger.debug("L^inf") 
-    delta_q = q_est - q_exact
-    logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
-    
-    if q_time_dep:
-        norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]
-        norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))[0,0]
-    else:
-        norm_delta_q = np.sqrt(FOM.products['prod_Q'].apply2(delta_q, delta_q))[0,0]
-        norm_q_exact = np.sqrt(FOM.products['prod_Q'].apply2(q_exact, q_exact))[0,0]
-    
-    logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
-    logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
+    q = FOM.Q.make_array(q_circ)
+    u = FOM.solve_state(q)
+    p = FOM.solve_adjoint(q, u)
+    J = FOM.objective(u)
+    nabla_J = FOM.gradient(u, p)
+    d = q.copy()
 
 
-    save_path = Path(f"./dumps/FOM_IRGNM_{N}_with_delta.pkl")
-    logger.debug(f"Save statistics to {save_path}")
+    # reductor.extend_basis(
+    #     U = nabla_J,
+    #     basis = 'parameter_basis'
+    # )
+    # QrFOM = reductor.reduce()
+    # d = FOM.Q.make_array(q_circ)
 
-    data = {
-        'setup' : FOM.setup,
-        'optimizer_statistics' : optimizer.statistics
-    }
+    # q_r = reductor.project_vectorarray(q, 'parameter_basis')
+    # q_r = QrFOM.Q.make_array(q_r)
+    # d_r = reductor.project_vectorarray(d, 'parameter_basis')
+    # d_r = QrFOM.Q.make_array(d_r)
 
-    save_dict_to_pkl(path=save_path, data=data, use_timestamp=False)
+    #########################################################################################
+
+    import cProfile
+    import os
+
+    if os.path.exists('profiling_results.prof'):
+        os.remove('profiling_results.prof')
+        
+    pr = cProfile.Profile()
+
+    #QrFOM.compute_linearized_gradient(q_r, d_r, alpha=1)
+    pr.enable()
+    FOM.compute_linearized_gradient(q, d, alpha=1)
+    # import sys
+    # sys.exit()
+    pr.disable()
+    pr.dump_stats('profiling_results_FOM_q_dep.prof')
+    #os.system('snakeviz profiling_results.prof')
+        
 
 if __name__ == '__main__':
     main()

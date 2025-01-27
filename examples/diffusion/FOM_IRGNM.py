@@ -113,7 +113,8 @@ def main():
 
     optimizer_parameter = {
         'q_0' : q_start,
-        'alpha_0' : 1e-5,
+        #'alpha_0' : 1e-5,
+        'alpha_0' : 0,
         'tol' : 1e-7,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],

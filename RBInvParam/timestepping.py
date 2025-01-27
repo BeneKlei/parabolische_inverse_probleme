@@ -1,9 +1,10 @@
-from numbers import Number
+from typing import Dict, Union
 import numpy as np
 
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.interface import VectorArray
 from pymor.vectorarrays.interface import VectorSpace
+from pymor.tools.floatcmp import float_cmp_all
 
 
 from RBInvParam.evaluators import UnAssembledA, AssembledA
@@ -11,82 +12,124 @@ from RBInvParam.evaluators import UnAssembledA, AssembledA
 class ImplicitEulerTimeStepper():
     def __init__(self, 
                  nt : int, 
+                 M : Operator,
+                 A : Union[UnAssembledA, AssembledA],
                  Q: VectorSpace,
                  V: VectorSpace,
+                 T_initial: float,
+                 T_final: float,
+                 setup: Dict,
                  solver_options=None):
         
         self.nt = nt
+        self.M = M 
+        self.A = A
         self.Q = Q
         self.V = V
-        self.solver_options = solver_options
+        self.T_initial = T_initial
+        self.T_final = T_final
+        self.solver_options = solver_options        
+        self.setup = setup
 
         self.cached_operators = {
             'q' : self.Q.empty(),
-            'A_q' : self.Q.empty(),
-            'A_q_inv' : self.Q.empty(),
-            'M_dt_A_q' : self.Q.empty(),
-            'M_dt_A_q_inv' : self.Q.empty()
+            'A_q' : [],
+            'M_dt_A_q' : [],
         }
 
+        assert isinstance(self.M, Operator)
+        assert isinstance(self.A, (UnAssembledA, AssembledA))
+        assert not self.M.parametric
+        assert self.A.source == self.A.range
+        assert self.M.source == self.M.range
+        assert self.M.range == self.A.range
+        assert self.A.range == self.V
 
     def cache_operators(self, 
-                    q: VectorArray,
-                    target: str = 'M_dt_A_q_inv') -> None:
+                        q: VectorArray,
+                        target: str = 'M_dt_A_q') -> None:
         assert target in [
             'A_q',
-            'A_q_inv',
-            'M_dt_A_q',
-            'M_dt_A_q_inv'
+            'M_dt_A_q'            
         ]
         assert q in self.Q
-        if not self.cached_operators['q'].empty():
+        if len(self.cached_operators['q']) != 0:
             assert q == self.cached_operators['q']
 
         self.cached_operators['q'] = q.copy()
+        # print("Here")
+        # print(self.cached_operators['q'])
+
+        dt = (self.T_final - self.T_initial) / self.nt
         
-            
+
+        if self.setup['model_parameter']['q_time_dep']:            
+            for n in range(self.nt):
+                A_q = self.A(q[n])
+                M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
+                
+                if target == 'A_q':
+                    self.cached_operators[target].append(
+                        A_q.assemble()
+                    )
+                elif target == 'M_dt_A_q':
+                    self.cached_operators[target].append(
+                         M_dt_A_q.assemble()
+                    )
+        else:    
+            A_q = self.A(q[0])
+            M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
+
+            if target == 'A_q':
+                self.cached_operators[target].append(
+                    A_q.assemble()
+                )
+            elif target == 'M_dt_A_q':
+                self.cached_operators[target].append(
+                    M_dt_A_q.assemble()        
+                )
+
     def delete_cached_operators(self) -> None:
         self.cached_operators = {
             'q' : self.Q.empty(),
-            'A_q' : self.Q.empty(),
-            'A_q_inv' : self.Q.empty(),
-            'M_dt_A_q' : self.Q.empty(),
-            'M_dt_A_q_inv' : self.Q.empty()
+            'A_q' : [],
+            'M_dt_A_q' : [],
         }
     
-    def iterate(self, 
-                initial_time, 
-                end_time, 
+    def iterate(self,                               
                 initial_data, 
                 q, 
-                operator, 
-                rhs, 
-                mass):
+                rhs,
+                use_cached_operators: bool = False):
     
-        A, F, M, U0, t0, t1, nt = operator, rhs, mass, initial_data, initial_time, end_time, self.nt
+        F, U0 = rhs, initial_data
         dt_F = None
  
         assert isinstance(F, (VectorArray))
-        assert isinstance(M, (Operator))
-        assert isinstance(A, (UnAssembledA, AssembledA))
         assert isinstance(q, (VectorArray, np.ndarray))
-        assert not M.parametric
-        assert U0 in A.source
+        assert U0 in self.A.source
         assert len(U0) == 1
-        assert A.source == A.range
-        assert M.source == M.range
-        assert M.range == A.range
         assert q in self.Q
-        assert A.range == self.V
 
-        num_values = nt + 1
-        dt = (t1 - t0) / nt
-        DT = (t1 - t0) / (num_values - 1)
+        if use_cached_operators:
+            # print("AAAAAAAAAAAAAAAAAAAAAAAa")
+            # print(self.cached_operators['q'])
+            # print(q)
+            # print(()
+            # import sys
+            # sys.exit()
+            assert ((self.cached_operators['q']-q).norm() <= 1e-16)[0]
+
+            assert len(self.cached_operators['M_dt_A_q']) != 0
+
+        num_values = self.nt + 1
+        dt = (self.T_final - self.T_initial) / self.nt
+        DT = (self.T_final - self.T_initial) / (num_values - 1)
 
         if F is None:
             F_time_dep = False
         elif isinstance(F, VectorArray):
-            assert F in A.range
+            assert F in self.A.range
             if len(F) == 1:
                 F_time_dep = False
                 dt_F = F * dt
@@ -109,19 +152,22 @@ class ImplicitEulerTimeStepper():
             raise AttributeError
 
         num_ret_values = 1
-        M_dt_A = None    
+        M_dt_A_q = None    
         
-        A_q = A(q[0])
-        M_dt_A = (M + A_q * dt).with_(solver_options=self.solver_options)
-        M_dt_A = M_dt_A.assemble()
+        if use_cached_operators:
+            M_dt_A_q = self.cached_operators['M_dt_A_q'][0]
+        else:
+            A_q = self.A(q[0])
+            M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
+            M_dt_A_q = M_dt_A_q.assemble()
 
-        t = t0
+        t = self.T_initial
         U = U0.copy()
 
-        for n in range(nt):
+        for n in range(self.nt):
             t += dt
 
-            _rhs = M.apply(U)
+            _rhs = self.M.apply(U)
 
             if F_time_dep:
                 if isinstance(F, VectorArray):
@@ -131,18 +177,21 @@ class ImplicitEulerTimeStepper():
                     raise AttributeError
                 
             if q_time_dep:
-                A_q = A(q[n])
-                M_dt_A = (M + A_q * dt).with_(solver_options=self.solver_options)
-        
-            assert M_dt_A is not None
+                if use_cached_operators:
+                    M_dt_A_q = self.cached_operators['M_dt_A_q'][n]
+                else:
+                    A_q = self.A(q[n])
+                    M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
+
+            assert M_dt_A_q is not None
 
             if dt_F:
                 rhs = _rhs + dt_F
             else:
                 rhs = _rhs
             
-            U = M_dt_A.apply_inverse(rhs, initial_guess=U)
+            U = M_dt_A_q.apply_inverse(rhs, initial_guess=U)
 
-            while t - t0 + (min(dt, DT) * 0.5) >= num_ret_values * DT:
+            while t - self.T_initial + (min(dt, DT) * 0.5) >= num_ret_values * DT:
                 num_ret_values += 1
                 yield U, t

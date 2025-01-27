@@ -102,7 +102,8 @@ def gradient_descent_linearized_problem(
     max_iter : int,
     tol : float,
     inital_step_size: float = 1,
-    logger: logging.Logger = None) -> np.array:
+    logger: logging.Logger = None,
+    use_cached_operators: bool = False) -> np.array:
     assert alpha >= 0
     assert tol > 0
     assert inital_step_size > 0
@@ -115,8 +116,11 @@ def gradient_descent_linearized_problem(
     current_d = d_start
 
     previous_J = np.inf
-    current_J = model.compute_linearized_objective(q, current_d, alpha)
-
+    current_J = model.compute_linearized_objective(q, 
+                                                   current_d, 
+                                                   alpha, 
+                                                   use_cached_operators=use_cached_operators)
+                                                   
     converged = False
     last_i = -np.inf
     
@@ -137,7 +141,10 @@ def gradient_descent_linearized_problem(
         previous_d = current_d.copy()
         previous_J = current_J.copy()
 
-        grad = model.compute_linearized_gradient(q, previous_d, alpha)
+        grad = model.compute_linearized_gradient(q, 
+                                                 previous_d, 
+                                                 alpha, 
+                                                 use_cached_operators=use_cached_operators)
         buffer_nabla_J.pop(0)
         buffer_nabla_J.append(grad.copy())
         norm_grad = model.compute_gradient_norm(grad)
@@ -152,13 +159,17 @@ def gradient_descent_linearized_problem(
         else:
             product = model.products['prod_Q']
 
+        # TODO Allow toggle between armijo and BB
         if i < 2:
             grad.scal(1.0 / norm_grad)
             current_d, current_J = armijo_line_serach(
                 previous_iterate = previous_d,
                 previous_value = previous_J,
                 search_direction = -grad,
-                func = lambda d: model.compute_linearized_objective(q, d, alpha),
+                func = lambda d: model.compute_linearized_objective(q, 
+                                                                    d, 
+                                                                    alpha, 
+                                                                    use_cached_operators=use_cached_operators),
                 product=product,
                 inital_step_size = inital_step_size)       
 
@@ -170,9 +181,12 @@ def gradient_descent_linearized_problem(
                 pre_previous_gradient = buffer_nabla_J[-2],
                 product=product,
                 search_direction = grad,
-                func = lambda d: model.compute_linearized_objective(q, d, alpha))
+                func = lambda d: model.compute_linearized_objective(q, 
+                                                                    d, 
+                                                                    alpha, 
+                                                                    use_cached_operators=use_cached_operators))
 
-        if (i % 10 == 0):
+        if (i % 1 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {model.compute_gradient_norm(buffer_nabla_J[-1]):3.4e}.")
 
         buffer_d.pop(0)
