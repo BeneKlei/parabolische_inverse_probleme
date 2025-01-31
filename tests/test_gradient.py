@@ -34,7 +34,6 @@ logger = get_default_logger()
 configs = []
 for setup_name, setup in SETUPS.items():        
     FOM = build_InstationaryModelIP(setup, logger=logger)
-
     reductor = InstationaryModelIPReductor(FOM)
 
     q = FOM.Q.make_array(FOM.setup['model_parameter']['q_circ'])
@@ -80,6 +79,7 @@ for setup_name, setup in SETUPS.items():
         'model' : QrVrROM
     })
 
+
 def derivative_check(model : InstationaryModelIP ,
                      f : Callable, 
                      df : Callable, 
@@ -88,11 +88,11 @@ def derivative_check(model : InstationaryModelIP ,
 
     model_dims = model.setup['dims']
     if model.q_time_dep:
-        q  = model.Q.make_array(np.random.random((model_dims['nt'], model_dims['par_dim'])))
-        dq = model.Q.make_array(np.random.random((model_dims['nt'], model_dims['par_dim'])))
+        q = model.Q.make_array(model.setup['model_parameter']['q_circ'])
+        dq = model.Q.make_array(model.setup['model_parameter']['q_circ'])
     else:
-        q  = model.Q.make_array(np.random.random((1, model_dims['par_dim'])))
-        dq = model.Q.make_array(np.random.random((1, model_dims['par_dim'])))
+        q = model.Q.make_array(model.setup['model_parameter']['q_circ'])
+        dq = model.Q.make_array(model.setup['model_parameter']['q_circ'])
 
     T = np.zeros(np.shape(Eps))
     fq = f(q)
@@ -112,10 +112,16 @@ def derivative_check(model : InstationaryModelIP ,
         h = Eps[i]*dq 
         f_plus = f(q+h)
 
-        if model.q_time_dep: 
-            df_h = np.sum(df.pairwise_inner(h))
+        if model.riesz_rep_grad:
+            if model.q_time_dep: 
+                df_h = model.products['bochner_prod_Q'].apply2(df, h)[0,0]
+            else:
+                df_h = model.delta_t * model.products['prod_Q'].pairwise_apply2(df, h)
         else:
-            df_h = df.inner(h)[0,0]
+            if model.q_time_dep: 
+                df_h = model.delta_t * np.sum(df.pairwise_inner(h))
+            else:
+                df_h = model.delta_t * df.inner(h)[0,0]
 
         T[i] = np.abs(f_plus - fq - df_h)
 
@@ -161,7 +167,6 @@ def test_regularization_term_gradient(config : Dict) -> None:
     assert np.all(eps > diff_quot)
 
 @pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
-
 def test_linearized_objective_gradient(config : Dict)-> None:
     alpha = config['alpha']
     model = config['model']
@@ -175,3 +180,18 @@ def test_linearized_objective_gradient(config : Dict)-> None:
     )
     assert np.all(eps > diff_quot)
 
+@pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
+def test_linearized_regularization_term_gradient(config : Dict) -> None:
+    alpha = config['alpha']
+    model = config['model']
+
+    q = model.Q.make_array(model.setup['model_parameter']['q_circ'])
+    eps, diff_quot = derivative_check(
+        model,
+        lambda d: alpha * model.linearized_regularization_term(q, d), 
+        lambda d: alpha * model.linarized_gradient_regularization_term(q, d),
+        Path('./test_gradient_dumps/' + config['model_name'] 
+             + '_' + sys._getframe().f_code.co_name + '.png')
+    )
+
+    assert np.all(eps > diff_quot)

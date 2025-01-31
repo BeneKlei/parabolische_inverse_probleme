@@ -21,6 +21,7 @@ class BochnerProductOperator(Operator):
     def apply(self, U, mu=None):
         raise NotImplementedError
 
+    # TODO Rename to pairwise_apply2
     def apply2(self, 
                V: VectorArray, 
                U: VectorArray,

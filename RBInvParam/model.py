@@ -14,6 +14,7 @@ from RBInvParam.timestepping import ImplicitEulerTimeStepper
 from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, \
     ObjectiveErrorEstimator, CoercivityConstantEstimator
 from RBInvParam.utils.logger import get_default_logger
+from RBInvParam.products import BochnerProductOperator
 
 
 # TODO 
@@ -95,6 +96,7 @@ class InstationaryModelIP(ImmutableObject):
 
         self.delta_t = self.setup['model_parameter']['delta_t']
         self.q_time_dep = self.setup['model_parameter']['q_time_dep']
+        self.riesz_rep_grad = self.setup['model_parameter']['riesz_rep_grad']
 
         self.timestepper = ImplicitEulerTimeStepper(
             nt = self.nt,
@@ -149,6 +151,12 @@ class InstationaryModelIP(ImmutableObject):
             assert 'C_continuity_constant' in self.model_constants.keys()
             assert isinstance(self.model_constants['A_coercivity_constant_estimator'], CoercivityConstantEstimator)
             assert self.model_constants['A_coercivity_constant_estimator'].Q == self.Q
+
+        assert 'bochner_prod_Q' in self.products
+        assert isinstance(self.products['bochner_prod_Q'], BochnerProductOperator)
+        assert self.products['bochner_prod_Q'].product.source == self.Q
+        assert 'prod_Q' in self.products
+        assert self.products['prod_Q'].source == self.Q
     
 
 #%% solve methods
@@ -191,6 +199,9 @@ class InstationaryModelIP(ImmutableObject):
 
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
+        if isinstance(self.A, UnAssembledA):
+            I = self.A.boundary_info.dirichlet_boundaries(2)
+            rhs[:,I] = 0
         # TODO Make def with delta_t consitent and move it the disctetirzer
         rhs = self.delta_t * self.V.make_array(rhs)
 
@@ -260,6 +271,10 @@ class InstationaryModelIP(ImmutableObject):
 
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
+        if isinstance(self.A, UnAssembledA):
+            I = self.A.boundary_info.dirichlet_boundaries(2)
+            rhs[:,I] = 0
+
         rhs = self.delta_t * self.V.make_array(rhs)
         iterator = self.timestepper.iterate(initial_data = self.p_0, 
                                             q=q,
@@ -316,18 +331,23 @@ class InstationaryModelIP(ImmutableObject):
 
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt):
-            grad[idx] = self.delta_t * self.B(u[idx]).B_u_ad(p[idx], 'grad')
+            grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad')
 
         if not self.q_time_dep:
-            grad = np.sum(grad, axis=0, keepdims=True) 
+            grad = np.sum(grad, axis=0, keepdims=True)
         
+        grad = self.Q.make_array(grad)
+
+        if self.riesz_rep_grad:
+            grad = self.products['prod_Q'].apply_inverse(grad) 
+
         if alpha > 0:
-            assert q is not None
-            # add regularization term if alpha >0
-            return self.Q.make_array(grad) + alpha * self.gradient_regularization_term(q)
+            out = grad + alpha * self.gradient_regularization_term(q,d)
         else:
-            return self.Q.make_array(grad)
-        
+            out = grad
+
+        return out
+
     def linearized_objective(self,
                             q: VectorArray,
                             d: VectorArray,
@@ -385,16 +405,21 @@ class InstationaryModelIP(ImmutableObject):
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt):
-            grad[idx] = self.delta_t * self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
+            grad[idx] = self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
 
         if not self.q_time_dep:
-            grad = np.sum(grad, axis=0, keepdims=True) 
+            grad = np.sum(grad, axis=0, keepdims=True)
+
+        grad = self.Q.make_array(grad)
+        if self.riesz_rep_grad:
+            grad = self.products['prod_Q'].apply_inverse(grad) 
 
         if alpha > 0:
-            return self.Q.make_array(grad) + alpha * self.linarized_gradient_regularization_term(q,d)
+            out = grad + alpha * self.linarized_gradient_regularization_term(q,d)
         else:
-            return self.Q.make_array(grad)
-    
+            out = grad
+
+        return out
     def linearized_hessian(self):
         raise NotImplementedError
 
@@ -424,12 +449,17 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
-        out = self.delta_t * (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q))
-        if self.q_time_dep:
-            return out 
+        out = (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q))
+
+        if not self.q_time_dep:
+            out = self.nt * out
+
+        if not self.riesz_rep_grad:
+            return out
         else:
-            return self.nt * out
+            return self.products['prod_Q'].apply_inverse(out)
         
+           
     def linearized_regularization_term(self, 
                                        q: VectorArray,
                                        d: VectorArray) -> float:
@@ -450,7 +480,7 @@ class InstationaryModelIP(ImmutableObject):
             return 0.5 * self.delta_t * self.nt * (self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
                                                 + (-2) * (q+d).inner(self.linear_reg_term.as_range_array())
                                                 + self.constant_reg_term)[0,0]
-                
+                 
     def linarized_gradient_regularization_term(self,
                                                q: VectorArray,
                                                d: VectorArray) -> float:
@@ -463,11 +493,16 @@ class InstationaryModelIP(ImmutableObject):
         assert q in self.Q
         assert d in self.Q
 
-        out = self.delta_t * (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d))
-        if self.q_time_dep:
+        out = (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d))
+
+        if not self.q_time_dep:
+            out = self.nt * out
+
+        if not self.riesz_rep_grad:
             return out
         else:
-            return self.nt * out
+            return self.products['prod_Q'].apply_inverse(out)
+            
 
 #%% error estimator
 

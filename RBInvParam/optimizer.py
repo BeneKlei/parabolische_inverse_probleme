@@ -52,8 +52,8 @@ class Optimizer(BasicObject):
         assert self.optimizer_parameter['tau'] > 0
         assert self.optimizer_parameter['noise_level'] >= 0
         assert 0 < self.optimizer_parameter['theta'] \
-                 < self.optimizer_parameter['Theta'] \
-                 < 1
+                 < self.optimizer_parameter['Theta'] 
+                 #\ < 1
         if 'tau_tilde' in keys:
             assert self.optimizer_parameter['tau_tilde'] > 0
 
@@ -197,7 +197,7 @@ class Optimizer(BasicObject):
         assert tol > 0
         assert tau > 0
         assert noise_level >= 0
-        assert 0 < theta < Theta < 1
+        #assert 0 < theta < Theta < 1
 
         if use_TR:
             assert TR_backtracking_params is not None

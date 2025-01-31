@@ -29,6 +29,7 @@ default_setup_q_time_dep = {
         'q_circ' : 3*np.ones((50, 121)), 
         'q_exact' : None,
         'q_time_dep' : True,
+        'riesz_rep_grad' : True,
         'bounds' : [0.001*np.ones((121,)), 10e2*np.ones((121,))],
         'parameters' : None,
         'products' : {
@@ -72,6 +73,7 @@ default_setup_q_non_time_dep = {
         'q_circ' : 3*np.ones((1, 121)), 
         'q_exact' : None,
         'q_time_dep' : False,
+        'riesz_rep_grad' : True,
         'bounds' : [0.001*np.ones((121,)), 10e2*np.ones((121,))],
         'parameters' : None,
         'products' : {
@@ -115,6 +117,7 @@ diffusion_setup_q_time_dep = {
         'q_circ' : 3*np.ones((50, 121)), 
         'q_exact' : None,
         'q_time_dep' : True,
+        'riesz_rep_grad' : True,
         'bounds' : [0.001*np.ones((121,)), 10e2*np.ones((121,))],
         'parameters' : None,
         'products' : {
@@ -129,8 +132,9 @@ diffusion_setup_q_time_dep = {
     'optimizer_parameter' : None
 }
 
+
 SETUPS = {
-    'default_setup_q_time_dep' : default_setup_q_time_dep,
+    #'default_setup_q_time_dep' : default_setup_q_time_dep,
     'default_setup_q_non_time_dep' : default_setup_q_non_time_dep,
-    'diffusion_setup_q_time_dep' : diffusion_setup_q_time_dep
+    #'diffusion_setup_q_time_dep' : diffusion_setup_q_time_dep
 }

@@ -27,8 +27,8 @@ set_defaults({})
 
 def main():
 
-    N = 100
-    #N = 10
+    #N = 100
+    N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -113,15 +113,15 @@ def main():
 
     optimizer_parameter = {
         'q_0' : q_start,
-        #'alpha_0' : 1e-5,
-        'alpha_0' : 0,
-        'tol' : 1e-7,
+        'alpha_0' : 1e-5,
+        'tol' : 1e-11,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
-        'theta' : 0.25,
-        'Theta' : 0.75,
+        'theta' : 0.4,
+        #'Theta' : 0.75,
+        'Theta' : 1.95,
         #####################
-        'i_max' : 25,
+        'i_max' : 35,
         'reg_loop_max' : 10,
         'i_max_inner' : 2,
     }
