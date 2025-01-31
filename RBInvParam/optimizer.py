@@ -3,6 +3,7 @@ import numpy as np
 from abc import abstractmethod
 from typing import Dict, Union, Tuple
 from timeit import default_timer as timer
+from pathlib import Path
 
 from pymor.vectorarrays.interface import VectorArray
 from pymor.algorithms.hapod import inc_vectorarray_hapod
@@ -14,6 +15,7 @@ from RBInvParam.model import InstationaryModelIP
 from RBInvParam.gradient_descent import gradient_descent_linearized_problem
 from RBInvParam.reductor import InstationaryModelIPReductor
 from RBInvParam.utils.logger import get_default_logger
+from RBInvParam.utils.io import save_dict_to_pkl
 
 MACHINE_EPS = 1e-16
 
@@ -26,6 +28,7 @@ class Optimizer(BasicObject):
     def __init__(self, 
                  optimizer_parameter: Dict, 
                  FOM : InstationaryModelIP,
+                 save_path: Path,
                  logger: logging.Logger = None) -> None:
                  
         self.FOM = FOM
@@ -33,14 +36,19 @@ class Optimizer(BasicObject):
         self._check_optimizer_parameter()    
         logging.basicConfig()
 
-        # TODO Add class and function logger
         if logger:
             self._logger = logger
         else:
             self._logger = get_default_logger(self.__class__.__name__)
             self._logger.setLevel(logging.DEBUG)
         self.logger.debug(f"Setting up {self.__class__.__name__}")
+
+        save_path = Path(save_path)
+        assert save_path.exists()
+        self.save_path = save_path
+        self.name = None
         self.IRGNM_idx = 0
+
 
 
     
@@ -193,7 +201,8 @@ class Optimizer(BasicObject):
               use_TR: bool = False,
               lin_solver_parms: Dict = None,
               TR_backtracking_params: Dict = None,
-              use_cached_operators: bool = False) -> Tuple[VectorArray, Dict]: 
+              use_cached_operators: bool = False,
+              dump_IRGNM_intermed_stats: bool = False) -> Tuple[VectorArray, Dict]: 
 
         assert q_0 in model.Q
         assert tol > 0
@@ -213,7 +222,6 @@ class Optimizer(BasicObject):
             method_name = 'IRGNM'
 
         stagnation_flag = False
-
         IRGNM_statistics = {
             'IRGNM_idx' : self.IRGNM_idx,
             'q' : [],
@@ -361,7 +369,6 @@ class Optimizer(BasicObject):
                 model.timestepper.delete_cached_operators()
 
             ########################################### Final ###########################################
-            print(timer() - start_time)
 
             u = model.solve_state(q)
             p = model.solve_adjoint(q, u)
@@ -389,6 +396,14 @@ class Optimizer(BasicObject):
             if not(J >= tol+tau*noise_level and i<i_max):
                 self.logger.info(f"##############################################################################################################################")
 
+            if dump_IRGNM_intermed_stats:
+                if self.name is not None:
+                    save_path = self.save_path / f'{self.name}_IRGNM_{i}.pkl'
+                else:
+                    save_path = self.save_path / f'IRGNM_{i}.pkl'
+                self.dump_intermed_stats(save_path=save_path)
+                
+
         self.logger.info(f'Final {method_name} Statistics:')
         if i == i_max and not model_unsufficent:
             self.logger.info(f'     {method_name} reached maxit at i = {i}')
@@ -408,6 +423,7 @@ class Optimizer(BasicObject):
         self.logger.info(f'     Euclidian distance final q and inital q = {np.linalg.norm(q.to_numpy() - q_0.to_numpy()):3.4e}')
 
         IRGNM_statistics['total_runtime'] = (timer() - start_time)        
+        self.IRGNM_idx += 1
         return (q, IRGNM_statistics)        
 
     def solve_linearized_problem(self,
@@ -452,6 +468,18 @@ class Optimizer(BasicObject):
 
 
         return shapshots, svals
+
+    def dump_intermed_stats(self, save_path: Union[str, Path] =None):
+        if not save_path:
+            save_path = self.save_path
+        
+        save_path = Path(save_path)
+        assert save_path.suffix in ['.pkl', 'pickle']
+        assert save_path.parent.exists()
+
+        data = self.statistics
+        self.logger.info(f"Dumping statistics IRGNM to {save_path}.")
+        save_dict_to_pkl(path=save_path, data=data, use_timestamp=False)
 
 class FOMOptimizer(Optimizer):
     def __init__(self, 
@@ -511,8 +539,7 @@ class FOMOptimizer(Optimizer):
             self.logger.debug(f"        {key} : {val}")
         self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
 
-
-        self.IRGNM_idx += 1
+        self.name = 'FOM'
         q, IRGNM_statistic = self.IRGNM(model = self.FOM,
                                         q_0 = q,
                                         alpha_0 = alpha_0,
@@ -524,8 +551,8 @@ class FOMOptimizer(Optimizer):
                                         i_max = i_max,
                                         reg_loop_max = reg_loop_max,
                                         lin_solver_parms = lin_solver_parms,
-                                        use_cached_operators = use_cached_operators
-                                        )
+                                        use_cached_operators = use_cached_operators,
+                                        dump_IRGNM_intermed_stats = True)
 
         self.statistics['q'] = IRGNM_statistic['q']
         self.statistics['time_steps'] = IRGNM_statistic['time_steps']
@@ -535,15 +562,22 @@ class FOMOptimizer(Optimizer):
         self.statistics['total_runtime'] = IRGNM_statistic['total_runtime']
         self.statistics['stagnation_flag'] = IRGNM_statistic['stagnation_flag']
 
+        self.dump_intermed_stats(save_path = self.save_path / f'FOM_IRGNM_final.pkl')
+
         return q
         
 class QrFOMOptimizer(Optimizer):
     def __init__(self, 
                  optimizer_parameter: Dict, 
                  FOM : InstationaryModelIP,
+                 save_path : Path,
                  logger: logging.Logger = None) -> None:
 
-        super().__init__(optimizer_parameter, FOM, logger)
+        super().__init__(optimizer_parameter = optimizer_parameter, 
+                         FOM = FOM, 
+                         logger = logger, 
+                         save_path = save_path)
+
         self.reductor = InstationaryModelIPReductor(
             FOM
         )
@@ -644,6 +678,7 @@ class QrFOMOptimizer(Optimizer):
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
             q_r = self.QrFOM.Q.make_array(q_r)
             
+            self.IRGNM_idx += 1
             q_r, IRGNM_statistic = self.IRGNM(model = self.QrFOM,
                                               q_0 = q_r,
                                               alpha_0 = alpha,
@@ -677,6 +712,8 @@ class QrFOMOptimizer(Optimizer):
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
             
+            self.dump_intermed_stats(save_path = self.save_path / f'QrFOM_IRGNM_{i}.pkl')
+            
             self.logger.debug(f"Extending Qr-space")
             parameter_shapshots = self.FOM.Q.empty()
             parameter_shapshots.append(nabla_J)
@@ -695,18 +732,24 @@ class QrFOMOptimizer(Optimizer):
             self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
             self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
-        self.statistics['total_runtime'] = (timer() - start_time)        
+        self.statistics['total_runtime'] = (timer() - start_time)
+        self.dump_intermed_stats(save_path = self.save_path / f'QrFOM_IRGNM_final.pkl')
         return q
         
 class QrVrROMOptimizer(Optimizer):
     def __init__(self, 
                  optimizer_parameter: Dict, 
                  FOM : InstationaryModelIP,
+                 save_path: Path,
                  logger: logging.Logger = None) -> None:
 
-        super().__init__(optimizer_parameter, FOM, logger)
+        super().__init__(optimizer_parameter = optimizer_parameter, 
+                         FOM = FOM, 
+                         logger = logger, 
+                         save_path = save_path)
+
         self.reductor = InstationaryModelIPReductor(
-            FOM
+            FOM,
         )
         self.QrVrROM = None
 
@@ -860,7 +903,7 @@ class QrVrROMOptimizer(Optimizer):
         while J >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             self.logger.warning(f"Qr-Vr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
-            self.logger.info(f'Start Qr-Vr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {self.FOM.compute_gradient_norm(nabla_J):3.4e}, alpha = {alpha:1.4e}')
+            self.logger.info(f'Start Qr-Vr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
@@ -977,6 +1020,7 @@ class QrVrROMOptimizer(Optimizer):
                 p = self.FOM.solve_adjoint(q, u)
                 J = self.FOM.objective(u)
                 nabla_J = self.FOM.gradient(u, p)
+                norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
                 
                 EASDC = J <= J_r_AGC
                 self.logger.info(f"    J = {J:3.4e}; EASDC = {EASDC}.")
@@ -989,6 +1033,7 @@ class QrVrROMOptimizer(Optimizer):
                     p = self.FOM.solve_adjoint(q, u)
                     J = self.FOM.objective(u)
                     nabla_J = self.FOM.gradient(u, p)
+                    norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
                     delta_J = self.statistics['J'][-1] - J
                     delta_J_r = self.statistics['J_r'][-1] - J_r
@@ -1060,7 +1105,10 @@ class QrVrROMOptimizer(Optimizer):
                     self.statistics['stagnation_flag'] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
+
+            self.dump_intermed_stats(save_path = self.save_path / f'TR_IRGNM_{i}.pkl')
             i += 1
 
         self.statistics['total_runtime'] = (timer() - start_time)
+        self.dump_intermed_stats(save_path = self.save_path / f'TR_IRGNM_final.pkl')
         return q

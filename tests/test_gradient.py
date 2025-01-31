@@ -67,23 +67,24 @@ for setup_name, setup in SETUPS.items():
         'model' : FOM
     })
 
-    configs.append({
-        'model_name' : setup_name + '_QrFOM',
-        'alpha' : 1e0,
-        'model' : QrFOM
-    })
+    # configs.append({
+    #     'model_name' : setup_name + '_QrFOM',
+    #     'alpha' : 1e0,
+    #     'model' : QrFOM
+    # })
 
-    configs.append({
-        'model_name' : setup_name + '_QrVrROM',
-        'alpha' : 1e0,
-        'model' : QrVrROM
-    })
+    # configs.append({
+    #     'model_name' : setup_name + '_QrVrROM',
+    #     'alpha' : 1e0,
+    #     'model' : QrVrROM
+    # })
 
 
 def derivative_check(model : InstationaryModelIP ,
                      f : Callable, 
                      df : Callable, 
-                     save_path: Union[str, Path]) -> Tuple[List, List]:
+                     save_path: Union[str, Path],
+                     title: str) -> Tuple[List, List]:
     Eps = np.array([10**(-i) for i in range(0,15)])
 
     model_dims = model.setup['dims']
@@ -132,7 +133,7 @@ def derivative_check(model : InstationaryModelIP ,
     plt.loglog(Eps, T, 'ro--',label='Test')
     plt.legend(loc='upper left')
     plt.grid()
-    plt.title("Rightside difference quotient")
+    plt.title(title)
     plt.savefig(save_path)
 
     return (Eps, T)
@@ -148,7 +149,8 @@ def test_objective_gradient(config : Dict)-> None:
         model.compute_objective, 
         model.compute_gradient,
         Path('./test_gradient_dumps/' + config['model_name'] 
-             + '_' + sys._getframe().f_code.co_name + '.png')
+             + '_' + sys._getframe().f_code.co_name + '.png'),
+        title = 'J'
     )
     assert np.all(eps > diff_quot)
 
@@ -161,7 +163,8 @@ def test_regularization_term_gradient(config : Dict) -> None:
         lambda q: alpha * model.regularization_term(q), 
         lambda q: alpha * model.gradient_regularization_term(q),
         Path('./test_gradient_dumps/' + config['model_name'] 
-             + '_' + sys._getframe().f_code.co_name + '.png')
+             + '_' + sys._getframe().f_code.co_name + '.png'),
+        title = 'regularization'
     )
 
     assert np.all(eps > diff_quot)
@@ -176,7 +179,8 @@ def test_linearized_objective_gradient(config : Dict)-> None:
         lambda d : model.compute_linearized_objective(q, d, alpha),
         lambda d: model.compute_linearized_gradient(q, d, alpha),
         Path('./test_gradient_dumps/' + config['model_name'] 
-             + '_' + sys._getframe().f_code.co_name + '.png')
+             + '_' + sys._getframe().f_code.co_name + '.png'),
+        title = 'linearized_J'
     )
     assert np.all(eps > diff_quot)
 
@@ -191,7 +195,8 @@ def test_linearized_regularization_term_gradient(config : Dict) -> None:
         lambda d: alpha * model.linearized_regularization_term(q, d), 
         lambda d: alpha * model.linarized_gradient_regularization_term(q, d),
         Path('./test_gradient_dumps/' + config['model_name'] 
-             + '_' + sys._getframe().f_code.co_name + '.png')
+             + '_' + sys._getframe().f_code.co_name + '.png'),
+        title = 'linearized_regularization'
     )
 
     assert np.all(eps > diff_quot)

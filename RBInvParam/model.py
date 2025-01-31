@@ -202,7 +202,6 @@ class InstationaryModelIP(ImmutableObject):
         if isinstance(self.A, UnAssembledA):
             I = self.A.boundary_info.dirichlet_boundaries(2)
             rhs[:,I] = 0
-        # TODO Make def with delta_t consitent and move it the disctetirzer
         rhs = self.delta_t * self.V.make_array(rhs)
 
         iterator = self.timestepper.iterate(initial_data = self.p_0, 

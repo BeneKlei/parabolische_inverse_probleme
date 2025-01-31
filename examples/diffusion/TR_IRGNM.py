@@ -1,6 +1,8 @@
 import numpy as np
-from pathlib import Path
 import logging
+import os
+from pathlib import Path
+from datetime import datetime
 
 from pymor.basic import *
 
@@ -12,9 +14,15 @@ from RBInvParam.problems.problems import build_InstationaryModelIP
 
 #########################################################################################''
 
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+save_path = Path('./dumps') / (timestamp + '_TR_IRGNM')
+os.mkdir(save_path)
+logfile_path= save_path / 'TR_IRGNM.log'
 
-logger = get_default_logger(logfile_path='./logs/Qr_IRGNM.log', use_timestemp=True)
+logger = get_default_logger(logfile_path=logfile_path, use_timestemp=False)
 logger.setLevel(logging.DEBUG)
+
+#########################################################################################''
 
 set_log_levels({
     'pymor' : 'WARN'
@@ -95,17 +103,13 @@ def main():
     }
 
     FOM = build_InstationaryModelIP(setup, logger)
+
+    logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
+    save_dict_to_pkl(path=save_path / 'setup.pkl', 
+                     data = setup,
+                     use_timestamp=False)
+
     q_exact = FOM.setup['model_parameter']['q_exact']
-
-
-    # if q_time_dep:
-    #     q_start = 0*np.ones((nt, par_dim))
-    # else:
-    #     q_start = 0*np.ones((1, par_dim))
-    #np.random.seed(42)
-    #q_start = np.random.random((1, FOM.setup['dims']['par_dim'])) 
-    #+ 10 * q_circ
-    #q_start = 10 * q_circ
     q_start = q_circ
 
     optimizer_parameter = {
@@ -118,9 +122,9 @@ def main():
         'Theta' : 1.95,
         'tau_tilde' : 3.5,
         #####################
-        'i_max' : 35,
+        'i_max' : 75,
         'reg_loop_max' : 10,
-        'i_max_inner' : 2,
+        'i_max_inner' : 4,
         'armijo_max_iter' : 100,
         #####################
         'lin_solver_parms' : {
@@ -140,7 +144,8 @@ def main():
     optimizer = QrVrROMOptimizer(
         FOM = FOM,
         optimizer_parameter = optimizer_parameter,
-        logger = logger
+        logger = logger,
+        save_path = save_path
     )
     q_est = optimizer.solve()
 
@@ -161,13 +166,13 @@ def main():
     logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
-    save_path = Path(f"./dumps/TR_IRGNM_{N}_with_delta.pkl")
-    logger.debug(f"Save statistics to {save_path}")
+    # save_path = Path(f"./dumps/TR_IRGNM_{N}_with_delta.pkl")
+    # logger.debug(f"Save statistics to {save_path}")
 
-    data = {
-        'setup' : setup,
-        'optimizer_statistics' : optimizer.statistics
-    }
+    # data = {
+    #     'setup' : setup,
+    #     'optimizer_statistics' : optimizer.statistics
+    # }
 
     save_dict_to_pkl(path=save_path, data=data, use_timestamp=False)
 
