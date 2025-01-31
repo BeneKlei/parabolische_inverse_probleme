@@ -191,13 +191,20 @@ class Optimizer(BasicObject):
               i_max : int,
               reg_loop_max: int,
               use_TR: bool = False,
-              TR_backtracking_params: Dict = None) -> Tuple[VectorArray, Dict]: 
+              lin_solver_parms: Dict = None,
+              TR_backtracking_params: Dict = None,
+              use_cached_operators: bool = False) -> Tuple[VectorArray, Dict]: 
 
         assert q_0 in model.Q
         assert tol > 0
         assert tau > 0
         assert noise_level >= 0
         #assert 0 < theta < Theta < 1
+
+        assert lin_solver_parms is not None
+        lin_solver_max_iter = lin_solver_parms['lin_solver_max_iter']
+        lin_solver_tol = lin_solver_parms['lin_solver_tol']
+        lin_solver_inital_step_size = lin_solver_parms['lin_solver_inital_step_size']
 
         if use_TR:
             assert TR_backtracking_params is not None
@@ -262,12 +269,6 @@ class Optimizer(BasicObject):
             d_start[:,:] = 0
             d_start = model.Q.make_array(d_start)
 
-            # TODO Move these to config
-            max_iter = 1e4
-            gc_tol = 1e-14
-            inital_step_size = 1
-
-            use_cached_operators = False
             if use_cached_operators:
                 model.timestepper.cache_operators(q=q, target='M_dt_A_q')
 
@@ -276,9 +277,9 @@ class Optimizer(BasicObject):
                                               d_start=d_start,
                                               alpha=alpha,
                                               method='gd',
-                                              max_iter=max_iter,
-                                              tol=gc_tol,
-                                              inital_step_size=inital_step_size, 
+                                              max_iter=lin_solver_max_iter,
+                                              tol=lin_solver_tol,
+                                              inital_step_size=lin_solver_inital_step_size, 
                                               logger = self.logger,
                                               use_cached_operators=use_cached_operators)
             
@@ -314,9 +315,9 @@ class Optimizer(BasicObject):
                                                   d_start=d_start,
                                                   alpha=alpha,
                                                   method='gd',
-                                                  max_iter=max_iter,
-                                                  tol=gc_tol,
-                                                  inital_step_size=inital_step_size,
+                                                  max_iter=lin_solver_max_iter,
+                                                  tol=lin_solver_tol,
+                                                  inital_step_size=lin_solver_inital_step_size, 
                                                   logger = self.logger,
                                                   use_cached_operators=use_cached_operators)
 
@@ -471,17 +472,60 @@ class FOMOptimizer(Optimizer):
         }
 
     def solve(self) -> VectorArray:
+        q_0 = self.optimizer_parameter['q_0'].copy()
+        alpha_0 = self.optimizer_parameter['alpha_0']
+        tol = self.optimizer_parameter['tol']
+        tau = self.optimizer_parameter['tau']
+        noise_level = self.optimizer_parameter['noise_level']
+        theta = self.optimizer_parameter['theta']
+        Theta = self.optimizer_parameter['Theta']
+
+        i_max = self.optimizer_parameter['i_max']
+        reg_loop_max = self.optimizer_parameter['reg_loop_max']
+
+        lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
+        use_cached_operators = self.optimizer_parameter['use_cached_operators']
+
+        q = self.FOM.Q.make_array(q_0)
+        u = self.FOM.solve_state(q)
+        p = self.FOM.solve_adjoint(q, u)
+        J = self.FOM.objective(u)
+        nabla_J = self.FOM.gradient(u, p)
+        norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
+
+        self.logger.debug("Running FOM-IRGNM:")
+        self.logger.debug(f"  J : {J:3.4e}")
+        self.logger.debug(f"  norm_nabla_J : {norm_nabla_J:3.4e}")
+        self.logger.debug(f"                ")
+        self.logger.debug(f"  alpha_0 : {alpha_0:3.4e}")
+        self.logger.debug(f"  tol : {tol:3.4e}")
+        self.logger.debug(f"  tau : {tau:3.4e}")
+        self.logger.debug(f"  noise_level : {noise_level:3.4e}")
+        self.logger.debug(f"  theta : {theta:3.4e}")
+        self.logger.debug(f"  Theta : {Theta:3.4e}")
+        self.logger.debug(f"                ")
+        self.logger.debug(f"  i_max : {i_max:3.4e}")
+        self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
+        self.logger.debug(f"  lin_solver_parms : ")
+        for (key,val) in lin_solver_parms.items():
+            self.logger.debug(f"        {key} : {val}")
+        self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
+
+
         self.IRGNM_idx += 1
         q, IRGNM_statistic = self.IRGNM(model = self.FOM,
-                                        q_0 = self.FOM.Q.make_array(self.optimizer_parameter['q_0'].copy()),
-                                        alpha_0 = self.optimizer_parameter['alpha_0'],
-                                        tol = self.optimizer_parameter['tol'],
-                                        tau = self.optimizer_parameter['tau'],
-                                        noise_level = self.optimizer_parameter['noise_level'],
-                                        theta = self.optimizer_parameter['theta'],
-                                        Theta = self.optimizer_parameter['Theta'],
-                                        i_max = self.optimizer_parameter['i_max'],
-                                        reg_loop_max = self.optimizer_parameter['reg_loop_max'])
+                                        q_0 = q,
+                                        alpha_0 = alpha_0,
+                                        tol = tol,
+                                        tau = tau,
+                                        noise_level = noise_level,
+                                        theta = theta,
+                                        Theta = Theta,
+                                        i_max = i_max,
+                                        reg_loop_max = reg_loop_max,
+                                        lin_solver_parms = lin_solver_parms,
+                                        use_cached_operators = use_cached_operators
+                                        )
 
         self.statistics['q'] = IRGNM_statistic['q']
         self.statistics['time_steps'] = IRGNM_statistic['time_steps']
@@ -530,7 +574,9 @@ class QrFOMOptimizer(Optimizer):
         reg_loop_max = self.optimizer_parameter['reg_loop_max']
         i_max_inner = self.optimizer_parameter['i_max_inner']
 
-        
+        lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
+        use_cached_operators = self.optimizer_parameter['use_cached_operators']
+
         start_time = timer()
         i = 0
         alpha = alpha_0
@@ -563,6 +609,10 @@ class QrFOMOptimizer(Optimizer):
         self.logger.debug(f"  i_max : {i_max:3.4e}")
         self.logger.debug(f"  i_max_inner : {i_max_inner:3.4e}")
         self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
+        self.logger.debug(f"  lin_solver_parms : ")
+        for (key,val) in lin_solver_parms.items():
+            self.logger.debug(f"        {key} : {val}")
+        self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
         
         self.logger.debug(f"Extending Qr-space")
         parameter_shapshots = self.FOM.Q.empty()
@@ -593,7 +643,7 @@ class QrFOMOptimizer(Optimizer):
 
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
             q_r = self.QrFOM.Q.make_array(q_r)
-
+            
             q_r, IRGNM_statistic = self.IRGNM(model = self.QrFOM,
                                               q_0 = q_r,
                                               alpha_0 = alpha,
@@ -603,7 +653,9 @@ class QrFOMOptimizer(Optimizer):
                                               i_max = i_max_inner,
                                               theta = theta,
                                               Theta = Theta,
-                                              reg_loop_max = reg_loop_max)
+                                              reg_loop_max = reg_loop_max,
+                                              lin_solver_parms = lin_solver_parms,
+                                              use_cached_operators = use_cached_operators)
             
 
             q = self.reductor.reconstruct(q_r, basis='parameter_basis')
@@ -687,11 +739,15 @@ class QrVrROMOptimizer(Optimizer):
         i_max_inner = self.optimizer_parameter['i_max_inner']
         armijo_max_iter = self.optimizer_parameter['armijo_max_iter']
 
+        lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
+        use_cached_operators = self.optimizer_parameter['use_cached_operators']
+
         eta0 = self.optimizer_parameter['eta0']
         kappa_arm = self.optimizer_parameter['kappa_arm']
         beta_1 = self.optimizer_parameter['beta_1']
         beta_2 = self.optimizer_parameter['beta_2']
         beta_3 = self.optimizer_parameter['beta_3']
+
 
         start_time = timer()
         i = 0
@@ -726,6 +782,11 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"  i_max_inner : {i_max_inner:3.4e}")
         self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
         self.logger.debug(f"  armijo_max_iter : {armijo_max_iter:3.4e}")
+        self.logger.debug(f"                ")
+        self.logger.debug(f"  lin_solver_parms : ")
+        for (key,val) in lin_solver_parms.items():
+            self.logger.debug(f"        {key} : {val}")
+        self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
         self.logger.debug(f"                ")
         self.logger.debug(f"  eta0 : {eta0:3.4e}")
         self.logger.debug(f"  kappa_arm : {kappa_arm:3.4e}")
@@ -848,7 +909,10 @@ class QrVrROMOptimizer(Optimizer):
                                                   Theta = Theta,
                                                   reg_loop_max = reg_loop_max,
                                                   use_TR=True,
-                                                  TR_backtracking_params=TR_backtracking_params) 
+                                                  TR_backtracking_params=TR_backtracking_params,
+                                                  lin_solver_parms=lin_solver_parms,
+                                                  use_cached_operators=use_cached_operators)
+
             ########################################### Accept / Reject ###########################################
         
             self.logger.debug("Decide on q; Either accept or reject")

@@ -26,7 +26,7 @@ set_defaults({})
 
 def main():
     #N = 100
-    N = 10
+    N = 100
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -80,6 +80,7 @@ def main():
             'q_circ' : q_circ, 
             'q_exact' : None,
             'q_time_dep' : q_time_dep,
+            'riesz_rep_grad' : True,
             'bounds' : bounds,
             'parameters' : None,
             'products' : {
@@ -109,19 +110,25 @@ def main():
 
     optimizer_parameter = {
         'q_0' : q_start,
-        'alpha_0' : 1e1,
-        #'alpha_0' : 0.0,
-        'tol' : 1e-9,
+        'alpha_0' : 1e-5,
+        'tol' : 1e-11,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
-        'theta' : 0.25,
-        'Theta' : 0.75,
+        'theta' : 0.4,
+        'Theta' : 1.95,
         'tau_tilde' : 3.5,
         #####################
-        'i_max' : 25,
+        'i_max' : 35,
         'reg_loop_max' : 10,
         'i_max_inner' : 2,
         'armijo_max_iter' : 100,
+        #####################
+        'lin_solver_parms' : {
+            'lin_solver_max_iter' : 1e4,
+            'lin_solver_tol' : 1e-12,
+            'lin_solver_inital_step_size' : 1
+        },
+        'use_cached_operators' : True,
         #####################
         'eta0' : 1e-1,
         'kappa_arm' : 1e-12,

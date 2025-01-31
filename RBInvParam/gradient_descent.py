@@ -186,7 +186,7 @@ def gradient_descent_linearized_problem(
                                                                     alpha, 
                                                                     use_cached_operators=use_cached_operators))
 
-        if (i % 1 == 0):
+        if (i % 10 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {model.compute_gradient_norm(buffer_nabla_J[-1]):3.4e}.")
 
         buffer_d.pop(0)
