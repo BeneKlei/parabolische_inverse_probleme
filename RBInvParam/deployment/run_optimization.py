@@ -1,0 +1,95 @@
+import numpy as np
+import logging
+import os
+from pathlib import Path
+
+from pymor.basic import *
+
+from RBInvParam.optimizer import *
+from RBInvParam.utils.io import save_dict_to_pkl
+from RBInvParam.utils.logger import get_default_logger
+
+from RBInvParam.problems.problems import build_InstationaryModelIP
+
+
+def run_optimizaton(
+    setup: Dict,
+    optimizer_parameter: Dict,
+    save_path: Path) -> None:
+
+    method = optimizer_parameter['method']
+    assert method in ['FOM_IRGNM', 'Qr_IRGNM', 'TR_IRGNM']
+    assert save_path.exists()
+
+    ####################################### SETUP LOGGER #######################################
+
+    logfile_path= save_path / f'{method}.log'
+    logger = get_default_logger(logfile_path=logfile_path, use_timestemp=False)
+    logger.setLevel(logging.DEBUG)
+
+    set_log_levels({
+        'pymor' : 'WARN'
+    })
+
+    set_defaults({})
+
+    ####################################### SETUP FOM #######################################
+
+    FOM = build_InstationaryModelIP(setup, logger)
+
+    logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
+    save_dict_to_pkl(path=save_path / 'setup.pkl', 
+                     data = setup,
+                     use_timestamp=False)
+
+    q_exact = FOM.setup['model_parameter']['q_exact']
+    optimizer_parameter['q_0'] = FOM.Q.make_array(optimizer_parameter['q_0'])
+
+    ####################################### SETUP OPTIMIZER #######################################
+
+    if method == 'FOM_IRGNM':
+        optimizer = FOMOptimizer(
+            FOM = FOM,
+            optimizer_parameter = optimizer_parameter,
+            logger = logger,
+            save_path = save_path
+        )
+
+    elif method == 'Qr_IRGNM':
+        optimizer = QrFOMOptimizer(
+            FOM = FOM,
+            optimizer_parameter = optimizer_parameter,
+            logger = logger,
+            save_path = save_path
+        )
+
+    elif method == 'TR_IRGNM':
+        optimizer = QrVrROMOptimizer(
+            FOM = FOM,
+            optimizer_parameter = optimizer_parameter,
+            logger = logger,
+            save_path = save_path
+        )
+    else:
+        # Should never happend
+        raise ValueError
+    
+    ####################################### RUN & FINALIZE #######################################
+
+    q_est = optimizer.solve()
+
+    logger.debug("Differnce to q_exact:")
+    logger.debug("L^inf") 
+    delta_q = q_est - q_exact
+    logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
+    
+    if setup['model_parameter']['q_time_dep']:
+        norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]
+        norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))[0,0]
+    else:
+        norm_delta_q = np.sqrt(FOM.products['prod_Q'].apply2(delta_q, delta_q))[0,0]
+        norm_q_exact = np.sqrt(FOM.products['prod_Q'].apply2(q_exact, q_exact))[0,0]
+    
+    logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
+    logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
+    
