@@ -19,9 +19,7 @@ from RBInvParam.utils.io import save_dict_to_pkl
 
 MACHINE_EPS = 1e-16
 
-# TODOs:
-# - Fix logger for reductor
-# - Use colors also in the log-files
+# TODO:
 # - Refactor AssembledB
 
 class Optimizer(BasicObject):
@@ -46,12 +44,14 @@ class Optimizer(BasicObject):
         save_path = Path(save_path)
         assert save_path.exists()
         self.save_path = save_path
+
+        path = save_path / 'optimizer_parameter.pkl' 
+        self.logger.info(f"Dumping optimizer parameter to {path}.")
+        save_dict_to_pkl(path=path, data=optimizer_parameter, use_timestamp=False)
+
         self.name = None
         self.IRGNM_idx = 0
 
-
-
-    
     def _check_optimizer_parameter(self) -> None:
         keys = self.optimizer_parameter.keys()
 
@@ -119,7 +119,6 @@ class Optimizer(BasicObject):
             rhs = 0
 
         armijo_condition = lhs >= rhs
-        #armijo_condition = lhs <= rhs
         if current_J > 0:
             J_rel_error = model.estimate_objective_error(
                 q=current_q,
@@ -161,15 +160,6 @@ class Optimizer(BasicObject):
 
             TR_condition = J_rel_error <= eta
             condition = armijo_condition & TR_condition
-
-            #print("#################################")
-            # q = self.reductor.reconstruct(current_q, basis='parameter_basis')
-            # #q = self.FOM.Q.make_array(q)
-            # FOM_J = self.FOM.compute_objective(q)
-
-            # print(current_J)
-            # print(FOM_J)
-            # print(J_rel_error)
             
             i += 1
 
@@ -485,9 +475,14 @@ class FOMOptimizer(Optimizer):
     def __init__(self, 
                  optimizer_parameter: Dict, 
                  FOM : InstationaryModelIP,
-                 logger: logging.Logger = None) -> None:
+                 save_path : Path,
+                 logger: logging.Logger = None)-> None:
 
-        super().__init__(optimizer_parameter, FOM, logger)
+        super().__init__(optimizer_parameter = optimizer_parameter, 
+                         FOM = FOM, 
+                         logger = logger, 
+                         save_path = save_path)
+        
         self.statistics = {
             'q' : [],
             'time_steps' : [],
