@@ -131,7 +131,6 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
             t += setup['model_parameter']['delta_t']
             mu = mu.with_(t=t)
             L[n] = primal_fom.rhs.as_range_array(mu)
-    #L = primal_fom.rhs
     
     _, constant_operator = split_constant_and_parameterized_operator(
         primal_fom.operator

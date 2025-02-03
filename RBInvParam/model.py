@@ -58,7 +58,7 @@ class InstationaryModelIP(ImmutableObject):
         if logger:
             self._logger = logger
         else:
-            self._logger = get_default_logger(self.__class__.__name__)
+            self._logger = get_default_logger(logger_name=self.__class__.__name__)
             self._logger.setLevel(logging.DEBUG)
         self.logger.debug(f"Setting up {self.__class__.__name__}")
         
@@ -157,7 +157,7 @@ class InstationaryModelIP(ImmutableObject):
         assert self.products['bochner_prod_Q'].product.source == self.Q
         assert 'prod_Q' in self.products
         assert self.products['prod_Q'].source == self.Q
-    
+
 
 #%% solve methods
     def solve_state(self, 

@@ -253,9 +253,9 @@ class Optimizer(BasicObject):
         self.logger.debug(f"  i_max : {i_max:3.4e}")
         self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
 
-        while J >= tol+tau*noise_level and i<i_max:
+        while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"##############################################################################################################################")
-            self.logger.warning(f"{method_name}: Iteration {i} | J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
+            self.logger.warning(f"{method_name}: Iteration {i} | J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start {method_name} iteration {i}: J = {J:3.4e}, norm_nabla_J = {model.compute_gradient_norm(nabla_J):3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
             self.logger.info(f"Try 0: test alpha = {alpha:3.4e}.")
@@ -383,7 +383,7 @@ class Optimizer(BasicObject):
             IRGNM_statistics['time_steps'].append((timer()- start_time))
             self.logger.info(f'Statistics {method_name} iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             i += 1
-            if not(J >= tol+tau*noise_level and i<i_max):
+            if not(np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max):
                 self.logger.info(f"##############################################################################################################################")
 
             if dump_IRGNM_intermed_stats:
@@ -470,6 +470,7 @@ class Optimizer(BasicObject):
         data = self.statistics
         self.logger.info(f"Dumping statistics IRGNM to {save_path}.")
         save_dict_to_pkl(path=save_path, data=data, use_timestamp=False)
+    
 
 class FOMOptimizer(Optimizer):
     def __init__(self, 
@@ -664,10 +665,10 @@ class QrFOMOptimizer(Optimizer):
         self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
         self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
-        while J >= tol+tau*noise_level and i<i_max:
+        while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-            self.logger.warning(f"Qr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
-            self.logger.info(f'Start Qr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {self.FOM.compute_gradient_norm(nabla_J):3.4e}, alpha = {alpha:1.4e}')
+            self.logger.warning(f"Qr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
+            self.logger.info(f'Start Qr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
@@ -895,9 +896,9 @@ class QrVrROMOptimizer(Optimizer):
         self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
         self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
 
-        while J >= tol+tau*noise_level and i<i_max:
+        while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-            self.logger.warning(f"Qr-Vr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {J:3.4e} > {(tol+tau*noise_level):3.4e}.")
+            self.logger.warning(f"Qr-Vr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start Qr-Vr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 

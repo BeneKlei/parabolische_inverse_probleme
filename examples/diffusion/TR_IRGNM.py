@@ -41,14 +41,12 @@ def main():
 
     T_initial = 0
     T_final = 1
-    # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
     q_time_dep = False
     #q_time_dep = True
 
-    #noise_level = 1e-8
-    noise_level = 0.0
+    noise_level = 1e-5
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial

@@ -1,18 +1,18 @@
 import numpy as np
 import logging
-import os
+import sys
 from pathlib import Path
 
 from pymor.basic import *
 
 from RBInvParam.optimizer import *
 from RBInvParam.utils.io import save_dict_to_pkl
-from RBInvParam.utils.logger import get_default_logger
+from RBInvParam.utils.logger import get_default_logger, reset_logger
 
 from RBInvParam.problems.problems import build_InstationaryModelIP
 
 
-def run_optimizaton(
+def run_optimization(
     setup: Dict,
     optimizer_parameter: Dict,
     save_path: Path) -> None:
@@ -22,10 +22,13 @@ def run_optimizaton(
     assert save_path.exists()
 
     ####################################### SETUP LOGGER #######################################
-
     logfile_path= save_path / f'{method}.log'
-    logger = get_default_logger(logfile_path=logfile_path, use_timestemp=False)
+    logger = get_default_logger(logger_name=sys._getframe().f_code.co_name,
+                                logfile_path=logfile_path, 
+                                use_timestemp=False)
+
     logger.setLevel(logging.DEBUG)
+    logger.propagate = False
 
     set_log_levels({
         'pymor' : 'WARN'
@@ -43,8 +46,7 @@ def run_optimizaton(
                      use_timestamp=False)
 
     q_exact = FOM.setup['model_parameter']['q_exact']
-    optimizer_parameter['q_0'] = FOM.Q.make_array(optimizer_parameter['q_0'])
-
+    
     ####################################### SETUP OPTIMIZER #######################################
 
     if method == 'FOM_IRGNM':
@@ -93,3 +95,10 @@ def run_optimizaton(
     logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
     
+    reset_logger(logger.name)
+    reset_logger('build_InstationaryModelIP')
+    reset_logger('discretize_instationary_IP')
+    reset_logger('FOMOptimizer')
+    reset_logger('QrFOMOptimizer')
+    reset_logger('QrVrROMOptimizer')
+    reset_logger('InstationaryModelIP')

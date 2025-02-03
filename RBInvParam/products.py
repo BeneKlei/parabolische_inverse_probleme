@@ -30,7 +30,7 @@ class BochnerProductOperator(Operator):
         assert V in self.space
         assert U in self.space
         assert len(V) == len(U) == self.nt
-        
+
         return np.array([np.sum(
             self.delta_t * \
             self.product.pairwise_apply2(V,U, mu),
