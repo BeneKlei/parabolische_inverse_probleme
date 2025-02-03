@@ -66,7 +66,6 @@ def armijo_line_serach(previous_iterate: NumpyVectorArray,
 
         return (current_iterate, current_value)
 
-
 def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
                                  pre_previous_iterate: NumpyVectorArray,
                                  previous_gradient: NumpyVectorArray,
@@ -91,8 +90,6 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     current_value = func(current_iterate)
 
     return (current_iterate, current_value)
-
-
 
 def gradient_descent_linearized_problem(
     model : InstationaryModelIP,
@@ -209,7 +206,6 @@ def gradient_descent_linearized_problem(
     logger.info(f"objective = {current_J:3.4e}, norm gradient = {np.linalg.norm(model.compute_linearized_gradient(q, current_d, alpha).to_numpy()):3.4e}.")
 
     return current_d
-
 
 def gradient_descent_non_linearized_problem(
     model : InstationaryModelIP,

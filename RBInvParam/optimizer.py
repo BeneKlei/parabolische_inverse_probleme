@@ -997,6 +997,7 @@ class QrVrROMOptimizer(Optimizer):
                 p = self.FOM.solve_adjoint(q, u)
                 J = self.FOM.objective(u)
                 nabla_J = self.FOM.gradient(u, p)
+                norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
                 delta_J = self.statistics['J'][-1] -J
                 delta_J_r = self.statistics['J_r'][-1]-J_r

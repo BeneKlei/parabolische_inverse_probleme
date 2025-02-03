@@ -93,10 +93,10 @@ def main():
             'parameters' : None,
             'products' : {
                 'prod_H' : 'l2',
-                'prod_Q' : 'l2',
+                'prod_Q' : 'h1',
                 'prod_V' : 'h1',
                 'prod_C' : 'l2',
-                'bochner_prod_Q' : 'bochner_l2',
+                'bochner_prod_Q' : 'bochner_h1',
                 'bochner_prod_V' : 'bochner_h1'
             }
         }
@@ -115,7 +115,7 @@ def main():
     optimizer_parameter = {
         'q_0' : q_start,
         'alpha_0' : 1e-5,
-        'tol' : 1e-11,
+        'tol' : 5 * 1e-10,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.4,
@@ -124,7 +124,7 @@ def main():
         #####################
         'i_max' : 75,
         'reg_loop_max' : 10,
-        'i_max_inner' : 4,
+        'i_max_inner' : 2,
         'armijo_max_iter' : 100,
         #####################
         'lin_solver_parms' : {
@@ -149,8 +149,6 @@ def main():
     )
     q_est = optimizer.solve()
 
-    FOM.visualizer.visualize(q_est, title="q_est")
-    FOM.visualizer.visualize(q_exact, title="q_exact")
     logger.debug("Differnce to q_exact:")
     logger.debug("L^inf") 
     delta_q = q_est - q_exact
@@ -165,16 +163,6 @@ def main():
     
     logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
-
-    # save_path = Path(f"./dumps/TR_IRGNM_{N}_with_delta.pkl")
-    # logger.debug(f"Save statistics to {save_path}")
-
-    # data = {
-    #     'setup' : setup,
-    #     'optimizer_statistics' : optimizer.statistics
-    # }
-
-    save_dict_to_pkl(path=save_path, data=data, use_timestamp=False)
 
 if __name__ == '__main__':
     main()
