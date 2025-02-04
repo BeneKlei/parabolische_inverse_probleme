@@ -129,12 +129,7 @@ if __name__ == '__main__':
         help='Directory where results and logs will be saved.'
     )
     args = parser.parse_args()
-
-    import os
-    os.mkdir(Path(args.save_path) / 'test')
-    import time
-    time.sleep(30)
-
-    # run_optimization(setup = args.setup, 
-    #                  optimizer_parameter = args.optimizer_parameter, 
-    #                  save_path = args.save_path)
+    
+    run_optimization(setup = args.setup, 
+                     optimizer_parameter = args.optimizer_parameter, 
+                     save_path = args.save_path)
