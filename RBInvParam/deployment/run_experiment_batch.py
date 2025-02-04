@@ -91,7 +91,7 @@ def _run_experiment_batch_palma(working_dir: Path,
 
             cmd = [
                 'sbatch',
-                '--job-name' + ' ' + experiment_name,
+                '--job-name=' + experiment_name,
                 PALMA_SCRIPT_PATH,
                 temp_setup_path.as_posix(),
                 temp_optimizer_parameter_path.as_posix(),
