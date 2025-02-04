@@ -52,6 +52,7 @@ class InstationaryModelIP(ImmutableObject):
                  setup : Dict,
                  model_constants : Dict,
                  name: str = None,
+                 num_calls: Dict = None,
                  logger: logging.Logger = None):
         
         logging.basicConfig()
@@ -108,6 +109,16 @@ class InstationaryModelIP(ImmutableObject):
             T_final= self.T_final,
             setup = self.setup
         )
+        
+        if not num_calls:
+            self.num_calls = {
+                'objective' : 0,
+                'gradient' : 0,
+                'linearized_objective' : 0,
+                'linearized_gradient' : 0,
+            }
+        else:
+            self.num_calls = num_calls
 
         if name:
             self.setup['model_parameter']['name'] = name
@@ -303,11 +314,11 @@ class InstationaryModelIP(ImmutableObject):
         assert self.bilinear_cost_term 
         assert self.linear_cost_term
         
+        self.num_calls['objective'] += 1
         # compute tracking term
         out = 0.5 * self.delta_t * np.sum(self.bilinear_cost_term.pairwise_apply2(u,u)
                                           + (-2) * self.linear_cost_term.as_range_array().pairwise_inner(u) 
                                           + self.constant_cost_term)
-            
         if alpha > 0:
             assert q is not None
             # add regularization term if alpha >0
@@ -325,6 +336,8 @@ class InstationaryModelIP(ImmutableObject):
         assert p in self.V
         assert len(u) == self.nt
         assert len(p) == self.nt
+
+        self.num_calls['gradient'] += 1
 
         grad = np.empty((self.nt, self.setup['dims']['par_dim']))    
 
@@ -369,6 +382,8 @@ class InstationaryModelIP(ImmutableObject):
         assert self.bilinear_cost_term 
         assert self.linear_cost_term
 
+        self.num_calls['linearized_objective'] += 1
+
         u_q_d = u + lin_u
         out = 0.5 * self.delta_t * np.sum( \
                       self.bilinear_cost_term.pairwise_apply2(u_q_d,u_q_d) + \
@@ -400,6 +415,8 @@ class InstationaryModelIP(ImmutableObject):
         assert u in self.V
         assert lin_p in self.V
 
+        self.num_calls['linearized_gradient'] += 1
+
         grad = np.empty((self.nt, self.setup['dims']['par_dim']))
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
@@ -419,6 +436,7 @@ class InstationaryModelIP(ImmutableObject):
             out = grad
 
         return out
+    
     def linearized_hessian(self):
         raise NotImplementedError
 
@@ -457,8 +475,7 @@ class InstationaryModelIP(ImmutableObject):
             return out
         else:
             return self.products['prod_Q'].apply_inverse(out)
-        
-           
+                 
     def linearized_regularization_term(self, 
                                        q: VectorArray,
                                        d: VectorArray) -> float:

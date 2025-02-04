@@ -218,6 +218,7 @@ class Optimizer(BasicObject):
             "norm_nabla_J" : [],
             "total_runtime" : np.nan,
             "stagnation_flag" : False,
+            "FOM_num_calls" : {}
         }
         start_time = timer()
         i = 0
@@ -383,11 +384,13 @@ class Optimizer(BasicObject):
             if not(np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max):
                 self.logger.info(f"##############################################################################################################################")
 
+            self.IRGNM_statistics["FOM_num_calls"] = self.FOM.num_calls
             if dump_IRGNM_intermed_stats:
                 if self.name is not None:
                     save_path = self.save_path / f'{self.name}_IRGNM_{i}.pkl'
                 else:
                     save_path = self.save_path / f'IRGNM_{i}.pkl'
+
                 self.dump_stats(data=self.IRGNM_statistics,
                                 save_path=save_path)
                 
@@ -470,7 +473,6 @@ class Optimizer(BasicObject):
         self.logger.info(f"Dumping statistics IRGNM to {save_path}.")
         save_dict_to_pkl(path=save_path, data=data, use_timestamp=False)
     
-
 class FOMOptimizer(Optimizer):
     def __init__(self, 
                  optimizer_parameter: Dict, 
@@ -491,7 +493,8 @@ class FOMOptimizer(Optimizer):
             "norm_nabla_J" : [],
             "total_runtime" : np.nan,
             "stagnation_flag" : False,
-            'optimizer_parameter' : self.optimizer_parameter.copy()
+            "optimizer_parameter" : self.optimizer_parameter.copy(),
+            "FOM_num_calls" : {}
         }
 
     def solve(self) -> VectorArray:
@@ -556,6 +559,7 @@ class FOMOptimizer(Optimizer):
         self.statistics["norm_nabla_J"] = IRGNM_statistic["norm_nabla_J"]
         self.statistics["total_runtime"] = IRGNM_statistic["total_runtime"]
         self.statistics["stagnation_flag"] = IRGNM_statistic["stagnation_flag"]
+        self.statistics["FOM_num_calls"] = IRGNM_statistic["FOM_num_calls"]
 
         self.dump_stats(data=self.statistics,
                         save_path = self.save_path / f'FOM_IRGNM_final.pkl')
@@ -587,7 +591,8 @@ class QrFOMOptimizer(Optimizer):
             "total_runtime" : np.nan,
             #'inner_loop_time_steps' : [],
             "stagnation_flag" : False,
-            'optimizer_parameter' : self.optimizer_parameter.copy()
+            "optimizer_parameter" : self.optimizer_parameter.copy(),
+            "FOM_num_calls" : {}
         }
     
 
@@ -708,6 +713,7 @@ class QrFOMOptimizer(Optimizer):
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
             
+            self.statistics["FOM_num_calls"] = self.FOM.num_calls
             self.dump_stats(data=self.statistics,
                             save_path = self.save_path / f'QrFOM_IRGNM_{i}.pkl')
             
@@ -730,6 +736,7 @@ class QrFOMOptimizer(Optimizer):
             self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
         self.statistics["total_runtime"] = (timer() - start_time)
+        self.statistics["FOM_num_calls"] = self.FOM.num_calls
         self.dump_stats(data=self.statistics,
                         save_path = self.save_path / f'QrFOM_IRGNM_final.pkl')
         return q
@@ -760,10 +767,11 @@ class QrVrROMOptimizer(Optimizer):
             'abs_est_error_J_r' : [],
             'rel_est_error_J_r' : [],
             "total_runtime" : np.nan,
-            #'inner_loop_time_steps' : [],
             "stagnation_flag" : False,
-            'optimizer_parameter' : self.optimizer_parameter.copy()
+            "optimizer_parameter" : self.optimizer_parameter.copy(),
+            "FOM_num_calls": {}
         }
+
 
     def solve(self) -> VectorArray :
         q_0 = self.optimizer_parameter["q_0"].copy()
@@ -1104,12 +1112,15 @@ class QrVrROMOptimizer(Optimizer):
                     self.statistics["stagnation_flag"] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
-
+            
+            self.statistics["FOM_num_calls"] = self.FOM.num_calls
             self.dump_stats(data=self.statistics,
                             save_path = self.save_path / f'TR_IRGNM_{i}.pkl')
             i += 1
 
         self.statistics["total_runtime"] = (timer() - start_time)
+        self.statistics["FOM_num_calls"] = self.FOM.num_calls
         self.dump_stats(data=self.statistics,
                         save_path = self.save_path / f'TR_IRGNM_final.pkl')
         return q
+
