@@ -15,6 +15,7 @@ from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.deployment.run_optimization import run_optimization
 
 ALLOWED_TARGETS = ['local', 'ag-server', 'palma']
+#PALMA_SCRIPT_PATH = Path(__file__).parent.resolve() / "local_test.sh"
 PALMA_SCRIPT_PATH = Path(__file__).parent.resolve() / "queue_experiment.sh"
 
 def _run_experiment_batch_local(working_dir: Path,
