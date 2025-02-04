@@ -51,6 +51,7 @@ class Optimizer(BasicObject):
 
         self.name = None
         self.IRGNM_idx = 0
+        self.IRGNM_statistics = {}
 
     def _check_optimizer_parameter(self) -> None:
         keys = self.optimizer_parameter.keys()
@@ -212,7 +213,7 @@ class Optimizer(BasicObject):
             method_name = 'IRGNM'
 
         stagnation_flag = False
-        IRGNM_statistics = {
+        self.IRGNM_statistics = {
             'IRGNM_idx' : self.IRGNM_idx,
             'q' : [],
             'time_steps' : [],
@@ -235,10 +236,10 @@ class Optimizer(BasicObject):
         norm_nabla_J = model.compute_gradient_norm(nabla_J)
 
 
-        IRGNM_statistics['q'].append(q)
-        IRGNM_statistics['J'].append(J)
-        IRGNM_statistics['norm_nabla_J'].append(norm_nabla_J)
-        IRGNM_statistics['alpha'].append(alpha)
+        self.IRGNM_statistics['q'].append(q)
+        self.IRGNM_statistics['J'].append(J)
+        self.IRGNM_statistics['norm_nabla_J'].append(norm_nabla_J)
+        self.IRGNM_statistics['alpha'].append(alpha)
 
         self.logger.debug("Running IRGNM: ")
         self.logger.debug(f"  J : {J:3.4e}")
@@ -366,21 +367,21 @@ class Optimizer(BasicObject):
             nabla_J = model.gradient(u, p)
             norm_nabla_J = model.compute_gradient_norm(nabla_J)
 
-            IRGNM_statistics['q'].append(q)
-            IRGNM_statistics['J'].append(J)
-            IRGNM_statistics['norm_nabla_J'].append(norm_nabla_J)
-            IRGNM_statistics['alpha'].append(alpha)
+            self.IRGNM_statistics['q'].append(q)
+            self.IRGNM_statistics['J'].append(J)
+            self.IRGNM_statistics['norm_nabla_J'].append(norm_nabla_J)
+            self.IRGNM_statistics['alpha'].append(alpha)
         
             #stagnation check
             if i > 3:
-                buffer = IRGNM_statistics['J'][-3:]
+                buffer = self.IRGNM_statistics['J'][-3:]
                 if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] -buffer[2]) < MACHINE_EPS:
-                    IRGNM_statistics['stagnation_flag'] = True
+                    self.IRGNM_statistics['stagnation_flag'] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     stagnation_flag = True
                     break
 
-            IRGNM_statistics['time_steps'].append((timer()- start_time))
+            self.IRGNM_statistics['time_steps'].append((timer()- start_time))
             self.logger.info(f'Statistics {method_name} iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             i += 1
             if not(np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max):
@@ -407,14 +408,14 @@ class Optimizer(BasicObject):
             # Should never be happend
             raise NotImplementedError
                 
-        self.logger.info(f'     Start J = {IRGNM_statistics['J'][0]:3.4e}; Final J = {IRGNM_statistics['J'][-1]:3.4e}.')
-        self.logger.info(f'     Start alpha = {IRGNM_statistics['alpha'][0]:3.4e}; Final alpha = {IRGNM_statistics['alpha'][-1]:3.4e}.')
-        self.logger.info(f'     Start norm_nabla_J = {IRGNM_statistics['norm_nabla_J'][0]:3.4e}; Final norm_nabla_J = {IRGNM_statistics['norm_nabla_J'][-1]:3.4e}.')
+        self.logger.info(f'     Start J = {self.IRGNM_statistics['J'][0]:3.4e}; Final J = {self.IRGNM_statistics['J'][-1]:3.4e}.')
+        self.logger.info(f'     Start alpha = {self.IRGNM_statistics['alpha'][0]:3.4e}; Final alpha = {self.IRGNM_statistics['alpha'][-1]:3.4e}.')
+        self.logger.info(f'     Start norm_nabla_J = {self.IRGNM_statistics['norm_nabla_J'][0]:3.4e}; Final norm_nabla_J = {self.IRGNM_statistics['norm_nabla_J'][-1]:3.4e}.')
         self.logger.info(f'     Euclidian distance final q and inital q = {np.linalg.norm(q.to_numpy() - q_0.to_numpy()):3.4e}')
 
-        IRGNM_statistics['total_runtime'] = (timer() - start_time)        
+        self.IRGNM_statistics['total_runtime'] = (timer() - start_time)        
         self.IRGNM_idx += 1
-        return (q, IRGNM_statistics)        
+        return (q, self.IRGNM_statistics)
 
     def solve_linearized_problem(self,
                                 model : InstationaryModelIP, 
@@ -467,7 +468,7 @@ class Optimizer(BasicObject):
         assert save_path.suffix in ['.pkl', 'pickle']
         assert save_path.parent.exists()
 
-        data = self.statistics
+        data = self.IRGNM_statistics
         self.logger.info(f"Dumping statistics IRGNM to {save_path}.")
         save_dict_to_pkl(path=save_path, data=data, use_timestamp=False)
     
