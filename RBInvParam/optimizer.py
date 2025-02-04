@@ -388,7 +388,8 @@ class Optimizer(BasicObject):
                     save_path = self.save_path / f'{self.name}_IRGNM_{i}.pkl'
                 else:
                     save_path = self.save_path / f'IRGNM_{i}.pkl'
-                self.dump_intermed_stats(save_path=save_path)
+                self.dump_stats(data=self.IRGNM_statistics,
+                                save_path=save_path)
                 
 
         self.logger.info(f'Final {method_name} Statistics:')
@@ -456,7 +457,9 @@ class Optimizer(BasicObject):
 
         return shapshots, svals
 
-    def dump_intermed_stats(self, save_path: Union[str, Path] =None):
+    def dump_stats(self, 
+                   data: Dict,
+                   save_path: Union[str, Path] = None):
         if not save_path:
             save_path = self.save_path
         
@@ -464,7 +467,6 @@ class Optimizer(BasicObject):
         assert save_path.suffix in ['.pkl', 'pickle']
         assert save_path.parent.exists()
 
-        data = self.IRGNM_statistics
         self.logger.info(f"Dumping statistics IRGNM to {save_path}.")
         save_dict_to_pkl(path=save_path, data=data, use_timestamp=False)
     
@@ -555,7 +557,8 @@ class FOMOptimizer(Optimizer):
         self.statistics["total_runtime"] = IRGNM_statistic["total_runtime"]
         self.statistics["stagnation_flag"] = IRGNM_statistic["stagnation_flag"]
 
-        self.dump_intermed_stats(save_path = self.save_path / f'FOM_IRGNM_final.pkl')
+        self.dump_stats(data=self.statistics,
+                        save_path = self.save_path / f'FOM_IRGNM_final.pkl')
 
         return q
         
@@ -705,7 +708,8 @@ class QrFOMOptimizer(Optimizer):
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
             
-            self.dump_intermed_stats(save_path = self.save_path / f'QrFOM_IRGNM_{i}.pkl')
+            self.dump_stats(data=self.statistics,
+                            save_path = self.save_path / f'QrFOM_IRGNM_{i}.pkl')
             
             self.logger.debug(f"Extending Qr-space")
             parameter_shapshots = self.FOM.Q.empty()
@@ -726,7 +730,8 @@ class QrFOMOptimizer(Optimizer):
             self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
         self.statistics["total_runtime"] = (timer() - start_time)
-        self.dump_intermed_stats(save_path = self.save_path / f'QrFOM_IRGNM_final.pkl')
+        self.dump_stats(data=self.statistics,
+                        save_path = self.save_path / f'QrFOM_IRGNM_final.pkl')
         return q
         
 class QrVrROMOptimizer(Optimizer):
@@ -1100,9 +1105,11 @@ class QrVrROMOptimizer(Optimizer):
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
 
-            self.dump_intermed_stats(save_path = self.save_path / f'TR_IRGNM_{i}.pkl')
+            self.dump_stats(data=self.statistics,
+                            save_path = self.save_path / f'TR_IRGNM_{i}.pkl')
             i += 1
 
         self.statistics["total_runtime"] = (timer() - start_time)
-        self.dump_intermed_stats(save_path = self.save_path / f'TR_IRGNM_final.pkl')
+        self.dump_stats(data=self.statistics,
+                        save_path = self.save_path / f'TR_IRGNM_final.pkl')
         return q
