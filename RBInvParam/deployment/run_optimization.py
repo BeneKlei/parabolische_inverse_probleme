@@ -1,6 +1,7 @@
 import numpy as np
 import logging
 import sys
+import argparse
 from pathlib import Path
 
 from pymor.basic import *
@@ -11,11 +12,13 @@ from RBInvParam.utils.logger import get_default_logger, reset_logger
 
 from RBInvParam.problems.problems import build_InstationaryModelIP
 
-
 def run_optimization(
     setup: Dict,
     optimizer_parameter: Dict,
     save_path: Path) -> None:
+
+    if not isinstance(save_path, Path):
+        save_path = Path(save_path)
 
     method = optimizer_parameter['method']
     assert method in ['FOM_IRGNM', 'Qr_IRGNM', 'TR_IRGNM']
@@ -95,6 +98,7 @@ def run_optimization(
     logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
     
+    # TODO make this in a better way
     reset_logger(logger.name)
     reset_logger('build_InstationaryModelIP')
     reset_logger('discretize_instationary_IP')
@@ -102,3 +106,35 @@ def run_optimization(
     reset_logger('QrFOMOptimizer')
     reset_logger('QrVrROMOptimizer')
     reset_logger('InstationaryModelIP')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Run optimization for a given setup and optimizer parameters.')
+    parser.add_argument(
+        '--setup',
+        type=str,
+        required=True,
+        help='Path to the setup configuration file (in JSON or YAML format).'
+    )
+    parser.add_argument(
+        '--optimizer-parameter',
+        type=str,
+        required=True,
+        help='Path to the optimizer parameters configuration file (in JSON or YAML format).'
+    )
+    parser.add_argument(
+        '--save-path',
+        type=str,
+        required=True,
+        help='Directory where results and logs will be saved.'
+    )
+    args = parser.parse_args()
+
+    import os
+    os.mkdir(Path(args.save_path) / 'test')
+    import time
+    time.sleep(30)
+
+    # run_optimization(setup = args.setup, 
+    #                  optimizer_parameter = args.optimizer_parameter, 
+    #                  save_path = args.save_path)

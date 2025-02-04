@@ -5,13 +5,114 @@ import os
 import sys
 import shutil
 import traceback
+import subprocess
 from pathlib import Path
 from datetime import datetime
+from typing import List
 
 from RBInvParam.utils.logger import get_default_logger
+from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.deployment.run_optimization import run_optimization
 
 ALLOWED_TARGETS = ['local', 'ag-server', 'palma']
+PALMA_SCRIPT_PATH = Path(__file__).parent.resolve() / "queue_experiment.sh"
+
+def _run_experiment_batch_local(working_dir: Path,
+                                experiments: List,
+                                logger: logging.Logger):
+
+    for (experiment_name, experiment_config) in experiments.items():
+        logger.info(f'Starting experiment {experiment_name}.')
+        try:
+            setup, optimizer_parameter = experiment_config
+            save_path = working_dir / experiment_name
+
+            if save_path.exists():
+                logger.error(f'For experiment {experiment_name} a result directory already exist. SKIPPING it.')    
+                continue
+            else:
+                os.mkdir(save_path)
+
+
+            run_optimization(
+                setup = setup,
+                optimizer_parameter = optimizer_parameter,
+                save_path = save_path
+            )
+
+    
+        except Exception as e:
+            logger.error(f'An error occured during experiment {experiment_name}:')
+            traceback.print_exc()
+            logger.info('Continuing with next experiment.')
+            continue
+
+        logger.info(f'Experiment {experiment_name} has finished.')
+        logger.info(f'%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+    
+    logger.info(f'All experiments have finished.')
+
+def _run_experiment_batch_palma(working_dir: Path,
+                                experiments: List,
+                                logger: logging.Logger):
+
+    experiment_jobs = []
+    dirs_to_clean_up = []
+
+    for (experiment_name, experiment_config) in experiments.items():
+        logger.info(f'Queueing experiment {experiment_name}.')
+        try:
+            setup, optimizer_parameter = experiment_config
+            save_path = working_dir / experiment_name
+
+            if save_path.exists():
+                logger.error(f'For experiment {experiment_name} a result directory already exist. SKIPPING it.')    
+                continue
+            else:
+                os.mkdir(save_path)
+                temp_path = save_path / 'temp'
+                os.mkdir(temp_path)
+                dirs_to_clean_up.append(temp_path)
+
+                temp_setup_path = temp_path / 'setup.pkl'
+                save_dict_to_pkl(
+                    path = temp_setup_path,
+                    data = setup,
+                    use_timestamp = False
+                )
+
+                temp_optimizer_parameter_path = temp_path / 'optimizer_parameter.pkl'
+                save_dict_to_pkl(
+                    path = temp_optimizer_parameter_path,
+                    data = optimizer_parameter,
+                    use_timestamp = False
+                )
+
+            cmd = [
+                'sbatch',
+                '--job-name' + ' ' + experiment_name,
+                PALMA_SCRIPT_PATH,
+                temp_setup_path.as_posix(),
+                temp_optimizer_parameter_path.as_posix(),
+                save_path.as_posix()
+            ]
+
+            experiment_job = subprocess.Popen(cmd)
+            experiment_jobs.append(experiment_job)
+        
+        except Exception as e:
+            logger.error(f'An error occured during queueing experiment {experiment_name}:')
+            traceback.print_exc()
+            logger.info('Continuing with next experiment.')
+            continue
+    
+    for experiment_job in experiment_jobs:
+        experiment_job.wait()
+    
+    #Clean up
+    for dir in dirs_to_clean_up:
+        shutil.rmtree(dir)
+
 
 def run_experiment_batch(
     experiments: Path,
@@ -91,48 +192,28 @@ def run_experiment_batch(
         for dir in dir_exists:
             shutil.rmtree(dir)
 
-    for (experiment_name, experiment_config) in experiments.items():
-        logger.info(f'Starting experiment {experiment_name}.')
-        try:
-            setup, optimizer_parameter = experiment_config
+    if target in ['local', 'ag-server']:
+        _run_experiment_batch_local(
+            working_dir = working_dir,
+            experiments = experiments,
+            logger = logger
+        )
+    else:
+        _run_experiment_batch_palma(
+            working_dir = working_dir,
+            experiments = experiments,
+            logger = logger
+        )
 
-            save_path = working_dir / experiment_name
-
-            if save_path.exists():
-                logger.error(f'For experiment {experiment_name} a result directory already exist. SKIPPING it.')    
-                continue
-            else:
-                os.mkdir(save_path)
-
-            if target in ['local', 'ag-server']:
-                run_optimization(
-                    setup = setup,
-                    optimizer_parameter = optimizer_parameter,
-                    save_path = save_path
-                )
-            else:
-                logger.error(f'Running experiments on target \'PALMA\' is not implemented yet.')    
-                raise NotImplementedError
-        
-        except Exception as e:
-            logger.error(f'An error occured during experiment {experiment_name}:')
-            traceback.print_exc()
-            logger.info('Continuing with next experiment.')
-            continue
-
-        logger.info(f'Experiment {experiment_name} has finished.')
-        logger.info(f'%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
     
-    logger.info(f'All experiments have finished.')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run a batch of experiments.')
     parser.add_argument('experiments', type=Path, help='Path to the experiments file')
     parser.add_argument('target', type=str, choices=ALLOWED_TARGETS, help='Target where to run the experiments')
     parser.add_argument('--working_dir', type=Path, default=None, help='Optional working directory for the experiments')
-
     args = parser.parse_args()
-    
+
     run_experiment_batch(args.experiments, args.target, args.working_dir)
     
     
