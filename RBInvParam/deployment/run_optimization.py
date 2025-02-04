@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 
 from pymor.basic import *
+from pymor.core.pickle import load
 
 from RBInvParam.optimizer import *
 from RBInvParam.utils.io import save_dict_to_pkl
@@ -20,8 +21,8 @@ def run_optimization(
     if not isinstance(save_path, Path):
         save_path = Path(save_path)
 
-    method = optimizer_parameter['method']
-    assert method in ['FOM_IRGNM', 'Qr_IRGNM', 'TR_IRGNM']
+    method = optimizer_parameter["method"]
+    assert method in ["FOM_IRGNM", "Qr_IRGNM", "TR_IRGNM"]
     assert save_path.exists()
 
     ####################################### SETUP LOGGER #######################################
@@ -43,12 +44,25 @@ def run_optimization(
 
     FOM = build_InstationaryModelIP(setup, logger)
 
-    logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
-    save_dict_to_pkl(path=save_path / 'setup.pkl', 
-                     data = setup,
-                     use_timestamp=False)
+    setup_path = save_path / 'setup.pkl'
+    if not setup_path.exists():
+        logger.info(f"Dumping model setup to {setup_path}.")
+        save_dict_to_pkl(path=setup_path, 
+                        data = setup,
+                        use_timestamp=False)
+        
 
-    q_exact = FOM.setup['model_parameter']['q_exact']
+    optimizer_parameter_path = save_path / 'optimizer_parameter.pkl'
+    if not optimizer_parameter_path.exists():
+        logger.info(f"Dumping model optimizer_parameter to {optimizer_parameter_path}.")
+        save_dict_to_pkl(path=optimizer_parameter_path, 
+                         data = optimizer_parameter,
+                         use_timestamp=False)
+
+
+    
+
+    q_exact = FOM.setup["model_parameter"]["q_exact"]
     
     ####################################### SETUP OPTIMIZER #######################################
 
@@ -88,7 +102,7 @@ def run_optimization(
     delta_q = q_est - q_exact
     logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
     
-    if setup['model_parameter']['q_time_dep']:
+    if setup["model_parameter"]["q_time_dep"]:
         norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]
         norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))[0,0]
     else:
@@ -129,7 +143,13 @@ if __name__ == '__main__':
         help='Directory where results and logs will be saved.'
     )
     args = parser.parse_args()
+
+    with open(args.setup, 'rb') as file:
+        setup = load(file)
+
+    with open(args.optimizer_parameter, 'rb') as file:
+        optimizer_parameter = load(file)
     
-    run_optimization(setup = args.setup, 
-                     optimizer_parameter = args.optimizer_parameter, 
+    run_optimization(setup = setup, 
+                     optimizer_parameter = optimizer_parameter, 
                      save_path = args.save_path)

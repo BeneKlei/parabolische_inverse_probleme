@@ -58,7 +58,6 @@ def _run_experiment_batch_palma(working_dir: Path,
                                 logger: logging.Logger):
 
     experiment_jobs = []
-    dirs_to_clean_up = []
 
     for (experiment_name, experiment_config) in experiments.items():
         logger.info(f'Queueing experiment {experiment_name}.')
@@ -71,18 +70,15 @@ def _run_experiment_batch_palma(working_dir: Path,
                 continue
             else:
                 os.mkdir(save_path)
-                temp_path = save_path / 'temp'
-                os.mkdir(temp_path)
-                dirs_to_clean_up.append(temp_path)
 
-                temp_setup_path = temp_path / 'setup.pkl'
+                temp_setup_path = save_path / 'setup.pkl'
                 save_dict_to_pkl(
                     path = temp_setup_path,
                     data = setup,
                     use_timestamp = False
                 )
 
-                temp_optimizer_parameter_path = temp_path / 'optimizer_parameter.pkl'
+                temp_optimizer_parameter_path = save_path / 'optimizer_parameter.pkl'
                 save_dict_to_pkl(
                     path = temp_optimizer_parameter_path,
                     data = optimizer_parameter,
@@ -110,10 +106,6 @@ def _run_experiment_batch_palma(working_dir: Path,
     for experiment_job in experiment_jobs:
         experiment_job.wait()
     
-    #Clean up
-    for dir in dirs_to_clean_up:
-        shutil.rmtree(dir)
-
 
 def run_experiment_batch(
     experiments: Path,

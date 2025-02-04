@@ -45,10 +45,6 @@ class Optimizer(BasicObject):
         assert save_path.exists()
         self.save_path = save_path
 
-        path = save_path / 'optimizer_parameter.pkl' 
-        self.logger.info(f"Dumping optimizer parameter to {path}.")
-        save_dict_to_pkl(path=path, data=optimizer_parameter, use_timestamp=False)
-
         self.name = None
         self.IRGNM_idx = 0
         self.IRGNM_statistics = {}
