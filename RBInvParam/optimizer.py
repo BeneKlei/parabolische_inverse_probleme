@@ -56,33 +56,33 @@ class Optimizer(BasicObject):
     def _check_optimizer_parameter(self) -> None:
         keys = self.optimizer_parameter.keys()
 
-        assert self.optimizer_parameter['alpha_0'] >= 0
-        assert self.optimizer_parameter['tol'] > 0
-        assert self.optimizer_parameter['tau'] > 0
-        assert self.optimizer_parameter['noise_level'] >= 0
-        assert 0 < self.optimizer_parameter['theta'] \
-                 < self.optimizer_parameter['Theta'] 
+        assert self.optimizer_parameter["alpha_0"] >= 0
+        assert self.optimizer_parameter["tol"] > 0
+        assert self.optimizer_parameter["tau"] > 0
+        assert self.optimizer_parameter["noise_level"] >= 0
+        assert 0 < self.optimizer_parameter["theta"] \
+                 < self.optimizer_parameter["Theta"] 
                  #\ < 1
-        if 'tau_tilde' in keys:
-            assert self.optimizer_parameter['tau_tilde'] > 0
+        if "tau_tilde" in keys:
+            assert self.optimizer_parameter["tau_tilde"] > 0
 
-        assert self.optimizer_parameter['i_max'] >= 1
-        if 'i_max_inner' in keys:
-            assert self.optimizer_parameter['i_max_inner'] >= 1
-        assert self.optimizer_parameter['reg_loop_max'] >= 1
-        if 'armijo_max_iter' in keys:
-            assert self.optimizer_parameter['armijo_max_iter'] >= 1
+        assert self.optimizer_parameter["i_max"] >= 1
+        if "i_max_inner" in keys:
+            assert self.optimizer_parameter["i_max_inner"] >= 1
+        assert self.optimizer_parameter["reg_loop_max"] >= 1
+        if "armijo_max_iter" in keys:
+            assert self.optimizer_parameter["armijo_max_iter"] >= 1
 
-        if 'eta0' in keys:
-            assert self.optimizer_parameter['eta0'] > 0
-        if 'kappa_arm' in keys:
-            assert self.optimizer_parameter['kappa_arm'] > 0
-        if 'beta_1' in keys:
-            assert 0 < self.optimizer_parameter['beta_1'] < 1
-        if 'beta_2' in keys:
-            assert 3/4 <= self.optimizer_parameter['beta_2'] < 1
-        if 'beta_3' in keys:
-            assert 0 < self.optimizer_parameter['beta_3'] < 1    
+        if "eta0" in keys:
+            assert self.optimizer_parameter["eta0"] > 0
+        if "kappa_arm" in keys:
+            assert self.optimizer_parameter["kappa_arm"] > 0
+        if "beta_1" in keys:
+            assert 0 < self.optimizer_parameter["beta_1"] < 1
+        if "beta_2" in keys:
+            assert 3/4 <= self.optimizer_parameter["beta_2"] < 1
+        if "beta_3" in keys:
+            assert 0 < self.optimizer_parameter["beta_3"] < 1    
     
     def _armijo_TR_line_serach(self,
                                model: InstationaryModelIP, 
@@ -215,13 +215,13 @@ class Optimizer(BasicObject):
         stagnation_flag = False
         self.IRGNM_statistics = {
             'IRGNM_idx' : self.IRGNM_idx,
-            'q' : [],
+            "q" : [],
             'time_steps' : [],
-            'alpha' : [],
-            'J' : [],
-            'norm_nabla_J' : [],
-            'total_runtime' : np.nan,
-            'stagnation_flag' : False,
+            "alpha" : [],
+            "J" : [],
+            "norm_nabla_J" : [],
+            "total_runtime" : np.nan,
+            "stagnation_flag" : False,
         }
         start_time = timer()
         i = 0
@@ -236,10 +236,10 @@ class Optimizer(BasicObject):
         norm_nabla_J = model.compute_gradient_norm(nabla_J)
 
 
-        self.IRGNM_statistics['q'].append(q)
-        self.IRGNM_statistics['J'].append(J)
-        self.IRGNM_statistics['norm_nabla_J'].append(norm_nabla_J)
-        self.IRGNM_statistics['alpha'].append(alpha)
+        self.IRGNM_statistics["q"].append(q)
+        self.IRGNM_statistics["J"].append(J)
+        self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
+        self.IRGNM_statistics["alpha"].append(alpha)
 
         self.logger.debug("Running IRGNM: ")
         self.logger.debug(f"  J : {J:3.4e}")
@@ -367,16 +367,16 @@ class Optimizer(BasicObject):
             nabla_J = model.gradient(u, p)
             norm_nabla_J = model.compute_gradient_norm(nabla_J)
 
-            self.IRGNM_statistics['q'].append(q)
-            self.IRGNM_statistics['J'].append(J)
-            self.IRGNM_statistics['norm_nabla_J'].append(norm_nabla_J)
-            self.IRGNM_statistics['alpha'].append(alpha)
+            self.IRGNM_statistics["q"].append(q)
+            self.IRGNM_statistics["J"].append(J)
+            self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
+            self.IRGNM_statistics["alpha"].append(alpha)
         
             #stagnation check
             if i > 3:
-                buffer = self.IRGNM_statistics['J'][-3:]
+                buffer = self.IRGNM_statistics["J"][-3:]
                 if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] -buffer[2]) < MACHINE_EPS:
-                    self.IRGNM_statistics['stagnation_flag'] = True
+                    self.IRGNM_statistics["stagnation_flag"] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     stagnation_flag = True
                     break
@@ -408,12 +408,12 @@ class Optimizer(BasicObject):
             # Should never be happend
             raise NotImplementedError
                 
-        self.logger.info(f'     Start J = {self.IRGNM_statistics['J'][0]:3.4e}; Final J = {self.IRGNM_statistics['J'][-1]:3.4e}.')
-        self.logger.info(f'     Start alpha = {self.IRGNM_statistics['alpha'][0]:3.4e}; Final alpha = {self.IRGNM_statistics['alpha'][-1]:3.4e}.')
-        self.logger.info(f'     Start norm_nabla_J = {self.IRGNM_statistics['norm_nabla_J'][0]:3.4e}; Final norm_nabla_J = {self.IRGNM_statistics['norm_nabla_J'][-1]:3.4e}.')
+        self.logger.info(f'     Start J = {self.IRGNM_statistics["J"][0]:3.4e}; Final J = {self.IRGNM_statistics["J"][-1]:3.4e}.')
+        self.logger.info(f'     Start alpha = {self.IRGNM_statistics["alpha"][0]:3.4e}; Final alpha = {self.IRGNM_statistics["alpha"][-1]:3.4e}.')
+        self.logger.info(f'     Start norm_nabla_J = {self.IRGNM_statistics["norm_nabla_J"][0]:3.4e}; Final norm_nabla_J = {self.IRGNM_statistics["norm_nabla_J"][-1]:3.4e}.')
         self.logger.info(f'     Euclidian distance final q and inital q = {np.linalg.norm(q.to_numpy() - q_0.to_numpy()):3.4e}')
 
-        self.IRGNM_statistics['total_runtime'] = (timer() - start_time)        
+        self.IRGNM_statistics["total_runtime"] = (timer() - start_time)        
         self.IRGNM_idx += 1
         return (q, self.IRGNM_statistics)
 
@@ -486,27 +486,27 @@ class FOMOptimizer(Optimizer):
                          save_path = save_path)
         
         self.statistics = {
-            'q' : [],
+            "q" : [],
             'time_steps' : [],
-            'alpha' : [],
-            'J' : [],
-            'norm_nabla_J' : [],
-            'total_runtime' : np.nan,
-            'stagnation_flag' : False,
+            "alpha" : [],
+            "J" : [],
+            "norm_nabla_J" : [],
+            "total_runtime" : np.nan,
+            "stagnation_flag" : False,
             'optimizer_parameter' : self.optimizer_parameter.copy()
         }
 
     def solve(self) -> VectorArray:
-        q_0 = self.optimizer_parameter['q_0'].copy()
-        alpha_0 = self.optimizer_parameter['alpha_0']
-        tol = self.optimizer_parameter['tol']
-        tau = self.optimizer_parameter['tau']
-        noise_level = self.optimizer_parameter['noise_level']
-        theta = self.optimizer_parameter['theta']
-        Theta = self.optimizer_parameter['Theta']
+        q_0 = self.optimizer_parameter["q_0"].copy()
+        alpha_0 = self.optimizer_parameter["alpha_0"]
+        tol = self.optimizer_parameter["tol"]
+        tau = self.optimizer_parameter["tau"]
+        noise_level = self.optimizer_parameter["noise_level"]
+        theta = self.optimizer_parameter["theta"]
+        Theta = self.optimizer_parameter["Theta"]
 
-        i_max = self.optimizer_parameter['i_max']
-        reg_loop_max = self.optimizer_parameter['reg_loop_max']
+        i_max = self.optimizer_parameter["i_max"]
+        reg_loop_max = self.optimizer_parameter["reg_loop_max"]
 
         lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
         use_cached_operators = self.optimizer_parameter['use_cached_operators']
@@ -551,13 +551,13 @@ class FOMOptimizer(Optimizer):
                                         use_cached_operators = use_cached_operators,
                                         dump_IRGNM_intermed_stats = True)
 
-        self.statistics['q'] = IRGNM_statistic['q']
+        self.statistics["q"] = IRGNM_statistic["q"]
         self.statistics['time_steps'] = IRGNM_statistic['time_steps']
-        self.statistics['alpha'] = IRGNM_statistic['alpha']
-        self.statistics['J'] = IRGNM_statistic['J']
-        self.statistics['norm_nabla_J'] = IRGNM_statistic['norm_nabla_J']
-        self.statistics['total_runtime'] = IRGNM_statistic['total_runtime']
-        self.statistics['stagnation_flag'] = IRGNM_statistic['stagnation_flag']
+        self.statistics["alpha"] = IRGNM_statistic["alpha"]
+        self.statistics["J"] = IRGNM_statistic["J"]
+        self.statistics["norm_nabla_J"] = IRGNM_statistic["norm_nabla_J"]
+        self.statistics["total_runtime"] = IRGNM_statistic["total_runtime"]
+        self.statistics["stagnation_flag"] = IRGNM_statistic["stagnation_flag"]
 
         self.dump_intermed_stats(save_path = self.save_path / f'FOM_IRGNM_final.pkl')
 
@@ -581,29 +581,29 @@ class QrFOMOptimizer(Optimizer):
         self.QrFOM = None
 
         self.statistics = {
-            'q' : [],
-            'alpha' : [],
-            'J' : [],
-            'norm_nabla_J' : [],
-            'total_runtime' : np.nan,
+            "q" : [],
+            "alpha" : [],
+            "J" : [],
+            "norm_nabla_J" : [],
+            "total_runtime" : np.nan,
             #'inner_loop_time_steps' : [],
-            'stagnation_flag' : False,
+            "stagnation_flag" : False,
             'optimizer_parameter' : self.optimizer_parameter.copy()
         }
     
 
     def solve(self) -> VectorArray:
-        q_0 = self.optimizer_parameter['q_0'].copy()
-        alpha_0 = self.optimizer_parameter['alpha_0']
-        tol = self.optimizer_parameter['tol']
-        tau = self.optimizer_parameter['tau']
-        noise_level = self.optimizer_parameter['noise_level']
-        theta = self.optimizer_parameter['theta']
-        Theta = self.optimizer_parameter['Theta']
+        q_0 = self.optimizer_parameter["q_0"].copy()
+        alpha_0 = self.optimizer_parameter["alpha_0"]
+        tol = self.optimizer_parameter["tol"]
+        tau = self.optimizer_parameter["tau"]
+        noise_level = self.optimizer_parameter["noise_level"]
+        theta = self.optimizer_parameter["theta"]
+        Theta = self.optimizer_parameter["Theta"]
 
-        i_max = self.optimizer_parameter['i_max']
-        reg_loop_max = self.optimizer_parameter['reg_loop_max']
-        i_max_inner = self.optimizer_parameter['i_max_inner']
+        i_max = self.optimizer_parameter["i_max"]
+        reg_loop_max = self.optimizer_parameter["reg_loop_max"]
+        i_max_inner = self.optimizer_parameter["i_max_inner"]
 
         lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
         use_cached_operators = self.optimizer_parameter['use_cached_operators']
@@ -620,10 +620,10 @@ class QrFOMOptimizer(Optimizer):
         nabla_J = self.FOM.gradient(u, p)
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
         
-        self.statistics['q'].append(q)
-        self.statistics['alpha'].append(alpha)
-        self.statistics['J'].append(J)
-        self.statistics['norm_nabla_J'].append(norm_nabla_J)
+        self.statistics["q"].append(q)
+        self.statistics["alpha"].append(alpha)
+        self.statistics["J"].append(J)
+        self.statistics["norm_nabla_J"].append(norm_nabla_J)
 
 
         self.logger.debug("Running Qr-IRGNM:")
@@ -695,17 +695,17 @@ class QrFOMOptimizer(Optimizer):
             p = self.FOM.solve_adjoint(q, u)
             J = self.FOM.objective(u)
             nabla_J = self.FOM.gradient(u, p)
-            alpha = IRGNM_statistic['alpha'][1]
+            alpha = IRGNM_statistic["alpha"][1]
 
-            self.statistics['q'].append(q)
-            self.statistics['alpha'].append(alpha)
-            self.statistics['J'].append(J)
-            self.statistics['norm_nabla_J'].append(self.FOM.compute_gradient_norm(nabla_J))
+            self.statistics["q"].append(q)
+            self.statistics["alpha"].append(alpha)
+            self.statistics["J"].append(J)
+            self.statistics["norm_nabla_J"].append(self.FOM.compute_gradient_norm(nabla_J))
 
             if i > 3:
-                buffer = self.statistics['J'][-3:]
+                buffer = self.statistics["J"][-3:]
                 if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] - buffer[2]) < MACHINE_EPS:
-                    self.statistics['stagnation_flag'] = True
+                    self.statistics["stagnation_flag"] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
             
@@ -729,7 +729,7 @@ class QrFOMOptimizer(Optimizer):
             self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
             self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
-        self.statistics['total_runtime'] = (timer() - start_time)
+        self.statistics["total_runtime"] = (timer() - start_time)
         self.dump_intermed_stats(save_path = self.save_path / f'QrFOM_IRGNM_final.pkl')
         return q
         
@@ -751,42 +751,42 @@ class QrVrROMOptimizer(Optimizer):
         self.QrVrROM = None
 
         self.statistics = {
-            'q' : [],
-            'alpha' : [],
-            'J' : [],
-            'norm_nabla_J' : [],
-            'J_r' : [],
+            "q" : [],
+            "alpha" : [],
+            "J" : [],
+            "norm_nabla_J" : [],
+            "J_r" : [],
             'abs_est_error_J_r' : [],
             'rel_est_error_J_r' : [],
-            'total_runtime' : np.nan,
+            "total_runtime" : np.nan,
             #'inner_loop_time_steps' : [],
-            'stagnation_flag' : False,
+            "stagnation_flag" : False,
             'optimizer_parameter' : self.optimizer_parameter.copy()
         }
 
     def solve(self) -> VectorArray :
-        q_0 = self.optimizer_parameter['q_0'].copy()
-        alpha_0 = self.optimizer_parameter['alpha_0']
-        tol = self.optimizer_parameter['tol']
-        tau = self.optimizer_parameter['tau']
-        noise_level = self.optimizer_parameter['noise_level']
-        theta = self.optimizer_parameter['theta']
-        Theta = self.optimizer_parameter['Theta']
-        tau_tilde = self.optimizer_parameter['tau_tilde']
+        q_0 = self.optimizer_parameter["q_0"].copy()
+        alpha_0 = self.optimizer_parameter["alpha_0"]
+        tol = self.optimizer_parameter["tol"]
+        tau = self.optimizer_parameter["tau"]
+        noise_level = self.optimizer_parameter["noise_level"]
+        theta = self.optimizer_parameter["theta"]
+        Theta = self.optimizer_parameter["Theta"]
+        tau_tilde = self.optimizer_parameter["tau_tilde"]
 
-        i_max = self.optimizer_parameter['i_max']
-        reg_loop_max = self.optimizer_parameter['reg_loop_max']
-        i_max_inner = self.optimizer_parameter['i_max_inner']
-        armijo_max_iter = self.optimizer_parameter['armijo_max_iter']
+        i_max = self.optimizer_parameter["i_max"]
+        reg_loop_max = self.optimizer_parameter["reg_loop_max"]
+        i_max_inner = self.optimizer_parameter["i_max_inner"]
+        armijo_max_iter = self.optimizer_parameter["armijo_max_iter"]
 
         lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
         use_cached_operators = self.optimizer_parameter['use_cached_operators']
 
-        eta0 = self.optimizer_parameter['eta0']
-        kappa_arm = self.optimizer_parameter['kappa_arm']
-        beta_1 = self.optimizer_parameter['beta_1']
-        beta_2 = self.optimizer_parameter['beta_2']
-        beta_3 = self.optimizer_parameter['beta_3']
+        eta0 = self.optimizer_parameter["eta0"]
+        kappa_arm = self.optimizer_parameter["kappa_arm"]
+        beta_1 = self.optimizer_parameter["beta_1"]
+        beta_2 = self.optimizer_parameter["beta_2"]
+        beta_3 = self.optimizer_parameter["beta_3"]
 
 
         start_time = timer()
@@ -889,11 +889,11 @@ class QrVrROMOptimizer(Optimizer):
         else:
             rel_est_error_J_r = np.inf
 
-        self.statistics['q'].append(q)
-        self.statistics['alpha'].append(alpha)
-        self.statistics['J'].append(J)
-        self.statistics['norm_nabla_J'].append(norm_nabla_J)
-        self.statistics['J_r'].append(J_r)
+        self.statistics["q"].append(q)
+        self.statistics["alpha"].append(alpha)
+        self.statistics["J"].append(J)
+        self.statistics["norm_nabla_J"].append(norm_nabla_J)
+        self.statistics["J_r"].append(J_r)
         self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
         self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
 
@@ -935,7 +935,7 @@ class QrVrROMOptimizer(Optimizer):
                     'inital_step_size' : 1, 
                     'eta' : eta, 
                     'beta' : beta_1, 
-                    'kappa_arm' : kappa_arm
+                    "kappa_arm" : kappa_arm
                 }
 
                 q_r, IRGNM_statistic = self.IRGNM(model = self.QrVrROM,
@@ -996,8 +996,8 @@ class QrVrROMOptimizer(Optimizer):
                 nabla_J = self.FOM.gradient(u, p)
                 norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
-                delta_J = self.statistics['J'][-1] -J
-                delta_J_r = self.statistics['J_r'][-1]-J_r
+                delta_J = self.statistics["J"][-1] -J
+                delta_J_r = self.statistics["J_r"][-1]-J_r
 
                 if delta_J_r > 0:
                     rho = delta_J / delta_J_r
@@ -1033,8 +1033,8 @@ class QrVrROMOptimizer(Optimizer):
                     nabla_J = self.FOM.gradient(u, p)
                     norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
-                    delta_J = self.statistics['J'][-1] - J
-                    delta_J_r = self.statistics['J_r'][-1] - J_r
+                    delta_J = self.statistics["J"][-1] - J
+                    delta_J_r = self.statistics["J_r"][-1] - J_r
 
                     if delta_J_r > 0:
                         rho = delta_J / delta_J_r
@@ -1054,13 +1054,13 @@ class QrVrROMOptimizer(Optimizer):
             ########################################### Final ###########################################
             if not rejected:
                 delta = delta
-                alpha = IRGNM_statistic['alpha'][1]
+                alpha = IRGNM_statistic["alpha"][1]
                 
-                self.statistics['q'].append(q)
-                self.statistics['alpha'].append(alpha)
-                self.statistics['J'].append(J)
-                self.statistics['norm_nabla_J'].append(norm_nabla_J)
-                self.statistics['J_r'].append(J_r)
+                self.statistics["q"].append(q)
+                self.statistics["alpha"].append(alpha)
+                self.statistics["J"].append(J)
+                self.statistics["norm_nabla_J"].append(norm_nabla_J)
+                self.statistics["J_r"].append(J_r)
                 self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
                 self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
 
@@ -1098,15 +1098,15 @@ class QrVrROMOptimizer(Optimizer):
 
 
             if i > 3:
-                buffer = self.statistics['J'][-3:]
+                buffer = self.statistics["J"][-3:]
                 if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] - buffer[2]) < MACHINE_EPS:
-                    self.statistics['stagnation_flag'] = True
+                    self.statistics["stagnation_flag"] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
 
             self.dump_intermed_stats(save_path = self.save_path / f'TR_IRGNM_{i}.pkl')
             i += 1
 
-        self.statistics['total_runtime'] = (timer() - start_time)
+        self.statistics["total_runtime"] = (timer() - start_time)
         self.dump_intermed_stats(save_path = self.save_path / f'TR_IRGNM_final.pkl')
         return q

@@ -14,7 +14,9 @@ from RBInvParam.problems.problems import build_InstationaryModelIP
 
 #########################################################################################''
 
-logger = get_default_logger(logfile_path='./logs/FOM_IRGNM.log', use_timestemp=True)
+logger = get_default_logger(logger_name='TR_IRGNM',
+                            logfile_path='./logs/FOM_IRGNM.log', 
+                            use_timestemp=True)
 logger.setLevel(logging.DEBUG)
 
 set_log_levels({
@@ -97,19 +99,6 @@ def main():
 
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
-
-    # FOM.visualizer.visualize(q_exact)
-
-    # import sys
-    # sys.exit()
-
-
-    # if q_time_dep:
-    #     q_start = 0*np.ones((nt, par_dim))
-    # else:
-    #     q_start = 0*np.ones((1, par_dim))
-    # np.random.seed(42)
-    # q_start  = np.random.random((1, FOM.setup['dims']['par_dim']))
     q_start = q_circ
 
     optimizer_parameter = {

@@ -246,7 +246,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     assert (y_delta.space == C.range) 
 
     logger.debug(f'noise percentage is {percentage:3.4e}')
-    logger.debug(f'noise_level is {setup['model_parameter']["noise_level"]:3.4e}')
+    logger.debug(f'noise_level is {setup["model_parameter"]["noise_level"]:3.4e}')
 
     constant_cost_term = y_delta.pairwise_inner(y_delta, product=products['prod_C'])
     linear_cost_term = NumpyMatrixOperator(

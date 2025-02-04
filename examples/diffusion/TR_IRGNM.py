@@ -19,7 +19,9 @@ save_path = Path('./dumps') / (timestamp + '_TR_IRGNM')
 os.mkdir(save_path)
 logfile_path= save_path / 'TR_IRGNM.log'
 
-logger = get_default_logger(logfile_path=logfile_path, use_timestemp=False)
+logger = get_default_logger(logger_name='TR_IRGNM',
+                            logfile_path=logfile_path, 
+                            use_timestemp=False)
 logger.setLevel(logging.DEBUG)
 
 #########################################################################################''

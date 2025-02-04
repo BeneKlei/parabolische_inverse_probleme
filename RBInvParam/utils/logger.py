@@ -30,7 +30,7 @@ class PlainFormatter(logging.Formatter):
         return super().format(record)
 
 
-def get_default_logger(logger_name,
+def get_default_logger(logger_name: str,
                        logfile_path: Union[str, Path] = None,
                        use_timestemp: bool = False) -> logging.Logger:
         
