@@ -131,7 +131,6 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
             t += setup['model_parameter']['delta_t']
             mu = mu.with_(t=t)
             L[n] = primal_fom.rhs.as_range_array(mu)
-    #L = primal_fom.rhs
     
     _, constant_operator = split_constant_and_parameterized_operator(
         primal_fom.operator
@@ -247,7 +246,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     assert (y_delta.space == C.range) 
 
     logger.debug(f'noise percentage is {percentage:3.4e}')
-    logger.debug(f'noise_level is {setup['model_parameter']["noise_level"]:3.4e}')
+    logger.debug(f'noise_level is {setup["model_parameter"]["noise_level"]:3.4e}')
 
     constant_cost_term = y_delta.pairwise_inner(y_delta, product=products['prod_C'])
     linear_cost_term = NumpyMatrixOperator(

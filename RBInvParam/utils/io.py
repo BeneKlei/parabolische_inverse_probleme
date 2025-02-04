@@ -13,8 +13,10 @@ from RBInvParam.discretizer import discretize_instationary_IP
 def save_dict_to_pkl(path: Union[str, Path],
                      data: Dict,
                      use_timestamp: bool = True) -> None:
+    
+    if not isinstance(path, Path):
+        path = Path(path)
 
-    path = Path(path)
     assert path.suffix in ['.pkl', 'pickle']
     assert path.parent.exists()
 

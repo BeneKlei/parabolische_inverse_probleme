@@ -30,14 +30,12 @@ class PlainFormatter(logging.Formatter):
         return super().format(record)
 
 
-def get_default_logger(logger_name: str = None,
+def get_default_logger(logger_name: str,
                        logfile_path: Union[str, Path] = None,
                        use_timestemp: bool = False) -> logging.Logger:
         
     logging.getLogger('asyncio').setLevel(logging.WARNING)
-    # if not logfile_path:
-    #     logfile_path = Path('./logs/log')
-
+    
     if logfile_path:
         logfile_path = Path(logfile_path)
         assert logfile_path.parent.exists()
@@ -51,7 +49,7 @@ def get_default_logger(logger_name: str = None,
     
     log_format = '[%(asctime)s][%(funcName)s] - %(message)s'
 
-    # Create a logger
+    # Create a logger    
     logger = logging.getLogger(logger_name)
     logger.propagate = False
 
@@ -66,3 +64,14 @@ def get_default_logger(logger_name: str = None,
         file_handler.setFormatter(plain_formatter)
         logger.addHandler(file_handler)
     return logger
+
+
+def reset_logger(logger_name):
+    # Fetch the logger
+    logger = logging.getLogger(logger_name)
+
+    # If the logger has handlers, remove them
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    logging.Logger.manager.loggerDict.pop(logger_name, None)

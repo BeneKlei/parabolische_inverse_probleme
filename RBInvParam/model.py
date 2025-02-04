@@ -14,6 +14,7 @@ from RBInvParam.timestepping import ImplicitEulerTimeStepper
 from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, \
     ObjectiveErrorEstimator, CoercivityConstantEstimator
 from RBInvParam.utils.logger import get_default_logger
+from RBInvParam.products import BochnerProductOperator
 
 
 # TODO 
@@ -57,7 +58,7 @@ class InstationaryModelIP(ImmutableObject):
         if logger:
             self._logger = logger
         else:
-            self._logger = get_default_logger(self.__class__.__name__)
+            self._logger = get_default_logger(logger_name=self.__class__.__name__)
             self._logger.setLevel(logging.DEBUG)
         self.logger.debug(f"Setting up {self.__class__.__name__}")
         
@@ -95,9 +96,17 @@ class InstationaryModelIP(ImmutableObject):
 
         self.delta_t = self.setup['model_parameter']['delta_t']
         self.q_time_dep = self.setup['model_parameter']['q_time_dep']
+        self.riesz_rep_grad = self.setup['model_parameter']['riesz_rep_grad']
 
         self.timestepper = ImplicitEulerTimeStepper(
-            nt = self.nt
+            nt = self.nt,
+            M = self.M,
+            A = self.A,
+            Q = self.Q,
+            V = self.V,
+            T_initial= self.T_initial,
+            T_final= self.T_final,
+            setup = self.setup
         )
 
         if name:
@@ -142,10 +151,18 @@ class InstationaryModelIP(ImmutableObject):
             assert 'C_continuity_constant' in self.model_constants.keys()
             assert isinstance(self.model_constants['A_coercivity_constant_estimator'], CoercivityConstantEstimator)
             assert self.model_constants['A_coercivity_constant_estimator'].Q == self.Q
-    
+
+        assert 'bochner_prod_Q' in self.products
+        assert isinstance(self.products['bochner_prod_Q'], BochnerProductOperator)
+        assert self.products['bochner_prod_Q'].product.source == self.Q
+        assert 'prod_Q' in self.products
+        assert self.products['prod_Q'].source == self.Q
+
 
 #%% solve methods
-    def solve_state(self, q: VectorArray) -> VectorArray:
+    def solve_state(self, 
+                    q: VectorArray,
+                    use_cached_operators: bool = False) -> VectorArray:
         assert q in self.Q
 
         if self.q_time_dep:
@@ -153,13 +170,10 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
-        iterator = self.timestepper.iterate(initial_time = self.T_initial, 
-                                            end_time = self.T_final, 
-                                            initial_data = self.u_0, 
+        iterator = self.timestepper.iterate(initial_data = self.u_0, 
                                             q=q,
-                                            operator = self.A, 
-                                            rhs=self.L, 
-                                            mass=self.M)
+                                            rhs=self.L,
+                                            use_cached_operators=use_cached_operators)
         
         u = self.V.empty(reserve= self.nt)
         for u_n, _ in iterator:
@@ -168,7 +182,8 @@ class InstationaryModelIP(ImmutableObject):
 
     def solve_adjoint(self, 
                       q: VectorArray, 
-                      u: VectorArray) -> VectorArray:
+                      u: VectorArray,
+                      use_cached_operators: bool = False) -> VectorArray:
         
         assert self.bilinear_cost_term 
         assert self.linear_cost_term 
@@ -184,16 +199,15 @@ class InstationaryModelIP(ImmutableObject):
 
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
-        # TODO Make def with delta_t consitent and move it the disctetirzer
+        if isinstance(self.A, UnAssembledA):
+            I = self.A.boundary_info.dirichlet_boundaries(2)
+            rhs[:,I] = 0
         rhs = self.delta_t * self.V.make_array(rhs)
 
-        iterator = self.timestepper.iterate(initial_time = self.T_initial,
-                                            end_time = self.T_final,
-                                            initial_data = self.p_0, 
+        iterator = self.timestepper.iterate(initial_data = self.p_0, 
                                             q=q,
-                                            operator = self.A, 
-                                            rhs=rhs, 
-                                            mass=self.M)
+                                            rhs=rhs,
+                                            use_cached_operators=use_cached_operators)
         
         p = self.V.empty(reserve= self.nt)
         for p_n, _ in iterator:
@@ -203,7 +217,8 @@ class InstationaryModelIP(ImmutableObject):
     def solve_linearized_state(self,
                                q: VectorArray,
                                d: VectorArray,
-                               u: VectorArray) -> VectorArray:
+                               u: VectorArray,
+                               use_cached_operators: bool = False) -> VectorArray:
         
         assert q in self.Q
         assert d in self.Q
@@ -225,13 +240,11 @@ class InstationaryModelIP(ImmutableObject):
                 self.B(u[idx]).B_u(d[0]).to_numpy()[0] for idx in range(len(u))
             ]))
         
-        iterator = self.timestepper.iterate(initial_time = self.T_initial,
-                                            end_time = self.T_final,
-                                            initial_data = self.linearized_u_0, 
+        iterator = self.timestepper.iterate(initial_data = self.linearized_u_0, 
                                             q=q,
-                                            operator = self.A, 
-                                            rhs=rhs, 
-                                            mass=self.M)        
+                                            rhs=rhs,
+                                            use_cached_operators=use_cached_operators)
+        
         lin_u = self.V.empty(reserve= self.nt)
         for lin_u_n, _ in iterator:
             lin_u.append(lin_u_n)
@@ -240,7 +253,8 @@ class InstationaryModelIP(ImmutableObject):
     def solve_linearized_adjoint(self,
                                  q: VectorArray,
                                  u: VectorArray,
-                                 lin_u: VectorArray) -> VectorArray:
+                                 lin_u: VectorArray,
+                                 use_cached_operators: bool = False) -> VectorArray:
 
         assert self.bilinear_cost_term 
         assert self.linear_cost_term
@@ -256,15 +270,14 @@ class InstationaryModelIP(ImmutableObject):
 
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
+        if isinstance(self.A, UnAssembledA):
+            I = self.A.boundary_info.dirichlet_boundaries(2)
+            rhs[:,I] = 0
+
         rhs = self.delta_t * self.V.make_array(rhs)
-        iterator = self.timestepper.iterate(initial_time = self.T_initial,
-                                            end_time = self.T_final,
-                                            initial_data = self.p_0, 
+        iterator = self.timestepper.iterate(initial_data = self.p_0, 
                                             q=q,
-                                            operator = self.A, 
-                                            rhs=rhs, 
-                                            mass=self.M,
-                                            )
+                                            rhs=rhs,use_cached_operators=use_cached_operators)
         
         lin_p = self.V.empty(reserve= self.nt)
         for lin_p_n, _ in iterator:
@@ -317,18 +330,23 @@ class InstationaryModelIP(ImmutableObject):
 
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt):
-            grad[idx] = self.delta_t * self.B(u[idx]).B_u_ad(p[idx], 'grad')
+            grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad')
 
         if not self.q_time_dep:
-            grad = np.sum(grad, axis=0, keepdims=True) 
+            grad = np.sum(grad, axis=0, keepdims=True)
         
+        grad = self.Q.make_array(grad)
+
+        if self.riesz_rep_grad:
+            grad = self.products['prod_Q'].apply_inverse(grad) 
+
         if alpha > 0:
-            assert q is not None
-            # add regularization term if alpha >0
-            return self.Q.make_array(grad) + alpha * self.gradient_regularization_term(q)
+            out = grad + alpha * self.gradient_regularization_term(q,d)
         else:
-            return self.Q.make_array(grad)
-        
+            out = grad
+
+        return out
+
     def linearized_objective(self,
                             q: VectorArray,
                             d: VectorArray,
@@ -386,16 +404,21 @@ class InstationaryModelIP(ImmutableObject):
         
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt):
-            grad[idx] = self.delta_t * self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
+            grad[idx] = self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
 
         if not self.q_time_dep:
-            grad = np.sum(grad, axis=0, keepdims=True) 
+            grad = np.sum(grad, axis=0, keepdims=True)
+
+        grad = self.Q.make_array(grad)
+        if self.riesz_rep_grad:
+            grad = self.products['prod_Q'].apply_inverse(grad) 
 
         if alpha > 0:
-            return self.Q.make_array(grad) + alpha * self.linarized_gradient_regularization_term(q,d)
+            out = grad + alpha * self.linarized_gradient_regularization_term(q,d)
         else:
-            return self.Q.make_array(grad)
-    
+            out = grad
+
+        return out
     def linearized_hessian(self):
         raise NotImplementedError
 
@@ -416,8 +439,7 @@ class InstationaryModelIP(ImmutableObject):
             return 0.5 * self.delta_t * self.nt * (self.bilinear_reg_term.pairwise_apply2(q,q)
                                                    + (-2) * q.inner(self.linear_reg_term.as_range_array())
                                                    + self.constant_reg_term)[0,0]
-            
-        
+                 
     def gradient_regularization_term(self, 
                                      q: VectorArray) -> float:
         assert q in self.Q
@@ -426,11 +448,15 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
-        out = self.delta_t * (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q))
-        if self.q_time_dep:
-            return out 
+        out = (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q))
+
+        if not self.q_time_dep:
+            out = self.nt * out
+
+        if not self.riesz_rep_grad:
+            return out
         else:
-            return self.nt * out
+            return self.products['prod_Q'].apply_inverse(out)
         
            
     def linearized_regularization_term(self, 
@@ -453,9 +479,7 @@ class InstationaryModelIP(ImmutableObject):
             return 0.5 * self.delta_t * self.nt * (self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
                                                 + (-2) * (q+d).inner(self.linear_reg_term.as_range_array())
                                                 + self.constant_reg_term)[0,0]
-        
-            
-            
+                 
     def linarized_gradient_regularization_term(self,
                                                q: VectorArray,
                                                d: VectorArray) -> float:
@@ -468,14 +492,20 @@ class InstationaryModelIP(ImmutableObject):
         assert q in self.Q
         assert d in self.Q
 
-        out = self.delta_t * (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d))
-        if self.q_time_dep:
+        out = (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d))
+
+        if not self.q_time_dep:
+            out = self.nt * out
+
+        if not self.riesz_rep_grad:
             return out
         else:
-            return self.nt * out
+            return self.products['prod_Q'].apply_inverse(out)
+            
 
 #%% error estimator
 
+    # TODO Enable cache also for error est, i.e. A_q
     def estimate_state_error(self,
                              q: VectorArray,
                              u: VectorArray) -> float:        
@@ -513,7 +543,6 @@ class InstationaryModelIP(ImmutableObject):
         else:
             return 0.0
             
-
     def estimate_objective_error(self,
                                  q: VectorArray,
                                  u: VectorArray,
@@ -561,40 +590,43 @@ class InstationaryModelIP(ImmutableObject):
 #%% compute functions                 
     def compute_objective(self, 
                           q: VectorArray,
-                          alpha : float = 0) -> float:
+                          alpha : float = 0,
+                          use_cached_operators: bool = False) -> float:
 
-        u = self.solve_state(q)
+        u = self.solve_state(q, use_cached_operators=use_cached_operators)
         return self.objective(u, q, alpha)
     
     def compute_gradient(self,
                          q: VectorArray,
-                         alpha : float = 0) -> float:
+                         alpha : float = 0,
+                         use_cached_operators: bool = False) -> float:
         
-        u = self.solve_state(q)
-        p = self.solve_adjoint(q, u)
-        return self.gradient(u, p, alpha)
-        
-
+        u = self.solve_state(q, use_cached_operators=use_cached_operators)
+        p = self.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+        return self.gradient(u, p, alpha,)
+    
     def compute_linearized_objective(self,
                                      q: VectorArray,
                                      d: VectorArray,
-                                     alpha : float) -> float:
+                                     alpha : float,
+                                     use_cached_operators: bool = False) -> float:
 
-        u = self.solve_state(q)
-        lin_u = self.solve_linearized_state(q, d, u)
+        u = self.solve_state(q, use_cached_operators=use_cached_operators)
+        lin_u = self.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
         return self.linearized_objective(q, d, u, lin_u, alpha)
 
     def compute_linearized_gradient(self,
                                     q: VectorArray,
                                     d: VectorArray,
-                                    alpha : float) -> float:
+                                    alpha : float,
+                                    use_cached_operators: bool = False) -> float:
 
         u = self.solve_state(q)
-        lin_u = self.solve_linearized_state(q, d, u)
-        lin_p = self.solve_linearized_adjoint(q, u, lin_u)
+        lin_u = self.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
+        lin_p = self.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
         return self.linearized_gradient(q, d, u, lin_p, alpha)
- 
+
 #%% helpers
     def compute_gradient_norm(self,
                               nabla_J: VectorArray) -> float:   

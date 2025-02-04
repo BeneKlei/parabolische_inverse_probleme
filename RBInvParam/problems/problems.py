@@ -14,6 +14,7 @@
 
 import numpy as np
 import logging
+import sys
 from typing import Dict, Tuple
 
 from pymor.basic import *
@@ -205,7 +206,7 @@ def build_InstationaryModelIP(setup : Dict,
                               logger : logging.Logger = None) -> Tuple[Dict,InstationaryModelIP]:
     
     if not logger:
-        logger = get_default_logger()
+        logger = get_default_logger(logger_name=sys._getframe().f_code.co_name)
 
     logger.debug('Construct problem..')                                                     
     analytical_problem, q_exact, problem_type, exact_analytical_problem, energy_problem = \

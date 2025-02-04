@@ -14,7 +14,9 @@ from RBInvParam.problems.problems import build_InstationaryModelIP
 
 #########################################################################################''
 
-logger = get_default_logger(logfile_path='./logs/FOM_IRGNM.log', use_timestemp=True)
+logger = get_default_logger(logger_name='TR_IRGNM',
+                            logfile_path='./logs/FOM_IRGNM.log', 
+                            use_timestemp=True)
 logger.setLevel(logging.DEBUG)
 
 set_log_levels({
@@ -27,8 +29,8 @@ set_defaults({})
 
 def main():
 
-    N = 100
-    #N = 10
+    #N = 100
+    N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -81,6 +83,7 @@ def main():
             'q_circ' : q_circ, 
             'q_exact' : None,
             'q_time_dep' : q_time_dep,
+            'riesz_rep_grad' : True,
             'bounds' : bounds,
             'parameters' : None,
             'products' : {
@@ -96,33 +99,28 @@ def main():
 
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
-
-    # FOM.visualizer.visualize(q_exact)
-
-    # import sys
-    # sys.exit()
-
-
-    # if q_time_dep:
-    #     q_start = 0*np.ones((nt, par_dim))
-    # else:
-    #     q_start = 0*np.ones((1, par_dim))
-    # np.random.seed(42)
-    # q_start  = np.random.random((1, FOM.setup['dims']['par_dim']))
     q_start = q_circ
 
     optimizer_parameter = {
         'q_0' : q_start,
         'alpha_0' : 1e-5,
-        'tol' : 1e-7,
+        'tol' : 1e-11,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
-        'theta' : 0.25,
-        'Theta' : 0.75,
+        'theta' : 0.4,
+        #'Theta' : 0.75,
+        'Theta' : 1.95,
         #####################
-        'i_max' : 25,
+        'i_max' : 35,
         'reg_loop_max' : 10,
         'i_max_inner' : 2,
+        ####################
+        'lin_solver_parms' : {
+            'lin_solver_max_iter' : 1e4,
+            'lin_solver_tol' : 1e-12,
+            'lin_solver_inital_step_size' : 1
+        },
+        'use_cached_operators' : True
     }
 
     optimizer = FOMOptimizer(
