@@ -69,7 +69,9 @@ class InstationaryModelIP(ImmutableObject):
         self.linearized_u_0 = u_0.copy()
         self.linearized_p_0 = u_0.copy()
 
-        self.M = M 
+        assert not M.parametric
+        self.M = M.assemble() 
+
         self.A = A 
         self.L = L 
         self.B = B 
@@ -609,6 +611,9 @@ class InstationaryModelIP(ImmutableObject):
                           q: VectorArray,
                           alpha : float = 0,
                           use_cached_operators: bool = False) -> float:
+        
+        if use_cached_operators:
+            self.timestepper.cache_operators(q=q, target='M_dt_A_q')
 
         u = self.solve_state(q, use_cached_operators=use_cached_operators)
         return self.objective(u, q, alpha)
@@ -617,6 +622,9 @@ class InstationaryModelIP(ImmutableObject):
                          q: VectorArray,
                          alpha : float = 0,
                          use_cached_operators: bool = False) -> float:
+    
+        if use_cached_operators:
+            self.timestepper.cache_operators(q=q, target='M_dt_A_q')
         
         u = self.solve_state(q, use_cached_operators=use_cached_operators)
         p = self.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
@@ -628,6 +636,9 @@ class InstationaryModelIP(ImmutableObject):
                                      alpha : float,
                                      use_cached_operators: bool = False) -> float:
 
+        if use_cached_operators:
+            self.timestepper.cache_operators(q=q, target='M_dt_A_q')
+
         u = self.solve_state(q, use_cached_operators=use_cached_operators)
         lin_u = self.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
         return self.linearized_objective(q, d, u, lin_u, alpha)
@@ -637,8 +648,11 @@ class InstationaryModelIP(ImmutableObject):
                                     d: VectorArray,
                                     alpha : float,
                                     use_cached_operators: bool = False) -> float:
+    
+        if use_cached_operators:
+            self.timestepper.cache_operators(q=q, target='M_dt_A_q')
 
-        u = self.solve_state(q)
+        u = self.solve_state(q, use_cached_operators=use_cached_operators)
         lin_u = self.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
         lin_p = self.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 

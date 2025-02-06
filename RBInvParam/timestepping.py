@@ -57,9 +57,6 @@ class ImplicitEulerTimeStepper():
             assert q == self.cached_operators['q']
 
         self.cached_operators['q'] = q.copy()
-        # print("Here")
-        # print(self.cached_operators['q'])
-
         dt = (self.T_final - self.T_initial) / self.nt
         
 
@@ -112,12 +109,6 @@ class ImplicitEulerTimeStepper():
         assert q in self.Q
 
         if use_cached_operators:
-            # print("AAAAAAAAAAAAAAAAAAAAAAAa")
-            # print(self.cached_operators['q'])
-            # print(q)
-            # print(()
-            # import sys
-            # sys.exit()
             assert ((self.cached_operators['q']-q).norm() <= 1e-16)[0]
 
             assert len(self.cached_operators['M_dt_A_q']) != 0
