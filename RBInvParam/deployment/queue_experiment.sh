@@ -14,7 +14,7 @@
 
 #WORKING_DIR="/home/benedikt/Dokumente/parabolische_inverse_probleme"
 WORKING_DIR="/home/b/b_klei15/parabolische_inverse_probleme"
-INTERPRETER_PATH="venv/bin/python"
+INTERPRETER_PATH="venv_39/bin/python"
 SCRIPT_PATH="RBInvParam/deployment/run_optimization.py"
 
 "$WORKING_DIR/$INTERPRETER_PATH" "$WORKING_DIR/$SCRIPT_PATH" \
