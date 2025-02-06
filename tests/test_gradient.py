@@ -29,7 +29,7 @@ set_log_levels({
 ABS_TOL = 1e-14
 REL_TOL = 1e-14
 
-logger = get_default_logger()
+logger = get_default_logger(logger_name='test_gradient')
 
 configs = []
 for setup_name, setup in SETUPS.items():        
@@ -67,17 +67,17 @@ for setup_name, setup in SETUPS.items():
         'model' : FOM
     })
 
-    # configs.append({
-    #     'model_name' : setup_name + '_QrFOM',
-    #     'alpha' : 1e0,
-    #     'model' : QrFOM
-    # })
+    configs.append({
+        'model_name' : setup_name + '_QrFOM',
+        'alpha' : 1e0,
+        'model' : QrFOM
+    })
 
-    # configs.append({
-    #     'model_name' : setup_name + '_QrVrROM',
-    #     'alpha' : 1e0,
-    #     'model' : QrVrROM
-    # })
+    configs.append({
+        'model_name' : setup_name + '_QrVrROM',
+        'alpha' : 1e0,
+        'model' : QrVrROM
+    })
 
 
 def derivative_check(model : InstationaryModelIP ,

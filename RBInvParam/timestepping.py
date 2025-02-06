@@ -31,12 +31,6 @@ class ImplicitEulerTimeStepper():
         self.solver_options = solver_options        
         self.setup = setup
 
-        self.cached_operators = {
-            'q' : self.Q.empty(),
-            'A_q' : [],
-            'M_dt_A_q' : [],
-        }
-
         assert isinstance(self.M, Operator)
         assert isinstance(self.A, (UnAssembledA, AssembledA))
         assert not self.M.parametric
@@ -45,59 +39,12 @@ class ImplicitEulerTimeStepper():
         assert self.M.range == self.A.range
         assert self.A.range == self.V
 
-    def cache_operators(self, 
-                        q: VectorArray,
-                        target: str = 'M_dt_A_q') -> None:
-        assert target in [
-            'A_q',
-            'M_dt_A_q'            
-        ]
-        assert q in self.Q
-        if len(self.cached_operators['q']) != 0:
-            assert q == self.cached_operators['q']
-
-        self.cached_operators['q'] = q.copy()
-        dt = (self.T_final - self.T_initial) / self.nt
-        
-
-        if self.setup['model_parameter']['q_time_dep']:            
-            for n in range(self.nt):
-                A_q = self.A(q[n])
-                M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
-                
-                if target == 'A_q':
-                    self.cached_operators[target].append(
-                        A_q.assemble()
-                    )
-                elif target == 'M_dt_A_q':
-                    self.cached_operators[target].append(
-                         M_dt_A_q.assemble()
-                    )
-        else:    
-            A_q = self.A(q[0])
-            M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
-
-            if target == 'A_q':
-                self.cached_operators[target].append(
-                    A_q.assemble()
-                )
-            elif target == 'M_dt_A_q':
-                self.cached_operators[target].append(
-                    M_dt_A_q.assemble()        
-                )
-
-    def delete_cached_operators(self) -> None:
-        self.cached_operators = {
-            'q' : self.Q.empty(),
-            'A_q' : [],
-            'M_dt_A_q' : [],
-        }
-    
     def iterate(self,                               
                 initial_data, 
                 q, 
                 rhs,
-                use_cached_operators: bool = False):
+                use_cached_operators: bool = False,
+                cached_operators: Dict = None):
     
         F, U0 = rhs, initial_data
         dt_F = None
@@ -109,9 +56,17 @@ class ImplicitEulerTimeStepper():
         assert q in self.Q
 
         if use_cached_operators:
-            assert ((self.cached_operators['q']-q).norm() <= 1e-16)[0]
+            assert cached_operators
+            'q' in cached_operators.keys()
+            'M_dt_A_q' in cached_operators.keys()
 
-            assert len(self.cached_operators['M_dt_A_q']) != 0
+            if len(cached_operators['q']) > 0:
+                assert ((cached_operators['q']-q).norm() <= 1e-16)[0]
+
+            if self.setup['model_parameter']['q_time_dep']:
+                assert len(cached_operators['M_dt_A_q']) == self.nt
+            else:
+                assert len(cached_operators['M_dt_A_q']) == 1
 
         num_values = self.nt + 1
         dt = (self.T_final - self.T_initial) / self.nt
@@ -146,7 +101,7 @@ class ImplicitEulerTimeStepper():
         M_dt_A_q = None    
         
         if use_cached_operators:
-            M_dt_A_q = self.cached_operators['M_dt_A_q'][0]
+            M_dt_A_q = cached_operators['M_dt_A_q'][0]
         else:
             A_q = self.A(q[0])
             M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
@@ -169,7 +124,7 @@ class ImplicitEulerTimeStepper():
                 
             if q_time_dep:
                 if use_cached_operators:
-                    M_dt_A_q = self.cached_operators['M_dt_A_q'][n]
+                    M_dt_A_q = cached_operators['M_dt_A_q'][n]
                 else:
                     A_q = self.A(q[n])
                     M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)

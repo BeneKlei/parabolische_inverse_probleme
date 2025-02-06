@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, Union
 import numpy as np
+import itertools
 
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.vectorarrays.interface import VectorArray
@@ -27,8 +28,9 @@ from RBInvParam.products import BochnerProductOperator
 # 
 
 
-
 class InstationaryModelIP(ImmutableObject):
+    id_iter = itertools.count()
+
     def __init__(self,
                  u_0 : VectorArray, 
                  M : Operator,
@@ -59,7 +61,9 @@ class InstationaryModelIP(ImmutableObject):
         if logger:
             self._logger = logger
         else:
-            self._logger = get_default_logger(logger_name=self.__class__.__name__)
+            self._logger = get_default_logger(
+                logger_name=self.__class__.__name__ + str(next(InstationaryModelIP.id_iter))
+            )
             self._logger.setLevel(logging.DEBUG)
         self.logger.debug(f"Setting up {self.__class__.__name__}")
         
@@ -111,6 +115,16 @@ class InstationaryModelIP(ImmutableObject):
             T_final= self.T_final,
             setup = self.setup
         )
+
+        self.solver_options = None
+        self._cached_operators = {
+            'q' : self.Q.empty(),
+            'A_q' : [],
+            'M_dt_A_q' : [],
+            'u' : [],
+            'B_u' : [],
+            'B^T_u' : [],
+        }
         
         if not num_calls:
             self.num_calls = {
@@ -171,11 +185,71 @@ class InstationaryModelIP(ImmutableObject):
         assert 'prod_Q' in self.products
         assert self.products['prod_Q'].source == self.Q
 
+#%% cache methods
+    def cache_operators(self, 
+                        q: VectorArray,
+                        target: str = 'M_dt_A_q') -> None:
+        assert target in self._cached_operators.keys()
+        assert q in self.Q
+        if len(self._cached_operators['q']) != 0:
+            assert q == self._cached_operators['q']
+
+        self.logger.debug(f'Caching {target}')
+
+        self._cached_operators['q'] = q.copy()
+        dt = (self.T_final - self.T_initial) / self.nt
+
+        if self.setup['model_parameter']['q_time_dep']:            
+            for n in range(self.nt):
+                A_q = self.A(q[n])
+                M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
+                
+                if target == 'A_q':
+                    self._cached_operators[target].append(
+                        A_q.assemble()
+                    )
+                elif target == 'M_dt_A_q':
+                    self._cached_operators[target].append(
+                         M_dt_A_q.assemble()
+                    )
+        else:    
+            A_q = self.A(q[0])
+            M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
+
+            if target == 'A_q':
+                self._cached_operators[target].append(
+                    A_q.assemble()
+                )
+            elif target == 'M_dt_A_q':
+                self._cached_operators[target].append(
+                    M_dt_A_q.assemble()        
+                )
+
+    def delete_cached_operators(self) -> None:
+        self.logger.debug('Deleting cache')
+
+        del self._cached_operators['q'][:]
+        del self._cached_operators['A_q'][:]
+        del self._cached_operators['M_dt_A_q'][:]
+        del self._cached_operators['u'][:]
+        del self._cached_operators['B_u'][:]
+        del self._cached_operators['B^T_u'][:]
+
+        self._cached_operators = {
+            'q' : self.Q.empty(),
+            'A_q' : [],
+            'M_dt_A_q' : [],
+            'u' : [],
+            'B_u' : [],
+            'B^T_u' : [],
+        }
+
 
 #%% solve methods
     def solve_state(self, 
                     q: VectorArray,
                     use_cached_operators: bool = False) -> VectorArray:
+        
         assert q in self.Q
 
         if self.q_time_dep:
@@ -183,14 +257,27 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
+        
+        if len(self._cached_operators['q']) == 0:
+            q_cond = True
+        else:    
+            q_cond = (self._cached_operators['q']-q).norm() != 0
+        reset_cache = use_cached_operators and q_cond
+        
+        if reset_cache:
+            self.delete_cached_operators()
+            self.cache_operators(q=q, target='M_dt_A_q')
+            
         iterator = self.timestepper.iterate(initial_data = self.u_0, 
                                             q=q,
                                             rhs=self.L,
-                                            use_cached_operators=use_cached_operators)
+                                            use_cached_operators=use_cached_operators,
+                                            cached_operators=self._cached_operators)
         
         u = self.V.empty(reserve= self.nt)
         for u_n, _ in iterator:
             u.append(u_n)
+
         return u
 
     def solve_adjoint(self, 
@@ -210,6 +297,16 @@ class InstationaryModelIP(ImmutableObject):
 
         assert len(u) == self.nt
 
+        if len(self._cached_operators['q']) == 0:
+            q_cond = True
+        else:    
+            q_cond = (self._cached_operators['q']-q).norm() != 0
+        reset_cache = use_cached_operators and q_cond
+
+        if reset_cache:
+            self.delete_cached_operators()
+            self.cache_operators(q=q, target='M_dt_A_q')
+
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
         if isinstance(self.A, UnAssembledA):
@@ -220,7 +317,8 @@ class InstationaryModelIP(ImmutableObject):
         iterator = self.timestepper.iterate(initial_data = self.p_0, 
                                             q=q,
                                             rhs=rhs,
-                                            use_cached_operators=use_cached_operators)
+                                            use_cached_operators=use_cached_operators,
+                                            cached_operators=self._cached_operators)
         
         p = self.V.empty(reserve= self.nt)
         for p_n, _ in iterator:
@@ -242,7 +340,17 @@ class InstationaryModelIP(ImmutableObject):
             assert len(q) == 1
         assert len(d) == len(q)
         assert len(u) == self.nt
-        
+
+        if len(self._cached_operators['q']) == 0:
+            q_cond = True
+        else:    
+            q_cond = (self._cached_operators['q']-q).norm() != 0
+        reset_cache = use_cached_operators and q_cond
+
+        if reset_cache:
+            self.delete_cached_operators()
+            self.cache_operators(q=q, target='M_dt_A_q')
+    
         # TODO Check if this is efficent and / or how its efficeny can be improved
         if self.q_time_dep:
             rhs = self.V.make_array(np.array([
@@ -256,7 +364,8 @@ class InstationaryModelIP(ImmutableObject):
         iterator = self.timestepper.iterate(initial_data = self.linearized_u_0, 
                                             q=q,
                                             rhs=rhs,
-                                            use_cached_operators=use_cached_operators)
+                                            use_cached_operators=use_cached_operators,
+                                            cached_operators=self._cached_operators)
         
         lin_u = self.V.empty(reserve= self.nt)
         for lin_u_n, _ in iterator:
@@ -281,6 +390,16 @@ class InstationaryModelIP(ImmutableObject):
         assert len(u) == self.nt
         assert len(lin_u) == self.nt
 
+        if len(self._cached_operators['q']) == 0:
+            q_cond = True
+        else:    
+            q_cond = (self._cached_operators['q']-q).norm() != 0
+        reset_cache = use_cached_operators and q_cond
+
+        if reset_cache:
+            self.delete_cached_operators()
+            self.cache_operators(q=q, target='M_dt_A_q')
+
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
         if isinstance(self.A, UnAssembledA):
@@ -290,7 +409,9 @@ class InstationaryModelIP(ImmutableObject):
         rhs = self.delta_t * self.V.make_array(rhs)
         iterator = self.timestepper.iterate(initial_data = self.p_0, 
                                             q=q,
-                                            rhs=rhs,use_cached_operators=use_cached_operators)
+                                            rhs=rhs,
+                                            use_cached_operators=use_cached_operators,
+                                            cached_operators=self._cached_operators)
         
         lin_p = self.V.empty(reserve= self.nt)
         for lin_p_n, _ in iterator:
@@ -332,7 +453,8 @@ class InstationaryModelIP(ImmutableObject):
                  u: VectorArray,
                  p: VectorArray,
                  q: VectorArray = None,
-                 alpha: float = 0) -> VectorArray:
+                 alpha: float = 0,
+                 use_cached_operators: bool = False) -> VectorArray:
         
         assert u in self.V
         assert p in self.V
@@ -367,7 +489,8 @@ class InstationaryModelIP(ImmutableObject):
                             d: VectorArray,
                             u: VectorArray,
                             lin_u: VectorArray,
-                            alpha : float) -> float:
+                            alpha : float,
+                            use_cached_operators: bool = False) -> float:
 
         if self.q_time_dep:
             assert len(q) == self.nt
@@ -401,7 +524,8 @@ class InstationaryModelIP(ImmutableObject):
                             d: VectorArray,
                             u: VectorArray,
                             lin_p: VectorArray,
-                            alpha : float) -> VectorArray:
+                            alpha : float,
+                            use_cached_operators: bool = False) -> VectorArray:
         
         if self.q_time_dep:
             assert len(q) == self.nt
@@ -611,36 +735,35 @@ class InstationaryModelIP(ImmutableObject):
                           q: VectorArray,
                           alpha : float = 0,
                           use_cached_operators: bool = False) -> float:
-        
-        if use_cached_operators:
-            self.timestepper.cache_operators(q=q, target='M_dt_A_q')
-
-        u = self.solve_state(q, use_cached_operators=use_cached_operators)
+        u = self.solve_state(q=q, 
+                             use_cached_operators=use_cached_operators)
         return self.objective(u, q, alpha)
     
     def compute_gradient(self,
                          q: VectorArray,
                          alpha : float = 0,
-                         use_cached_operators: bool = False) -> float:
-    
-        if use_cached_operators:
-            self.timestepper.cache_operators(q=q, target='M_dt_A_q')
+                         use_cached_operators: bool = False) -> float:    
+        u = self.solve_state(q=q, 
+                             use_cached_operators=use_cached_operators)
+        p = self.solve_adjoint(q=q, 
+                               u=u, 
+                               use_cached_operators=use_cached_operators)
         
-        u = self.solve_state(q, use_cached_operators=use_cached_operators)
-        p = self.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
-        return self.gradient(u, p, alpha,)
+        return self.gradient(u, p, alpha)
     
     def compute_linearized_objective(self,
                                      q: VectorArray,
                                      d: VectorArray,
                                      alpha : float,
                                      use_cached_operators: bool = False) -> float:
-
-        if use_cached_operators:
-            self.timestepper.cache_operators(q=q, target='M_dt_A_q')
-
-        u = self.solve_state(q, use_cached_operators=use_cached_operators)
-        lin_u = self.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
+        u = self.solve_state(q=q, 
+                             use_cached_operators=use_cached_operators)
+        
+        lin_u = self.solve_linearized_state(q=q, 
+                                            d=d, 
+                                            u=u, 
+                                            use_cached_operators=use_cached_operators)
+        
         return self.linearized_objective(q, d, u, lin_u, alpha)
 
     def compute_linearized_gradient(self,
@@ -648,15 +771,23 @@ class InstationaryModelIP(ImmutableObject):
                                     d: VectorArray,
                                     alpha : float,
                                     use_cached_operators: bool = False) -> float:
-    
-        if use_cached_operators:
-            self.timestepper.cache_operators(q=q, target='M_dt_A_q')
+        u = self.solve_state(q, 
+                             use_cached_operators=use_cached_operators)
+        lin_u = self.solve_linearized_state(q=q, 
+                                            d=d, 
+                                            u=u, 
+                                            use_cached_operators=use_cached_operators)
+        lin_p = self.solve_linearized_adjoint(q=q, 
+                                              u=u, 
+                                              lin_u=lin_u, 
+                                              use_cached_operators=use_cached_operators)
 
-        u = self.solve_state(q, use_cached_operators=use_cached_operators)
-        lin_u = self.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
-        lin_p = self.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
-
-        return self.linearized_gradient(q, d, u, lin_p, alpha)
+        return self.linearized_gradient(q=q, 
+                                        d=d, 
+                                        u=u, 
+                                        lin_p=lin_p, 
+                                        alpha=alpha,
+                                        use_cached_operators=use_cached_operators)
 
 #%% helpers
     def compute_gradient_norm(self,
