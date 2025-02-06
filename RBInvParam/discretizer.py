@@ -153,6 +153,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         boundary_info = primal_fom_data['boundary_info'],
         source=Q_h,
         range=V_h,
+        Q = Q_h,
         V = V_h
     )
 

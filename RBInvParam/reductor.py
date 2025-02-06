@@ -210,6 +210,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             constant_operator = constant_operator,
             source = Q,
             range = V,
+            Q = Q,
             V = V
         )
 

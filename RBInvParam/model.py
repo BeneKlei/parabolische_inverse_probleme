@@ -511,28 +511,26 @@ class InstationaryModelIP(ImmutableObject):
             if len(self._cached_operators['B_u']) == 0:
                 self.cache_operators(q=q, u=u, target='B_u')
 
-        self.num_calls['gradient'] += 1
-        grad = np.empty((self.nt, self.setup['dims']['par_dim']))  
-
         if use_cached_operators:
             B_u = self._cached_operators['B_u']
         else:
             B_u = [self.B(u[idx]) for idx in range(len(u))]
 
+        self.num_calls['gradient'] += 1
+        grad = self.Q.empty(reserve=self.nt)
+
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt):
-            grad[idx] = B_u[idx].B_u_ad(p[idx], 'grad')
+            grad.append(B_u[idx].B_u_ad(p[idx]))
 
         if not self.q_time_dep:
-            grad = np.sum(grad, axis=0, keepdims=True)
+            grad = self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
         
-        grad = self.Q.make_array(grad)
-
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
 
         if alpha > 0:
-            out = grad + alpha * self.gradient_regularization_term(q,d)
+            out = grad + alpha * self.gradient_regularization_term(q)
         else:
             out = grad
 
@@ -601,15 +599,16 @@ class InstationaryModelIP(ImmutableObject):
             B_u = [self.B(u[idx]) for idx in range(len(u))]
 
         self.num_calls['linearized_gradient'] += 1
-        grad = np.empty((self.nt, self.setup['dims']['par_dim']))        
+        #grad = np.empty((self.nt, self.setup['dims']['par_dim']))        
+        grad = self.Q.empty(reserve=self.nt)
+
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt):
-            grad[idx] = B_u[idx].B_u_ad(lin_p[idx], 'grad') 
+            grad.append(B_u[idx].B_u_ad(lin_p[idx]))
 
         if not self.q_time_dep:
-            grad = np.sum(grad, axis=0, keepdims=True)
+            grad = self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
 
-        grad = self.Q.make_array(grad)
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
 

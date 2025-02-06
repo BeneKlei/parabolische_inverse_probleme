@@ -207,6 +207,7 @@ class UnAssembledB(UnAssembledEvaluator):
                  boundary_info: BoundaryInfo,
                  source : VectorSpace,
                  range : VectorSpace,
+                 Q : VectorSpace,
                  V : VectorSpace):
         
         super().__init__(
@@ -217,26 +218,10 @@ class UnAssembledB(UnAssembledEvaluator):
             source=source,
             range=range)
 
+        self.Q = Q
         self.V = V
-    
-    def B_u_unassembled_reaction(self, 
-                                 u, 
-                                 A_u, 
-                                 v : NumpyVectorArray):
-
-        # print(v.space)
-        # assert v in self.V
-        # v = v.to_numpy().reshape((self.V.dim,))
-        if isinstance(v, NumpyVectorArray):
-            # TODO Get true var
-            v = v.to_numpy().reshape((self.V.dim,))
-        elif isinstance(v,np.ndarray):
-            pass
-        else:
-            assert 1, 'wrong input here...'
-
-        return -self.V.from_numpy(A_u.dot(v))
-    
+        assert Q.dim == V.dim # The current implementation only works if Q and V have the same dim
+        
     def assemble_B_u_advection(self, u : VectorArray):
         g = self.grid
         U = u[g.subentities(0, g.dim)]
@@ -257,7 +242,6 @@ class UnAssembledB(UnAssembledEvaluator):
         u = u.to_numpy()[0]
 
         B_u = Struct()
-        #if not self.pre_assemble:
         if self.reaction_problem:
             g = self.grid
             _, w = square.quadrature(order=self.quadrature_order)
@@ -268,18 +252,13 @@ class UnAssembledB(UnAssembledEvaluator):
             SF_I1 = np.tile(g.subentities(0, g.dim), [1, 4]).ravel()
             A = coo_matrix((SF_INTS, (SF_I0, SF_I1)), shape=(g.size(g.dim), g.size(g.dim)))
             del SF_INTS, SF_I0, SF_I1
-            A_u = csc_matrix(A).copy()
-
-            # TODO Replace this by proper functions with type checking
-            B_u.B_u = lambda d:  self.B_u_unassembled_reaction(u,A_u, d) # numpy -> pymor
-            B_u.B_u_ad = lambda p, mode:  self.B_u_unassembled_reaction(u, A_u, p.to_numpy()[0]).to_numpy()[0]  # pymor -> numpy
+            B_u_mat = -csc_matrix(A).copy()
         else:
-            
-            # TODO Replace this by proper functions with type checking
             B_u_mat = self.assemble_B_u_advection(u)
 
-            B_u.B_u = lambda d: self.V.from_numpy((B_u_mat.dot(d.to_numpy().T).T))
-            B_u.B_u_ad = lambda p, mode: B_u_mat.T.dot(p.to_numpy()[0])    
+        # TODO Replace this by proper functions with type checking
+        B_u.B_u = lambda d: self.V.from_numpy(B_u_mat.dot(d.to_numpy()[0]))
+        B_u.B_u_ad = lambda p: self.Q.make_array(B_u_mat.T.dot(p.to_numpy()[0]))
         return B_u
     
 
@@ -289,12 +268,15 @@ class AssembledB(AssembledEvaluator):
                 constant_operator : Operator,
                 source : VectorSpace,
                 range : VectorSpace,
+                Q : VectorSpace,
                 V : VectorSpace):
     
         super().__init__(unconstant_operator, 
                          constant_operator,
                          source = source,
                          range = range)
+
+        self.Q = Q
         self.V = V
         
 
@@ -320,8 +302,8 @@ class AssembledB(AssembledEvaluator):
             #B_u.B_u = B_u
 
             # TODO Move them into proper functions with dimension assertion 
-            B_u.B_u = lambda d: u.space.from_numpy(np.einsum("tij,t->ij", B_u_list, d.to_numpy().flatten()).flatten())  # numpy -> pymor
-            B_u.B_u_ad = lambda p, mode: np.einsum("tij,i->t", B_u_list, p.to_numpy()[0]) # pymor -> numpy 
+            B_u.B_u = lambda d: self.V.make_array(np.einsum("tij,t->ij", B_u_list, d.to_numpy().flatten()).flatten())
+            B_u.B_u_ad = lambda p: self.Q.make_array(np.einsum("tij,i->t", B_u_list, p.to_numpy()[0]))
         else:
             raise NotImplementedError
 
