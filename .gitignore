@@ -335,3 +335,4 @@ __pycache__/
 *.ipynb
 *.png
 *.prof
+*/dumps/*

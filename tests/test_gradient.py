@@ -177,7 +177,7 @@ def test_linearized_objective_gradient(config : Dict)-> None:
     eps, diff_quot = derivative_check(
         model,
         lambda d : model.compute_linearized_objective(q, d, alpha),
-        lambda d: model.compute_linearized_gradient(q, d, alpha),
+        lambda d: model.compute_linearized_gradient(q, d, alpha, use_cached_operators=True),
         Path('./test_gradient_dumps/' + config['model_name'] 
              + '_' + sys._getframe().f_code.co_name + '.png'),
         title = 'linearized_J'

@@ -186,44 +186,93 @@ class InstationaryModelIP(ImmutableObject):
         assert self.products['prod_Q'].source == self.Q
 
 #%% cache methods
-    def cache_operators(self, 
-                        q: VectorArray,
-                        target: str = 'M_dt_A_q') -> None:
-        assert target in self._cached_operators.keys()
-        assert q in self.Q
-        if len(self._cached_operators['q']) != 0:
-            assert q == self._cached_operators['q']
+    def _cache_update_required(self,
+                               q :VectorArray) -> bool:
+        if len(self._cached_operators['q']) == 0:
+            return True
+        else:
+            return np.any((self._cached_operators['q']-q).norm() != 0)
+    
 
-        self.logger.debug(f'Caching {target}')
-
-        self._cached_operators['q'] = q.copy()
+    def _cache_time_independed_operators(self, 
+                                       q: VectorArray,
+                                       u: VectorArray,
+                                       target: str = 'M_dt_A_q') -> None:
+        
         dt = (self.T_final - self.T_initial) / self.nt
+        A_q = self.A(q[0])
+        M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
 
-        if self.setup['model_parameter']['q_time_dep']:            
-            for n in range(self.nt):
-                A_q = self.A(q[n])
-                M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
-                
-                if target == 'A_q':
-                    self._cached_operators[target].append(
-                        A_q.assemble()
-                    )
-                elif target == 'M_dt_A_q':
-                    self._cached_operators[target].append(
-                         M_dt_A_q.assemble()
-                    )
-        else:    
-            A_q = self.A(q[0])
+        if target == 'A_q':
+            self._cached_operators[target].append(
+                A_q.assemble()
+            )
+        elif target == 'M_dt_A_q':
+            self._cached_operators[target].append(
+                M_dt_A_q.assemble()        
+            )
+        elif target == 'B_u':
+            self._cached_operators[target] = [self.B(u[idx]) for idx in range(len(u))]
+        else:
+            self.logger.error(f'Target {target} is not known.')
+            raise ValueError
+    
+    def _cache_time_depended_operators(self, 
+                                       q: VectorArray,
+                                       u: VectorArray,
+                                       target: str = 'M_dt_A_q') -> None:
+        
+        dt = (self.T_final - self.T_initial) / self.nt
+        for n in range(self.nt):
+            A_q = self.A(q[n])
             M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
-
+            
             if target == 'A_q':
                 self._cached_operators[target].append(
                     A_q.assemble()
                 )
             elif target == 'M_dt_A_q':
                 self._cached_operators[target].append(
-                    M_dt_A_q.assemble()        
+                        M_dt_A_q.assemble()
                 )
+            elif target == 'B_u':
+                self._cached_operators[target] = [self.B(u[idx]) for idx in range(len(u))]
+            else:
+                self.logger.error(f'Target {target} is not known.')
+                raise ValueError
+    
+    
+    def cache_operators(self, 
+                        q: VectorArray,
+                        u: VectorArray = None,
+                        target: str = 'M_dt_A_q') -> None:
+        
+        assert target in self._cached_operators.keys()
+        assert q in self.Q
+        if len(self._cached_operators['q']) != 0:
+            assert np.all((self._cached_operators['q']-q).norm() == 0)
+        
+        if target == 'B_u':
+            assert u
+            assert len(u) == self.nt
+
+        self.logger.debug(f'Caching {target}')
+        self._cached_operators['q'] = q.copy()
+        
+
+        if self.setup['model_parameter']['q_time_dep']:            
+            self._cache_time_depended_operators(
+                q = q,
+                u = u,
+                target = target
+            )
+        else:
+            self._cache_time_independed_operators(
+                q = q,
+                u = u,
+                target = target
+            )
+            
 
     def delete_cached_operators(self) -> None:
         self.logger.debug('Deleting cache')
@@ -231,7 +280,6 @@ class InstationaryModelIP(ImmutableObject):
         del self._cached_operators['q'][:]
         del self._cached_operators['A_q'][:]
         del self._cached_operators['M_dt_A_q'][:]
-        del self._cached_operators['u'][:]
         del self._cached_operators['B_u'][:]
         del self._cached_operators['B^T_u'][:]
 
@@ -239,7 +287,6 @@ class InstationaryModelIP(ImmutableObject):
             'q' : self.Q.empty(),
             'A_q' : [],
             'M_dt_A_q' : [],
-            'u' : [],
             'B_u' : [],
             'B^T_u' : [],
         }
@@ -257,16 +304,12 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
-        
-        if len(self._cached_operators['q']) == 0:
-            q_cond = True
-        else:    
-            q_cond = (self._cached_operators['q']-q).norm() != 0
-        reset_cache = use_cached_operators and q_cond
-        
-        if reset_cache:
-            self.delete_cached_operators()
-            self.cache_operators(q=q, target='M_dt_A_q')
+        if use_cached_operators:
+            if self._cache_update_required(q):
+                self.delete_cached_operators()
+           
+            if len(self._cached_operators['M_dt_A_q']) == 0:
+                self.cache_operators(q=q, target='M_dt_A_q')
             
         iterator = self.timestepper.iterate(initial_data = self.u_0, 
                                             q=q,
@@ -297,15 +340,12 @@ class InstationaryModelIP(ImmutableObject):
 
         assert len(u) == self.nt
 
-        if len(self._cached_operators['q']) == 0:
-            q_cond = True
-        else:    
-            q_cond = (self._cached_operators['q']-q).norm() != 0
-        reset_cache = use_cached_operators and q_cond
-
-        if reset_cache:
-            self.delete_cached_operators()
-            self.cache_operators(q=q, target='M_dt_A_q')
+        if use_cached_operators:
+            if self._cache_update_required(q):
+                self.delete_cached_operators()
+           
+            if len(self._cached_operators['M_dt_A_q']) == 0:
+                self.cache_operators(q=q, target='M_dt_A_q') 
 
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
@@ -341,24 +381,29 @@ class InstationaryModelIP(ImmutableObject):
         assert len(d) == len(q)
         assert len(u) == self.nt
 
-        if len(self._cached_operators['q']) == 0:
-            q_cond = True
-        else:    
-            q_cond = (self._cached_operators['q']-q).norm() != 0
-        reset_cache = use_cached_operators and q_cond
+        if use_cached_operators:
+            if self._cache_update_required(q):
+                self.delete_cached_operators()
+           
+            if len(self._cached_operators['M_dt_A_q']) == 0:
+                self.cache_operators(q=q, target='M_dt_A_q')
 
-        if reset_cache:
-            self.delete_cached_operators()
-            self.cache_operators(q=q, target='M_dt_A_q')
-    
+            if len(self._cached_operators['B_u']) == 0:
+                self.cache_operators(q=q, u=u, target='B_u')
+
+        if use_cached_operators:
+            B_u = self._cached_operators['B_u']
+        else:
+            B_u = [self.B(u[idx]) for idx in range(len(u))]
+            
         # TODO Check if this is efficent and / or how its efficeny can be improved
         if self.q_time_dep:
             rhs = self.V.make_array(np.array([
-                self.B(u[idx]).B_u(d[idx]).to_numpy()[0] for idx in range(len(u))
+                B_u[idx].B_u(d[idx]).to_numpy()[0] for idx in range(len(u))
             ]))
         else:            
             rhs = self.V.make_array(np.array([
-                self.B(u[idx]).B_u(d[0]).to_numpy()[0] for idx in range(len(u))
+                B_u[idx].B_u(d[0]).to_numpy()[0] for idx in range(len(u))
             ]))
         
         iterator = self.timestepper.iterate(initial_data = self.linearized_u_0, 
@@ -390,15 +435,12 @@ class InstationaryModelIP(ImmutableObject):
         assert len(u) == self.nt
         assert len(lin_u) == self.nt
 
-        if len(self._cached_operators['q']) == 0:
-            q_cond = True
-        else:    
-            q_cond = (self._cached_operators['q']-q).norm() != 0
-        reset_cache = use_cached_operators and q_cond
-
-        if reset_cache:
-            self.delete_cached_operators()
-            self.cache_operators(q=q, target='M_dt_A_q')
+        if use_cached_operators:
+            if self._cache_update_required(q):
+                self.delete_cached_operators()
+           
+            if len(self._cached_operators['M_dt_A_q']) == 0:
+                self.cache_operators(q=q, target='M_dt_A_q')
 
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
@@ -461,13 +503,24 @@ class InstationaryModelIP(ImmutableObject):
         assert len(u) == self.nt
         assert len(p) == self.nt
 
-        self.num_calls['gradient'] += 1
+        if use_cached_operators:
+            if self._cache_update_required(q):
+                self.delete_cached_operators()
+           
+            if len(self._cached_operators['B_u']) == 0:
+                self.cache_operators(q=q, u=u, target='B_u')
 
-        grad = np.empty((self.nt, self.setup['dims']['par_dim']))    
+        self.num_calls['gradient'] += 1
+        grad = np.empty((self.nt, self.setup['dims']['par_dim']))  
+
+        if use_cached_operators:
+            B_u = self._cached_operators['B_u']
+        else:
+            B_u = [self.B(u[idx]) for idx in range(len(u))]
 
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt):
-            grad[idx] = self.B(u[idx]).B_u_ad(p[idx], 'grad')
+            grad[idx] = B_u[idx].B_u_ad(p[idx], 'grad')
 
         if not self.q_time_dep:
             grad = np.sum(grad, axis=0, keepdims=True)
@@ -541,13 +594,16 @@ class InstationaryModelIP(ImmutableObject):
         assert u in self.V
         assert lin_p in self.V
 
-        self.num_calls['linearized_gradient'] += 1
+        if use_cached_operators:
+            B_u = self._cached_operators['B_u']
+        else:
+            B_u = [self.B(u[idx]) for idx in range(len(u))]
 
-        grad = np.empty((self.nt, self.setup['dims']['par_dim']))
-        
+        self.num_calls['linearized_gradient'] += 1
+        grad = np.empty((self.nt, self.setup['dims']['par_dim']))        
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt):
-            grad[idx] = self.B(u[idx]).B_u_ad(lin_p[idx], 'grad') 
+            grad[idx] = B_u[idx].B_u_ad(lin_p[idx], 'grad') 
 
         if not self.q_time_dep:
             grad = np.sum(grad, axis=0, keepdims=True)
