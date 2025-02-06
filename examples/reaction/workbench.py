@@ -119,13 +119,12 @@ p = FOM.solve_adjoint(q, u, use_cached_operators=True)
 J = FOM.objective(u)
 nabla_J = FOM.gradient(u, p, q, use_cached_operators=True)
 
-print(nabla_J)
-
-import sys
-sys.exit()
+parameter_shapshots = FOM.Q.empty()
+parameter_shapshots.append(q)
+parameter_shapshots.append(nabla_J)
 
 reductor.extend_basis(
-    U = q,
+    U = parameter_shapshots,
     basis = 'parameter_basis'
 )
 
@@ -152,9 +151,6 @@ q_r = reductor.project_vectorarray(q, 'parameter_basis')
 q_r = QrVrROM.Q.make_array(q_r)
 
 
-print(FOM.compute_objective(q))
-print(QrVrROM.compute_objective(q_r))
-
 # d_r = reductor.project_vectorarray(d, 'parameter_basis')
 # d_r = QrFOM.Q.make_array(d_r)
 
@@ -164,7 +160,8 @@ u_r = QrVrROM.solve_state(q_r)
 p = FOM.solve_adjoint(q, u)
 p_r = QrVrROM.solve_adjoint(q_r, u_r)
 
-print(QrVrROM.estimate_objective_error(q_r, u_r, p_r))
+nabla_J_r = QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=True)
+print(nabla_J_r)
 import sys
 sys.exit()
 
