@@ -187,7 +187,8 @@ class InstationaryModelIP(ImmutableObject):
 
 #%% cache methods
     def _cache_update_required(self,
-                               q :VectorArray) -> bool:
+                               q : VectorArray) -> bool:
+        
         if len(self._cached_operators['q']) == 0:
             return True
         else:

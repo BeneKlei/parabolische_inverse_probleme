@@ -117,7 +117,10 @@ q = FOM.Q.make_array(q)
 u = FOM.solve_state(q, use_cached_operators=True)
 p = FOM.solve_adjoint(q, u, use_cached_operators=True)
 J = FOM.objective(u)
-nabla_J = FOM.gradient(u, p)
+nabla_J = FOM.gradient(u, p, q, use_cached_operators=True)
+
+print(nabla_J)
+
 import sys
 sys.exit()
 

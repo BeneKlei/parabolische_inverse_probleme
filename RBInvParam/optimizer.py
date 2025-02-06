@@ -89,7 +89,8 @@ class Optimizer(BasicObject):
                                inital_step_size: float,
                                eta: float,
                                beta: float,
-                               kappa_arm: float) -> Tuple[NumpyVectorArray, float, bool]:
+                               kappa_arm: float,
+                               use_cached_operators: bool = False) -> Tuple[NumpyVectorArray, float, bool]:
         
         assert 0 <= beta < 1
         assert 0 < eta
@@ -100,8 +101,8 @@ class Optimizer(BasicObject):
         step_size = inital_step_size
         search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
         current_q = previous_q + step_size * search_direction
-        u = model.solve_state(q=current_q)
-        p = model.solve_adjoint(q=current_q, u=u)
+        u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
+        p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
         current_J = model.objective(u=u,
                                     q=current_q)
         
@@ -130,8 +131,8 @@ class Optimizer(BasicObject):
         while (not condition) and (i <= max_iter) :
             step_size = 0.5 * step_size
             current_q = previous_q + step_size * search_direction
-            u = model.solve_state(q=current_q)
-            p = model.solve_adjoint(q=current_q, u=u)
+            u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
+            p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
             current_J = model.objective(u=u,
                                         q=current_q)
             
@@ -226,10 +227,10 @@ class Optimizer(BasicObject):
 
         alpha = alpha_0
         q = q_0.copy()
-        u = model.solve_state(q)
-        p = model.solve_adjoint(q, u)
+        u = model.solve_state(q, use_cached_operators=use_cached_operators)
+        p = model.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
         J = model.objective(u)
-        nabla_J = model.gradient(u, p)
+        nabla_J = model.gradient(u, p, q, use_cached_operators=use_cached_operators)
         norm_nabla_J = model.compute_gradient_norm(nabla_J)
 
 
@@ -276,8 +277,8 @@ class Optimizer(BasicObject):
                                               logger = self.logger,
                                               use_cached_operators=use_cached_operators)
             
-            lin_u = model.solve_linearized_state(q, d, u)
-            lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0)
+            lin_u = model.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
+            lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0, use_cached_operators=use_cached_operators)
 
             condition_low = theta*J< 2*lin_J
             condition_up = 2* lin_J < Theta*J
@@ -314,8 +315,8 @@ class Optimizer(BasicObject):
                                                   logger = self.logger,
                                                   use_cached_operators=use_cached_operators)
 
-                lin_u = model.solve_linearized_state(q, d, u)
-                lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0)
+                lin_u = model.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
+                lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0, use_cached_operators=use_cached_operators)
 
                 condition_low = theta*J< 2 * lin_J
                 condition_up = 2* lin_J < Theta*J
@@ -343,7 +344,8 @@ class Optimizer(BasicObject):
                                                                       previous_q = q,
                                                                       previous_J = J,
                                                                       search_direction = d,
-                                                                      **TR_backtracking_params)
+                                                                      **TR_backtracking_params,
+                                                                      use_cached_operators=False)
 
                 if model_unsufficent:
                     break
@@ -353,10 +355,10 @@ class Optimizer(BasicObject):
 
             ########################################### Final ###########################################
 
-            u = model.solve_state(q)
-            p = model.solve_adjoint(q, u)
-            J = model.objective(u)
-            nabla_J = model.gradient(u, p)
+            u = model.solve_state(q, use_cached_operators=use_cached_operators)
+            p = model.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+            J = model.objective(u, )
+            nabla_J = model.gradient(u, p, q, use_cached_operators=use_cached_operators)
             norm_nabla_J = model.compute_gradient_norm(nabla_J)
 
             self.IRGNM_statistics["q"].append(q)
@@ -508,10 +510,10 @@ class FOMOptimizer(Optimizer):
         use_cached_operators = self.optimizer_parameter['use_cached_operators']
 
         q = self.FOM.Q.make_array(q_0)
-        u = self.FOM.solve_state(q)
-        p = self.FOM.solve_adjoint(q, u)
+        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+        p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
         J = self.FOM.objective(u)
-        nabla_J = self.FOM.gradient(u, p)
+        nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
         self.logger.debug("Running FOM-IRGNM:")
@@ -613,10 +615,10 @@ class QrFOMOptimizer(Optimizer):
         delta = noise_level
 
         q = self.FOM.Q.make_array(q_0)
-        u = self.FOM.solve_state(q)
-        p = self.FOM.solve_adjoint(q, u)
+        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+        p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
         J = self.FOM.objective(u)
-        nabla_J = self.FOM.gradient(u, p)
+        nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
         
         self.statistics["q"].append(q)
@@ -690,10 +692,10 @@ class QrFOMOptimizer(Optimizer):
             
 
             q = self.reductor.reconstruct(q_r, basis='parameter_basis')
-            u = self.FOM.solve_state(q)
-            p = self.FOM.solve_adjoint(q, u)
+            u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+            p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
             J = self.FOM.objective(u)
-            nabla_J = self.FOM.gradient(u, p)
+            nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
             alpha = IRGNM_statistic["alpha"][1]
 
             self.statistics["q"].append(q)
@@ -799,10 +801,10 @@ class QrVrROMOptimizer(Optimizer):
         delta = noise_level
 
         q = self.FOM.Q.make_array(q_0)
-        u = self.FOM.solve_state(q)
-        p = self.FOM.solve_adjoint(q, u)
+        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+        p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
         J = self.FOM.objective(u)
-        nabla_J = self.FOM.gradient(u, p)
+        nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
         assert norm_nabla_J > 0
 
@@ -910,10 +912,10 @@ class QrVrROMOptimizer(Optimizer):
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
             q_r = self.QrVrROM.Q.make_array(q_r)
 
-            u_r = self.QrVrROM.solve_state(q_r)
-            p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
+            u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=use_cached_operators)
+            p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
             J_r = self.QrVrROM.objective(u_r)
-            nabla_J_r = self.QrVrROM.gradient(u_r, p_r)
+            nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
             
 
             ########################################### AGC ###########################################
@@ -929,6 +931,7 @@ class QrVrROMOptimizer(Optimizer):
                 eta = eta,
                 beta = beta_1,
                 kappa_arm = kappa_arm,
+                use_cached_operators=False
             )
             
             q_r = q_agc.copy()
@@ -997,7 +1000,7 @@ class QrVrROMOptimizer(Optimizer):
                 u = self.FOM.solve_state(q)
                 p = self.FOM.solve_adjoint(q, u)
                 J = self.FOM.objective(u)
-                nabla_J = self.FOM.gradient(u, p)
+                nabla_J = self.FOM.gradient(u, p, q)
                 norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
                 delta_J = self.statistics["J"][-1] -J
@@ -1018,10 +1021,10 @@ class QrVrROMOptimizer(Optimizer):
                 eta = beta_3 * eta
             else:
                 q = self.reductor.reconstruct(q_r, basis='parameter_basis')
-                u = self.FOM.solve_state(q)
-                p = self.FOM.solve_adjoint(q, u)
+                u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+                p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
                 J = self.FOM.objective(u)
-                nabla_J = self.FOM.gradient(u, p)
+                nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
                 norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
                 
                 EASDC = J <= J_r_AGC
@@ -1031,10 +1034,10 @@ class QrVrROMOptimizer(Optimizer):
                     self.logger.info(f"    Accept q.")
                     rejected = False
                     q = self.reductor.reconstruct(q_r, basis='parameter_basis')
-                    u = self.FOM.solve_state(q)
-                    p = self.FOM.solve_adjoint(q, u)
+                    u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+                    p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
                     J = self.FOM.objective(u)
-                    nabla_J = self.FOM.gradient(u, p)
+                    nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
                     norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
                     delta_J = self.statistics["J"][-1] - J
