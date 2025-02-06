@@ -101,7 +101,7 @@ def main():
     u = FOM.solve_state(q)
     p = FOM.solve_adjoint(q, u)
     J = FOM.objective(u)
-    nabla_J = FOM.gradient(u, p)
+    nabla_J = FOM.gradient(u, p, q)
     d = q.copy()
 
 

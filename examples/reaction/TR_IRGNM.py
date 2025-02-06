@@ -80,6 +80,7 @@ def main():
             'q_circ' : q_circ, 
             'q_exact' : None,
             'q_time_dep' : q_time_dep,
+            'riesz_rep_grad' : True,
             'bounds' : bounds,
             'parameters' : None,
             'products' : {

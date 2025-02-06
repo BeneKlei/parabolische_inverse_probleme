@@ -29,7 +29,7 @@ set_log_levels({
 ABS_TOL = 1e-14
 REL_TOL = 1e-14
 
-logger = get_default_logger()
+logger = get_default_logger(logger_name='test_gradient')
 
 configs = []
 for setup_name, setup in SETUPS.items():        
@@ -41,7 +41,7 @@ for setup_name, setup in SETUPS.items():
     u = FOM.solve_state(q)
     p = FOM.solve_adjoint(q, u)
     J = FOM.objective(u)
-    nabla_J = FOM.gradient(u, p)
+    nabla_J = FOM.gradient(u, p, q)
 
     reductor.extend_basis(
         U = nabla_J,
@@ -67,17 +67,17 @@ for setup_name, setup in SETUPS.items():
         'model' : FOM
     })
 
-    # configs.append({
-    #     'model_name' : setup_name + '_QrFOM',
-    #     'alpha' : 1e0,
-    #     'model' : QrFOM
-    # })
+    configs.append({
+        'model_name' : setup_name + '_QrFOM',
+        'alpha' : 1e0,
+        'model' : QrFOM
+    })
 
-    # configs.append({
-    #     'model_name' : setup_name + '_QrVrROM',
-    #     'alpha' : 1e0,
-    #     'model' : QrVrROM
-    # })
+    configs.append({
+        'model_name' : setup_name + '_QrVrROM',
+        'alpha' : 1e0,
+        'model' : QrVrROM
+    })
 
 
 def derivative_check(model : InstationaryModelIP ,
@@ -177,7 +177,7 @@ def test_linearized_objective_gradient(config : Dict)-> None:
     eps, diff_quot = derivative_check(
         model,
         lambda d : model.compute_linearized_objective(q, d, alpha),
-        lambda d: model.compute_linearized_gradient(q, d, alpha),
+        lambda d: model.compute_linearized_gradient(q, d, alpha, use_cached_operators=True),
         Path('./test_gradient_dumps/' + config['model_name'] 
              + '_' + sys._getframe().f_code.co_name + '.png'),
         title = 'linearized_J'

@@ -40,7 +40,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if logger:
             self._logger = logger
         else:
-            self._logger = get_default_logger(self.__class__.__name__)
+            self._logger = get_default_logger(logger_name=self.__class__.__name__)
             self._logger.setLevel(logging.DEBUG)
         self.logger.debug(f"Setting up {self.__class__.__name__}")
 
@@ -210,6 +210,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             constant_operator = constant_operator,
             source = Q,
             range = V,
+            Q = Q,
             V = V
         )
 

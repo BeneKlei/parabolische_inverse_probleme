@@ -66,7 +66,7 @@ set_defaults({})
 
 #########################################################################################''
 
-#N = 10
+#N = 30
 N = 300
 par_dim = (N+1)**2
 fine_N = 2 * N
@@ -151,7 +151,7 @@ q = FOM.Q.make_array(q_circ)
 u = FOM.solve_state(q)
 p = FOM.solve_adjoint(q, u)
 J = FOM.objective(u)
-nabla_J = FOM.gradient(u, p)
+nabla_J = FOM.gradient(u, p, q)
 
 reductor.extend_basis(
     U = nabla_J,

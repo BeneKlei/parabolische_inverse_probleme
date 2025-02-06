@@ -114,7 +114,7 @@ def main():
 
 
     J = FOM.objective(u)
-    nabla_J = FOM.gradient(u, p)
+    nabla_J = FOM.gradient(u, p, q)
 
     reductor.extend_basis(
         U = q,

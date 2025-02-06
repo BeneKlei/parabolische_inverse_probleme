@@ -1,5 +1,8 @@
 import numpy as np
 import logging
+import os
+from pathlib import Path
+from datetime import datetime
 
 from pymor.basic import *
 
@@ -16,8 +19,17 @@ from RBInvParam.problems.problems import build_InstationaryModelIP
 
 #########################################################################################''
 
-logger = get_default_logger(logfile_path='./logs/log.log', use_timestemp=True)
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+save_path = Path('./dumps') / (timestamp + '_workbench')
+os.mkdir(save_path)
+logfile_path= save_path / 'workbench.log'
+
+logger = get_default_logger(logger_name='workbench',
+                            logfile_path=logfile_path, 
+                            use_timestemp=False)
 logger.setLevel(logging.DEBUG)
+
+#########################################################################################''
 
 set_log_levels({
     'pymor' : 'WARN'
@@ -27,8 +39,8 @@ set_defaults({})
 
 #########################################################################################''
 
-#N = 10
-N = 100
+N = 30
+#N = 100
 par_dim = (N+1)**2
 fine_N = 2 * N
 
@@ -82,6 +94,7 @@ setup = {
         'q_circ' : q_circ, 
         'q_exact' : None,
         'q_time_dep' : q_time_dep,
+        'riesz_rep_grad' : True,
         'bounds' : bounds,
         'parameters' : None,
         'products' : {
@@ -101,13 +114,17 @@ reductor = InstationaryModelIPReductor(FOM)
 
 q = q_circ
 q = FOM.Q.make_array(q)
-u = FOM.solve_state(q)
-p = FOM.solve_adjoint(q, u)
+u = FOM.solve_state(q, use_cached_operators=True)
+p = FOM.solve_adjoint(q, u, use_cached_operators=True)
 J = FOM.objective(u)
-nabla_J = FOM.gradient(u, p)
+nabla_J = FOM.gradient(u, p, q, use_cached_operators=True)
+
+parameter_shapshots = FOM.Q.empty()
+parameter_shapshots.append(q)
+parameter_shapshots.append(nabla_J)
 
 reductor.extend_basis(
-    U = q,
+    U = parameter_shapshots,
     basis = 'parameter_basis'
 )
 
@@ -134,9 +151,6 @@ q_r = reductor.project_vectorarray(q, 'parameter_basis')
 q_r = QrVrROM.Q.make_array(q_r)
 
 
-print(FOM.compute_objective(q))
-print(QrVrROM.compute_objective(q_r))
-
 # d_r = reductor.project_vectorarray(d, 'parameter_basis')
 # d_r = QrFOM.Q.make_array(d_r)
 
@@ -146,7 +160,8 @@ u_r = QrVrROM.solve_state(q_r)
 p = FOM.solve_adjoint(q, u)
 p_r = QrVrROM.solve_adjoint(q_r, u_r)
 
-print(QrVrROM.estimate_objective_error(q_r, u_r, p_r))
+nabla_J_r = QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=True)
+print(nabla_J_r)
 import sys
 sys.exit()
 
