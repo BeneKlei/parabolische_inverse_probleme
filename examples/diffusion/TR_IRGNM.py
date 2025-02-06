@@ -104,11 +104,6 @@ def main():
 
     FOM = build_InstationaryModelIP(setup, logger)
 
-    logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
-    save_dict_to_pkl(path=save_path / 'setup.pkl', 
-                     data = setup,
-                     use_timestamp=False)
-
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
 
@@ -140,6 +135,17 @@ def main():
         'beta_2' : 3/4,
         'beta_3' : 0.5,
     }
+
+    logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
+    save_dict_to_pkl(path=save_path / 'setup.pkl', 
+                     data = setup,
+                     use_timestamp=False)
+        
+    logger.info(f"Dumping model optimizer_parameter to {save_path / 'optimizer_parameter.pkl'}.")
+    save_dict_to_pkl(path=save_path / 'optimizer_parameter.pkl', 
+                        data = optimizer_parameter,
+                        use_timestamp=False)
+
 
     optimizer = QrVrROMOptimizer(
         FOM = FOM,

@@ -805,6 +805,7 @@ class QrVrROMOptimizer(Optimizer):
         p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
         J = self.FOM.objective(u)
         nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
+
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
         assert norm_nabla_J > 0
 

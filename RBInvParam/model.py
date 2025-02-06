@@ -391,7 +391,7 @@ class InstationaryModelIP(ImmutableObject):
 
             if len(self._cached_operators['B_u']) == 0:
                 self.cache_operators(q=q, u=u, target='B_u')
-
+        
         if use_cached_operators:
             B_u = self._cached_operators['B_u']
         else:
