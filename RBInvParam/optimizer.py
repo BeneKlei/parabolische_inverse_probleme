@@ -265,9 +265,6 @@ class Optimizer(BasicObject):
             d_start[:,:] = 0
             d_start = model.Q.make_array(d_start)
 
-            if use_cached_operators:
-                model.timestepper.cache_operators(q=q, target='M_dt_A_q')
-
             d = self.solve_linearized_problem(model=model,
                                               q=q,
                                               d_start=d_start,
@@ -353,8 +350,6 @@ class Optimizer(BasicObject):
             else:
                 q += d
 
-            if use_cached_operators:
-                model.timestepper.delete_cached_operators()
 
             ########################################### Final ###########################################
 
