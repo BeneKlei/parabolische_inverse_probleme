@@ -35,8 +35,8 @@ set_defaults({})
 
 def main():
 
-    N = 100
-    #N = 10
+    #N = 100
+    N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -125,6 +125,7 @@ def main():
             'lin_solver_inital_step_size' : 1
         },
         'use_cached_operators' : True,
+        'dump_every_nth_loop' : 2
     }
 
     logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
