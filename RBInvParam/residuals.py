@@ -21,7 +21,8 @@ class ImplicitEulerResidualOperator(Operator):
                  V : VectorSpace,
                  riesz_representative : bool,
                  products : Dict,
-                 setup: Dict):
+                 setup: Dict, 
+                 residual_image_projector: Operator = None):
         
         self.products = products
         self.setup = setup
@@ -35,7 +36,8 @@ class ImplicitEulerResidualOperator(Operator):
         self.q_time_dep = self.setup['model_parameter']['q_time_dep']
         self.nt = self.setup['dims']['nt']
         
-        self.M = M
+        assert not M.parametric
+        self.M = M.assemble() 
         self.A = A
     
         self.V = V
@@ -43,12 +45,16 @@ class ImplicitEulerResidualOperator(Operator):
 
         self.source = A.source
         self.range = A.range
+
+        self.residual_image_projector = residual_image_projector
         
         # assert self.M.source == self.M.range
         # assert self.A.source == self.A.range
         assert self.M.source == self.A.source
         assert self.A.source == self.V
         assert self.A.Q == self.Q        
+        if self.residual_image_projector:
+            assert self.residual_image_projector.range == A.range
     
     def _apply(self,
                rhs: VectorArray, 
@@ -93,7 +99,8 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
                  V : VectorSpace,
                  riesz_representative : bool,
                  products : Dict,
-                 setup: Dict):
+                 setup: Dict,
+                 residual_image_projector: Operator = None):
         
         super().__init__(M = M,
                          A = A,
@@ -101,6 +108,7 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
                          V = V,
                          riesz_representative = riesz_representative,
                          products = products,
+                         residual_image_projector = residual_image_projector,
                          setup = setup)
         
         self.L = L
@@ -130,7 +138,8 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
                  V : VectorSpace,
                  riesz_representative : bool,
                  products : Dict,
-                 setup : Dict):
+                 setup : Dict,
+                 residual_image_projector: Operator = None):
         
         super().__init__(M = M,
                          A = A, # A is symmetric
@@ -138,6 +147,7 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
                          V = V,
                          riesz_representative = riesz_representative,
                          products = products,
+                         residual_image_projector = residual_image_projector,
                          setup = setup)
             
         self.bilinear_cost_term = bilinear_cost_term
