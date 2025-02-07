@@ -237,7 +237,7 @@ class InstationaryModelIP(ImmutableObject):
                         M_dt_A_q.assemble()
                 )
             elif target == 'B_u':
-                self._cached_operators[target] = [self.B(u[idx]) for idx in range(len(u))]
+                self._cached_operators[target].append(self.B(u[n]))
             else:
                 self.logger.error(f'Target {target} is not known.')
                 raise ValueError
@@ -508,7 +508,7 @@ class InstationaryModelIP(ImmutableObject):
             if self._cache_update_required(q):
                 self.delete_cached_operators()
            
-            if len(self._cached_operators['B_u']) == 0:
+            if len(self._cached_operators['B_u']) == 0:                
                 self.cache_operators(q=q, u=u, target='B_u')
 
         if use_cached_operators:

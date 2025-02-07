@@ -228,6 +228,8 @@ class Optimizer(BasicObject):
         alpha = alpha_0
         q = q_0.copy()
         u = model.solve_state(q, use_cached_operators=use_cached_operators)
+        import sys
+        sys.exit
         p = model.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
         J = model.objective(u)
         nabla_J = model.gradient(u, p, q, use_cached_operators=use_cached_operators)
@@ -514,6 +516,8 @@ class FOMOptimizer(Optimizer):
         p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
         J = self.FOM.objective(u)
         nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
+        import sys
+        sys.exit()
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
         self.logger.debug("Running FOM-IRGNM:")
@@ -801,7 +805,7 @@ class QrVrROMOptimizer(Optimizer):
         delta = noise_level
 
         q = self.FOM.Q.make_array(q_0)
-        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)        
         p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
         J = self.FOM.objective(u)
         nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
