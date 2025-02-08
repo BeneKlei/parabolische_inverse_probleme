@@ -1,5 +1,6 @@
 from typing import Dict, Union
 import scipy
+import copy
 
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.operators.interface import Operator
@@ -45,13 +46,11 @@ class ImplicitEulerResidualOperator(Operator):
         assert self.A.source == self.V
         assert self.A.Q == self.Q 
 
-        identity = scipy.sparse.identity(self.products['prod_V'].range.dim)
-        identity = self.products['prod_V'].range.make_array(identity)
         if riesz_representative:
-            self.riesz = self.products['prod_V'].apply_inverse(identity)
-        else:
-            self.riesz = identity
-    
+            # TODO Maybe set solver options globally
+            self.riesz_op = copy.deepcopy(self.products['prod_V'])
+            self.riesz_op.with_(solver_options='scipy_spsolve')
+
     def _apply(self,
                rhs: VectorArray, 
                u: VectorArray,
@@ -105,7 +104,7 @@ class ImplicitEulerResidualOperator(Operator):
         R = - Au - 1/ self.delta_t * self.M.apply(u - u_old) + rhs
         
         if self.riesz_representative:
-            R = self.products['prod_V'].source.make_array(self.riesz.inner(R).T)
+            R = self.riesz_op.apply(R)
             return R
         else:
             return R

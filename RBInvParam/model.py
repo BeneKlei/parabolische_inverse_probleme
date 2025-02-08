@@ -113,7 +113,8 @@ class InstationaryModelIP(ImmutableObject):
             V = self.V,
             T_initial= self.T_initial,
             T_final= self.T_final,
-            setup = self.setup
+            setup = self.setup,
+            solver_options='scipy_spsolve' # Must be this to cache intermed results
         )
 
         self.solver_options = None
@@ -795,27 +796,15 @@ class InstationaryModelIP(ImmutableObject):
             if self._cache_update_required(q):
                 self.delete_cached_operators()
            
-            print("Cache:")
-            import time
-            start = time.time()
             if len(self._cached_operators['residual_A_q']) == 0:
                 self.cache_operators(q=q, target='residual_A_q')
-            print(time.time()-start)
 
         if self.objective_error_estimator:
-            print("Primal:")
-            import time
-            start = time.time()
             estimated_state_error = self.estimate_state_error(
                 q = q,
                 u = u,
                 use_cached_operators=use_cached_operators
-            )
-            print(time.time()-start)
-
-            print("Adjoint:")
-            import time
-            start = time.time()
+            )            
             adjoint_residuum = self.adjoint_error_estimator.compute_residuum(
                 q = q,
                 u = u,
@@ -823,7 +812,6 @@ class InstationaryModelIP(ImmutableObject):
                 use_cached_operators=use_cached_operators,
                 cached_operators=self._cached_operators
             )
-            print(time.time()-start)
 
             adjoint_residuum = np.sqrt(self.adjoint_error_estimator.delta_t * \
                 np.sum(adjoint_residuum.norm2(

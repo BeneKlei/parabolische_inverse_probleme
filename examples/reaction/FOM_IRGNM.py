@@ -35,8 +35,8 @@ set_defaults({})
 
 def main():
 
-    #N = 100
-    N = 30
+    N = 100
+    #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 

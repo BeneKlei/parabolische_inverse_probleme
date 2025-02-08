@@ -146,28 +146,12 @@ class Optimizer(BasicObject):
 
             armijo_condition = lhs >= rhs
 
-            if current_J > 0:
-                print("Start error calc:")
-                print(step_size)
-                import time
-                start = time.time()
+            if current_J > 0:                
                 J_rel_error = model.estimate_objective_error(
                     q=current_q,
                     u = u,
                     p = p,
                     use_cached_operators=use_cached_operators) / current_J
-                print(time.time()-start)
-                print("End error calc")
-                
-                q = self.reductor.reconstruct(current_q,basis='parameter_basis')
-                start = time.time()
-                _ = self.FOM.compute_objective(q=q)
-                # u = self.FOM.solve_state(q=current_q, use_cached_operators=use_cached_operators)
-                # p = self.FOM.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
-
-
-                print(time.time()-start)
-                
             else:
                 J_rel_error = np.inf
 
@@ -995,7 +979,8 @@ class QrVrROMOptimizer(Optimizer):
             abs_est_error_J_r = self.QrVrROM.estimate_objective_error(
                     q=q_r,
                     u = u_r,
-                    p = p_r)
+                    p = p_r,
+                    use_cached_operators=use_cached_operators)
             
             if J_r > 0:
                 rel_est_error_J_r = abs_est_error_J_r / J_r
