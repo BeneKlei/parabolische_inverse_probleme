@@ -19,9 +19,6 @@ from RBInvParam.utils.io import save_dict_to_pkl
 
 MACHINE_EPS = 1e-16
 
-# TODO:
-# - Refactor AssembledB
-
 class Optimizer(BasicObject):
     def __init__(self, 
                  optimizer_parameter: Dict, 
@@ -121,7 +118,8 @@ class Optimizer(BasicObject):
             J_rel_error = model.estimate_objective_error(
                 q=current_q,
                 u = u,
-                p = p) / current_J
+                p = p,
+                use_cached_operators=use_cached_operators) / current_J
         else:
             J_rel_error = np.inf
         
@@ -149,10 +147,27 @@ class Optimizer(BasicObject):
             armijo_condition = lhs >= rhs
 
             if current_J > 0:
+                print("Start error calc:")
+                print(step_size)
+                import time
+                start = time.time()
                 J_rel_error = model.estimate_objective_error(
                     q=current_q,
                     u = u,
-                    p = p) / current_J
+                    p = p,
+                    use_cached_operators=use_cached_operators) / current_J
+                print(time.time()-start)
+                print("End error calc")
+                
+                q = self.reductor.reconstruct(current_q,basis='parameter_basis')
+                start = time.time()
+                _ = self.FOM.compute_objective(q=q)
+                # u = self.FOM.solve_state(q=current_q, use_cached_operators=use_cached_operators)
+                # p = self.FOM.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
+
+
+                print(time.time()-start)
+                
             else:
                 J_rel_error = np.inf
 
@@ -346,7 +361,7 @@ class Optimizer(BasicObject):
                                                                       previous_J = J,
                                                                       search_direction = d,
                                                                       **TR_backtracking_params,
-                                                                      use_cached_operators=False)
+                                                                      use_cached_operators=use_cached_operators)
 
                 if model_unsufficent:
                     break
@@ -818,7 +833,7 @@ class QrVrROMOptimizer(Optimizer):
         assert norm_nabla_J > 0
 
         inital_armijo_step_size = 0.5 / norm_nabla_J
-        inital_armijo_step_size = np.min([inital_armijo_step_size, 100])
+        inital_armijo_step_size = np.min([inital_armijo_step_size, 1])
         eta = eta0
         
         self.logger.debug("Running Qr-Vr-IRGNM:")
@@ -940,7 +955,7 @@ class QrVrROMOptimizer(Optimizer):
                 eta = eta,
                 beta = beta_1,
                 kappa_arm = kappa_arm,
-                use_cached_operators=False
+                use_cached_operators=use_cached_operators
             )
             
             q_r = q_agc.copy()
@@ -948,7 +963,7 @@ class QrVrROMOptimizer(Optimizer):
             if not model_unsufficent:
                 TR_backtracking_params = {
                     'max_iter' : armijo_max_iter, 
-                    'inital_step_size' : 1, 
+                    'inital_step_size' : 0.1, 
                     'eta' : eta, 
                     'beta' : beta_1, 
                     "kappa_arm" : kappa_arm

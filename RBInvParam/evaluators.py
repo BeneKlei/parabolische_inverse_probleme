@@ -276,30 +276,6 @@ class AssembledB(AssembledEvaluator):
 
         self.Q = Q
         self.V = V
-    
-    # def __call__(self, u: VectorArray) -> Struct:
-    #     assert u in self.V
-    #     # TODO Check how this function can be vectorized
-    #     assert len(u) == 1
-
-    #     B_u = Struct()
-    #     if self.unconstant_operator:
-    #         DoFs = u.space.dim
-    #         # TODO Optimize this; drop the alibi dimension
-    #         B_u_list = np.zeros((len(self.unconstant_operator.operators), DoFs, 1))
-    #         for i, op in enumerate(self.unconstant_operator.operators):
-    #             B_u_list[i] = -op.apply_adjoint(u).to_numpy().T
-            
-    #         print(B_u_list.shape)
-
-            
-
-    #         B_u.B_u = lambda d: self.V.make_array(np.einsum("tij,t->ij", B_u_list, d.to_numpy().flatten()).flatten())
-    #         B_u.B_u_ad = lambda p: self.Q.make_array(np.einsum("tij,i->t", B_u_list, p.to_numpy()[0]))
-    #     else:
-    #         raise NotImplementedError
-
-    #     return B_u
 
     def __call__(self, u: VectorArray) -> Struct:
         assert u in self.V

@@ -121,9 +121,8 @@ class InstationaryModelIP(ImmutableObject):
             'q' : self.Q.empty(),
             'A_q' : [],
             'M_dt_A_q' : [],
-            'u' : [],
+            'residual_A_q' : [],
             'B_u' : [],
-            'B^T_u' : [],
         }
         
         if not num_calls:
@@ -200,18 +199,25 @@ class InstationaryModelIP(ImmutableObject):
                                        u: VectorArray,
                                        target: str = 'M_dt_A_q') -> None:
         
-        dt = (self.T_final - self.T_initial) / self.nt
-        A_q = self.A(q[0])
-        M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
-
         if target == 'A_q':
+            A_q = self.A(q[0])
             self._cached_operators[target].append(
                 A_q.assemble()
             )
         elif target == 'M_dt_A_q':
+            dt = (self.T_final - self.T_initial) / self.nt
+            A_q = self.A(q[0])
+            M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
             self._cached_operators[target].append(
                 M_dt_A_q.assemble()        
             )
+        elif target == 'residual_A_q':
+            if self.state_error_estimator:
+                assert self.state_error_estimator.state_residual_operator.A == self.adjoint_error_estimator.adjoint_residual_operator.A
+                residual_A_q = self.state_error_estimator.state_residual_operator.A(q[0])
+                self._cached_operators[target].append(
+                    residual_A_q.assemble()
+                )            
         elif target == 'B_u':
             self._cached_operators[target] = [self.B(u[idx]) for idx in range(len(u))]
         else:
@@ -222,20 +228,28 @@ class InstationaryModelIP(ImmutableObject):
                                        q: VectorArray,
                                        u: VectorArray,
                                        target: str = 'M_dt_A_q') -> None:
+
         
-        dt = (self.T_final - self.T_initial) / self.nt
-        for n in range(self.nt):
-            A_q = self.A(q[n])
-            M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
-            
+        for n in range(self.nt):            
             if target == 'A_q':
+                A_q = self.A(q[n])
                 self._cached_operators[target].append(
                     A_q.assemble()
                 )
             elif target == 'M_dt_A_q':
+                dt = (self.T_final - self.T_initial) / self.nt
+                A_q = self.A(q[n])
+                M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
                 self._cached_operators[target].append(
                         M_dt_A_q.assemble()
                 )
+            elif target == 'residual_A_q':
+                if self.state_error_estimator:
+                    assert self.state_error_estimator.state_residual_operator.A == self.adjoint_error_estimator.adjoint_residual_operator.A
+                    residual_A_q = self.state_error_estimator.state_residual_operator.A(q[n])
+                    self._cached_operators[target].append(
+                        residual_A_q.assemble()
+                    )  
             elif target == 'B_u':
                 self._cached_operators[target].append(self.B(u[n]))
             else:
@@ -281,15 +295,16 @@ class InstationaryModelIP(ImmutableObject):
         del self._cached_operators['q'][:]
         del self._cached_operators['A_q'][:]
         del self._cached_operators['M_dt_A_q'][:]
+        del self._cached_operators['residual_A_q'][:]
         del self._cached_operators['B_u'][:]
-        del self._cached_operators['B^T_u'][:]
+        
 
         self._cached_operators = {
             'q' : self.Q.empty(),
             'A_q' : [],
             'M_dt_A_q' : [],
-            'B_u' : [],
-            'B^T_u' : [],
+            'residual_A_q' : [],
+            'B_u' : []
         }
 
 
@@ -342,6 +357,7 @@ class InstationaryModelIP(ImmutableObject):
         assert len(u) == self.nt
 
         if use_cached_operators:
+            # TODO Move these into one abstract function
             if self._cache_update_required(q):
                 self.delete_cached_operators()
            
@@ -594,6 +610,13 @@ class InstationaryModelIP(ImmutableObject):
         assert lin_p in self.V
 
         if use_cached_operators:
+            if self._cache_update_required(q):
+                self.delete_cached_operators()
+           
+            if len(self._cached_operators['B_u']) == 0:                
+                self.cache_operators(q=q, u=u, target='B_u')
+
+        if use_cached_operators:
             B_u = self._cached_operators['B_u']
         else:
             B_u = [self.B(u[idx]) for idx in range(len(u))]
@@ -707,16 +730,26 @@ class InstationaryModelIP(ImmutableObject):
     # TODO Enable cache also for error est, i.e. A_q
     def estimate_state_error(self,
                              q: VectorArray,
-                             u: VectorArray) -> float:        
+                             u: VectorArray,
+                             use_cached_operators: bool = False) -> float:        
         
         assert len(u) == self.nt
         assert q in self.Q
         assert u in self.V
 
+        if use_cached_operators:
+            if self._cache_update_required(q):
+                self.delete_cached_operators()
+           
+            if len(self._cached_operators['residual_A_q']) == 0:
+                self.cache_operators(q=q, target='residual_A_q')
+
         if self.state_error_estimator:
             return self.state_error_estimator.estimate_error(
                 q = q,
-                u = u         
+                u = u,
+                use_cached_operators=use_cached_operators,
+                cached_operators=self._cached_operators
             )
         else:
             return 0.0
@@ -724,7 +757,8 @@ class InstationaryModelIP(ImmutableObject):
     def estimate_adjoint_error(self,
                                q: VectorArray,
                                u: VectorArray,
-                               p: VectorArray) -> float:
+                               p: VectorArray,
+                               use_cached_operators: bool = False) -> float:
         
         assert len(u) == self.nt
         assert len(u) == len(p)
@@ -733,11 +767,20 @@ class InstationaryModelIP(ImmutableObject):
         assert u in self.V
         assert p in self.V
 
+        if use_cached_operators:
+            if self._cache_update_required(q):
+                self.delete_cached_operators()
+           
+            if len(self._cached_operators['residual_A_q']) == 0:
+                self.cache_operators(q=q, target='residual_A_q')
+
         if self.state_error_estimator:
             return self.adjoint_error_estimator.estimate_error(
                 q = q,
                 u = u,
-                p = p           
+                p = p,
+                use_cached_operators=use_cached_operators,
+                cached_operators=self._cached_operators
             )
         else:
             return 0.0
@@ -745,17 +788,42 @@ class InstationaryModelIP(ImmutableObject):
     def estimate_objective_error(self,
                                  q: VectorArray,
                                  u: VectorArray,
-                                 p: VectorArray) -> float:
+                                 p: VectorArray,
+                                 use_cached_operators: bool = False) -> float:
+
+        if use_cached_operators:
+            if self._cache_update_required(q):
+                self.delete_cached_operators()
+           
+            print("Cache:")
+            import time
+            start = time.time()
+            if len(self._cached_operators['residual_A_q']) == 0:
+                self.cache_operators(q=q, target='residual_A_q')
+            print(time.time()-start)
+
         if self.objective_error_estimator:
+            print("Primal:")
+            import time
+            start = time.time()
             estimated_state_error = self.estimate_state_error(
                 q = q,
-                u = u
+                u = u,
+                use_cached_operators=use_cached_operators
             )
+            print(time.time()-start)
+
+            print("Adjoint:")
+            import time
+            start = time.time()
             adjoint_residuum = self.adjoint_error_estimator.compute_residuum(
                 q = q,
                 u = u,
-                p = p
+                p = p,
+                use_cached_operators=use_cached_operators,
+                cached_operators=self._cached_operators
             )
+            print(time.time()-start)
 
             adjoint_residuum = np.sqrt(self.adjoint_error_estimator.delta_t * \
                 np.sum(adjoint_residuum.norm2(

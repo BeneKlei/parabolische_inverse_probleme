@@ -1,17 +1,11 @@
 from typing import Dict, Union
+import scipy
 
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.interface import VectorArray, VectorSpace
 
 from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
-
-# Assembly ResidualOps
-# - Assemble it first naively, i.e. do not use projection to an (approximate) image basis
-#   - Constructing this basis can be to costly
-#   - Rememeber that the error is not used solving the linear problem 
-#   - But only in backtracking from the obtained direction 
-
 
 class ImplicitEulerResidualOperator(Operator):
     def __init__(self,
@@ -21,8 +15,7 @@ class ImplicitEulerResidualOperator(Operator):
                  V : VectorSpace,
                  riesz_representative : bool,
                  products : Dict,
-                 setup: Dict, 
-                 residual_image_projector: Operator = None):
+                 setup: Dict):
         
         self.products = products
         self.setup = setup
@@ -45,22 +38,40 @@ class ImplicitEulerResidualOperator(Operator):
 
         self.source = A.source
         self.range = A.range
-
-        self.residual_image_projector = residual_image_projector
-        
+    
         # assert self.M.source == self.M.range
         # assert self.A.source == self.A.range
         assert self.M.source == self.A.source
         assert self.A.source == self.V
-        assert self.A.Q == self.Q        
-        if self.residual_image_projector:
-            assert self.residual_image_projector.range == A.range
+        assert self.A.Q == self.Q 
+
+        identity = scipy.sparse.identity(self.products['prod_V'].range.dim)
+        identity = self.products['prod_V'].range.make_array(identity)
+        if riesz_representative:
+            self.riesz = self.products['prod_V'].apply_inverse(identity)
+        else:
+            self.riesz = identity
     
     def _apply(self,
                rhs: VectorArray, 
                u: VectorArray,
                u_old: VectorArray,
-               q: VectorArray) -> VectorArray:
+               q: VectorArray,
+               use_cached_operators: bool = False,
+               cached_operators: Dict = None) -> VectorArray:
+
+        if use_cached_operators:
+            assert cached_operators
+            'q' in cached_operators.keys()
+            'residual_A_q' in cached_operators.keys()
+
+            if len(cached_operators['q']) > 0:
+                assert ((cached_operators['q']-q).norm() <= 1e-16)[0]
+
+            if self.setup['model_parameter']['q_time_dep']:
+                assert len(cached_operators['residual_A_q']) == self.nt
+            else:
+                assert len(cached_operators['residual_A_q']) == 1
         
         assert q in self.Q
         assert rhs in self.A.range
@@ -75,17 +86,27 @@ class ImplicitEulerResidualOperator(Operator):
         else:
             assert len(q) == len(u)
 
-        if self.q_time_dep:
-            Au = self.A.range.empty(reserve = len(u)) 
-            for i in range(len(u)):
-                Au.append(self.A(q[i]).apply(u[i]))
+        if use_cached_operators:
+            A_q = cached_operators['residual_A_q']
+            if self.q_time_dep:
+                Au = self.A.range.empty(reserve = len(u)) 
+                for i in range(len(u)):
+                    Au.append(A_q[i].apply(u[i]))
+            else:
+                Au = A_q.apply(u)
         else:
-            Au = self.A(q[0]).apply(u)
-
+            if self.q_time_dep:
+                Au = self.A.range.empty(reserve = len(u)) 
+                for i in range(len(u)):
+                    Au.append(self.A(q[i]).apply(u[i]))
+            else:
+                Au = self.A(q[0]).apply(u)
+        
         R = - Au - 1/ self.delta_t * self.M.apply(u - u_old) + rhs
         
         if self.riesz_representative:
-            return self.products['prod_V'].apply_inverse(R)
+            R = self.products['prod_V'].source.make_array(self.riesz.inner(R).T)
+            return R
         else:
             return R
         
@@ -99,8 +120,7 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
                  V : VectorSpace,
                  riesz_representative : bool,
                  products : Dict,
-                 setup: Dict,
-                 residual_image_projector: Operator = None):
+                 setup: Dict):
         
         super().__init__(M = M,
                          A = A,
@@ -108,7 +128,6 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
                          V = V,
                          riesz_representative = riesz_representative,
                          products = products,
-                         residual_image_projector = residual_image_projector,
                          setup = setup)
         
         self.L = L
@@ -119,13 +138,17 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
     def apply(self,
               u: VectorArray,
               u_old: VectorArray,
-              q: VectorArray) -> VectorArray:
+              q: VectorArray,
+              use_cached_operators: bool = False,
+              cached_operators: Dict = None) -> VectorArray:
         
         assert len(u) == len(u_old) == self.nt
         return self._apply(rhs = self.L,
                            u = u,
                            u_old = u_old,
-                           q=q)
+                           q=q,
+                           use_cached_operators=use_cached_operators,
+                           cached_operators=cached_operators)
 
         
 class AdjointResidualOperator(ImplicitEulerResidualOperator):
@@ -138,8 +161,7 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
                  V : VectorSpace,
                  riesz_representative : bool,
                  products : Dict,
-                 setup : Dict,
-                 residual_image_projector: Operator = None):
+                 setup : Dict):
         
         super().__init__(M = M,
                          A = A, # A is symmetric
@@ -147,7 +169,6 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
                          V = V,
                          riesz_representative = riesz_representative,
                          products = products,
-                         residual_image_projector = residual_image_projector,
                          setup = setup)
             
         self.bilinear_cost_term = bilinear_cost_term
@@ -164,7 +185,9 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
               p: VectorArray,
               p_old: VectorArray,
               u: VectorArray,
-              q: VectorArray) -> VectorArray:
+              q: VectorArray,
+              use_cached_operators: bool = False,
+              cached_operators: Dict = None) -> VectorArray:
         
         assert len(p) == len(p_old) == len(u) == self.nt
         
@@ -174,4 +197,6 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
         return self._apply(rhs = rhs,
                            u = p,
                            u_old = p_old,
-                           q=q)
+                           q=q,
+                           use_cached_operators=use_cached_operators,
+                           cached_operators=cached_operators)

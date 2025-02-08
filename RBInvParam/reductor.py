@@ -29,7 +29,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                  FOM: InstationaryModelIP, 
                  check_orthonormality: bool =False, 
                  check_tol: float = 1e-3,
-                 residual_image_basis_mode: str = 'assemble_reduced_A',
+                 residual_image_basis_mode: str = 'none',
                  logger: logging.Logger = None):
         
         assert isinstance(FOM, InstationaryModelIP)
@@ -61,7 +61,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                          check_orthonormality=check_orthonormality, 
                          check_tol=check_tol)
 
-        assert residual_image_basis_mode in ['none', 'assemble_reduced_A']
+        assert residual_image_basis_mode in ['none']
         self.residual_image_basis_mode = residual_image_basis_mode 
 
         
@@ -309,7 +309,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                                        basis: str,
                                        mode: str) -> Dict:
         assert basis in ['state_residual_image_basis', 'adjoint_residual_image_basis']
-        assert mode in ['none', 'assemble_reduced_A']
+        assert mode in ['none']
         
         ret = {}
 
@@ -318,34 +318,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             ret["A_range"] = self.FOM.V
             ret["residual_image_projector"] = None
             ret["riesz_representative"] = True
-            return ret
-
-        elif mode == 'assemble_reduced_A':
-            state_basis = self._get_projection_basis('state_basis') 
-
-            ret["residual_image_basis"] = state_basis
-            ret["A_range"] = self.FOM.V
-
-            projection_matrix = self.FOM.products['prod_V'].apply(state_basis)
-            projection_matrix = self.FOM.products['prod_V'].apply_inverse(projection_matrix)
-
-            print(projection_matrix.space)
-            print(len(projection_matrix))
-
-            import sys
-            sys.exit()
-
-            ret["residual_image_projector"] = NumpyMatrixOperator(
-                matrix=projection_matrix,
-                source_id = self.FOM.V.id,
-                range_id = None
-            )
-
-
-
-            ret["riesz_representative"] = False
-            
-            
             return ret
         else:
             raise ValueError
@@ -424,7 +396,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'V' : V,
             'riesz_representative' : residual_config['riesz_representative'],
             'products': self.FOM.products,
-            'residual_image_projector' : residual_config['residual_image_projector'],
             'setup' : setup
         }
 
@@ -437,7 +408,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'V' : V,
             'riesz_representative' : residual_config['riesz_representative'],
             'products': self.FOM.products,
-            'residual_image_projector' : residual_config['residual_image_projector'],
             'setup' : setup
         }
 
