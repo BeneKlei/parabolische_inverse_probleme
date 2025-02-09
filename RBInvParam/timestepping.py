@@ -127,7 +127,9 @@ class ImplicitEulerTimeStepper():
                     M_dt_A_q = cached_operators['M_dt_A_q'][n]
                 else:
                     A_q = self.A(q[n])
-                    M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
+                    M_dt_A_q = (self.M + A_q * dt)
+                
+                M_dt_A_q.with_(solver_options=self.solver_options)
 
             assert M_dt_A_q is not None
 

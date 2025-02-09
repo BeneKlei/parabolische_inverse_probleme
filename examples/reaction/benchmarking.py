@@ -66,8 +66,9 @@ set_defaults({})
 
 #########################################################################################''
 
-#N = 30
-N = 300
+N = 30
+#N = 100
+#N = 300
 par_dim = (N+1)**2
 fine_N = 2 * N
 
@@ -77,8 +78,8 @@ T_final = 1
 # TODO Here is a Bug
 nt = 50
 delta_t = (T_final - T_initial) / nt
-q_time_dep = False
-#q_time_dep = True
+#q_time_dep = False
+q_time_dep = True
 
 noise_level = 1e-5
 bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -188,6 +189,9 @@ q_r = QrVrROM.Q.make_array(q_r)
 d_r = reductor.project_vectorarray(d, 'parameter_basis')
 d_r = QrVrROM.Q.make_array(d_r)
 
+u_r = QrVrROM.solve_state(q_r)
+p_r = QrVrROM.solve_adjoint(q_r, u_r)
+
 #########################################################################################
 
 import cProfile
@@ -201,9 +205,10 @@ pr = cProfile.Profile()
 #QrFOM.compute_linearized_gradient(q_r, d_r, alpha=1)
 pr.enable()
 print("Starting")
+QrVrROM.estimate_objective_error(q_r, u_r, p_r, use_cached_operators=True)
 #FOM.compute_linearized_gradient(q, d, alpha=1, use_cached_operators=True)
 #QrFOM.compute_linearized_gradient(q_r, d_r, alpha=1, use_cached_operators=True)
-QrVrROM.compute_linearized_gradient(q_r, d_r, alpha=1, use_cached_operators=True)
+#QrVrROM.compute_linearized_gradient(q_r, d_r, alpha=1, use_cached_operators=True)
 # import sys
 # sys.exit()
 pr.disable()

@@ -19,9 +19,6 @@ from RBInvParam.utils.io import save_dict_to_pkl
 
 MACHINE_EPS = 1e-16
 
-# TODO:
-# - Refactor AssembledB
-
 class Optimizer(BasicObject):
     def __init__(self, 
                  optimizer_parameter: Dict, 
@@ -121,14 +118,15 @@ class Optimizer(BasicObject):
             J_rel_error = model.estimate_objective_error(
                 q=current_q,
                 u = u,
-                p = p) / current_J
+                p = p,
+                use_cached_operators=use_cached_operators) / current_J
         else:
             J_rel_error = np.inf
         
         TR_condition = J_rel_error <= eta
         condition = armijo_condition & TR_condition
 
-        while (not condition) and (i <= max_iter) :
+        while (not condition) and (i <= max_iter):
             step_size = 0.5 * step_size
             current_q = previous_q + step_size * search_direction
             u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
@@ -148,11 +146,12 @@ class Optimizer(BasicObject):
 
             armijo_condition = lhs >= rhs
 
-            if current_J > 0:
+            if current_J > 0:                
                 J_rel_error = model.estimate_objective_error(
                     q=current_q,
                     u = u,
-                    p = p) / current_J
+                    p = p,
+                    use_cached_operators=use_cached_operators) / current_J
             else:
                 J_rel_error = np.inf
 
@@ -160,7 +159,6 @@ class Optimizer(BasicObject):
             condition = armijo_condition & TR_condition
             
             i += 1
-
         if (J_rel_error > beta * eta) or (i == max_iter):
             model_unsufficent = True
 
@@ -171,7 +169,8 @@ class Optimizer(BasicObject):
 
         else:
             self.logger.debug(f"Armijo backtracking does terminate normally with step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
-            
+
+        
 
         return (current_q, current_J, model_unsufficent)
     
@@ -190,7 +189,8 @@ class Optimizer(BasicObject):
               lin_solver_parms: Dict = None,
               TR_backtracking_params: Dict = None,
               use_cached_operators: bool = False,
-              dump_IRGNM_intermed_stats: bool = False) -> Tuple[VectorArray, Dict]: 
+              dump_IRGNM_intermed_stats: bool = False,
+              dump_every_nth_loop: int = 0) -> Tuple[VectorArray, Dict]: 
 
         assert q_0 in model.Q
         assert tol > 0
@@ -217,7 +217,7 @@ class Optimizer(BasicObject):
             "alpha" : [],
             "J" : [],
             "norm_nabla_J" : [],
-            "total_runtime" : np.nan,
+            "total_runtime" : [],
             "stagnation_flag" : False,
             "FOM_num_calls" : {}
         }
@@ -345,7 +345,7 @@ class Optimizer(BasicObject):
                                                                       previous_J = J,
                                                                       search_direction = d,
                                                                       **TR_backtracking_params,
-                                                                      use_cached_operators=False)
+                                                                      use_cached_operators=use_cached_operators)
 
                 if model_unsufficent:
                     break
@@ -387,10 +387,12 @@ class Optimizer(BasicObject):
                     save_path = self.save_path / f'{self.name}_IRGNM_{i}.pkl'
                 else:
                     save_path = self.save_path / f'IRGNM_{i}.pkl'
-
-                self.dump_stats(data=self.IRGNM_statistics,
-                                save_path=save_path)
                 
+                if (i % dump_every_nth_loop == 0) or (i == 1):
+                    self.dump_stats(data=self.IRGNM_statistics,
+                                    save_path=save_path)
+
+            self.IRGNM_statistics["total_runtime"].append(timer() - start_time) 
 
         self.logger.info(f'Final {method_name} Statistics:')
         if i == i_max and not model_unsufficent:
@@ -410,7 +412,7 @@ class Optimizer(BasicObject):
         self.logger.info(f'     Start norm_nabla_J = {self.IRGNM_statistics["norm_nabla_J"][0]:3.4e}; Final norm_nabla_J = {self.IRGNM_statistics["norm_nabla_J"][-1]:3.4e}.')
         self.logger.info(f'     Euclidian distance final q and inital q = {np.linalg.norm(q.to_numpy() - q_0.to_numpy()):3.4e}')
 
-        self.IRGNM_statistics["total_runtime"] = (timer() - start_time)        
+        self.IRGNM_statistics["total_runtime"].append(timer() - start_time)
         self.IRGNM_idx += 1
         return (q, self.IRGNM_statistics)
 
@@ -488,7 +490,7 @@ class FOMOptimizer(Optimizer):
             "alpha" : [],
             "J" : [],
             "norm_nabla_J" : [],
-            "total_runtime" : np.nan,
+            "total_runtime" : [],
             "stagnation_flag" : False,
             "optimizer_parameter" : self.optimizer_parameter.copy(),
             "FOM_num_calls" : {}
@@ -508,6 +510,8 @@ class FOMOptimizer(Optimizer):
 
         lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
         use_cached_operators = self.optimizer_parameter['use_cached_operators']
+
+        dump_every_nth_loop = self.optimizer_parameter['dump_every_nth_loop']
 
         q = self.FOM.Q.make_array(q_0)
         u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
@@ -547,7 +551,8 @@ class FOMOptimizer(Optimizer):
                                         reg_loop_max = reg_loop_max,
                                         lin_solver_parms = lin_solver_parms,
                                         use_cached_operators = use_cached_operators,
-                                        dump_IRGNM_intermed_stats = True)
+                                        dump_IRGNM_intermed_stats = True,
+                                        dump_every_nth_loop=dump_every_nth_loop)
 
         self.statistics["q"] = IRGNM_statistic["q"]
         self.statistics['time_steps'] = IRGNM_statistic['time_steps']
@@ -761,9 +766,9 @@ class QrVrROMOptimizer(Optimizer):
             "J" : [],
             "norm_nabla_J" : [],
             "J_r" : [],
-            'abs_est_error_J_r' : [],
-            'rel_est_error_J_r' : [],
-            "total_runtime" : np.nan,
+            "abs_est_error_J_r" : [],
+            "rel_est_error_J_r" : [],
+            "total_runtime" : [],
             "stagnation_flag" : False,
             "optimizer_parameter" : self.optimizer_parameter.copy(),
             "FOM_num_calls": {}
@@ -788,6 +793,8 @@ class QrVrROMOptimizer(Optimizer):
         lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
         use_cached_operators = self.optimizer_parameter['use_cached_operators']
 
+        dump_every_nth_loop = self.optimizer_parameter['dump_every_nth_loop']
+
         eta0 = self.optimizer_parameter["eta0"]
         kappa_arm = self.optimizer_parameter["kappa_arm"]
         beta_1 = self.optimizer_parameter["beta_1"]
@@ -801,7 +808,7 @@ class QrVrROMOptimizer(Optimizer):
         delta = noise_level
 
         q = self.FOM.Q.make_array(q_0)
-        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)        
         p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
         J = self.FOM.objective(u)
         nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
@@ -810,7 +817,7 @@ class QrVrROMOptimizer(Optimizer):
         assert norm_nabla_J > 0
 
         inital_armijo_step_size = 0.5 / norm_nabla_J
-        inital_armijo_step_size = np.min([inital_armijo_step_size, 100])
+        inital_armijo_step_size = np.min([inital_armijo_step_size, 1])
         eta = eta0
         
         self.logger.debug("Running Qr-Vr-IRGNM:")
@@ -932,7 +939,7 @@ class QrVrROMOptimizer(Optimizer):
                 eta = eta,
                 beta = beta_1,
                 kappa_arm = kappa_arm,
-                use_cached_operators=False
+                use_cached_operators=use_cached_operators
             )
             
             q_r = q_agc.copy()
@@ -940,7 +947,7 @@ class QrVrROMOptimizer(Optimizer):
             if not model_unsufficent:
                 TR_backtracking_params = {
                     'max_iter' : armijo_max_iter, 
-                    'inital_step_size' : 1, 
+                    'inital_step_size' : 0.1, 
                     'eta' : eta, 
                     'beta' : beta_1, 
                     "kappa_arm" : kappa_arm
@@ -972,7 +979,8 @@ class QrVrROMOptimizer(Optimizer):
             abs_est_error_J_r = self.QrVrROM.estimate_objective_error(
                     q=q_r,
                     u = u_r,
-                    p = p_r)
+                    p = p_r,
+                    use_cached_operators=use_cached_operators)
             
             if J_r > 0:
                 rel_est_error_J_r = abs_est_error_J_r / J_r
@@ -1113,11 +1121,14 @@ class QrVrROMOptimizer(Optimizer):
                     break
             
             self.statistics["FOM_num_calls"] = self.FOM.num_calls
-            self.dump_stats(data=self.statistics,
-                            save_path = self.save_path / f'TR_IRGNM_{i}.pkl')
-            i += 1
+            if (i % dump_every_nth_loop == 0) or (i == 1):
+                self.dump_stats(data=self.statistics,
+                                save_path = self.save_path / f'TR_IRGNM_{i}.pkl')
 
-        self.statistics["total_runtime"] = (timer() - start_time)
+            i += 1    
+            self.statistics["total_runtime"].append(timer() - start_time)    
+
+        self.statistics["total_runtime"].append(timer() - start_time)
         self.statistics["FOM_num_calls"] = self.FOM.num_calls
         self.dump_stats(data=self.statistics,
                         save_path = self.save_path / f'TR_IRGNM_final.pkl')
