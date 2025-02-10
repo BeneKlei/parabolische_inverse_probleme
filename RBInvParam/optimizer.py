@@ -114,8 +114,6 @@ class Optimizer(BasicObject):
 
         if abs(rhs) <= MACHINE_EPS:
             rhs = 0
-        print("I")
-        print(time.time()-start)
         armijo_condition = lhs >= rhs
         if current_J > 0:
             J_rel_error = model.estimate_objective_error(
@@ -128,12 +126,8 @@ class Optimizer(BasicObject):
         
         TR_condition = J_rel_error <= eta
         condition = armijo_condition & TR_condition
-        print("II")
-        print(time.time()-start)
 
         while (not condition) and (i <= max_iter):
-            print("III")
-            print(time.time()-start)
             step_size = 0.5 * step_size
             current_q = previous_q + step_size * search_direction
             u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
@@ -164,9 +158,6 @@ class Optimizer(BasicObject):
 
             TR_condition = J_rel_error <= eta
             condition = armijo_condition & TR_condition
-
-            print("IV")
-            print(time.time()-start)
             
             i += 1
         if (J_rel_error > beta * eta) or (i == max_iter):
@@ -180,8 +171,6 @@ class Optimizer(BasicObject):
         else:
             self.logger.debug(f"Armijo backtracking does terminate normally with step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
 
-        
-        print(time.time()-start)
         return (current_q, current_J, model_unsufficent)
     
     def IRGNM(self,
@@ -1118,8 +1107,16 @@ class QrVrROMOptimizer(Optimizer):
                     U = state_shapshots,
                     basis = 'state_basis'
                 )
-
+                import time
+                start = time.time()
                 self.QrVrROM = self.reductor.reduce()
+                #print("All")
+                print(time.time()-start)
+                q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
+                q_r = self.QrVrROM.Q.make_array(q_r)
+                # print(self.QrVrROM.A(q_r[0]).assemble().matrix)
+                # import sys
+                # sys.exit()
                 self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
                 self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 

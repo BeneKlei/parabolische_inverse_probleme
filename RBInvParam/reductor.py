@@ -54,6 +54,10 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'parameter_basis' : FOM.products['prod_Q']
         }
 
+        self._cached_operators = {
+            'A' : None
+        }
+
         self.FOM = FOM
         super().__init__(FOM, 
                          bases, 
@@ -63,9 +67,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         assert residual_image_basis_mode in ['none']
         self.residual_image_basis_mode = residual_image_basis_mode 
-
-        
         self.logger.debug(f"Using residual image basis mode: '{residual_image_basis_mode}'.")
+
         
         
     def project_vectorarray(self, 
@@ -105,27 +108,35 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             return _basis
     
     def _assemble_parameter_reduced_A(self) -> LincombOperator:
-        # TODO Handle basis extention via offset
         parameter_basis = self._get_projection_basis('parameter_basis')
 
         assert len(self.FOM.setup['model_parameter']['parameters']) == 1
         parameter_name = list(self.FOM.setup['model_parameter']['parameters'].keys())[0] 
 
-        operators = [self.FOM.A.constant_operator]
+        if not self._cached_operators['A']:
+            operators = [self.FOM.A.constant_operator]
+            start = 0
+        else:
+            operators = list(self._cached_operators['A'].operators)        
+            start = len(operators) - 1
         coefficients = [1]
 
-        for i in range(len(parameter_basis)):
+        for i in range(start, len(parameter_basis)):
             q_i = parameter_basis[i].to_numpy()[0]
             A_q = self.FOM.A._assemble_A_q(q_i)
             A_q = NumpyMatrixOperator(A_q,
                                       source_id = self.FOM.A.source.id, 
                                       range_id = self.FOM.A.range.id)
             operators.append(A_q)
+
+        
+        for i in range(len(parameter_basis)):
             coefficients.append(
                 ProjectionParameterFunctional(parameter_name, len(parameter_basis), i)
             )
-
-        return LincombOperator(operators, coefficients)
+        
+        self._cached_operators['A'] = LincombOperator(operators, coefficients)
+        return self._cached_operators['A']
 
     def _build_setup(self) -> Dict:
 
@@ -188,10 +199,12 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         state_basis = self._get_projection_basis('state_basis')
         parameter_basis = self._get_projection_basis('parameter_basis')
 
-        unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
-        complete_operator=project(assembled_parameter_reduced_A,
+        
+        complete_operator = project(assembled_parameter_reduced_A,
                                     state_basis,
-                                    state_basis)
+                                    state_basis)        
+        unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
+            complete_operator=complete_operator
         )
 
         A = AssembledA(
@@ -223,6 +236,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
         prod_V = project(self.FOM.products['prod_V'], state_basis, state_basis)
+
 
         products = {
             'prod_H' : project(self.FOM.products['prod_H'], state_basis, state_basis),
@@ -280,6 +294,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             V = self.FOM.V
 
         assembled_parameter_reduced_A = self._assemble_parameter_reduced_A()
+
         model_params = {
             'Q' : Q,
             'V' : V,
@@ -294,7 +309,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             assembled_parameter_reduced_A,
             **model_params
         )
-        
         model_params.update(projected_operators)
         model_params.update(error_estimators)
                   
