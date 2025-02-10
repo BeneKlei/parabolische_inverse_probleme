@@ -1107,16 +1107,9 @@ class QrVrROMOptimizer(Optimizer):
                     U = state_shapshots,
                     basis = 'state_basis'
                 )
-                import time
-                start = time.time()
                 self.QrVrROM = self.reductor.reduce()
-                #print("All")
-                print(time.time()-start)
                 q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
                 q_r = self.QrVrROM.Q.make_array(q_r)
-                # print(self.QrVrROM.A(q_r[0]).assemble().matrix)
-                # import sys
-                # sys.exit()
                 self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
                 self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
