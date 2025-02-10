@@ -138,7 +138,8 @@ FOM_optimizer_parameter = {
         'lin_solver_tol' : 1e-12,
         'lin_solver_inital_step_size' : 1
     },
-    'use_cached_operators' : True
+    'use_cached_operators' : True,
+    'dump_every_nth_loop' : 5
 }
 
 TR_optimizer_parameter = {
@@ -163,6 +164,7 @@ TR_optimizer_parameter = {
         'lin_solver_inital_step_size' : 1
     },
     'use_cached_operators' : True,
+    'dump_every_nth_loop' : 5,
     #####################
     'eta0' : 1e-1,
     'kappa_arm' : 1e-12,

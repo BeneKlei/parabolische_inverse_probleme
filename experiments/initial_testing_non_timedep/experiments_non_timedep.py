@@ -136,8 +136,8 @@ FOM_optimizer_parameter = {
         'lin_solver_inital_step_size' : 1
     },
     'use_cached_operators' : True
-}
-
+    'dump_every_nth_loop' : 5
+}5
 TR_optimizer_parameter = {
     'method' : 'TR_IRGNM',
     'q_0' : None,
@@ -160,6 +160,7 @@ TR_optimizer_parameter = {
         'lin_solver_inital_step_size' : 1
     },
     'use_cached_operators' : True,
+    'dump_every_nth_loop' : 5,
     #####################
     'eta0' : 1e-1,
     'kappa_arm' : 1e-12,
