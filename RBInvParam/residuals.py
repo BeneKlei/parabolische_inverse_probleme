@@ -116,7 +116,7 @@ class ImplicitEulerResidualOperator(Operator):
                 for i in range(len(u)):
                     Au.append(A_q[i].apply(u[i]))
             else:
-                Au = A_q.apply(u)
+                Au = A_q[0].apply(u)
         else:
             if self.q_time_dep:
                 Au = self.A.range.empty(reserve = len(u)) 
