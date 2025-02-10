@@ -220,7 +220,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         'products' : products,
         'visualizer' : visualizer,
         'model_constants' : None,
-        'setup' : setup
+        'setup' : setup,
     }
 
     dummy_model = InstationaryModelIP(                 

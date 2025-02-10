@@ -203,7 +203,7 @@ def gradient_descent_linearized_problem(
     else:
         logger.info(f"Gradient decent NOT converged after {int(max_iter)} iterations.")
 
-    logger.info(f"objective = {current_J:3.4e}, norm gradient = {np.linalg.norm(model.compute_linearized_gradient(q, current_d, alpha).to_numpy()):3.4e}.")
+    logger.info(f"objective = {current_J:3.4e}, norm gradient = {model.compute_gradient_norm(buffer_nabla_J[-1]):3.4e}.")
 
     return current_d
 

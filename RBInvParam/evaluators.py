@@ -151,6 +151,7 @@ class UnAssembledA(UnAssembledEvaluator):
             A = coo_matrix((SF_INTS, (SF_I0, SF_I1)), shape=(g.size(g.dim), g.size(g.dim)))
             del SF_INTS, SF_I0, SF_I1
             A = csc_matrix(A).copy()
+
         return A
 
 class AssembledEvaluator():

@@ -16,7 +16,8 @@ class ImplicitEulerResidualOperator(Operator):
                  V : VectorSpace,
                  riesz_representative : bool,
                  products : Dict,
-                 setup: Dict):
+                 setup: Dict,
+                 bases: Dict):
         
         self.products = products
         self.setup = setup
@@ -39,17 +40,26 @@ class ImplicitEulerResidualOperator(Operator):
 
         self.source = A.source
         self.range = A.range
+        self.bases = bases
     
-        # assert self.M.source == self.M.range
-        # assert self.A.source == self.A.range
         assert self.M.source == self.A.source
         assert self.A.source == self.V
         assert self.A.Q == self.Q 
 
+        assert 'parameter_basis' in self.bases.keys()
+        assert 'state_basis' in self.bases.keys()
+        if len(self.bases['parameter_basis']) != 0:
+            assert self.bases['parameter_basis'] in self.Q
+        if len(self.bases['state_basis']) != 0:
+            assert self.bases['state_basis'] in self.V
+        
         if riesz_representative:
             # TODO Maybe set solver options globally
             self.riesz_op = copy.deepcopy(self.products['prod_V'])
             self.riesz_op.with_(solver_options='scipy_spsolve')
+        
+    def _reconstruct(self, u, basis='state_basis'):
+        return self.bases[basis][:u.dim].lincomb(u.to_numpy())
 
     def _apply(self,
                rhs: VectorArray, 
@@ -58,6 +68,12 @@ class ImplicitEulerResidualOperator(Operator):
                q: VectorArray,
                use_cached_operators: bool = False,
                cached_operators: Dict = None) -> VectorArray:
+        
+        if len(self.bases['parameter_basis']) != 0:
+            q = self._reconstruct(q, basis='parameter_basis')
+        if len(self.bases['state_basis']) != 0:
+            u = self._reconstruct(u, basis='state_basis')
+            u_old = self._reconstruct(u_old, basis='state_basis')
 
         if use_cached_operators:
             assert cached_operators
@@ -71,7 +87,7 @@ class ImplicitEulerResidualOperator(Operator):
                 assert len(cached_operators['residual_A_q']) == self.nt
             else:
                 assert len(cached_operators['residual_A_q']) == 1
-        
+
         assert q in self.Q
         assert rhs in self.A.range
         assert u in self.V
@@ -119,7 +135,8 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
                  V : VectorSpace,
                  riesz_representative : bool,
                  products : Dict,
-                 setup: Dict):
+                 setup: Dict,
+                 bases: Dict):
         
         super().__init__(M = M,
                          A = A,
@@ -127,7 +144,8 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
                          V = V,
                          riesz_representative = riesz_representative,
                          products = products,
-                         setup = setup)
+                         setup = setup,
+                         bases=bases)
         
         self.L = L
         assert self.L in self.M.range
@@ -160,7 +178,8 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
                  V : VectorSpace,
                  riesz_representative : bool,
                  products : Dict,
-                 setup : Dict):
+                 setup : Dict,
+                 bases: Dict):
         
         super().__init__(M = M,
                          A = A, # A is symmetric
@@ -168,13 +187,14 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
                          V = V,
                          riesz_representative = riesz_representative,
                          products = products,
-                         setup = setup)
+                         setup = setup,
+                         bases=bases)
             
         self.bilinear_cost_term = bilinear_cost_term
         self.linear_cost_term = linear_cost_term
 
         #assert self.bilinear_cost_term.source == self.bilinear_cost_term.range
-        assert self.bilinear_cost_term.source == self.A.source
+        #assert self.bilinear_cost_term.source == self.A.source
         assert self.bilinear_cost_term.range == self.A.range
         assert self.linear_cost_term.range == self.A.range
         assert len(self.linear_cost_term.as_range_array()) == self.setup['dims']['nt']

@@ -93,6 +93,8 @@ class Optimizer(BasicObject):
         assert 0 < eta
         i = 0
         model_unsufficent = False
+        import time
+        start = time.time()
 
         self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
         step_size = inital_step_size
@@ -112,21 +114,26 @@ class Optimizer(BasicObject):
 
         if abs(rhs) <= MACHINE_EPS:
             rhs = 0
-
+        print("I")
+        print(time.time()-start)
         armijo_condition = lhs >= rhs
         if current_J > 0:
             J_rel_error = model.estimate_objective_error(
                 q=current_q,
                 u = u,
                 p = p,
-                use_cached_operators=use_cached_operators) / current_J
+                use_cached_operators=False) / current_J
         else:
             J_rel_error = np.inf
         
         TR_condition = J_rel_error <= eta
         condition = armijo_condition & TR_condition
+        print("II")
+        print(time.time()-start)
 
         while (not condition) and (i <= max_iter):
+            print("III")
+            print(time.time()-start)
             step_size = 0.5 * step_size
             current_q = previous_q + step_size * search_direction
             u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
@@ -151,17 +158,20 @@ class Optimizer(BasicObject):
                     q=current_q,
                     u = u,
                     p = p,
-                    use_cached_operators=use_cached_operators) / current_J
+                    use_cached_operators=False) / current_J
             else:
                 J_rel_error = np.inf
 
             TR_condition = J_rel_error <= eta
             condition = armijo_condition & TR_condition
+
+            print("IV")
+            print(time.time()-start)
             
             i += 1
         if (J_rel_error > beta * eta) or (i == max_iter):
             model_unsufficent = True
-
+            
 
         if not condition:
             self.logger.error(f"Armijo backtracking does NOT terminate normally. step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
@@ -171,7 +181,7 @@ class Optimizer(BasicObject):
             self.logger.debug(f"Armijo backtracking does terminate normally with step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
 
         
-
+        print(time.time()-start)
         return (current_q, current_J, model_unsufficent)
     
     def IRGNM(self,
@@ -896,7 +906,8 @@ class QrVrROMOptimizer(Optimizer):
         abs_est_error_J_r = self.QrVrROM.estimate_objective_error(
                 q=q_r,
                 u = u_r,
-                p = p_r)
+                p = p_r,
+                use_cached_operators=False)
         
         if J_r > 0:
             rel_est_error_J_r = abs_est_error_J_r / J_r
@@ -980,7 +991,7 @@ class QrVrROMOptimizer(Optimizer):
                     q=q_r,
                     u = u_r,
                     p = p_r,
-                    use_cached_operators=use_cached_operators)
+                    use_cached_operators=False)
             
             if J_r > 0:
                 rel_est_error_J_r = abs_est_error_J_r / J_r

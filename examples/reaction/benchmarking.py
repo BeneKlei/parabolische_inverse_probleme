@@ -66,9 +66,9 @@ set_defaults({})
 
 #########################################################################################''
 
-N = 30
+#N = 30
 #N = 100
-#N = 300
+N = 300
 par_dim = (N+1)**2
 fine_N = 2 * N
 
@@ -205,14 +205,14 @@ pr = cProfile.Profile()
 #QrFOM.compute_linearized_gradient(q_r, d_r, alpha=1)
 pr.enable()
 print("Starting")
-QrVrROM.estimate_objective_error(q_r, u_r, p_r, use_cached_operators=True)
+QrVrROM.estimate_objective_error(q_r, u_r, p_r, use_cached_operators=False)
 #FOM.compute_linearized_gradient(q, d, alpha=1, use_cached_operators=True)
 #QrFOM.compute_linearized_gradient(q_r, d_r, alpha=1, use_cached_operators=True)
-#QrVrROM.compute_linearized_gradient(q_r, d_r, alpha=1, use_cached_operators=True)
+#FOM.compute_linearized_gradient(q, d, alpha=1, use_cached_operators=True)
 # import sys
 # sys.exit()
 pr.disable()
 
-pr.dump_stats('profiling_results_QrVrROM_cached.prof')
+pr.dump_stats('profiling_results_QrVrROM_cached_.prof')
 
 #os.system('snakeviz profiling_results.prof')

@@ -16,6 +16,7 @@ from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimato
     ObjectiveErrorEstimator, CoercivityConstantEstimator
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.products import BochnerProductOperator
+#from RBInvParam.reductor import InstationaryModelIPReductor
 
 
 # TODO 
@@ -163,11 +164,11 @@ class InstationaryModelIP(ImmutableObject):
         if self.state_error_estimator:
             assert isinstance(state_error_estimator, StateErrorEstimator)
             assert 'A_coercivity_constant_estimator' in self.model_constants.keys()
-            assert self.state_error_estimator.state_residual_operator.source == self.A.source
+            #assert self.state_error_estimator.state_residual_operator.source == self.A.source
         if self.adjoint_error_estimator:
             assert isinstance(adjoint_error_estimator, AdjointErrorEstimator)
             assert 'A_coercivity_constant_estimator' in self.model_constants.keys()
-            assert self.adjoint_error_estimator.adjoint_residual_operator.source == self.A.source
+            #assert self.adjoint_error_estimator.adjoint_residual_operator.source == self.A.source
         if self.objective_error_estimator:
             assert isinstance(objective_error_estimator, ObjectiveErrorEstimator)
             assert 'C_continuity_constant' in self.model_constants.keys()
@@ -177,7 +178,7 @@ class InstationaryModelIP(ImmutableObject):
             assert 'A_coercivity_constant_estimator' in self.model_constants.keys()
             assert 'C_continuity_constant' in self.model_constants.keys()
             assert isinstance(self.model_constants['A_coercivity_constant_estimator'], CoercivityConstantEstimator)
-            assert self.model_constants['A_coercivity_constant_estimator'].Q == self.Q
+            #assert self.model_constants['A_coercivity_constant_estimator'].Q == self.Q
 
         assert 'bochner_prod_Q' in self.products
         assert isinstance(self.products['bochner_prod_Q'], BochnerProductOperator)

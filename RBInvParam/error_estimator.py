@@ -56,9 +56,9 @@ class StateErrorEstimator():
         self.q_time_dep = self.setup['model_parameter']['q_time_dep']
         
         self.A_coercivity_constant_estimator = A_coercivity_constant_estimator
-        assert self.Q == self.A_coercivity_constant_estimator.Q
-        assert self.Q == self.state_residual_operator.Q
-        assert self.V == self.state_residual_operator.V
+        #assert self.Q == self.A_coercivity_constant_estimator.Q
+        #assert self.Q == self.state_residual_operator.Q
+        #assert self.V == self.state_residual_operator.V
         if product:
             assert self.state_residual_operator.range == product.source
     
@@ -135,9 +135,9 @@ class AdjointErrorEstimator():
         self.q_time_dep = self.setup['model_parameter']['q_time_dep']
 
         self.A_coercivity_constant_estimator = A_coercivity_constant_estimator
-        assert self.Q == self.A_coercivity_constant_estimator.Q
-        assert self.Q == self.adjoint_residual_operator.Q
-        assert self.V == self.adjoint_residual_operator.V
+        # assert self.Q == self.A_coercivity_constant_estimator.Q
+        # assert self.Q == self.adjoint_residual_operator.Q
+        # assert self.V == self.adjoint_residual_operator.V
         if product:
             assert self.adjoint_residual_operator.range == product.source
     
