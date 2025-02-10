@@ -122,7 +122,7 @@ class Optimizer(BasicObject):
                 q=current_q,
                 u = u,
                 p = p,
-                use_cached_operators=False) / current_J
+                use_cached_operators=use_cached_operators) / current_J
         else:
             J_rel_error = np.inf
         
@@ -158,7 +158,7 @@ class Optimizer(BasicObject):
                     q=current_q,
                     u = u,
                     p = p,
-                    use_cached_operators=False) / current_J
+                    use_cached_operators=use_cached_operators) / current_J
             else:
                 J_rel_error = np.inf
 
@@ -907,7 +907,7 @@ class QrVrROMOptimizer(Optimizer):
                 q=q_r,
                 u = u_r,
                 p = p_r,
-                use_cached_operators=False)
+                use_cached_operators=use_cached_operators)
         
         if J_r > 0:
             rel_est_error_J_r = abs_est_error_J_r / J_r
@@ -991,7 +991,7 @@ class QrVrROMOptimizer(Optimizer):
                     q=q_r,
                     u = u_r,
                     p = p_r,
-                    use_cached_operators=False)
+                    use_cached_operators=use_cached_operators)
             
             if J_r > 0:
                 rel_est_error_J_r = abs_est_error_J_r / J_r

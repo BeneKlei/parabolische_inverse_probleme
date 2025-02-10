@@ -216,10 +216,9 @@ class InstationaryModelIP(ImmutableObject):
         elif target == 'residual_A_q':
             if self.state_error_estimator:
                 assert self.state_error_estimator.state_residual_operator.A == self.adjoint_error_estimator.adjoint_residual_operator.A
-                residual_A_q = self.state_error_estimator.state_residual_operator.A(q[0])
                 self._cached_operators[target].append(
-                    residual_A_q.assemble()
-                )            
+                    self.state_error_estimator.state_residual_operator._precompute_residual_A_q(q[0])
+                )
         elif target == 'B_u':
             self._cached_operators[target] = [self.B(u[idx]) for idx in range(len(u))]
         else:
@@ -248,10 +247,9 @@ class InstationaryModelIP(ImmutableObject):
             elif target == 'residual_A_q':
                 if self.state_error_estimator:
                     assert self.state_error_estimator.state_residual_operator.A == self.adjoint_error_estimator.adjoint_residual_operator.A
-                    residual_A_q = self.state_error_estimator.state_residual_operator.A(q[n])
                     self._cached_operators[target].append(
-                        residual_A_q.assemble()
-                    )  
+                        self.state_error_estimator.state_residual_operator._precompute_residual_A_q(q[n])
+                    ) 
             elif target == 'B_u':
                 self._cached_operators[target].append(self.B(u[n]))
             else:

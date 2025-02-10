@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Dict, Union, List
 import scipy
 import copy
 
@@ -57,6 +57,14 @@ class ImplicitEulerResidualOperator(Operator):
             # TODO Maybe set solver options globally
             self.riesz_op = copy.deepcopy(self.products['prod_V'])
             self.riesz_op.with_(solver_options='scipy_spsolve')
+    
+    def _precompute_residual_A_q(self, 
+                                 q: VectorArray) -> List:
+        if len(self.bases['parameter_basis']) != 0:
+            q = self._reconstruct(q, basis='parameter_basis')
+        assert q in self.Q
+
+        return self.A(q).assemble()
         
     def _reconstruct(self, u, basis='state_basis'):
         return self.bases[basis][:u.dim].lincomb(u.to_numpy())
@@ -69,12 +77,6 @@ class ImplicitEulerResidualOperator(Operator):
                use_cached_operators: bool = False,
                cached_operators: Dict = None) -> VectorArray:
         
-        if len(self.bases['parameter_basis']) != 0:
-            q = self._reconstruct(q, basis='parameter_basis')
-        if len(self.bases['state_basis']) != 0:
-            u = self._reconstruct(u, basis='state_basis')
-            u_old = self._reconstruct(u_old, basis='state_basis')
-
         if use_cached_operators:
             assert cached_operators
             'q' in cached_operators.keys()
@@ -87,6 +89,12 @@ class ImplicitEulerResidualOperator(Operator):
                 assert len(cached_operators['residual_A_q']) == self.nt
             else:
                 assert len(cached_operators['residual_A_q']) == 1
+        
+        if len(self.bases['parameter_basis']) != 0:
+            q = self._reconstruct(q, basis='parameter_basis')
+        if len(self.bases['state_basis']) != 0:
+            u = self._reconstruct(u, basis='state_basis')
+            u_old = self._reconstruct(u_old, basis='state_basis')
 
         assert q in self.Q
         assert rhs in self.A.range
