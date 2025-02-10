@@ -116,7 +116,6 @@ class InstationaryModelIP(ImmutableObject):
             T_initial= self.T_initial,
             T_final= self.T_final,
             setup = self.setup,
-            solver_options='scipy_spsolve' # Must be this to cache intermed results
         )
 
         self.solver_options = None

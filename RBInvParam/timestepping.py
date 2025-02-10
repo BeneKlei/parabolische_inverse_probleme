@@ -18,8 +18,7 @@ class ImplicitEulerTimeStepper():
                  V: VectorSpace,
                  T_initial: float,
                  T_final: float,
-                 setup: Dict,
-                 solver_options=None):
+                 setup: Dict):
         
         self.nt = nt
         self.M = M 
@@ -28,7 +27,6 @@ class ImplicitEulerTimeStepper():
         self.V = V
         self.T_initial = T_initial
         self.T_final = T_final
-        self.solver_options = solver_options        
         self.setup = setup
 
         assert isinstance(self.M, Operator)
@@ -104,9 +102,8 @@ class ImplicitEulerTimeStepper():
             M_dt_A_q = cached_operators['M_dt_A_q'][0]
         else:
             A_q = self.A(q[0])
-            M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
-            M_dt_A_q = M_dt_A_q.assemble()
-
+            M_dt_A_q = (self.M + A_q * dt).assemble()
+            
         t = self.T_initial
         U = U0.copy()
 
@@ -129,15 +126,13 @@ class ImplicitEulerTimeStepper():
                     A_q = self.A(q[n])
                     M_dt_A_q = (self.M + A_q * dt)
                 
-                M_dt_A_q.with_(solver_options=self.solver_options)
-
             assert M_dt_A_q is not None
 
             if dt_F:
                 rhs = _rhs + dt_F
             else:
                 rhs = _rhs
-            
+                
             U = M_dt_A_q.apply_inverse(rhs, initial_guess=U)
 
             while t - self.T_initial + (min(dt, DT) * 0.5) >= num_ret_values * DT:

@@ -184,7 +184,7 @@ def gradient_descent_linearized_problem(
                                                                     use_cached_operators=use_cached_operators))
 
         if (i % 10 == 0):
-            logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {model.compute_gradient_norm(buffer_nabla_J[-1]):3.4e}.")
+            logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {norm_grad:3.4e}.")
 
         buffer_d.pop(0)
         buffer_d.append(current_d)
@@ -203,7 +203,7 @@ def gradient_descent_linearized_problem(
     else:
         logger.info(f"Gradient decent NOT converged after {int(max_iter)} iterations.")
 
-    logger.info(f"objective = {current_J:3.4e}, norm gradient = {model.compute_gradient_norm(buffer_nabla_J[-1]):3.4e}.")
+    logger.info(f"objective = {current_J:3.4e}, norm gradient = {norm_grad:3.4e}.")
 
     return current_d
 

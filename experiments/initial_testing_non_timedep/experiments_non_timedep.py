@@ -135,9 +135,10 @@ FOM_optimizer_parameter = {
         'lin_solver_tol' : 1e-12,
         'lin_solver_inital_step_size' : 1
     },
-    'use_cached_operators' : True
+    'use_cached_operators' : True,
     'dump_every_nth_loop' : 5
-}5
+}
+
 TR_optimizer_parameter = {
     'method' : 'TR_IRGNM',
     'q_0' : None,
