@@ -58,6 +58,7 @@ class InstationaryModelIP(ImmutableObject):
                  num_calls: Dict = None,
                  logger: logging.Logger = None):
         
+        # TODO On palma STDERR does not go into *_IRGNM.log. Why? 
         logging.basicConfig()
         if logger:
             self._logger = logger
