@@ -46,10 +46,11 @@ def main():
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
     noise_level = 1e-5
+    #noise_level = 0
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
@@ -118,9 +119,9 @@ def main():
         'tau_tilde' : 3.5,
         #####################
         'i_max' : 25,
-        'reg_loop_max' : 10,
-        'i_max_inner' : 2,
-        'armijo_max_iter' : 100,
+        'reg_loop_max' : 5,
+        'i_max_inner' : 20,
+        'armijo_max_iter' : 10,
         #####################
         'lin_solver_parms' : {
             'lin_solver_max_iter' : 1e4,
@@ -130,9 +131,9 @@ def main():
         #####################
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,
-        'eta0' : 1e-2,
+        'eta0' : 1e-4,
         'kappa_arm' : 1e-12,
-        'beta_1' : 1-1e-16,
+        'beta_1' : 0.6,
         'beta_2' : 3/4,
         'beta_3' : 0.5,
     }

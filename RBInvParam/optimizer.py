@@ -93,8 +93,6 @@ class Optimizer(BasicObject):
         assert 0 < eta
         i = 0
         model_unsufficent = False
-        import time
-        start = time.time()
 
         self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
         step_size = inital_step_size
@@ -162,7 +160,12 @@ class Optimizer(BasicObject):
             i += 1
         if (J_rel_error > beta * eta) or (i == max_iter):
             model_unsufficent = True
-            
+
+        print(model.state_error_estimator.state_residual_operator.A)
+        print(J_rel_error)
+        print(eta)      
+        print(beta * eta)
+
 
         if not condition:
             self.logger.error(f"Armijo backtracking does NOT terminate normally. step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
