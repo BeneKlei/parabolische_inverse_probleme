@@ -120,11 +120,12 @@ def main():
         'i_max' : 75,
         'reg_loop_max' : 10,
         'i_max_inner' : 10,
-        'armijo_max_iter' : 25,
+        'agc_armijo_max_iter' : 25,
+        'TR_armijo_max_iter' : 5,
         #####################
         'lin_solver_parms' : {
             'lin_solver_max_iter' : 1e4,
-            'lin_solver_tol' : 1e-12,
+            'lin_solver_tol' : 1e-11,
             'lin_solver_inital_step_size' : 1
         },
         'use_cached_operators' : True,

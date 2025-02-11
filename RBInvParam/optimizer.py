@@ -348,15 +348,17 @@ class Optimizer(BasicObject):
             ########################################### Armijo ###########################################
             if use_TR:
                 self.logger.info(f"Enforcing TR condition.")
-                q, _, model_unsufficent = self._armijo_TR_line_serach(model = model,
-                                                                      previous_q = q,
-                                                                      previous_J = J,
-                                                                      search_direction = d,
-                                                                      **TR_backtracking_params,
-                                                                      use_cached_operators=use_cached_operators)
+                q_TR, _, model_unsufficent = self._armijo_TR_line_serach(model = model,
+                                                                         previous_q = q,
+                                                                         previous_J = J,
+                                                                         search_direction = d,
+                                                                         **TR_backtracking_params,
+                                                                         use_cached_operators=use_cached_operators)
 
                 if model_unsufficent:
                     break
+                else:
+                    q = q_TR
             else:
                 q += d
 
@@ -796,7 +798,9 @@ class QrVrROMOptimizer(Optimizer):
         i_max = self.optimizer_parameter["i_max"]
         reg_loop_max = self.optimizer_parameter["reg_loop_max"]
         i_max_inner = self.optimizer_parameter["i_max_inner"]
-        armijo_max_iter = self.optimizer_parameter["armijo_max_iter"]
+        agc_armijo_max_iter = self.optimizer_parameter["agc_armijo_max_iter"]
+        TR_armijo_max_iter = self.optimizer_parameter["TR_armijo_max_iter"]
+
 
         lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
         use_cached_operators = self.optimizer_parameter['use_cached_operators']
@@ -824,8 +828,8 @@ class QrVrROMOptimizer(Optimizer):
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
         assert norm_nabla_J > 0
 
-        inital_armijo_step_size = 0.5 / norm_nabla_J
-        inital_armijo_step_size = np.min([inital_armijo_step_size, 1])
+        inital_agc_armijo_step_size = 0.5 / norm_nabla_J
+        inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1])
         eta = eta0
         
         self.logger.debug("Running Qr-Vr-IRGNM:")
@@ -843,7 +847,8 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"  i_max : {i_max:3.4e}")
         self.logger.debug(f"  i_max_inner : {i_max_inner:3.4e}")
         self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
-        self.logger.debug(f"  armijo_max_iter : {armijo_max_iter:3.4e}")
+        self.logger.debug(f"  agc_armijo_max_iter : {agc_armijo_max_iter:3.4e}")
+        self.logger.debug(f"  TR_armijo_max_iter : {TR_armijo_max_iter:3.4e}")
         self.logger.debug(f"                ")
         self.logger.debug(f"  lin_solver_parms : ")
         for (key,val) in lin_solver_parms.items():
@@ -943,8 +948,8 @@ class QrVrROMOptimizer(Optimizer):
                 previous_q = q_r,
                 previous_J = J_r,
                 search_direction = -nabla_J_r,
-                max_iter = armijo_max_iter,
-                inital_step_size = inital_armijo_step_size,
+                max_iter = agc_armijo_max_iter,
+                inital_step_size = inital_agc_armijo_step_size,
                 eta = eta,
                 beta = beta_1,
                 kappa_arm = kappa_arm,
@@ -955,7 +960,7 @@ class QrVrROMOptimizer(Optimizer):
             ########################################### IRGNM ###########################################
             if not model_unsufficent:
                 TR_backtracking_params = {
-                    'max_iter' : 5, 
+                    'max_iter' : TR_armijo_max_iter, 
                     'inital_step_size' : 1, 
                     'eta' : eta, 
                     'beta' : beta_1, 
@@ -978,88 +983,52 @@ class QrVrROMOptimizer(Optimizer):
                                                   use_cached_operators=use_cached_operators)
 
             ########################################### Accept / Reject ###########################################
-        
-            self.logger.debug("Decide on q; Either accept or reject")
 
-            u_r = self.QrVrROM.solve_state(q_r)
-            p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
-            J_r = self.QrVrROM.objective(u_r)
+            if len(IRGNM_statistic['q']) > 1:
+                self.logger.debug("Decide on q; Either accept or reject")
 
-            abs_est_error_J_r = self.QrVrROM.estimate_objective_error(
-                    q=q_r,
-                    u = u_r,
-                    p = p_r,
-                    use_cached_operators=use_cached_operators)
-            
-            if J_r > 0:
-                rel_est_error_J_r = abs_est_error_J_r / J_r
-            else:
-                rel_est_error_J_r = np.inf
-            
-            if abs_est_error_J_r <= MACHINE_EPS:
-                abs_est_error_J_r = 0.0
+                u_r = self.QrVrROM.solve_state(q_r)
+                p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
+                J_r = self.QrVrROM.objective(u_r)
 
-            sufficent_condition = J_r + abs_est_error_J_r < J_r_AGC        
-            necessary_condition = J_r - abs_est_error_J_r <= J_r_AGC
-
-            self.logger.debug(f"    J_r_AGC = {J_r_AGC:3.4e}")
-            self.logger.debug(f"    J_r = {J_r:3.4e}")
-            self.logger.debug(f"    abs_est_error_J_r = {abs_est_error_J_r:3.4e}")
-            self.logger.debug(f"    J_r + abs_est_error_J_r = {J_r + abs_est_error_J_r:3.4e}; sufficent_condition = {sufficent_condition}")
-            self.logger.debug(f"    J_r - abs_est_error_J_r = {J_r - abs_est_error_J_r:3.4e}; necessary_condition = {necessary_condition}")
-
-            rejected = False
-            
-            if sufficent_condition:
-                self.logger.info(f"    Accept q.")
-                rejected = False
-
-                q = self.reductor.reconstruct(q_r, basis='parameter_basis')
-                u = self.FOM.solve_state(q)
-                p = self.FOM.solve_adjoint(q, u)
-                J = self.FOM.objective(u)
-                nabla_J = self.FOM.gradient(u, p, q)
-                norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
-
-                delta_J = self.statistics["J"][-1] -J
-                delta_J_r = self.statistics["J_r"][-1]-J_r
-
-                if delta_J_r > 0:
-                    rho = delta_J / delta_J_r
+                abs_est_error_J_r = self.QrVrROM.estimate_objective_error(
+                        q=q_r,
+                        u = u_r,
+                        p = p_r,
+                        use_cached_operators=use_cached_operators)
+                
+                if J_r > 0:
+                    rel_est_error_J_r = abs_est_error_J_r / J_r
                 else:
-                    rho = np.inf
-
-                if rho > beta_2:
-                    eta = 1/ beta_3 * eta
-
-            elif not necessary_condition:
-                self.logger.info(f"    Reject q.")
-                rejected = True
-                # q remain unchanged
-                eta = beta_3 * eta
-            else:
-                q = self.reductor.reconstruct(q_r, basis='parameter_basis')
-                u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-                p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
-                J = self.FOM.objective(u)
-                nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
-                norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
+                    rel_est_error_J_r = np.inf
                 
-                EASDC = J <= J_r_AGC
-                self.logger.info(f"    J = {J:3.4e}; EASDC = {EASDC}.")
+                if abs_est_error_J_r <= MACHINE_EPS:
+                    abs_est_error_J_r = 0.0
+
+                sufficent_condition = J_r + abs_est_error_J_r < J_r_AGC        
+                necessary_condition = J_r - abs_est_error_J_r <= J_r_AGC
+
+                self.logger.debug(f"    J_r_AGC = {J_r_AGC:3.4e}")
+                self.logger.debug(f"    J_r = {J_r:3.4e}")
+                self.logger.debug(f"    abs_est_error_J_r = {abs_est_error_J_r:3.4e}")
+                self.logger.debug(f"    J_r + abs_est_error_J_r = {J_r + abs_est_error_J_r:3.4e}; sufficent_condition = {sufficent_condition}")
+                self.logger.debug(f"    J_r - abs_est_error_J_r = {J_r - abs_est_error_J_r:3.4e}; necessary_condition = {necessary_condition}")
+
+                rejected = False
                 
-                if EASDC:
+                if sufficent_condition:
                     self.logger.info(f"    Accept q.")
                     rejected = False
+
                     q = self.reductor.reconstruct(q_r, basis='parameter_basis')
-                    u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-                    p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+                    u = self.FOM.solve_state(q)
+                    p = self.FOM.solve_adjoint(q, u)
                     J = self.FOM.objective(u)
-                    nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
+                    nabla_J = self.FOM.gradient(u, p, q)
                     norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
-                    delta_J = self.statistics["J"][-1] - J
-                    delta_J_r = self.statistics["J_r"][-1] - J_r
+                    delta_J = self.statistics["J"][-1] -J
+                    delta_J_r = self.statistics["J_r"][-1]-J_r
 
                     if delta_J_r > 0:
                         rho = delta_J / delta_J_r
@@ -1068,13 +1037,61 @@ class QrVrROMOptimizer(Optimizer):
 
                     if rho > beta_2:
                         eta = 1/ beta_3 * eta
-                else:
+
+                elif not necessary_condition:
                     self.logger.info(f"    Reject q.")
-                    # q remain unchanged
                     rejected = True
+                    # q remain unchanged
                     eta = beta_3 * eta
-                
-                self.logger.info(f"    eta = {eta:3.4e}.")
+                else:
+                    q = self.reductor.reconstruct(q_r, basis='parameter_basis')
+                    u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+                    p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+                    J = self.FOM.objective(u)
+                    nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
+                    norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
+                    
+                    EASDC = J <= J_r_AGC
+                    self.logger.info(f"    J = {J:3.4e}; EASDC = {EASDC}.")
+                    
+                    if EASDC:
+                        self.logger.info(f"    Accept q.")
+                        rejected = False
+                        q = self.reductor.reconstruct(q_r, basis='parameter_basis')
+                        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+                        p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+                        J = self.FOM.objective(u)
+                        nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
+                        norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
+
+                        delta_J = self.statistics["J"][-1] - J
+                        delta_J_r = self.statistics["J_r"][-1] - J_r
+
+                        if delta_J_r > 0:
+                            rho = delta_J / delta_J_r
+                        else:
+                            rho = np.inf
+
+                        if rho > beta_2:
+                            eta = 1/ beta_3 * eta
+                    else:
+                        self.logger.info(f"    Reject q.")
+                        # q remain unchanged
+                        rejected = True
+                        eta = beta_3 * eta
+                    
+                    self.logger.info(f"    eta = {eta:3.4e}.")
+            else:
+                self.logger.debug("Not found q_trial; Using AGC.")
+                rejected = False
+                q_r = q_agc.copy()
+                q = self.reductor.reconstruct(q_r, basis='parameter_basis')
+                u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+                p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+                J = self.FOM.objective(u)
+                nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
+                norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
+                eta = beta_3 * eta
 
             ########################################### Final ###########################################
             if not rejected:
