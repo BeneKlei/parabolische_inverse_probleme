@@ -939,6 +939,7 @@ class QrVrROMOptimizer(Optimizer):
             J_r = self.QrVrROM.objective(u_r)
             nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
             
+            IRGNM_statistic = None
 
             ########################################### AGC ###########################################
 
@@ -984,7 +985,12 @@ class QrVrROMOptimizer(Optimizer):
 
             ########################################### Accept / Reject ###########################################
 
-            if len(IRGNM_statistic['q']) > 1:
+            if IRGNM_statistic:
+                check_conditions = len(IRGNM_statistic['q']) > 1
+            else:
+                check_conditions = False
+
+            if check_conditions:
                 self.logger.debug("Decide on q; Either accept or reject")
 
                 u_r = self.QrVrROM.solve_state(q_r)
