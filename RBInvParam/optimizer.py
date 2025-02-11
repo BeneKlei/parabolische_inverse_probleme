@@ -96,6 +96,8 @@ class Optimizer(BasicObject):
 
         self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
         step_size = inital_step_size
+        print(inital_step_size)
+        print(model.compute_gradient_norm(search_direction))
         search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
         current_q = previous_q + step_size * search_direction
         u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
@@ -122,10 +124,12 @@ class Optimizer(BasicObject):
         else:
             J_rel_error = np.inf
         
+        
         TR_condition = J_rel_error <= eta
         condition = armijo_condition & TR_condition
+        i += 1
 
-        while (not condition) and (i <= max_iter):
+        while (not condition) and (i < max_iter):
             step_size = 0.5 * step_size
             current_q = previous_q + step_size * search_direction
             u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
@@ -160,11 +164,13 @@ class Optimizer(BasicObject):
             i += 1
         if (J_rel_error > beta * eta) or (i == max_iter):
             model_unsufficent = True
-
-        print(model.state_error_estimator.state_residual_operator.A)
+    
+        print(max_iter)
+        print(i)
         print(J_rel_error)
         print(eta)      
         print(beta * eta)
+        print(model_unsufficent)
 
 
         if not condition:
@@ -359,7 +365,7 @@ class Optimizer(BasicObject):
 
             u = model.solve_state(q, use_cached_operators=use_cached_operators)
             p = model.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
-            J = model.objective(u, )
+            J = model.objective(u)
             nabla_J = model.gradient(u, p, q, use_cached_operators=use_cached_operators)
             norm_nabla_J = model.compute_gradient_norm(nabla_J)
 
@@ -443,7 +449,7 @@ class Optimizer(BasicObject):
                shapshots: VectorArray, 
                basis: str,
                product: Operator,
-               eps: float = 1e-16) -> Tuple[VectorArray, np.array]:
+               eps: float = 1e-14) -> Tuple[VectorArray, np.array]:
             
         if len(self.reductor.bases[basis]) != 0:
             projected_shapshots = self.reductor.bases[basis].lincomb(
@@ -949,8 +955,8 @@ class QrVrROMOptimizer(Optimizer):
             ########################################### IRGNM ###########################################
             if not model_unsufficent:
                 TR_backtracking_params = {
-                    'max_iter' : armijo_max_iter, 
-                    'inital_step_size' : 0.1, 
+                    'max_iter' : 5, 
+                    'inital_step_size' : 1, 
                     'eta' : eta, 
                     'beta' : beta_1, 
                     "kappa_arm" : kappa_arm
@@ -1073,7 +1079,10 @@ class QrVrROMOptimizer(Optimizer):
             ########################################### Final ###########################################
             if not rejected:
                 delta = delta
-                alpha = IRGNM_statistic["alpha"][1]
+                try:
+                    alpha = IRGNM_statistic["alpha"][1]
+                except IndexError:
+                    pass
                 
                 self.statistics["q"].append(q)
                 self.statistics["alpha"].append(alpha)
