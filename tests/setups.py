@@ -136,5 +136,5 @@ diffusion_setup_q_time_dep = {
 SETUPS = {
     'default_setup_q_time_dep' : default_setup_q_time_dep,
     'default_setup_q_non_time_dep' : default_setup_q_non_time_dep,
-    #'diffusion_setup_q_time_dep' : diffusion_setup_q_time_dep
+    'diffusion_setup_q_time_dep' : diffusion_setup_q_time_dep
 }

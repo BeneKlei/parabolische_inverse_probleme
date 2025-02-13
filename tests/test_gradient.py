@@ -67,17 +67,17 @@ for setup_name, setup in SETUPS.items():
         'model' : FOM
     })
 
-    # configs.append({
-    #     'model_name' : setup_name + '_QrFOM',
-    #     'alpha' : 1e0,
-    #     'model' : QrFOM
-    # })
+    configs.append({
+        'model_name' : setup_name + '_QrFOM',
+        'alpha' : 1e0,
+        'model' : QrFOM
+    })
 
-    # configs.append({
-    #     'model_name' : setup_name + '_QrVrROM',
-    #     'alpha' : 1e0,
-    #     'model' : QrVrROM
-    # })
+    configs.append({
+        'model_name' : setup_name + '_QrVrROM',
+        'alpha' : 1e0,
+        'model' : QrVrROM
+    })
 
 
 def derivative_check(model : InstationaryModelIP ,
@@ -144,34 +144,34 @@ def derivative_check(model : InstationaryModelIP ,
 
 #################################### FOM ####################################
 
-# @pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
-# def test_objective_gradient(config : Dict)-> None:
-#     alpha = config['alpha']
-#     model = config['model']
-#     eps, diff_quot = derivative_check(
-#         model,
-#         model.compute_objective, 
-#         model.compute_gradient,
-#         Path('./test_gradient_dumps/' + config['model_name'] 
-#              + '_' + sys._getframe().f_code.co_name + '.png'),
-#         title = 'J'
-#     )
-#     assert np.all(eps > diff_quot)
+@pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
+def test_objective_gradient(config : Dict)-> None:
+    alpha = config['alpha']
+    model = config['model']
+    eps, diff_quot = derivative_check(
+        model,
+        model.compute_objective, 
+        model.compute_gradient,
+        Path('./test_gradient_dumps/' + config['model_name'] 
+             + '_' + sys._getframe().f_code.co_name + '.png'),
+        title = 'J'
+    )
+    assert np.all(eps > diff_quot)
 
-# @pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
-# def test_regularization_term_gradient(config : Dict) -> None:
-#     alpha = config['alpha']
-#     model = config['model']
-#     eps, diff_quot = derivative_check(
-#         model,
-#         lambda q: alpha * model.regularization_term(q), 
-#         lambda q: alpha * model.gradient_regularization_term(q),
-#         Path('./test_gradient_dumps/' + config['model_name'] 
-#              + '_' + sys._getframe().f_code.co_name + '.png'),
-#         title = 'regularization'
-#     )
+@pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
+def test_regularization_term_gradient(config : Dict) -> None:
+    alpha = config['alpha']
+    model = config['model']
+    eps, diff_quot = derivative_check(
+        model,
+        lambda q: alpha * model.regularization_term(q), 
+        lambda q: alpha * model.gradient_regularization_term(q),
+        Path('./test_gradient_dumps/' + config['model_name'] 
+             + '_' + sys._getframe().f_code.co_name + '.png'),
+        title = 'regularization'
+    )
 
-#     assert np.all(eps > diff_quot)
+    assert np.all(eps > diff_quot)
 
 @pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
 def test_linearized_objective_gradient(config : Dict)-> None:
