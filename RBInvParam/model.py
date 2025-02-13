@@ -640,8 +640,6 @@ class InstationaryModelIP(ImmutableObject):
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
 
-        #grad = 1/self.delta_t *grad
-
         if alpha > 0:
             out = grad + alpha * self.linarized_gradient_regularization_term(q,d)
         else:
@@ -666,9 +664,9 @@ class InstationaryModelIP(ImmutableObject):
                                             + (-2) * self.linear_reg_term.as_range_array().pairwise_inner(q) 
                                             + self.constant_reg_term)
         else:
-            return 0.5 * self.delta_t * self.nt * (self.bilinear_reg_term.pairwise_apply2(q,q)
-                                                   + (-2) * q.inner(self.linear_reg_term.as_range_array())
-                                                   + self.constant_reg_term)[0,0]
+            return 0.5 * (self.bilinear_reg_term.pairwise_apply2(q,q)
+                       + (-2) * q.inner(self.linear_reg_term.as_range_array())
+                       + self.constant_reg_term)[0,0]
                  
     def gradient_regularization_term(self, 
                                      q: VectorArray) -> float:
@@ -679,11 +677,6 @@ class InstationaryModelIP(ImmutableObject):
             assert len(q) == 1
 
         out = (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q))
-
-        if not self.q_time_dep:
-            out = self.delta_t * self.nt * out
-        
-        #out = self.delta_t * out
 
         if not self.riesz_rep_grad:
             return out
@@ -707,9 +700,9 @@ class InstationaryModelIP(ImmutableObject):
                                             + (-2) * self.linear_reg_term.as_range_array().pairwise_inner(q+d) 
                                             + self.constant_reg_term)
         else:
-            return 0.5 * self.delta_t * self.nt * (self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
-                                                + (-2) * (q+d).inner(self.linear_reg_term.as_range_array())
-                                                + self.constant_reg_term)[0,0]
+            return 0.5 * (self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
+                       + (-2) * (q+d).inner(self.linear_reg_term.as_range_array())
+                       + self.constant_reg_term)[0,0]
                  
     def linarized_gradient_regularization_term(self,
                                                q: VectorArray,
@@ -724,11 +717,6 @@ class InstationaryModelIP(ImmutableObject):
         assert d in self.Q
 
         out = (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d))
-
-        if not self.q_time_dep:
-            out = self.delta_t * self.nt * out
-
-        #out = self.delta_t * out
 
         if not self.riesz_rep_grad:
             return out
