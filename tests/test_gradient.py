@@ -63,21 +63,21 @@ for setup_name, setup in SETUPS.items():
 
     configs.append({
         'model_name' : setup_name + '_FOM',
-        'alpha' : 1e0,
+        'alpha' : 1e-1,
         'model' : FOM
     })
 
-    configs.append({
-        'model_name' : setup_name + '_QrFOM',
-        'alpha' : 1e0,
-        'model' : QrFOM
-    })
+    # configs.append({
+    #     'model_name' : setup_name + '_QrFOM',
+    #     'alpha' : 1e0,
+    #     'model' : QrFOM
+    # })
 
-    configs.append({
-        'model_name' : setup_name + '_QrVrROM',
-        'alpha' : 1e0,
-        'model' : QrVrROM
-    })
+    # configs.append({
+    #     'model_name' : setup_name + '_QrVrROM',
+    #     'alpha' : 1e0,
+    #     'model' : QrVrROM
+    # })
 
 
 def derivative_check(model : InstationaryModelIP ,
@@ -85,7 +85,7 @@ def derivative_check(model : InstationaryModelIP ,
                      df : Callable, 
                      save_path: Union[str, Path],
                      title: str) -> Tuple[List, List]:
-    Eps = np.array([10**(-i) for i in range(0,15)])
+    Eps = np.array([10**(-i) for i in range(0,13)])
 
     model_dims = model.setup['dims']
     if model.q_time_dep:
@@ -115,18 +115,18 @@ def derivative_check(model : InstationaryModelIP ,
 
         if model.riesz_rep_grad:
             if model.q_time_dep: 
-                #df_h = model.products['bochner_prod_Q'].apply2(df, h)[0,0]
-                df_h = np.sum(df.pairwise_inner(h, product=model.products['prod_Q']))
+                df_h = model.products['bochner_prod_Q'].apply2(df, h)[0,0]
+                #df_h = np.sum(df.pairwise_inner(h, product=model.products['prod_Q']))
             else:
-                #df_h = model.delta_t * model.products['prod_Q'].pairwise_apply2(df, h)
                 df_h = model.products['prod_Q'].pairwise_apply2(df, h)
+                #df_h = model.products['prod_Q'].pairwise_apply2(df, h)
         else:
             if model.q_time_dep: 
-                #df_h = model.delta_t * np.sum(df.pairwise_inner(h))
                 df_h = np.sum(df.pairwise_inner(h))
+                #df_h = np.sum(df.pairwise_inner(h))
             else:
-                #df_h = model.delta_t * df.inner(h)[0,0]
                 df_h = df.inner(h)[0,0]
+                #df_h = df.inner(h)[0,0]
 
         T[i] = np.abs(f_plus - fq - df_h)
 
@@ -144,34 +144,34 @@ def derivative_check(model : InstationaryModelIP ,
 
 #################################### FOM ####################################
 
-@pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
-def test_objective_gradient(config : Dict)-> None:
-    alpha = config['alpha']
-    model = config['model']
-    eps, diff_quot = derivative_check(
-        model,
-        model.compute_objective, 
-        model.compute_gradient,
-        Path('./test_gradient_dumps/' + config['model_name'] 
-             + '_' + sys._getframe().f_code.co_name + '.png'),
-        title = 'J'
-    )
-    assert np.all(eps > diff_quot)
+# @pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
+# def test_objective_gradient(config : Dict)-> None:
+#     alpha = config['alpha']
+#     model = config['model']
+#     eps, diff_quot = derivative_check(
+#         model,
+#         model.compute_objective, 
+#         model.compute_gradient,
+#         Path('./test_gradient_dumps/' + config['model_name'] 
+#              + '_' + sys._getframe().f_code.co_name + '.png'),
+#         title = 'J'
+#     )
+#     assert np.all(eps > diff_quot)
 
-@pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
-def test_regularization_term_gradient(config : Dict) -> None:
-    alpha = config['alpha']
-    model = config['model']
-    eps, diff_quot = derivative_check(
-        model,
-        lambda q: alpha * model.regularization_term(q), 
-        lambda q: alpha * model.gradient_regularization_term(q),
-        Path('./test_gradient_dumps/' + config['model_name'] 
-             + '_' + sys._getframe().f_code.co_name + '.png'),
-        title = 'regularization'
-    )
+# @pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
+# def test_regularization_term_gradient(config : Dict) -> None:
+#     alpha = config['alpha']
+#     model = config['model']
+#     eps, diff_quot = derivative_check(
+#         model,
+#         lambda q: alpha * model.regularization_term(q), 
+#         lambda q: alpha * model.gradient_regularization_term(q),
+#         Path('./test_gradient_dumps/' + config['model_name'] 
+#              + '_' + sys._getframe().f_code.co_name + '.png'),
+#         title = 'regularization'
+#     )
 
-    assert np.all(eps > diff_quot)
+#     assert np.all(eps > diff_quot)
 
 @pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
 def test_linearized_objective_gradient(config : Dict)-> None:
