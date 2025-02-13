@@ -369,7 +369,8 @@ class InstationaryModelIP(ImmutableObject):
         if isinstance(self.A, UnAssembledA):
             I = self.A.boundary_info.dirichlet_boundaries(2)
             rhs[:,I] = 0
-        rhs = self.delta_t * self.V.make_array(rhs)
+        #rhs = self.delta_t * self.V.make_array(rhs)
+        rhs = self.V.make_array(rhs)
 
         iterator = self.timestepper.iterate(initial_data = self.p_0, 
                                             q=q,
@@ -465,7 +466,8 @@ class InstationaryModelIP(ImmutableObject):
             I = self.A.boundary_info.dirichlet_boundaries(2)
             rhs[:,I] = 0
 
-        rhs = self.delta_t * self.V.make_array(rhs)
+        #rhs = self.delta_t * self.V.make_array(rhs)
+        rhs = self.V.make_array(rhs)
         iterator = self.timestepper.iterate(initial_data = self.p_0, 
                                             q=q,
                                             rhs=rhs,
@@ -540,7 +542,7 @@ class InstationaryModelIP(ImmutableObject):
             grad.append(B_u[idx].B_u_ad(p[idx]))
 
         if not self.q_time_dep:
-            grad = self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
+            grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
         
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
@@ -633,7 +635,7 @@ class InstationaryModelIP(ImmutableObject):
             grad.append(B_u[idx].B_u_ad(lin_p[idx]))
 
         if not self.q_time_dep:
-            grad = self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
+            grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
 
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
@@ -679,9 +681,9 @@ class InstationaryModelIP(ImmutableObject):
         out = (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q))
 
         if not self.q_time_dep:
-            out = self.nt * out
+            out = self.delta_t * self.nt * out
         
-        out = self.delta_t * out
+        #out = self.delta_t * out
 
         if not self.riesz_rep_grad:
             return out
@@ -724,9 +726,9 @@ class InstationaryModelIP(ImmutableObject):
         out = (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d))
 
         if not self.q_time_dep:
-            out = self.nt * out
+            out = self.delta_t * self.nt * out
 
-        out = self.delta_t * out
+        #out = self.delta_t * out
 
         if not self.riesz_rep_grad:
             return out

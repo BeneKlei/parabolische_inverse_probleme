@@ -125,7 +125,7 @@ def main():
         #####################
         'lin_solver_parms' : {
             'lin_solver_max_iter' : 1e4,
-            'lin_solver_tol' : 1e-11,
+            'lin_solver_tol' : 1e-10,
             'lin_solver_inital_step_size' : 1
         },
         'use_cached_operators' : True,
