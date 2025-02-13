@@ -115,14 +115,18 @@ def derivative_check(model : InstationaryModelIP ,
 
         if model.riesz_rep_grad:
             if model.q_time_dep: 
-                df_h = model.products['bochner_prod_Q'].apply2(df, h)[0,0]
+                #df_h = model.products['bochner_prod_Q'].apply2(df, h)[0,0]
+                df_h = np.sum(df.pairwise_inner(h, product=model.products['prod_Q']))
             else:
-                df_h = model.delta_t * model.products['prod_Q'].pairwise_apply2(df, h)
+                #df_h = model.delta_t * model.products['prod_Q'].pairwise_apply2(df, h)
+                df_h = model.products['prod_Q'].pairwise_apply2(df, h)
         else:
             if model.q_time_dep: 
-                df_h = model.delta_t * np.sum(df.pairwise_inner(h))
+                #df_h = model.delta_t * np.sum(df.pairwise_inner(h))
+                df_h = np.sum(df.pairwise_inner(h))
             else:
-                df_h = model.delta_t * df.inner(h)[0,0]
+                #df_h = model.delta_t * df.inner(h)[0,0]
+                df_h = df.inner(h)[0,0]
 
         T[i] = np.abs(f_plus - fq - df_h)
 

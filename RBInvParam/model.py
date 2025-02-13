@@ -544,6 +544,8 @@ class InstationaryModelIP(ImmutableObject):
         
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
+        
+        #grad = 1/self.delta_t * grad
 
         if alpha > 0:
             out = grad + alpha * self.gradient_regularization_term(q)
@@ -584,6 +586,7 @@ class InstationaryModelIP(ImmutableObject):
                       self.constant_cost_term)
         if alpha > 0:
             return out + alpha * self.linearized_regularization_term(q, d)
+            
         else:
             return out
         
@@ -635,6 +638,8 @@ class InstationaryModelIP(ImmutableObject):
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
 
+        #grad = 1/self.delta_t *grad
+
         if alpha > 0:
             out = grad + alpha * self.linarized_gradient_regularization_term(q,d)
         else:
@@ -675,6 +680,8 @@ class InstationaryModelIP(ImmutableObject):
 
         if not self.q_time_dep:
             out = self.nt * out
+        
+        out = self.delta_t * out
 
         if not self.riesz_rep_grad:
             return out
@@ -718,6 +725,8 @@ class InstationaryModelIP(ImmutableObject):
 
         if not self.q_time_dep:
             out = self.nt * out
+
+        out = self.delta_t * out
 
         if not self.riesz_rep_grad:
             return out
@@ -901,14 +910,6 @@ class InstationaryModelIP(ImmutableObject):
                                         use_cached_operators=use_cached_operators)
 
 #%% helpers
-    def compute_gradient_norm(self,
-                              nabla_J: VectorArray) -> float:   
-        assert nabla_J in self.Q
-        if self.q_time_dep:
-            return np.sqrt(self.products['prod_Q'].apply2(nabla_J, nabla_J) / self.delta_t)[0,0]
-        else:
-            return np.sqrt(self.products['prod_Q'].apply2(nabla_J, nabla_J))[0,0]
-
     def compute_gradient_norm(self,
                               V: VectorArray) -> float:
         assert V in self.Q

@@ -985,7 +985,7 @@ class QrVrROMOptimizer(Optimizer):
 
             ########################################### Accept / Reject ###########################################
 
-            if IRGNM_statistic:
+            if IRGNM_statistic is not None:
                 check_conditions = len(IRGNM_statistic['q']) > 1
             else:
                 check_conditions = False
