@@ -2,7 +2,7 @@ import numpy as np
 import copy
 from typing import Dict
 
-def set_dims(setup: Dict, N : int = 0, nt: int = 50) -> Dict:
+def set_dims(setup: Dict, N : int = 0, nt: int = 50, q_time_dep: bool = False) -> Dict:
 
     par_dim = (N+1)**2
     fine_N = 2 * N
@@ -20,7 +20,10 @@ def set_dims(setup: Dict, N : int = 0, nt: int = 50) -> Dict:
     T_initial = setup['model_parameter']['T_initial']
     T_final = setup['model_parameter']['T_final']
     setup['model_parameter']['delta_t'] = (T_final - T_initial) / nt
-    setup['model_parameter']['q_circ'] = 3*np.ones((1, par_dim))
+    if q_time_dep:
+        setup['model_parameter']['q_circ'] = 3*np.ones((nt, par_dim))
+    else:
+        setup['model_parameter']['q_circ'] = 3*np.ones((1, par_dim))
     setup['model_parameter']['bounds'] = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     return setup
@@ -56,7 +59,7 @@ reaction_setup = {
         'noise_level' : 1e-5,
         'q_circ' : None, 
         'q_exact' : None,
-        'q_time_dep' : False,
+        'q_time_dep' : True,
         'riesz_rep_grad' : True,
         'bounds' : None,
         'parameters' : None,
@@ -101,7 +104,7 @@ diffusion_setup = {
         'noise_level' : 1e-5,
         'q_circ' : None, 
         'q_exact' : None,
-        'q_time_dep' : False,
+        'q_time_dep' : True,
         'riesz_rep_grad' : True,
         'bounds' : None,
         'parameters' : None,
@@ -172,16 +175,16 @@ TR_optimizer_parameter = {
 }
 
 reaction_100_setup = copy.deepcopy(reaction_setup)
-reaction_100_setup = set_dims(reaction_100_setup, N = 100)
+reaction_100_setup = set_dims(reaction_100_setup, N = 100, q_time_dep=True)
 
 diffusion_100_setup = copy.deepcopy(diffusion_setup)
-diffusion_100_setup = set_dims(diffusion_100_setup, N = 100)
+diffusion_100_setup = set_dims(diffusion_100_setup, N = 100, q_time_dep=True)
 
 reaction_300_setup = copy.deepcopy(reaction_setup)
-reaction_300_setup = set_dims(reaction_300_setup, N = 300)
+reaction_300_setup = set_dims(reaction_300_setup, N = 300, q_time_dep=True)
 
 diffusion_300_setup = copy.deepcopy(diffusion_setup)
-diffusion_300_setup = set_dims(diffusion_300_setup, N = 300)
+diffusion_300_setup = set_dims(diffusion_300_setup, N = 300, q_time_dep=True)
 
 
 EXPERIMENTS = {}

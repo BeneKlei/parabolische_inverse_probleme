@@ -152,7 +152,7 @@ TR_optimizer_parameter = {
     #####################
     'i_max' : 75,
     'reg_loop_max' : 10,
-    'i_max_inner' : 25,
+    'i_max_inner' : 10,
     'agc_armijo_max_iter' : 25,
     'TR_armijo_max_iter' : 5,
     #####################
@@ -166,7 +166,7 @@ TR_optimizer_parameter = {
     #####################
     'eta0' : 1e-3,
     'kappa_arm' : 1e-12,
-    'beta_1' : 0.95,
+    'beta_1' : 0.6,
     'beta_2' : 3/4,
     'beta_3' : 0.5,
 }
