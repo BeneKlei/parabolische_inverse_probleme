@@ -29,7 +29,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         logger.setLevel(logging.DEBUG)              
                             
     ############################### FOM ###############################
-    primal_fom, primal_fom_data = discretize_instationary_cg(analytical_problem,
+    primal_fom, grid_data = discretize_instationary_cg(analytical_problem,
                                                              diameter=setup['dims']['diameter'],
                                                              preassemble= False,
                                                              grid_type = RectGrid,
@@ -140,8 +140,8 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     A = UnAssembledA(
         constant_operator = constant_operator,
         reaction_problem = ('reaction' in setup['model_parameter']['problem_type']),
-        grid = primal_fom_data['grid'],
-        boundary_info = primal_fom_data['boundary_info'],
+        grid = grid_data['grid'],
+        boundary_info = grid_data['boundary_info'],
         source=V_h,
         range=V_h,
         Q = Q_h
@@ -149,8 +149,8 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     
     B = UnAssembledB(
         reaction_problem = ('reaction' in setup['model_parameter']['problem_type']),
-        grid = primal_fom_data['grid'],
-        boundary_info = primal_fom_data['boundary_info'],
+        grid = grid_data['grid'],
+        boundary_info = grid_data['boundary_info'],
         source=Q_h,
         range=V_h,
         Q = Q_h,
@@ -271,4 +271,4 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         'C_continuity_constant' : C_continuity_constant
     }
 
-    return building_blocks
+    return building_blocks, grid_data
