@@ -43,10 +43,11 @@ def main():
 
     T_initial = 0
     T_final = 1
+    #nt = 500
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
     noise_level = 1e-5
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -121,19 +122,20 @@ def main():
         'reg_loop_max' : 10,
         'i_max_inner' : 10,
         'agc_armijo_max_iter' : 25,
-        'TR_armijo_max_iter' : 5,
+        'TR_armijo_max_iter' : 10,
         #####################
         'lin_solver_parms' : {
             'lin_solver_max_iter' : 1e4,
-            'lin_solver_tol' : 1e-10,
+            'lin_solver_tol' : 1e-11,
             'lin_solver_inital_step_size' : 1
         },
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,
         #####################
-        'eta0' : 1e-3,
+        'eta0' : 1e-1,
         'kappa_arm' : 1e-12,
-        'beta_1' : 0.6,
+        #'beta_1' : 0.6,
+        'beta_1' : 0.95,
         'beta_2' : 3/4,
         'beta_3' : 0.5,
     }

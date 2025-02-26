@@ -1102,10 +1102,12 @@ class QrVrROMOptimizer(Optimizer):
             ########################################### Final ###########################################
             if not rejected:
                 delta = delta
-                try:
-                    alpha = IRGNM_statistic["alpha"][1]
-                except IndexError:
-                    pass
+                
+                if IRGNM_statistic is not None:
+                    try:
+                        alpha = IRGNM_statistic["alpha"][1]
+                    except IndexError:
+                        pass
                 
                 self.statistics["q"].append(q)
                 self.statistics["alpha"].append(alpha)

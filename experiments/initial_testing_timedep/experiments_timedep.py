@@ -135,7 +135,7 @@ FOM_optimizer_parameter = {
     ####################
     'lin_solver_parms' : {
         'lin_solver_max_iter' : 1e4,
-        'lin_solver_tol' : 1e-12,
+        'lin_solver_tol' : 1e-11,
         'lin_solver_inital_step_size' : 1
     },
     'use_cached_operators' : True,
@@ -155,12 +155,13 @@ TR_optimizer_parameter = {
     #####################
     'i_max' : 75,
     'reg_loop_max' : 10,
-    'i_max_inner' : 2,
-    'armijo_max_iter' : 100,
+    'i_max_inner' : 10,
+    'agc_armijo_max_iter' : 25,
+    'TR_armijo_max_iter' : 10,
     #####################
     'lin_solver_parms' : {
         'lin_solver_max_iter' : 1e4,
-        'lin_solver_tol' : 1e-12,
+        'lin_solver_tol' : 1e-11,
         'lin_solver_inital_step_size' : 1
     },
     'use_cached_operators' : True,
@@ -168,7 +169,7 @@ TR_optimizer_parameter = {
     #####################
     'eta0' : 1e-1,
     'kappa_arm' : 1e-12,
-    'beta_1' : 1-1e-16,
+    'beta_1' : 0.95,
     'beta_2' : 3/4,
     'beta_3' : 0.5,
 }
