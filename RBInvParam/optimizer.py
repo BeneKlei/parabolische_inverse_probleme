@@ -218,8 +218,16 @@ class Optimizer(BasicObject):
             "norm_nabla_J" : [],
             "total_runtime" : [],
             "stagnation_flag" : False,
-            "FOM_num_calls" : {}
+            "FOM_num_calls" : {},
+            "counts" : None
         }
+        counts = {
+            'IRGNM_loop_iter' : -1,
+            'reg_loop_iter' : [],
+            'lin_solver_iter' : [],
+            'loop_terminated' : []
+        }
+
         start_time = timer()
         i = 0
         model_unsufficent = False
@@ -265,16 +273,17 @@ class Optimizer(BasicObject):
             d_start[:,:] = 0
             d_start = model.Q.make_array(d_start)
 
-            d = self.solve_linearized_problem(model=model,
-                                              q=q,
-                                              d_start=d_start,
-                                              alpha=alpha,
-                                              method='gd',
-                                              max_iter=lin_solver_max_iter,
-                                              tol=lin_solver_tol,
-                                              inital_step_size=lin_solver_inital_step_size, 
-                                              logger = self.logger,
-                                              use_cached_operators=use_cached_operators)
+            d, lin_solver_iter = self.solve_linearized_problem(model=model,
+                                                               q=q,
+                                                               d_start=d_start,
+                                                               alpha=alpha,
+                                                               method='gd',
+                                                               max_iter=lin_solver_max_iter,
+                                                               tol=lin_solver_tol,
+                                                               inital_step_size=lin_solver_inital_step_size, 
+                                                               logger = self.logger,
+                                                               use_cached_operators=use_cached_operators)
+            counts['lin_solver_iter'].append([lin_solver_iter])
             
             lin_u = model.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
             lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0, use_cached_operators=use_cached_operators)
@@ -289,6 +298,7 @@ class Optimizer(BasicObject):
 
             loop_terminated = False
             while (not regularization_qualification) and (count < reg_loop_max):
+                count += 1
 
                 if alpha <= 1e-14:
                     loop_terminated = True
@@ -303,16 +313,18 @@ class Optimizer(BasicObject):
                 
                 self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
                 self.logger.info(f"Try {count}: test alpha = {alpha:3.4e}.")
-                d = self.solve_linearized_problem(model=model,
-                                                  q=q,
-                                                  d_start=d_start,
-                                                  alpha=alpha,
-                                                  method='gd',
-                                                  max_iter=lin_solver_max_iter,
-                                                  tol=lin_solver_tol,
-                                                  inital_step_size=lin_solver_inital_step_size, 
-                                                  logger = self.logger,
-                                                  use_cached_operators=use_cached_operators)
+                d, lin_solver_iter = self.solve_linearized_problem(model=model,
+                                                                   q=q,
+                                                                   d_start=d_start,
+                                                                   alpha=alpha,
+                                                                   method='gd',
+                                                                   max_iter=lin_solver_max_iter,
+                                                                   tol=lin_solver_tol,
+                                                                   inital_step_size=lin_solver_inital_step_size, 
+                                                                   logger = self.logger,
+                                                                   use_cached_operators=use_cached_operators)
+
+                counts['lin_solver_iter'][-1].append(lin_solver_iter)
 
                 lin_u = model.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
                 lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0, use_cached_operators=use_cached_operators)
@@ -326,9 +338,12 @@ class Optimizer(BasicObject):
                 else:
                     self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
 
-                count += 1
+                
 
             loop_terminated = loop_terminated or (count >= reg_loop_max)
+
+            counts['reg_loop_iter'].append(count)
+            counts['loop_terminated'].append(loop_terminated)
 
             if not loop_terminated:
                 self.logger.warning(f"Used alpha = {alpha:3.4e} does satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
@@ -413,6 +428,9 @@ class Optimizer(BasicObject):
         self.logger.info(f'     Start norm_nabla_J = {self.IRGNM_statistics["norm_nabla_J"][0]:3.4e}; Final norm_nabla_J = {self.IRGNM_statistics["norm_nabla_J"][-1]:3.4e}.')
         self.logger.info(f'     Euclidian distance final q and inital q = {np.linalg.norm(q.to_numpy() - q_0.to_numpy()):3.4e}')
 
+        counts['IRGNM_loop_iter'] = self.IRGNM_idx
+
+        self.IRGNM_statistics["counts"] = counts
         self.IRGNM_statistics["total_runtime"].append(timer() - start_time)
         self.IRGNM_idx += 1
         return (q, self.IRGNM_statistics)
@@ -772,7 +790,8 @@ class QrVrROMOptimizer(Optimizer):
             "total_runtime" : [],
             "stagnation_flag" : False,
             "optimizer_parameter" : self.optimizer_parameter.copy(),
-            "FOM_num_calls": {}
+            "FOM_num_calls": {},
+            "counts" : []
         }
 
 
@@ -858,6 +877,13 @@ class QrVrROMOptimizer(Optimizer):
         parameter_shapshots.append(nabla_J)
         parameter_shapshots.append(q)
         parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
+
+        # np.random.seed(42)
+        # for _ in range(5):
+        #     parameter_shapshots.append(self.FOM.Q.make_array(np.random.random(q.to_numpy().shape)))
+        #parameter_shapshots.append(self.FOM.setup['model_parameter']['q_exact'])
+        
+        
         
         if self.FOM.setup['model_parameter']['q_time_dep']:
             self.logger.debug(f"Performing HaPOD on parameter snapshots.")
@@ -913,8 +939,9 @@ class QrVrROMOptimizer(Optimizer):
         self.statistics["J"].append(J)
         self.statistics["norm_nabla_J"].append(norm_nabla_J)
         self.statistics["J_r"].append(J_r)
-        self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
-        self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
+        self.statistics["abs_est_error_J_r"].append(abs_est_error_J_r)
+        self.statistics["rel_est_error_J_r"].append(rel_est_error_J_r)
+        self.statistics["counts"].append(np.nan)
 
         while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
@@ -1105,8 +1132,9 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics["J"].append(J)
                 self.statistics["norm_nabla_J"].append(norm_nabla_J)
                 self.statistics["J_r"].append(J_r)
-                self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
-                self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
+                self.statistics["abs_est_error_J_r"].append(abs_est_error_J_r)
+                self.statistics["rel_est_error_J_r"].append(rel_est_error_J_r)
+                self.statistics["counts"].append(IRGNM_statistic["counts"])
 
                 self.logger.debug(f"Extending Qr-space")
                 parameter_shapshots = self.FOM.Q.empty()

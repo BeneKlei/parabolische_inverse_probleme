@@ -100,7 +100,7 @@ def gradient_descent_linearized_problem(
     tol : float,
     inital_step_size: float = 1,
     logger: logging.Logger = None,
-    use_cached_operators: bool = False) -> np.array:
+    use_cached_operators: bool = False) -> Tuple[np.array, int]:
     assert alpha >= 0
     assert tol > 0
     assert inital_step_size > 0
@@ -147,7 +147,7 @@ def gradient_descent_linearized_problem(
         norm_grad = model.compute_gradient_norm(grad)
 
         if norm_grad < tol:
-            last_i = i
+            last_i = i + 1
             converged = True
             break
 
@@ -205,7 +205,7 @@ def gradient_descent_linearized_problem(
 
     logger.info(f"objective = {current_J:3.4e}, norm gradient = {norm_grad:3.4e}.")
 
-    return current_d
+    return current_d, last_i
 
 def gradient_descent_non_linearized_problem(
     model : InstationaryModelIP,
