@@ -124,7 +124,7 @@ FOM_optimizer_parameter = {
     'tau' : 3.5,
     'noise_level' : None,
     'theta' : 0.4,        
-    'Theta' : 1.95,
+    'Theta' : 0.95,
     #####################
     'i_max' : 75,
     'reg_loop_max' : 10,
@@ -147,7 +147,7 @@ TR_optimizer_parameter = {
     'tau' : 3.5,
     'noise_level' : None,
     'theta' : 0.4,
-    'Theta' : 1.95,
+    'Theta' : 0.95,
     'tau_tilde' : 3.5,
     #####################
     'i_max' : 75,
@@ -192,25 +192,25 @@ setup = copy.deepcopy(reaction_100_setup)
 optimizer_parameter = copy.deepcopy(FOM_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-EXPERIMENTS['reaction_FOM_100'] = (setup, optimizer_parameter)
+EXPERIMENTS['reaction_FOM_100_Theta_095'] = (setup, optimizer_parameter)
 
 setup = copy.deepcopy(diffusion_100_setup)
 optimizer_parameter = copy.deepcopy(FOM_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-EXPERIMENTS['diffusion_FOM_100'] = (setup, optimizer_parameter)
+EXPERIMENTS['diffusion_FOM_100_Theta_095'] = (setup, optimizer_parameter)
 
 setup = copy.deepcopy(reaction_300_setup)
 optimizer_parameter = copy.deepcopy(FOM_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-EXPERIMENTS['reaction_FOM_300'] = (setup, optimizer_parameter)
+EXPERIMENTS['reaction_FOM_300_Theta_095'] = (setup, optimizer_parameter)
 
 setup = copy.deepcopy(diffusion_300_setup)
 optimizer_parameter = copy.deepcopy(FOM_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-EXPERIMENTS['diffusion_FOM_300'] = (setup, optimizer_parameter)
+EXPERIMENTS['diffusion_FOM_300_Theta_095'] = (setup, optimizer_parameter)
 
 ###################################### TR ######################################
 
@@ -218,22 +218,22 @@ setup = copy.deepcopy(reaction_100_setup)
 optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-EXPERIMENTS['reaction_TR_100'] = (setup, optimizer_parameter)
+EXPERIMENTS['reaction_TR_100_Theta_095'] = (setup, optimizer_parameter)
 
 setup = copy.deepcopy(diffusion_100_setup)
 optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-EXPERIMENTS['diffusion_TR_100'] = (setup, optimizer_parameter)
+EXPERIMENTS['diffusion_TR_100_Theta_095'] = (setup, optimizer_parameter)
 
 setup = copy.deepcopy(reaction_300_setup)
 optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-EXPERIMENTS['reaction_TR_300'] = (setup, optimizer_parameter)
+EXPERIMENTS['reaction_TR_300_Theta_095'] = (setup, optimizer_parameter)
 
 setup = copy.deepcopy(diffusion_300_setup)
 optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-EXPERIMENTS['diffusion_TR_300'] = (setup, optimizer_parameter)
+EXPERIMENTS['diffusion_TR_300_Theta_095'] = (setup, optimizer_parameter)
