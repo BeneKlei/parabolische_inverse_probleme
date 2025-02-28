@@ -29,7 +29,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                  FOM: InstationaryModelIP, 
                  check_orthonormality: bool =False, 
                  check_tol: float = 1e-3,
-                 use_reducted_residual_image_basis: bool = False,
+                 residual_image_basis_mode: str = 'none',
                  logger: logging.Logger = None):
         
         assert isinstance(FOM, InstationaryModelIP)
@@ -40,20 +40,22 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if logger:
             self._logger = logger
         else:
-            self._logger = get_default_logger(self.__class__.__name__)
+            self._logger = get_default_logger(logger_name=self.__class__.__name__)
             self._logger.setLevel(logging.DEBUG)
         self.logger.debug(f"Setting up {self.__class__.__name__}")
 
         bases = {
             'state_basis' : FOM.V.empty(),
-            'parameter_basis' : FOM.Q.empty(),
-            'state_residual_image_basis' : FOM.Q.empty(),
-            'adjoint_residual_image_basis' : FOM.Q.empty(),
+            'parameter_basis' : FOM.Q.empty()
         }
 
         products = {
             'state_basis' : FOM.products['prod_V'],
             'parameter_basis' : FOM.products['prod_Q']
+        }
+
+        self._cached_operators = {
+            'A' : None
         }
 
         self.FOM = FOM
@@ -63,13 +65,11 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                          check_orthonormality=check_orthonormality, 
                          check_tol=check_tol)
 
-        self.use_reducted_residual_image_basis = use_reducted_residual_image_basis 
+        assert residual_image_basis_mode in ['none']
+        self.residual_image_basis_mode = residual_image_basis_mode 
+        self.logger.debug(f"Using residual image basis mode: '{residual_image_basis_mode}'.")
 
         
-        if self.use_reducted_residual_image_basis:
-            self.logger.debug("Using reducted basis for residuals")
-        else:
-            self.logger.debug("Not using reducted basis for residuals")
         
     def project_vectorarray(self, 
                             x : VectorArray,
@@ -108,27 +108,35 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             return _basis
     
     def _assemble_parameter_reduced_A(self) -> LincombOperator:
-        # TODO Handle basis extention via offset
         parameter_basis = self._get_projection_basis('parameter_basis')
 
         assert len(self.FOM.setup['model_parameter']['parameters']) == 1
         parameter_name = list(self.FOM.setup['model_parameter']['parameters'].keys())[0] 
 
-        operators = [self.FOM.A.constant_operator]
+        if not self._cached_operators['A']:
+            operators = [self.FOM.A.constant_operator]
+            start = 0
+        else:
+            operators = list(self._cached_operators['A'].operators)        
+            start = len(operators) - 1
         coefficients = [1]
 
-        for i in range(len(parameter_basis)):
+        for i in range(start, len(parameter_basis)):
             q_i = parameter_basis[i].to_numpy()[0]
             A_q = self.FOM.A._assemble_A_q(q_i)
             A_q = NumpyMatrixOperator(A_q,
                                       source_id = self.FOM.A.source.id, 
                                       range_id = self.FOM.A.range.id)
             operators.append(A_q)
+
+        
+        for i in range(len(parameter_basis)):
             coefficients.append(
                 ProjectionParameterFunctional(parameter_name, len(parameter_basis), i)
             )
-
-        return LincombOperator(operators, coefficients)
+        
+        self._cached_operators['A'] = LincombOperator(operators, coefficients)
+        return self._cached_operators['A']
 
     def _build_setup(self) -> Dict:
 
@@ -191,10 +199,12 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         state_basis = self._get_projection_basis('state_basis')
         parameter_basis = self._get_projection_basis('parameter_basis')
 
-        unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
-        complete_operator=project(assembled_parameter_reduced_A,
+        
+        complete_operator = project(assembled_parameter_reduced_A,
                                     state_basis,
-                                    state_basis)
+                                    state_basis)        
+        unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
+            complete_operator=complete_operator
         )
 
         A = AssembledA(
@@ -210,6 +220,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             constant_operator = constant_operator,
             source = Q,
             range = V,
+            Q = Q,
             V = V
         )
 
@@ -225,6 +236,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
         prod_V = project(self.FOM.products['prod_V'], state_basis, state_basis)
+
 
         products = {
             'prod_H' : project(self.FOM.products['prod_H'], state_basis, state_basis),
@@ -260,7 +272,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'bilinear_reg_term' : project(self.FOM.bilinear_reg_term, parameter_basis, parameter_basis),
             'products' : products,
             'visualizer' : self.FOM.visualizer,            
-            'setup' : setup
+            'setup' : setup,
         }
         return projected_operators 
 
@@ -282,6 +294,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             V = self.FOM.V
 
         assembled_parameter_reduced_A = self._assemble_parameter_reduced_A()
+
         model_params = {
             'Q' : Q,
             'V' : V,
@@ -296,7 +309,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             assembled_parameter_reduced_A,
             **model_params
         )
-        
         model_params.update(projected_operators)
         model_params.update(error_estimators)
                   
@@ -308,9 +320,22 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         )
 
     def _estimate_residual_image_basis(self,
-                                       basis: str) -> VectorArray:
+                                       basis: str,
+                                       mode: str) -> Dict:
         assert basis in ['state_residual_image_basis', 'adjoint_residual_image_basis']
-        raise NotImplementedError
+        assert mode in ['none']
+        
+        ret = {}
+
+        if mode == 'none':
+            ret["residual_image_basis"] = None
+            ret["A_range"] = self.FOM.V
+            ret["riesz_representative"] = True
+            return ret
+        else:
+            raise ValueError
+
+        
 
     def assemble_error_estimator(self,
                                  assembled_parameter_reduced_A: LincombOperator,
@@ -319,57 +344,55 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                                  setup: Dict) -> Dict:
 
         assert isinstance(assembled_parameter_reduced_A, LincombOperator)
-        state_basis = self._get_projection_basis('state_basis')
+        state_residual_config = self._estimate_residual_image_basis(
+            basis = 'state_residual_image_basis',
+            mode = self.residual_image_basis_mode
+        )
 
-        A_coercivity_constant_estimator = self.FOM.model_constants['A_coercivity_constant_estimator']
-        A_coercivity_constant_estimator = copy.copy(A_coercivity_constant_estimator)
-        A_coercivity_constant_estimator.Q = Q
+        adjoint_residual_config = self._estimate_residual_image_basis(
+            basis = 'adjoint_residual_image_basis',
+            mode = self.residual_image_basis_mode
+        )
 
-        model_constants = {
-                'A_coercivity_constant_estimator' : A_coercivity_constant_estimator,
-                'C_continuity_constant' : self.FOM.model_constants['C_continuity_constant']
-        }
-
-
-        if self.use_reducted_residual_image_basis:
-            self.bases['state_residual_image_basis'] = self._estimate_residual_image_basis(
-                basis = 'state_residual_image_basis'
-            )
-
-            self.bases['adjoint_residual_image_basis'] = self._estimate_residual_image_basis(
-                basis = 'adjoint_residual_image_basis'
-            )
-
-        state_residual_image_basis = self._get_projection_basis('state_residual_image_basis')
-        adjoint_residual_image_basis = self._get_projection_basis('adjoint_residual_image_basis')
-        
         # At the moment we allow only that both residuals have the same image basis
-        assert state_residual_image_basis == adjoint_residual_image_basis
-        residual_image_basis = state_residual_image_basis
-    
-        if residual_image_basis is None:
-            riesz_representative = True
-            A_range = self.FOM.V
-        else:
-            riesz_representative = False
-            A_range = NumpyVectorSpace(dim=len(residual_image_basis))
-            raise NotImplementedError
-        
-        unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
-            complete_operator=project(op = assembled_parameter_reduced_A, 
-                                      range_basis = residual_image_basis, 
-                                      source_basis = state_basis)
-        )
+        assert state_residual_config == adjoint_residual_config
+        residual_config = state_residual_config
 
-        M = project(self.FOM.M, residual_image_basis, state_basis)
-        A = AssembledA(
-            unconstant_operator = unconstant_operator,
-            constant_operator = constant_operator,
-            source = V,
-            range = A_range,
-            Q = Q,
-            parameters=setup['model_parameter']['parameters']
-        )
+        residual_image_basis = residual_config['residual_image_basis']
+        A_range = residual_config['A_range']
+
+        if self.residual_image_basis_mode == 'none':
+            _Q = self.FOM.Q
+            _V = self.FOM.V
+            M = self.FOM.M
+            A = self.FOM.A
+            #
+            state_basis = self._get_projection_basis('state_basis')
+            bases = self.bases
+        else:
+            _Q = Q
+            _V = V
+            state_basis = self._get_projection_basis('state_basis')
+
+            unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
+                complete_operator=project(op = assembled_parameter_reduced_A, 
+                                        range_basis = residual_image_basis, 
+                                        source_basis = state_basis)
+            )
+
+            M = project(self.FOM.M, residual_image_basis, state_basis)
+            A = AssembledA(
+                unconstant_operator = unconstant_operator,
+                constant_operator = constant_operator,
+                source = V,
+                range = A_range,
+                Q = Q,
+                parameters=setup['model_parameter']['parameters']
+            )
+            bases = {
+                'parameter_basis' : self.FOM.Q.empty(),
+                'state_basis' : self.FOM.V.empty()
+            }
 
         if residual_image_basis:
             if isinstance(self.FOM.L, VectorArray):
@@ -385,11 +408,12 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'M' : M,
             'A' : A,
             'L' : L,
-            'Q' : Q,
-            'V' : V,
-            'riesz_representative' : riesz_representative,
+            'Q' : _Q,
+            'V' : _V,
+            'riesz_representative' : residual_config['riesz_representative'],
             'products': self.FOM.products,
-            'setup' : setup
+            'setup' : setup,
+            'bases' : bases
         }
 
         projected_adjoint_quantities = {
@@ -397,11 +421,12 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'A' : A,
             'linear_cost_term' : project(self.FOM.linear_cost_term, residual_image_basis, None),
             'bilinear_cost_term' : project(self.FOM.bilinear_cost_term, residual_image_basis, state_basis),
-            'Q' : Q,
-            'V' : V,
-            'riesz_representative' : riesz_representative,
+            'Q' : _Q,
+            'V' : _V,
+            'riesz_representative' : residual_config['riesz_representative'],
             'products': self.FOM.products,
-            'setup' : setup
+            'setup' : setup,
+            'bases' : bases
         }
 
         state_residual_operator = StateResidualOperator(**projected_state_quantities)
@@ -424,6 +449,15 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                               residual_image_basis, 
                               residual_image_basis, 
                               product=None)
+
+        A_coercivity_constant_estimator = self.FOM.model_constants['A_coercivity_constant_estimator']
+        A_coercivity_constant_estimator = copy.copy(A_coercivity_constant_estimator)
+        A_coercivity_constant_estimator.Q = Q
+
+        model_constants = {
+                'A_coercivity_constant_estimator' : A_coercivity_constant_estimator,
+                'C_continuity_constant' : self.FOM.model_constants['C_continuity_constant']
+        }
 
         state_error_estimator = StateErrorEstimator(
             state_residual_operator = state_residual_operator,

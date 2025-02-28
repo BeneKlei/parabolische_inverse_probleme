@@ -1,20 +1,29 @@
 import numpy as np
-from pathlib import Path
 import logging
+import os
+from pathlib import Path
+from datetime import datetime
 
 from pymor.basic import *
 
 from RBInvParam.optimizer import QrVrROMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
-
 from RBInvParam.problems.problems import build_InstationaryModelIP
 
-#########################################################################################''
+#########################################################################################
 
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+save_path = Path('./dumps') / (timestamp + '_TR_IRGNM')
+os.mkdir(save_path)
+logfile_path= save_path / 'TR_IRGNM.log'
 
-logger = get_default_logger(logfile_path='./logs/Qr_IRGNM.log', use_timestemp=True)
+logger = get_default_logger(logger_name='TR_IRGNM',
+                            logfile_path=logfile_path, 
+                            use_timestemp=False)
 logger.setLevel(logging.DEBUG)
+
+#########################################################################################''
 
 set_log_levels({
     'pymor' : 'WARN'
@@ -25,8 +34,9 @@ set_defaults({})
 #########################################################################################''
 
 def main():
+    #N = 300
     N = 100
-    #N = 10
+    #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -39,8 +49,8 @@ def main():
     #q_time_dep = False
     q_time_dep = True
 
-    noise_level = 1e-8
-    #noise_level = 0.0
+    noise_level = 1e-5
+    #noise_level = 0
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
@@ -80,6 +90,7 @@ def main():
             'q_circ' : q_circ, 
             'q_exact' : None,
             'q_time_dep' : q_time_dep,
+            'riesz_rep_grad' : True,
             'bounds' : bounds,
             'parameters' : None,
             'products' : {
@@ -95,20 +106,11 @@ def main():
 
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
-
-
-    # if q_time_dep:
-    #     q_start = 0*np.ones((nt, par_dim))
-    # else:
-    #     q_start = 0*np.ones((1, par_dim))
-    # np.random.seed(42)
-    # q_start  = np.random.random((1, FOM.setup['dims']['par_dim']))
     q_start = q_circ
 
     optimizer_parameter = {
         'q_0' : q_start,
         'alpha_0' : 1e-5,
-        #'alpha_0' : 0.0,
         'tol' : 1e-9,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
@@ -117,26 +119,42 @@ def main():
         'tau_tilde' : 3.5,
         #####################
         'i_max' : 25,
-        'reg_loop_max' : 10,
-        'i_max_inner' : 2,
-        'armijo_max_iter' : 100,
+        'reg_loop_max' : 5,
+        'i_max_inner' : 20,
+        'armijo_max_iter' : 10,
         #####################
-        'eta0' : 1e-2,
+        'lin_solver_parms' : {
+            'lin_solver_max_iter' : 1e4,
+            'lin_solver_tol' : 1e-12,
+            'lin_solver_inital_step_size' : 1
+        },
+        #####################
+        'use_cached_operators' : True,
+        'dump_every_nth_loop' : 2,
+        'eta0' : 1e-4,
         'kappa_arm' : 1e-12,
-        'beta_1' : 1-1e-16,
+        'beta_1' : 0.6,
         'beta_2' : 3/4,
         'beta_3' : 0.5,
     }
 
+    logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
+    save_dict_to_pkl(path=save_path / 'setup.pkl', 
+                     data = setup,
+                     use_timestamp=False)
+        
+    logger.info(f"Dumping model optimizer_parameter to {save_path / 'optimizer_parameter.pkl'}.")
+    save_dict_to_pkl(path=save_path / 'optimizer_parameter.pkl', 
+                        data = optimizer_parameter,
+                        use_timestamp=False)
+
     optimizer = QrVrROMOptimizer(
         FOM = FOM,
         optimizer_parameter = optimizer_parameter,
-        logger = logger
+        logger = logger,
+        save_path=save_path
     )
     q_est = optimizer.solve()
-
-    FOM.visualizer.visualize(q_est, title="q_est")
-    FOM.visualizer.visualize(q_exact, title="q_exact")
     logger.debug("Differnce to q_exact:")
     logger.debug("L^inf") 
     delta_q = q_est - q_exact
@@ -151,16 +169,6 @@ def main():
     
     logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
     logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
-
-    save_path = Path(f"./dumps/TR_IRGNM_{N}_with_delta.pkl")
-    logger.debug(f"Save statistics to {save_path}")
-
-    data = {
-        'setup' : setup,
-        'optimizer_statistics' : optimizer.statistics
-    }
-
-    save_dict_to_pkl(path=save_path, data=data, use_timestamp=False)
 
 if __name__ == '__main__':
     main()

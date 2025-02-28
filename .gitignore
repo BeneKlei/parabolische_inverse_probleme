@@ -332,6 +332,7 @@ __pycache__/
 # egg-info
 *.egg-info/
 .ipynb_checkpoints/
-*.ipynb
 *.png
 *.prof
+dumps/
+experiments/*/

@@ -29,7 +29,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         logger.setLevel(logging.DEBUG)              
                             
     ############################### FOM ###############################
-    primal_fom, primal_fom_data = discretize_instationary_cg(analytical_problem,
+    primal_fom, grid_data = discretize_instationary_cg(analytical_problem,
                                                              diameter=setup['dims']['diameter'],
                                                              preassemble= False,
                                                              grid_type = RectGrid,
@@ -131,7 +131,6 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
             t += setup['model_parameter']['delta_t']
             mu = mu.with_(t=t)
             L[n] = primal_fom.rhs.as_range_array(mu)
-    #L = primal_fom.rhs
     
     _, constant_operator = split_constant_and_parameterized_operator(
         primal_fom.operator
@@ -141,8 +140,8 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     A = UnAssembledA(
         constant_operator = constant_operator,
         reaction_problem = ('reaction' in setup['model_parameter']['problem_type']),
-        grid = primal_fom_data['grid'],
-        boundary_info = primal_fom_data['boundary_info'],
+        grid = grid_data['grid'],
+        boundary_info = grid_data['boundary_info'],
         source=V_h,
         range=V_h,
         Q = Q_h
@@ -150,10 +149,11 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     
     B = UnAssembledB(
         reaction_problem = ('reaction' in setup['model_parameter']['problem_type']),
-        grid = primal_fom_data['grid'],
-        boundary_info = primal_fom_data['boundary_info'],
+        grid = grid_data['grid'],
+        boundary_info = grid_data['boundary_info'],
         source=Q_h,
         range=V_h,
+        Q = Q_h,
         V = V_h
     )
 
@@ -220,7 +220,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         'products' : products,
         'visualizer' : visualizer,
         'model_constants' : None,
-        'setup' : setup
+        'setup' : setup,
     }
 
     dummy_model = InstationaryModelIP(                 
@@ -247,7 +247,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     assert (y_delta.space == C.range) 
 
     logger.debug(f'noise percentage is {percentage:3.4e}')
-    logger.debug(f'noise_level is {setup['model_parameter']["noise_level"]:3.4e}')
+    logger.debug(f'noise_level is {setup["model_parameter"]["noise_level"]:3.4e}')
 
     constant_cost_term = y_delta.pairwise_inner(y_delta, product=products['prod_C'])
     linear_cost_term = NumpyMatrixOperator(
@@ -271,4 +271,4 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         'C_continuity_constant' : C_continuity_constant
     }
 
-    return building_blocks
+    return building_blocks, grid_data

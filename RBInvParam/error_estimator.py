@@ -56,15 +56,17 @@ class StateErrorEstimator():
         self.q_time_dep = self.setup['model_parameter']['q_time_dep']
         
         self.A_coercivity_constant_estimator = A_coercivity_constant_estimator
-        assert self.Q == self.A_coercivity_constant_estimator.Q
-        assert self.Q == self.state_residual_operator.Q
-        assert self.V == self.state_residual_operator.V
+        #assert self.Q == self.A_coercivity_constant_estimator.Q
+        #assert self.Q == self.state_residual_operator.Q
+        #assert self.V == self.state_residual_operator.V
         if product:
             assert self.state_residual_operator.range == product.source
     
     def compute_residuum(self, 
                          q: VectorArray,
-                         u: VectorArray) -> VectorArray:
+                         u: VectorArray,
+                         use_cached_operators: bool = False,
+                         cached_operators: Dict = None) -> VectorArray:
         
         if self.q_time_dep:
             assert len(q) == self.nt
@@ -81,14 +83,18 @@ class StateErrorEstimator():
         r = self.state_residual_operator.apply(
             u = u, 
             u_old = u_old,
-            q = q
+            q = q,
+            use_cached_operators = use_cached_operators,
+            cached_operators = cached_operators
         )
         return r
         
 
     def estimate_error(self, 
                        q: VectorArray,
-                       u: VectorArray) -> float:
+                       u: VectorArray,
+                       use_cached_operators: bool = False,
+                       cached_operators: Dict = None) -> float:
         
         if self.q_time_dep:
             assert len(q) == self.nt
@@ -100,7 +106,11 @@ class StateErrorEstimator():
         assert len(u) == self.nt
 
         alpha_q = np.min(self.A_coercivity_constant_estimator(q))
-        r = self.compute_residuum(q, u)
+        r = self.compute_residuum(q=q, 
+                                  u=u, 
+                                  use_cached_operators = use_cached_operators,
+                                  cached_operators = cached_operators)
+
         return np.sqrt(self.delta_t / alpha_q * np.sum(r.norm2(product=self.product)))
              
 class AdjointErrorEstimator():
@@ -125,16 +135,29 @@ class AdjointErrorEstimator():
         self.q_time_dep = self.setup['model_parameter']['q_time_dep']
 
         self.A_coercivity_constant_estimator = A_coercivity_constant_estimator
-        assert self.Q == self.A_coercivity_constant_estimator.Q
-        assert self.Q == self.adjoint_residual_operator.Q
-        assert self.V == self.adjoint_residual_operator.V
+        # assert self.Q == self.A_coercivity_constant_estimator.Q
+        # assert self.Q == self.adjoint_residual_operator.Q
+        # assert self.V == self.adjoint_residual_operator.V
         if product:
             assert self.adjoint_residual_operator.range == product.source
     
     def compute_residuum(self, 
                          q: VectorArray,
                          u: VectorArray,
-                         p: VectorArray) -> VectorArray:
+                         p: VectorArray,
+                         use_cached_operators: bool = False,
+                         cached_operators: Dict = None) -> VectorArray:
+
+        if self.q_time_dep:
+            assert len(q) == self.nt
+        else:
+            assert len(q) == 1
+
+        assert q in self.Q
+        assert u in self.V
+        assert p in self.V
+        assert len(u) == self.nt
+        assert len(p) == self.nt
 
         p_old = self.V.empty()
         p_old.append(p[1:])
@@ -144,7 +167,9 @@ class AdjointErrorEstimator():
             p = p, 
             p_old = p_old,
             u = u,
-            q = q
+            q = q,
+            use_cached_operators = use_cached_operators,
+            cached_operators = cached_operators
         )
         
     

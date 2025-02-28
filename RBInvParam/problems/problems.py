@@ -14,6 +14,7 @@
 
 import numpy as np
 import logging
+import sys
 from typing import Dict, Tuple
 
 from pymor.basic import *
@@ -202,10 +203,10 @@ def whole_problem(N : int = 100,
 
 
 def build_InstationaryModelIP(setup : Dict,
-                              logger : logging.Logger = None) -> Tuple[Dict,InstationaryModelIP]:
+                              logger : logging.Logger = None) -> Tuple[InstationaryModelIP, Dict]:
     
     if not logger:
-        logger = get_default_logger()
+        logger = get_default_logger(logger_name=sys._getframe().f_code.co_name)
 
     logger.debug('Construct problem..')                                                     
     analytical_problem, q_exact, problem_type, exact_analytical_problem, energy_problem = \
@@ -221,8 +222,6 @@ def build_InstationaryModelIP(setup : Dict,
         setup['model_parameter']['q_exact'] = np.array([q_exact])
     
     logger.debug('Discretizing problem...')                
-    building_blocks = discretize_instationary_IP(analytical_problem, setup)
+    building_blocks, grid_data = discretize_instationary_IP(analytical_problem, setup)
     
-    return InstationaryModelIP(                 
-        **building_blocks,
-    )
+    return InstationaryModelIP(**building_blocks), grid_data

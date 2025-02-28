@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name='RBInvParam',
-    version='0.1.0',
-    python_requires='>=3.10',  # Specify your required Python version
+    version='0.9.0',
+    python_requires='>=3.9',  # Specify your required Python version
     packages=find_packages()
 )
 

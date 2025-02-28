@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
-from typing import Union, Callable, Tuple, List
+from typing import Union, Callable, Tuple, List, Dict
 
 from pymor.basic import *
 
@@ -29,54 +29,71 @@ set_log_levels({
 ABS_TOL = 1e-14
 REL_TOL = 1e-14
 
-logger = get_default_logger()
+logger = get_default_logger(logger_name='test_gradient')
 
-#TODO This is wrong for more than one setup
-#setup = SETUPS['default_setup_q_time_dep']
-setup = SETUPS['diffusion_setup_q_time_dep']
+configs = []
+for setup_name, setup in SETUPS.items():        
+    FOM = build_InstationaryModelIP(setup, logger=logger)
+    reductor = InstationaryModelIPReductor(FOM)
 
-FOM = build_InstationaryModelIP(setup, logger=logger)
+    q = FOM.Q.make_array(FOM.setup['model_parameter']['q_circ'])
+    #q = FOM.Q.make_array(FOM.model_parameter['q_circ'])
+    u = FOM.solve_state(q)
+    p = FOM.solve_adjoint(q, u)
+    J = FOM.objective(u)
+    nabla_J = FOM.gradient(u, p, q)
 
-reductor = InstationaryModelIPReductor(FOM)
-
-q = FOM.Q.make_array(FOM.setup['model_parameter']['q_circ'])
-#q = FOM.Q.make_array(FOM.model_parameter['q_circ'])
-u = FOM.solve_state(q)
-p = FOM.solve_adjoint(q, u)
-J = FOM.objective(u)
-nabla_J = FOM.gradient(u, p)
-
-reductor.extend_basis(
-    U = nabla_J,
-    basis = 'parameter_basis'
-)
-QrFOM = reductor.reduce()
+    reductor.extend_basis(
+        U = nabla_J,
+        basis = 'parameter_basis'
+    )
+    QrFOM = reductor.reduce()
 
 
-state_shapshots = FOM.V.empty()
-# TODO HaPOD
-state_shapshots.append(u)
-state_shapshots.append(p)
+    state_shapshots = FOM.V.empty()
+    # TODO HaPOD
+    state_shapshots.append(u)
+    state_shapshots.append(p)
 
-reductor.extend_basis(
-    U = state_shapshots,
-    basis = 'state_basis'
-)
-QrVrROM = reductor.reduce()
+    reductor.extend_basis(
+        U = state_shapshots,
+        basis = 'state_basis'
+    )
+    QrVrROM = reductor.reduce()
+
+    configs.append({
+        'model_name' : setup_name + '_FOM',
+        'alpha' : 1e-1,
+        'model' : FOM
+    })
+
+    configs.append({
+        'model_name' : setup_name + '_QrFOM',
+        'alpha' : 1e0,
+        'model' : QrFOM
+    })
+
+    configs.append({
+        'model_name' : setup_name + '_QrVrROM',
+        'alpha' : 1e0,
+        'model' : QrVrROM
+    })
+
 
 def derivative_check(model : InstationaryModelIP ,
                      f : Callable, 
                      df : Callable, 
-                     save_path: Union[str, Path]) -> Tuple[List, List]:
-    Eps = np.array([10**(-i) for i in range(0,15)])
+                     save_path: Union[str, Path],
+                     title: str) -> Tuple[List, List]:
+    Eps = np.array([10**(-i) for i in range(0,13)])
 
     model_dims = model.setup['dims']
     if model.q_time_dep:
-        q  = model.Q.make_array(np.random.random((model_dims['nt'], model_dims['par_dim'])))
-        dq = model.Q.make_array(np.random.random((model_dims['nt'], model_dims['par_dim'])))
+        q = model.Q.make_array(model.setup['model_parameter']['q_circ'])
+        dq = model.Q.make_array(model.setup['model_parameter']['q_circ'])
     else:
-        q  = model.Q.make_array(np.random.random((1, model_dims['par_dim'])))
-        dq = model.Q.make_array(np.random.random((1, model_dims['par_dim'])))
+        q = model.Q.make_array(model.setup['model_parameter']['q_circ'])
+        dq = model.Q.make_array(model.setup['model_parameter']['q_circ'])
 
     T = np.zeros(np.shape(Eps))
     fq = f(q)
@@ -96,10 +113,20 @@ def derivative_check(model : InstationaryModelIP ,
         h = Eps[i]*dq 
         f_plus = f(q+h)
 
-        if model.q_time_dep: 
-            df_h = np.sum(df.pairwise_inner(h))
+        if model.riesz_rep_grad:
+            if model.q_time_dep: 
+                df_h = model.products['bochner_prod_Q'].apply2(df, h)[0,0]
+                #df_h = np.sum(df.pairwise_inner(h, product=model.products['prod_Q']))
+            else:
+                df_h = model.products['prod_Q'].pairwise_apply2(df, h)
+                #df_h = model.products['prod_Q'].pairwise_apply2(df, h)
         else:
-            df_h = df.inner(h)[0,0]
+            if model.q_time_dep: 
+                df_h = np.sum(df.pairwise_inner(h))
+                #df_h = np.sum(df.pairwise_inner(h))
+            else:
+                df_h = df.inner(h)[0,0]
+                #df_h = df.inner(h)[0,0]
 
         T[i] = np.abs(f_plus - fq - df_h)
 
@@ -110,133 +137,70 @@ def derivative_check(model : InstationaryModelIP ,
     plt.loglog(Eps, T, 'ro--',label='Test')
     plt.legend(loc='upper left')
     plt.grid()
-    plt.title("Rightside difference quotient")
+    plt.title(title)
     plt.savefig(save_path)
 
     return (Eps, T)
 
 #################################### FOM ####################################
 
-def test_FOM_objective_gradient()-> None:
-    model = FOM
+@pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
+def test_objective_gradient(config : Dict)-> None:
+    alpha = config['alpha']
+    model = config['model']
     eps, diff_quot = derivative_check(
         model,
         model.compute_objective, 
         model.compute_gradient,
-        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
+        Path('./test_gradient_dumps/' + config['model_name'] 
+             + '_' + sys._getframe().f_code.co_name + '.png'),
+        title = 'J'
     )
-    #assert np.all(eps > diff_quot)
+    assert np.all(eps > diff_quot)
 
-
-def test_FOM_regularization_term_gradient() -> None:
-    alpha = 1e0
-    model = FOM
+@pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
+def test_regularization_term_gradient(config : Dict) -> None:
+    alpha = config['alpha']
+    model = config['model']
     eps, diff_quot = derivative_check(
         model,
         lambda q: alpha * model.regularization_term(q), 
         lambda q: alpha * model.gradient_regularization_term(q),
-        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
+        Path('./test_gradient_dumps/' + config['model_name'] 
+             + '_' + sys._getframe().f_code.co_name + '.png'),
+        title = 'regularization'
     )
 
     assert np.all(eps > diff_quot)
 
-
-def test_FOM_linearized_objective_gradient()-> None:
-    alpha = 1e0
-    model = FOM
+@pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
+def test_linearized_objective_gradient(config : Dict)-> None:
+    alpha = config['alpha']
+    model = config['model']
     q = model.Q.make_array(model.setup['model_parameter']['q_circ'])
     eps, diff_quot = derivative_check(
         model,
         lambda d : model.compute_linearized_objective(q, d, alpha),
-        lambda d: model.compute_linearized_gradient(q, d, alpha),
-        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
+        lambda d: model.compute_linearized_gradient(q, d, alpha, use_cached_operators=True),
+        Path('./test_gradient_dumps/' + config['model_name'] 
+             + '_' + sys._getframe().f_code.co_name + '.png'),
+        title = 'linearized_J'
     )
     assert np.all(eps > diff_quot)
 
-#################################### Qr-FOM ####################################
+@pytest.mark.parametrize("config", configs, ids=[config['model_name'] for config in configs])
+def test_linearized_regularization_term_gradient(config : Dict) -> None:
+    alpha = config['alpha']
+    model = config['model']
 
-def test_QrFOM_objective_gradient()-> None:
-    model = QrFOM
-    eps, diff_quot = derivative_check(
-        model,
-        model.compute_objective, 
-        model.compute_gradient,
-        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
-    )
-    assert np.all(eps > diff_quot)
-
-
-def test_QrFOM_regularization_term_gradient() -> None:
-    alpha = 1e0
-    model = QrFOM
-    eps, diff_quot = derivative_check(
-        model,
-        lambda q: alpha * model.regularization_term(q), 
-        lambda q: alpha * model.gradient_regularization_term(q),
-        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
-    )
-    assert np.all(eps > diff_quot)
-
-
-def test_QrFOM_linearized_objective_gradient()-> None:
-    alpha = 1e0
-    model = QrFOM
     q = model.Q.make_array(model.setup['model_parameter']['q_circ'])
     eps, diff_quot = derivative_check(
         model,
-        lambda d : model.compute_linearized_objective(q, d, alpha),
-        lambda d: model.compute_linearized_gradient(q, d, alpha),
-        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
+        lambda d: alpha * model.linearized_regularization_term(q, d), 
+        lambda d: alpha * model.linarized_gradient_regularization_term(q, d),
+        Path('./test_gradient_dumps/' + config['model_name'] 
+             + '_' + sys._getframe().f_code.co_name + '.png'),
+        title = 'linearized_regularization'
     )
+
     assert np.all(eps > diff_quot)
-
-#################################### Qr-VrROM ####################################
-
-def test_QrVrROM_objective_gradient()-> None:
-    model = QrVrROM
-    eps, diff_quot = derivative_check(
-        model,
-        model.compute_objective, 
-        model.compute_gradient,
-        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
-    )
-    assert np.all(eps > diff_quot)
-
-
-def test_QrVrROM_regularization_term_gradient() -> None:
-    alpha = 1e0
-    model = QrVrROM
-    eps, diff_quot = derivative_check(
-        model,
-        lambda q: alpha * model.regularization_term(q), 
-        lambda q: alpha * model.gradient_regularization_term(q),
-        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
-    )
-    assert np.all(eps > diff_quot)
-
-
-def test_QrVrROM_linearized_objective_gradient()-> None:
-    alpha = 1e0
-    model = QrVrROM
-    q = model.Q.make_array(model.setup['model_parameter']['q_circ'])
-    eps, diff_quot = derivative_check(
-        model,
-        lambda d : model.compute_linearized_objective(q, d, alpha),
-        lambda d: model.compute_linearized_gradient(q, d, alpha),
-        Path('./test_gradient_dumps/' + sys._getframe().f_code.co_name + '.png')
-    )
-    assert np.all(eps > diff_quot)
-
-
-
-if __name__ == "__main__":
-    test_FOM_regularization_term_gradient()
-    #test_FOM_objective_gradient()
-    #test_QrFOM_regularization_term_gradient()
-
-    # q = FOM.Q.make_array(FOM.model_parameter['q_circ'])
-    # print(q)
-
-    # print(FOM.regularization_term(q))
-    # print(FOM.gradient_regularization_term(q))
-
