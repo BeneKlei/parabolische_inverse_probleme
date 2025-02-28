@@ -96,8 +96,6 @@ class Optimizer(BasicObject):
 
         self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
         step_size = inital_step_size
-        print(inital_step_size)
-        print(model.compute_gradient_norm(search_direction))
         search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
         current_q = previous_q + step_size * search_direction
         u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
@@ -165,13 +163,6 @@ class Optimizer(BasicObject):
         if (J_rel_error > beta * eta) or (i == max_iter):
             model_unsufficent = True
     
-        print(max_iter)
-        print(i)
-        print(J_rel_error)
-        print(eta)      
-        print(beta * eta)
-        print(model_unsufficent)
-
 
         if not condition:
             self.logger.error(f"Armijo backtracking does NOT terminate normally. step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")

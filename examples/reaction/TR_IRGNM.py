@@ -44,7 +44,7 @@ def main():
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
-    nt = 50
+    nt = 500
     delta_t = (T_final - T_initial) / nt
     #q_time_dep = False
     q_time_dep = True
@@ -100,13 +100,20 @@ def main():
                 'prod_C' : 'l2',
                 'bochner_prod_Q' : 'bochner_l2',
                 'bochner_prod_V' : 'bochner_h1'
+            },
+            'observation_operator' : {
+                'name' : 'RoI',
+                'RoI' : np.array([[0.0,0.5], [0.0,0.5]])
             }
         }
     }
 
-    FOM = build_InstationaryModelIP(setup, logger)
+    FOM, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
-    q_start = q_circ
+    #q_start = q_circ
+
+    np.random.seed(42)
+    q_start = np.random.random(q_exact.to_numpy().shape)
 
     optimizer_parameter = {
         'q_0' : q_start,
@@ -114,26 +121,27 @@ def main():
         'tol' : 1e-9,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
-        'theta' : 0.25,
-        'Theta' : 0.75,
+        'theta' : 0.4,
+        'Theta' : 0.95,
         'tau_tilde' : 3.5,
         #####################
-        'i_max' : 25,
-        'reg_loop_max' : 5,
-        'i_max_inner' : 20,
-        'armijo_max_iter' : 10,
+        'i_max' : 75,
+        'reg_loop_max' : 10,
+        'i_max_inner' : 10,
+        'agc_armijo_max_iter' : 25,
+        'TR_armijo_max_iter' : 10,
         #####################
         'lin_solver_parms' : {
             'lin_solver_max_iter' : 1e4,
-            'lin_solver_tol' : 1e-12,
+            'lin_solver_tol' : 1e-11,
             'lin_solver_inital_step_size' : 1
         },
         #####################
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,
-        'eta0' : 1e-4,
+        'eta0' : 1e-1,
         'kappa_arm' : 1e-12,
-        'beta_1' : 0.6,
+        'beta_1' : 0.95,
         'beta_2' : 3/4,
         'beta_3' : 0.5,
     }

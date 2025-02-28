@@ -229,12 +229,41 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
 
     ############################### Cost ###############################
 
-    C = NumpyMatrixOperator(
-        scipy.sparse.identity(V_h.dim),
-        source_id = V_h.id,
-        range_id = V_h.id,
-    )
-    C_continuity_constant = 1.0
+    if setup['model_parameter']['observation_operator']['name'] == 'identity':
+        C = NumpyMatrixOperator(
+            scipy.sparse.identity(V_h.dim),
+            source_id = V_h.id,
+            range_id = V_h.id,
+        )
+        C_continuity_constant = 1.0
+    elif setup['model_parameter']['observation_operator']['name'] == 'RoI':
+
+        assert 'RoI' in setup['model_parameter']['observation_operator'].keys()
+        assert isinstance(setup['model_parameter']['observation_operator']['RoI'], np.ndarray)
+        assert setup['model_parameter']['observation_operator']['RoI'].shape == (2,2)
+
+        RoI = setup['model_parameter']['observation_operator']['RoI']
+
+
+        centers = grid_data['grid'].centers(codim=2)
+        mask = (RoI[0,0] <= centers) & (centers <= RoI[0,1]) & (RoI[1,0] <= centers) & (centers <=  RoI[1,1])
+        mask = np.all(mask, axis=1)
+        mask = np.logical_not(mask)
+        idxes = np.argwhere(mask)
+
+        C = scipy.sparse.identity(V_h.dim)
+        C = C.tolil()
+        C[idxes, idxes] = 0
+        C = C.tocsr()
+
+        C = NumpyMatrixOperator(
+            C,
+            source_id = V_h.id,
+            range_id = V_h.id,
+        )
+        C_continuity_constant = 1.0     
+    else:
+        raise ValueError
 
         
     u_delta, percentage = construct_noise_data(model = dummy_model, 
