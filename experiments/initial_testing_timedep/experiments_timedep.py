@@ -70,6 +70,9 @@ reaction_setup = {
             'prod_C' : 'l2',
             'bochner_prod_Q' : 'bochner_l2',
             'bochner_prod_V' : 'bochner_h1'
+        },
+        'observation_operator' : {
+            'name' : 'identity',
         }
     }
 }
@@ -115,6 +118,9 @@ diffusion_setup = {
             'prod_C' : 'l2',
             'bochner_prod_Q' : 'bochner_h1',
             'bochner_prod_V' : 'bochner_h1'
+        },
+        'observation_operator' : {
+            'name' : 'identity',
         }
     }
 }
