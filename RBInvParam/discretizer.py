@@ -55,19 +55,25 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     }
 
     assembled_products = {
-        'l2' : primal_fom.products['l2'].assemble().matrix, 
-        'h1' : primal_fom.products['h1'].assemble().matrix
+        'h1' : primal_fom.products['h1'].assemble().matrix,
+        'h1_semi' : primal_fom.products['h1_semi'].assemble().matrix,
+        'l2' : primal_fom.products['l2'].assemble().matrix,
+        'h1_0' : primal_fom.products['h1_0'].assemble().matrix,
+        'h1_0_semi' : primal_fom.products['h1_0_semi'].assemble().matrix,
+        'l2_0' : primal_fom.products['l2_0'].assemble().matrix
     }
 
     # process products dict
     product_names = {}
+    product_name = ''
     for (key,value) in setup['model_parameter']['products'].items():
         buf = value.split('_')
-        assert len(buf) <= 2
-        if len(buf) == 2:
-            assert buf[0] == 'bochner'
-        assert buf[-1] in assembled_products.keys()
-        product_names[key] = buf[-1]
+        if buf[0] == 'bochner':
+            product_name = '_'.join(buf[1:])
+        else:
+            product_name = value
+        assert product_name in assembled_products.keys()
+        product_names[key] = product_name
 
     products['prod_H'] = NumpyMatrixOperator(
         matrix = assembled_products[product_names['prod_H']],
@@ -161,7 +167,8 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
 
             
     problem_type = setup['model_parameter']['problem_type']
-    assert product_names['prod_V'] == 'h1'
+    
+    assert product_names['prod_V'] == 'h1_0_semi'
     
     if 'dirichlet' in problem_type and 'diffusion' in problem_type:
         A_coercivity_constant_estimator_function = lambda q: abs(min(q.to_numpy()[0]))
@@ -196,6 +203,30 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     )
 
     ############################### Dummy Model ###############################
+
+    # # get exact parameter evaluated on rectangular mesh
+    xp = grid_data['grid'].centers(2)
+    q_exact_function = setup['model_parameter']['q_exact_function'] 
+    
+    if setup['problem_parameter']['time_factor'] != 'constant':
+        assert setup['model_parameter']['q_time_dep']
+        ts = [setup['model_parameter']['T_initial'] + (i + 1) * setup['model_parameter']['delta_t']            
+            for i in range(setup['dims']['nt'])
+        ]
+        parameters = q_exact_function.parameters
+
+        setup['model_parameter']['q_exact'] = np.array([q_exact_function.evaluate(
+            xp, mu = parameters.parse({'t' : t})
+        ) for t in ts])
+    else:
+        if setup['model_parameter']['q_time_dep']:
+            setup['model_parameter']['q_exact'] = np.array([q_exact_function.evaluate(
+                xp
+            ) for _ in range(setup['dims']['nt'])])
+        else:
+            setup['model_parameter']['q_exact'] = np.array([q_exact_function.evaluate(
+                xp
+            )])
 
     setup['model_parameter']['q_exact'] = Q_h.make_array(setup['model_parameter']['q_exact'])
 

@@ -547,8 +547,6 @@ class InstationaryModelIP(ImmutableObject):
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
         
-        #grad = 1/self.delta_t * grad
-
         if alpha > 0:
             out = grad + alpha * self.gradient_regularization_term(q)
         else:

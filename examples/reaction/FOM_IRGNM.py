@@ -94,7 +94,7 @@ def main():
             'products' : {
                 'prod_H' : 'l2',
                 'prod_Q' : 'l2',
-                'prod_V' : 'h1',
+                'prod_V' : 'h1_0_semi',
                 'prod_C' : 'l2',
                 'bochner_prod_Q' : 'bochner_l2',
                 'bochner_prod_V' : 'bochner_h1'
@@ -113,7 +113,7 @@ def main():
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.25,
-        'Theta' : 0.75,
+        'Theta' : 0.95,
         #####################
         'i_max' : 25,
         'reg_loop_max' : 10,
