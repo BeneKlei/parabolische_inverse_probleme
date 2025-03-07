@@ -77,6 +77,8 @@ def main():
             'parameter_location' : 'reaction',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'Kirchner',
+            #'time_factor' : 'constant',
+            'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -88,6 +90,7 @@ def main():
             'noise_percentage' : None,
             'noise_level' : noise_level,
             'q_circ' : q_circ, 
+            'q_exact_function' : None,
             'q_exact' : None,
             'q_time_dep' : q_time_dep,
             'riesz_rep_grad' : True,
@@ -96,24 +99,26 @@ def main():
             'products' : {
                 'prod_H' : 'l2',
                 'prod_Q' : 'l2',
-                'prod_V' : 'h1',
+                'prod_V' : 'h1_0_semi',
                 'prod_C' : 'l2',
                 'bochner_prod_Q' : 'bochner_l2',
                 'bochner_prod_V' : 'bochner_h1'
             },
             'observation_operator' : {
-                'name' : 'RoI',
-                'RoI' : np.array([[0.0,0.5], [0.0,0.5]])
+                'name' : 'identity',
             }
+            # 'observation_operator' : {
+            #     'name' : 'RoI',
+            #     'RoI' : np.array([[0.0,0.5], [0.0,0.5]])
+            # }
         }
     }
 
     FOM, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
-    #q_start = q_circ
-
-    np.random.seed(42)
-    q_start = np.random.random(q_exact.to_numpy().shape)
+    q_start = q_circ
+    # np.random.seed(42)
+    # q_start = np.random.random(q_exact.to_numpy().shape)
 
     optimizer_parameter = {
         'q_0' : q_start,

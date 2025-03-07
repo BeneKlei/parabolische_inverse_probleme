@@ -129,6 +129,10 @@ class InstationaryModelIP(ImmutableObject):
         
         if not num_calls:
             self.num_calls = {
+                'solve_state' : 0,
+                'solve_adjoint' : 0,
+                'solve_linearized_state' : 0,
+                'solve_linearized_adjoint' : 0,
                 'objective' : 0,
                 'gradient' : 0,
                 'linearized_objective' : 0,
@@ -320,6 +324,8 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
+        self.num_calls['solve_state'] += 1
+
         if use_cached_operators:
             if self._cache_update_required(q):
                 self.delete_cached_operators()
@@ -355,6 +361,8 @@ class InstationaryModelIP(ImmutableObject):
             assert len(q) == 1
 
         assert len(u) == self.nt
+
+        self.num_calls['solve_adjoint'] += 1
 
         if use_cached_operators:
             # TODO Move these into one abstract function
@@ -398,6 +406,8 @@ class InstationaryModelIP(ImmutableObject):
             assert len(q) == 1
         assert len(d) == len(q)
         assert len(u) == self.nt
+
+        self.num_calls['solve_linearized_state'] += 1
 
         if use_cached_operators:
             if self._cache_update_required(q):
@@ -452,6 +462,8 @@ class InstationaryModelIP(ImmutableObject):
             assert len(q) == 1
         assert len(u) == self.nt
         assert len(lin_u) == self.nt
+
+        self.num_calls['solve_linearized_adjoint'] += 1
 
         if use_cached_operators:
             if self._cache_update_required(q):
@@ -547,8 +559,6 @@ class InstationaryModelIP(ImmutableObject):
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
         
-        #grad = 1/self.delta_t * grad
-
         if alpha > 0:
             out = grad + alpha * self.gradient_regularization_term(q)
         else:
