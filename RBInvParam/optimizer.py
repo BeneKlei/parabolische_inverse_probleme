@@ -1104,16 +1104,6 @@ class QrVrROMOptimizer(Optimizer):
                     except IndexError:
                         pass
                 
-                self.statistics["q"].append(q)
-                self.statistics["alpha"].append(alpha)
-                self.statistics["J"].append(J)
-                self.statistics["norm_nabla_J"].append(norm_nabla_J)
-                self.statistics["J_r"].append(J_r)
-                self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
-                self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
-                self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
-                self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
-
                 self.logger.debug(f"Extending Qr-space")
                 parameter_shapshots = self.FOM.Q.empty()
                 parameter_shapshots.append(nabla_J)
@@ -1147,6 +1137,15 @@ class QrVrROMOptimizer(Optimizer):
                 self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
                 self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
+                self.statistics["q"].append(q)
+                self.statistics["alpha"].append(alpha)
+                self.statistics["J"].append(J)
+                self.statistics["norm_nabla_J"].append(norm_nabla_J)
+                self.statistics["J_r"].append(J_r)
+                self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
+                self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
+                self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
+                self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
 
             if i > 3:
                 buffer = self.statistics["J"][-3:]

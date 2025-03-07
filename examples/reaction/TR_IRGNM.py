@@ -49,8 +49,8 @@ def main():
     #q_time_dep = False
     q_time_dep = True
 
-    #noise_level = 1e-5
-    noise_level = 0
+    noise_level = 1e-5
+    #noise_level = 0
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
@@ -117,7 +117,6 @@ def main():
     FOM, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
-
     # np.random.seed(42)
     # q_start = np.random.random(q_exact.to_numpy().shape)
 
