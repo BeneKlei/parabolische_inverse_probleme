@@ -460,7 +460,7 @@ class Optimizer(BasicObject):
                shapshots: VectorArray, 
                basis: str,
                product: Operator,
-               eps: float = 1e-14) -> Tuple[VectorArray, np.array]:
+               eps: float = 1e-17) -> Tuple[VectorArray, np.array]:
             
         if len(self.reductor.bases[basis]) != 0:
             projected_shapshots = self.reductor.bases[basis].lincomb(
@@ -964,6 +964,7 @@ class QrVrROMOptimizer(Optimizer):
             ########################################### AGC ###########################################
 
             self.logger.warning("Calculate AGC with Armijo backtracking.")
+
             q_agc, J_r_AGC, model_unsufficent = self._armijo_TR_line_serach(
                 model = self.QrVrROM,
                 previous_q = q_r,

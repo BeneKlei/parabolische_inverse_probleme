@@ -76,6 +76,7 @@ def main():
             'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'PacMan',
+            'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -99,11 +100,14 @@ def main():
                 'prod_C' : 'l2',
                 'bochner_prod_Q' : 'bochner_h1',
                 'bochner_prod_V' : 'bochner_h1'
+            },
+            'observation_operator' : {
+                'name' : 'identity',
             }
         }
     }
 
-    FOM = build_InstationaryModelIP(setup, logger)
+    FOM, _ = build_InstationaryModelIP(setup, logger)
 
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
