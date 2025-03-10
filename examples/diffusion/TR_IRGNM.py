@@ -46,8 +46,8 @@ def main():
     #nt = 500
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
     noise_level = 1e-5
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -76,7 +76,8 @@ def main():
             'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'PacMan',
-            'time_factor' : 'sinus',
+            'time_factor' : 'constant',
+            #'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -129,10 +130,17 @@ def main():
         'agc_armijo_max_iter' : 25,
         'TR_armijo_max_iter' : 10,
         #####################
+        # 'lin_solver_parms' : {
+        #     'method' : 'gd',
+        #     'max_iter' : 1e4,
+        #     'tol' : 1e-11,
+        #     'inital_step_size' : 1
+        # },
         'lin_solver_parms' : {
-            'lin_solver_max_iter' : 1e4,
-            'lin_solver_tol' : 1e-11,
-            'lin_solver_inital_step_size' : 1
+            'method' : 'BiCGSTAB',
+            'rtol' : 1e-12,
+            'atol' : 1e-12,
+            'maxiter' : 1e3
         },
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,

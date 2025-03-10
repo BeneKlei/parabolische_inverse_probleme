@@ -10,6 +10,7 @@ class LinearGradientScipyOperator(spla.LinearOperator):
                  model: InstationaryModelIP,
                  q: VectorArray,
                  alpha : float,
+                 b: VectorArray,
                  use_cached_operators: bool):
 
         assert isinstance(model, InstationaryModelIP)
@@ -21,24 +22,24 @@ class LinearGradientScipyOperator(spla.LinearOperator):
         self.q = q
         self.alpha = alpha
         self.use_cached_operators = use_cached_operators
+        self.b = b
 
         self.shape = (
             self.model.Q.dim, 
             self.model.Q.dim
         )
-        self.dtype = np.dtype(np.float64)
+        self.dtype = np.dtype(np.float64)    
 
-        self.num_iter = 0
-    
-    def set_b(self, b : np.ndarray):
-        self.b = b
-        self.num_iter = 0
-
-    def _matvec(self, x):
-        self.num_iter += 1
+    def _matvec(self, x) -> None:
         return (self.model.compute_linearized_gradient(
             q=self.q, 
             d=self.model.Q.make_array(x), 
             alpha=self.alpha, 
             use_cached_operators=self.use_cached_operators
         ).to_numpy()[0] - self.b)
+
+class IterationCounter:
+    def __init__(self):
+        self.count = 0
+    def __call__(self, xk):
+        self.count += 1

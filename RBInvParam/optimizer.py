@@ -14,7 +14,7 @@ from pymor.core.base import BasicObject
 
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.linear_solver.gradient_descent import gradient_descent_linearized_problem
-from RBInvParam.linear_solver.BiCGSTAB import LinearGradientScipyOperator
+from RBInvParam.linear_solver.BiCGSTAB import LinearGradientScipyOperator, IterationCounter
 from RBInvParam.reductor import InstationaryModelIPReductor
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.io import save_dict_to_pkl
@@ -454,9 +454,6 @@ class Optimizer(BasicObject):
             if model.setup['model_parameter']['q_time_dep']:
                 raise NotImplementedError
 
-            # global linear_solver_iterations
-            linear_solver_iterations = -1
-
             b = model.compute_linearized_gradient(
                 q, 
                 model.Q.make_array(np.zeros(
@@ -466,42 +463,27 @@ class Optimizer(BasicObject):
                 use_cached_operators=use_cached_operators
             ).to_numpy()[0]
 
-            #if self.linear_solver_operator is None:
-            self.linear_solver_operator = LinearGradientScipyOperator(
+            linear_solver_operator = LinearGradientScipyOperator(
                 model = model,
                 q = q,
                 alpha = alpha,
+                b = b,
                 use_cached_operators = use_cached_operators,
             )
-            
-            self.linear_solver_operator.set_b(b)
-            
-            
-            # def increase_iterations(ks):
-            #     linear_solver_iterations += 1
+                             
+            counter = IterationCounter()
             
             d, linear_solver_info = spla.bicgstab(
-                A = self.linear_solver_operator,
+                A = linear_solver_operator,
                 b = -b,
                 x0 = d_start.to_numpy()[0],
                 rtol = lin_solver_parms['rtol'],
                 atol = lin_solver_parms['atol'],
-                maxiter = int(lin_solver_parms['maxiter'])
+                maxiter = int(lin_solver_parms['maxiter']),
+                callback=counter
             )
-
-            # print("AAAAAAAAAAAAAAAAAAAAAAAAa")
-            # print(self.linear_solver_operator.num_iter)
-            # print(d)
-            # print(b)
-            # print(model.compute_linearized_gradient(
-            #     q = q,
-            #     d = model.Q.make_array(d),
-            #     alpha=alpha,
-            #     use_cached_operators=False
-            # ))
- 
             
-            return model.Q.make_array(d), linear_solver_iterations
+            return model.Q.make_array(d), counter.count
         else:
             raise ValueError
     
