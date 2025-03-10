@@ -77,8 +77,8 @@ def main():
             'parameter_location' : 'reaction',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'Kirchner',
-            #'time_factor' : 'constant',
-            'time_factor' : 'sinus',
+            'time_factor' : 'constant',
+            #'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -137,13 +137,20 @@ def main():
         'TR_armijo_max_iter' : 10,
         #####################
         'lin_solver_parms' : {
-            'lin_solver_max_iter' : 1e4,
-            'lin_solver_tol' : 1e-11,
-            'lin_solver_inital_step_size' : 1
+            'method' : 'gd',
+            'max_iter' : 1e4,
+            'tol' : 1e-11,
+            'inital_step_size' : 1
         },
-        #####################
+        # 'lin_solver_parms' : {
+        #     'method' : 'BiCGSTAB',
+        #     'rtol' : 1e-12,
+        #     'atol' : 1e-12,
+        #     'maxiter' : 1e3
+        # },
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,
+        #####################
         'eta0' : 1e-1,
         'kappa_arm' : 1e-12,
         'beta_1' : 0.95,

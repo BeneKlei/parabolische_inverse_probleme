@@ -205,6 +205,8 @@ def gradient_descent_linearized_problem(
 
     logger.info(f"objective = {current_J:3.4e}, norm gradient = {norm_grad:3.4e}.")
 
+    print(current_d.to_numpy())
+
     return current_d, last_i
 
 def gradient_descent_non_linearized_problem(
