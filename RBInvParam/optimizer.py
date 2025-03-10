@@ -467,7 +467,7 @@ class Optimizer(BasicObject):
                shapshots: VectorArray, 
                basis: str,
                product: Operator,
-               eps: float = 1e-14) -> Tuple[VectorArray, np.array]:
+               eps: float = 1e-17) -> Tuple[VectorArray, np.array]:
             
         if len(self.reductor.bases[basis]) != 0:
             projected_shapshots = self.reductor.bases[basis].lincomb(

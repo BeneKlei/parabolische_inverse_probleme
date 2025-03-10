@@ -163,3 +163,23 @@ def BiCGStab_linearized_problem(
     logger.info(f"objective = {current_J:3.4e}, norm gradient = {norm_grad:3.4e}.")
 
     return d, counter.count
+
+
+import numpy as np
+import scipy.sparse.linalg as spla
+
+def estimate_condition_number_eigs(A):
+    """Estimate condition number using SciPy's built-in iterative eigenvalue solver."""
+    # Compute largest eigenvalue (lambda_max)
+    lambda_max, _ = spla.eigs(A, k=1, which='LM', tol=1e-3)  # Largest Magnitude (LM)
+    lambda_max = abs(lambda_max[0])
+
+    # Compute smallest eigenvalue (lambda_min)
+    lambda_min, _ = spla.eigs(A, k=1, which='SM', tol=1e-3)  # Smallest Magnitude (SM)
+    lambda_min = abs(lambda_min[0])
+
+    return lambda_max / lambda_min
+
+
+
+
