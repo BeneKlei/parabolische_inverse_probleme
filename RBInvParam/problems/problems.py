@@ -79,6 +79,8 @@ def whole_problem(N : int = 100,
                                            robin_data = robin_data,
                                            dirichlet_data = dirichlet_data)
     
+
+    background = ConstantFunction(3, 2)
     # define exact parameter 
     if exact_parameter == 'PacMan':      
         # Note:
@@ -94,8 +96,7 @@ def whole_problem(N : int = 100,
                                        * (23/30. < x[1]) * (x[1] < 27/30.)', 2)
         omega_2 = ExpressionFunction('sqrt((x[0]-18/30.)**2 \
                                      + (x[1]-15/30.)**2) <= 4/30.', 2)
-        q_exact_function = ConstantFunction(3, 2) +\
-                    ccc * contrast_parameter * (omega_1_1 + omega_1_2 + omega_1_3) - 2 * omega_2
+        q_exact_function = ccc * contrast_parameter * (omega_1_1 + omega_1_2 + omega_1_3) - 2 * omega_2
                     
     elif exact_parameter == 'Kirchner':  
          
@@ -106,7 +107,7 @@ def whole_problem(N : int = 100,
          ccc = 1
          q_1 = ExpressionFunction('1/(2*pi*0.01)*exp(-0.5*((2*x[0]-0.5)/0.1)**2 - 0.5*((2*x[1]-0.5)/0.1)**2)', 2 )  
          q_2 = ExpressionFunction('1/(2*pi*0.01)*exp(-0.5*((0.8*x[0]-0.5)/0.1)**2 - 0.5*((0.8*x[1]-0.5)/0.1)**2)', 2 ) 
-         q_exact_function =  ccc*q_1 +  ccc*q_2 + ConstantFunction(3, 2)
+         q_exact_function =  ccc*q_1 +  ccc*q_2
     elif exact_parameter == 'dummy':
          q_exact_function =  ConstantFunction(1, 2)      
     elif exact_parameter == 'other':
@@ -119,9 +120,8 @@ def whole_problem(N : int = 100,
         discontinuous_part = ExpressionFunction('sqrt((x[0]-0.25)**2 \
                                      + (x[1]-0.25)**2) <= 0.1', 2)
         smooth_part =  ExpressionFunction('exp(-20*(x[0]-0.75)**2 - 20*(x[1]-0.75)**2)', 2 )
-        background = ConstantFunction(3, 2)
         sinus_background = ConstantFunction(0,2)
-        q_exact_function = background + smooth_part + discontinuous_part + continuous_part + upper_right + multiscale_part + sinus_background #+ middle_part
+        q_exact_function = smooth_part + discontinuous_part + continuous_part + upper_right + multiscale_part + sinus_background #+ middle_part
 
     if time_factor == 'constant':
         pass
@@ -137,6 +137,8 @@ def whole_problem(N : int = 100,
         )
     else:
         raise ValueError
+    
+    q_exact_function = q_exact_function + background
         
     # create exact model with exact parameter and energy_product model
     if parameter_location == 'diffusion':
