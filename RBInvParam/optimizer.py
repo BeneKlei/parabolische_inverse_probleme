@@ -14,7 +14,7 @@ from pymor.core.base import BasicObject
 
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.linear_solver.gradient_descent import gradient_descent_linearized_problem
-from RBInvParam.linear_solver.BiCGSTAB import LinearGradientScipyOperator, IterationCounter
+from RBInvParam.linear_solver.BiCGSTAB import BiCGStab_linearized_problem
 from RBInvParam.reductor import InstationaryModelIPReductor
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.io import save_dict_to_pkl
@@ -433,57 +433,33 @@ class Optimizer(BasicObject):
 
     def solve_linearized_problem(self,
                                 model : InstationaryModelIP, 
-                                q : np.array,
-                                d_start : np.array,
+                                q : VectorArray,
+                                d_start : VectorArray,
                                 alpha : float,
                                 use_cached_operators: bool,
                                 logger: logging.Logger,
-                                lin_solver_parms : Dict) -> Tuple[np.array, int]:
+                                lin_solver_parms : Dict) -> Tuple[VectorArray, int]:
 
         method = lin_solver_parms['method']
         if method == 'gd':
             return gradient_descent_linearized_problem(model, 
-                                                       q, 
-                                                       d_start, 
-                                                       alpha,
-                                                       max_iter=lin_solver_parms['max_iter'],
-                                                       tol=lin_solver_parms['tol'],
-                                                       inital_step_size =lin_solver_parms['inital_step_size'],
-                                                       use_cached_operators=use_cached_operators)
+                                                       q = q, 
+                                                       d_start = d_start, 
+                                                       alpha = alpha,
+                                                       use_cached_operators=use_cached_operators,
+                                                       logger=logger,
+                                                       lin_solver_parms = lin_solver_parms)
         elif method == 'BiCGSTAB':
-            if model.setup['model_parameter']['q_time_dep']:
-                raise NotImplementedError
+            return BiCGStab_linearized_problem(model, 
+                                               q = q, 
+                                               d_start = d_start, 
+                                               alpha = alpha,
+                                               use_cached_operators=use_cached_operators,
+                                               logger=logger,
+                                               lin_solver_parms = lin_solver_parms)
 
-            b = model.compute_linearized_gradient(
-                q, 
-                model.Q.make_array(np.zeros(
-                    shape = (model.Q.dim)
-                )), 
-                alpha, 
-                use_cached_operators=use_cached_operators
-            ).to_numpy()[0]
 
-            linear_solver_operator = LinearGradientScipyOperator(
-                model = model,
-                q = q,
-                alpha = alpha,
-                b = b,
-                use_cached_operators = use_cached_operators,
-            )
-                             
-            counter = IterationCounter()
-            
-            d, linear_solver_info = spla.bicgstab(
-                A = linear_solver_operator,
-                b = -b,
-                x0 = d_start.to_numpy()[0],
-                rtol = lin_solver_parms['rtol'],
-                atol = lin_solver_parms['atol'],
-                maxiter = int(lin_solver_parms['maxiter']),
-                callback=counter
-            )
-            
-            return model.Q.make_array(d), counter.count
+           
         else:
             raise ValueError
     

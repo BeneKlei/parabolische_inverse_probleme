@@ -1,8 +1,9 @@
 import numpy as np
 import logging
-from typing import Callable, Tuple
+from typing import Callable, Tuple, Dict
 
 from pymor.vectorarrays.numpy import NumpyVectorArray
+from pymor.vectorarrays.interface import VectorArray
 from pymor.operators.numpy import NumpyMatrixOperator
 
 from RBInvParam.model import InstationaryModelIP
@@ -93,14 +94,17 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
 
 def gradient_descent_linearized_problem(
     model : InstationaryModelIP,
-    q : np.array,
-    d_start : np.array,
+    q : VectorArray,
+    d_start : VectorArray,
     alpha : float,
-    max_iter : int,
-    tol : float,
-    inital_step_size: float = 1,
+    lin_solver_parms : Dict, 
     logger: logging.Logger = None,
-    use_cached_operators: bool = False) -> Tuple[np.array, int]:
+    use_cached_operators: bool = False) -> Tuple[VectorArray, int]:
+
+    max_iter=lin_solver_parms['max_iter']
+    tol=lin_solver_parms['tol']
+    inital_step_size =lin_solver_parms['inital_step_size']
+
     assert alpha >= 0
     assert tol > 0
     assert inital_step_size > 0
@@ -205,106 +209,4 @@ def gradient_descent_linearized_problem(
 
     logger.info(f"objective = {current_J:3.4e}, norm gradient = {norm_grad:3.4e}.")
 
-    print(current_d.to_numpy())
-
     return current_d, last_i
-
-def gradient_descent_non_linearized_problem(
-    model : InstationaryModelIP,
-    q_start : np.array,
-    alpha : float,
-    max_iter : int,
-    tol : float,
-    inital_step_size: float = 1,
-    logger: logging.Logger = None
-) -> np.array:
-    assert alpha >= 0
-    assert tol > 0
-    assert inital_step_size > 0
-
-    if not logger:
-        logger = logging.getLogger('gradient_descent')
-        logger.setLevel(logging.DEBUG)
-
-    previous_q = np.nan
-    current_q = model.Q.make_array(q_start)
-
-    previous_J = np.inf
-    current_J = model.compute_objective(current_q, alpha)
-
-    converged = False
-    last_i = -np.inf
-    
-    buffer_size = 3
-    buffer_q = [np.nan for _ in range(buffer_size)]
-    buffer_J = [np.inf for _ in range(buffer_size)]
-    buffer_nabla_J = [np.nan for _ in range(buffer_size)]
-
-    buffer_q.pop(0)
-    buffer_q.append(current_q)
-
-    buffer_J.pop(0)
-    buffer_J.append(current_J)
-
-    logger.info(f"Initial objective = {current_J}.")
-    
-    for i in range(int(max_iter)):
-        previous_q = current_q.copy()
-        previous_J = current_J.copy()
-
-        grad = model.compute_gradient(previous_q, alpha)
-        buffer_nabla_J.pop(0)
-        buffer_nabla_J.append(grad.copy())
-
-        norm_grad = np.linalg.norm(grad.to_numpy())
-        
-        if norm_grad < tol:
-            last_i = i
-            converged = True
-            break
-        
-        if i < 2:
-        #if i > -1:
-            grad.scal(1.0 / norm_grad)
-            current_q, current_J = armijo_line_serach(
-                previous_iterate = previous_q,
-                previous_value = previous_J,
-                search_direction = -grad,
-                func = lambda q: model.compute_objective(q, alpha),
-                inital_step_size = inital_step_size)       
-
-        else:
-            current_q, current_J = barzilai_borwein_line_serach(
-                previous_iterate =  buffer_q[-1],
-                pre_previous_iterate = buffer_q[-2],
-                previous_gradient = buffer_nabla_J[-1],
-                pre_previous_gradient = buffer_nabla_J[-2],
-                product=model.products['bochner_prod_Q'],
-                search_direction = grad,
-                func = lambda q: model.compute_objective(q, alpha))
-
-
-        if (i % 10 == 0):
-            logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {buffer_nabla_J[-1]:3.4e}.")
-        
-        buffer_q.pop(0)
-        buffer_q.append(current_q)
-
-        buffer_J.pop(0)
-        buffer_J.append(current_J)
-        
-        #stagnation check
-        if i > 10:
-            if abs(buffer_J[0] - buffer_J[1]) < MACHINE_EPS and abs(buffer_J[1] - buffer_J[2]) < MACHINE_EPS:
-                logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
-                break
-
-
-    if converged:
-        logger.info(f"Converged at iteration {last_i} of {int(max_iter)}.")
-    else:
-        logger.info(f"NOT converged after {int(max_iter)} iterations.")
-
-    logger.info(f"objective = {current_J:3.4e}, norm gradient = {np.linalg.norm(model.compute_gradient(current_q, alpha).to_numpy()):3.4e}.")
-
-    return current_q

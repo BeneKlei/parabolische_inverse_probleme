@@ -46,8 +46,8 @@ def main():
     #nt = 500
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
     noise_level = 1e-5
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -138,9 +138,9 @@ def main():
         # },
         'lin_solver_parms' : {
             'method' : 'BiCGSTAB',
-            'rtol' : 1e-12,
-            'atol' : 1e-12,
-            'maxiter' : 1e3
+            'rtol' : 1e-10,
+            'atol' : 1e-10,
+            'maxiter' : 1e4
         },
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,
