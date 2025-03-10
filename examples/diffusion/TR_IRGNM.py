@@ -76,7 +76,8 @@ def main():
             'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'PacMan',
-            'time_factor' : 'sinus',
+            'time_factor' : 'constant',
+            #'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -88,6 +89,7 @@ def main():
             'noise_percentage' : None,
             'noise_level' : noise_level,
             'q_circ' : q_circ, 
+            'q_exact_function' : None,
             'q_exact' : None,
             'q_time_dep' : q_time_dep,
             'riesz_rep_grad' : True,
@@ -128,10 +130,17 @@ def main():
         'agc_armijo_max_iter' : 25,
         'TR_armijo_max_iter' : 10,
         #####################
+        # 'lin_solver_parms' : {
+        #     'method' : 'gd',
+        #     'max_iter' : 1e4,
+        #     'tol' : 1e-11,
+        #     'inital_step_size' : 1
+        # },
         'lin_solver_parms' : {
-            'lin_solver_max_iter' : 1e4,
-            'lin_solver_tol' : 1e-11,
-            'lin_solver_inital_step_size' : 1
+            'method' : 'BiCGSTAB',
+            'rtol' : 1e-10,
+            'atol' : 1e-10,
+            'maxiter' : 1e4
         },
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,

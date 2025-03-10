@@ -4,6 +4,7 @@ from abc import abstractmethod
 from typing import Dict, Union, Tuple
 from timeit import default_timer as timer
 from pathlib import Path
+import scipy.sparse.linalg as spla
 
 from pymor.vectorarrays.interface import VectorArray
 from pymor.algorithms.hapod import inc_vectorarray_hapod
@@ -12,7 +13,8 @@ from pymor.operators.interface import Operator
 from pymor.core.base import BasicObject
 
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.gradient_descent import gradient_descent_linearized_problem
+from RBInvParam.linear_solver.gradient_descent import gradient_descent_linearized_problem
+from RBInvParam.linear_solver.BiCGSTAB import BiCGStab_linearized_problem
 from RBInvParam.reductor import InstationaryModelIPReductor
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.io import save_dict_to_pkl
@@ -45,6 +47,8 @@ class Optimizer(BasicObject):
         self.name = None
         self.IRGNM_idx = 0
         self.IRGNM_statistics = {}
+
+        self.linear_solver_operator = None
 
     def _check_optimizer_parameter(self) -> None:
         keys = self.optimizer_parameter.keys()
@@ -197,10 +201,7 @@ class Optimizer(BasicObject):
         assert noise_level >= 0
         #assert 0 < theta < Theta < 1
 
-        assert lin_solver_parms is not None
-        lin_solver_max_iter = lin_solver_parms['lin_solver_max_iter']
-        lin_solver_tol = lin_solver_parms['lin_solver_tol']
-        lin_solver_inital_step_size = lin_solver_parms['lin_solver_inital_step_size']
+        assert lin_solver_parms is not None        
 
         if use_TR:
             assert TR_backtracking_params is not None
@@ -264,7 +265,7 @@ class Optimizer(BasicObject):
             self.logger.warning(f"{method_name}: Iteration {i} | J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start {method_name} iteration {i}: J = {J:3.4e}, norm_nabla_J = {model.compute_gradient_norm(nabla_J):3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
-            self.logger.info(f"Try 0: test alpha = {alpha:3.4e}.")
+            self.logger.info(f"Try 1: test alpha = {alpha:3.4e}.")
 
             regularization_qualification = False
             count = 1
@@ -277,10 +278,7 @@ class Optimizer(BasicObject):
                                                                q=q,
                                                                d_start=d_start,
                                                                alpha=alpha,
-                                                               method='gd',
-                                                               max_iter=lin_solver_max_iter,
-                                                               tol=lin_solver_tol,
-                                                               inital_step_size=lin_solver_inital_step_size, 
+                                                               lin_solver_parms = lin_solver_parms, 
                                                                logger = self.logger,
                                                                use_cached_operators=use_cached_operators)
             counts['lin_solver_iter'].append([lin_solver_iter])
@@ -313,14 +311,12 @@ class Optimizer(BasicObject):
                 
                 self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
                 self.logger.info(f"Try {count}: test alpha = {alpha:3.4e}.")
+
                 d, lin_solver_iter = self.solve_linearized_problem(model=model,
                                                                    q=q,
                                                                    d_start=d_start,
                                                                    alpha=alpha,
-                                                                   method='gd',
-                                                                   max_iter=lin_solver_max_iter,
-                                                                   tol=lin_solver_tol,
-                                                                   inital_step_size=lin_solver_inital_step_size, 
+                                                                   lin_solver_parms = lin_solver_parms,
                                                                    logger = self.logger,
                                                                    use_cached_operators=use_cached_operators)
 
@@ -437,22 +433,33 @@ class Optimizer(BasicObject):
 
     def solve_linearized_problem(self,
                                 model : InstationaryModelIP, 
-                                q : np.array,
-                                d_start : np.array,
+                                q : VectorArray,
+                                d_start : VectorArray,
                                 alpha : float,
-                                method : str,
                                 use_cached_operators: bool,
-                                **kwargs : Dict) -> np.array:
-    
+                                logger: logging.Logger,
+                                lin_solver_parms : Dict) -> Tuple[VectorArray, int]:
+
+        method = lin_solver_parms['method']
         if method == 'gd':
             return gradient_descent_linearized_problem(model, 
-                                                       q, 
-                                                       d_start, 
-                                                       alpha, 
+                                                       q = q, 
+                                                       d_start = d_start, 
+                                                       alpha = alpha,
                                                        use_cached_operators=use_cached_operators,
-                                                       **kwargs)
-        elif method == 'cg':
-            raise NotImplementedError
+                                                       logger=logger,
+                                                       lin_solver_parms = lin_solver_parms)
+        elif method == 'BiCGSTAB':
+            return BiCGStab_linearized_problem(model, 
+                                               q = q, 
+                                               d_start = d_start, 
+                                               alpha = alpha,
+                                               use_cached_operators=use_cached_operators,
+                                               logger=logger,
+                                               lin_solver_parms = lin_solver_parms)
+
+
+           
         else:
             raise ValueError
     
