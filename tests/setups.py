@@ -17,6 +17,7 @@ default_setup_q_time_dep = {
         'parameter_location' : 'reaction',
         'boundary_conditions' : 'dirichlet',
         'exact_parameter' : 'Kirchner',
+        'time_factor' : 'constant',
         'T_final' : 1
     },
     'model_parameter' : {
@@ -35,10 +36,13 @@ default_setup_q_time_dep = {
         'products' : {
             'prod_H' : 'l2',
             'prod_Q' : 'l2',
-            'prod_V' : 'h1',
+            'prod_V' : 'h1_0_semi',
             'prod_C' : 'l2',
             'bochner_prod_Q' : 'bochner_l2',
-            'bochner_prod_V' : 'bochner_h1'
+            'bochner_prod_V' : 'bochner_h1_0_semi'
+        },
+        'observation_operator' : {
+            'name' : 'identity',
         }
     },
     'optimizer_parameter' : None
@@ -61,6 +65,7 @@ default_setup_q_non_time_dep = {
         'parameter_location' : 'reaction',
         'boundary_conditions' : 'dirichlet',
         'exact_parameter' : 'Kirchner',
+        'time_factor' : 'constant',
         'T_final' : 1
     },
     'model_parameter' : {
@@ -79,10 +84,13 @@ default_setup_q_non_time_dep = {
         'products' : {
             'prod_H' : 'l2',
             'prod_Q' : 'l2',
-            'prod_V' : 'h1',
+            'prod_V' : 'h1_0_semi',
             'prod_C' : 'l2',
             'bochner_prod_Q' : 'bochner_l2',
-            'bochner_prod_V' : 'bochner_h1'
+            'bochner_prod_V' : 'bochner_h1_0_semi'
+        },
+        'observation_operator' : {
+            'name' : 'identity',
         }
     },
     'optimizer_parameter' : None
@@ -105,6 +113,7 @@ diffusion_setup_q_time_dep = {
         'parameter_location' : 'diffusion',
         'boundary_conditions' : 'dirichlet',
         'exact_parameter' : 'PacMan',
+        'time_factor' : 'constant',
         'T_final' : 1
     },
     'model_parameter' : {
@@ -123,10 +132,13 @@ diffusion_setup_q_time_dep = {
         'products' : {
             'prod_H' : 'l2',
             'prod_Q' : 'l2',
-            'prod_V' : 'h1',
+            'prod_V' : 'h1_0_semi',
             'prod_C' : 'l2',
             'bochner_prod_Q' : 'bochner_l2',
-            'bochner_prod_V' : 'bochner_h1'
+            'bochner_prod_V' : 'bochner_h1_0_semi'
+        },
+        'observation_operator' : {
+            'name' : 'identity',
         }
     },
     'optimizer_parameter' : None

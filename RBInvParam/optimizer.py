@@ -116,6 +116,7 @@ class Optimizer(BasicObject):
 
         if abs(rhs) <= MACHINE_EPS:
             rhs = 0
+
         armijo_condition = lhs >= rhs
         if current_J > 0:
             J_rel_error = model.estimate_objective_error(
@@ -130,6 +131,10 @@ class Optimizer(BasicObject):
         TR_condition = J_rel_error <= eta
         condition = armijo_condition & TR_condition
         i += 1
+
+        print(lhs)
+        print(rhs)
+        print(step_size)
 
         while (not condition) and (i < max_iter):
             step_size = 0.5 * step_size
@@ -148,6 +153,11 @@ class Optimizer(BasicObject):
 
             if abs(rhs) <= MACHINE_EPS:
                 rhs = 0
+
+            print("############")
+            print(lhs)
+            print(rhs)
+            print(step_size)
 
             armijo_condition = lhs >= rhs
 

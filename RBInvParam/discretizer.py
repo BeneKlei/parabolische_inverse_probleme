@@ -331,4 +331,4 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         'C_continuity_constant' : C_continuity_constant
     }
 
-    return building_blocks, grid_data
+    return building_blocks, grid_data, assembled_products

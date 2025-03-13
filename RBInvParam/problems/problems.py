@@ -235,6 +235,6 @@ def build_InstationaryModelIP(setup : Dict,
     setup['model_parameter']['q_exact_function'] = q_exact_function
     
     logger.debug('Discretizing problem...')                
-    building_blocks, grid_data = discretize_instationary_IP(analytical_problem, setup)
+    building_blocks, grid_data, assembled_products = discretize_instationary_IP(analytical_problem, setup)
     
-    return InstationaryModelIP(**building_blocks), grid_data
+    return InstationaryModelIP(**building_blocks), grid_data, assembled_products
