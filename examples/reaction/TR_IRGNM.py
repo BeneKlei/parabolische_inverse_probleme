@@ -44,7 +44,8 @@ def main():
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
-    nt = 50
+    #nt = 50
+    nt = 1
     delta_t = (T_final - T_initial) / nt
     q_time_dep = False
     #q_time_dep = True

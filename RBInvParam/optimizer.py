@@ -104,6 +104,7 @@ class Optimizer(BasicObject):
         current_q = previous_q + step_size * search_direction
         u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
         p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
+
         current_J = model.objective(u=u,
                                     q=current_q)
         
@@ -479,12 +480,12 @@ class Optimizer(BasicObject):
                product: Operator,
                eps: float = 1e-17) -> Tuple[VectorArray, np.array]:
             
-        if len(self.reductor.bases[basis]) != 0:
-            projected_shapshots = self.reductor.bases[basis].lincomb(
-                self.reductor.project_vectorarray(shapshots, basis=basis)
-            )
-            shapshots.axpy(-1,projected_shapshots)
-                
+        # if len(self.reductor.bases[basis]) != 0:
+        #     projected_shapshots = self.reductor.bases[basis].lincomb(
+        #         self.reductor.project_vectorarray(shapshots, basis=basis)
+        #     )
+        #     shapshots.axpy(-1,projected_shapshots)
+                        
         shapshots, svals, _ = \
         inc_vectorarray_hapod(steps=len(shapshots)/5, 
                               U=shapshots, 
@@ -1151,11 +1152,18 @@ class QrVrROMOptimizer(Optimizer):
                 parameter_shapshots = self.FOM.Q.empty()
                 parameter_shapshots.append(nabla_J)
 
+                parameter_shapshots.append(q)
+                parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
+
+
                 if self.FOM.setup['model_parameter']['q_time_dep']:
                     self.logger.debug(f"Performing HaPOD on parameter snapshots.")
                     parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, 
                                                         basis='parameter_basis',
                                                         product=self.FOM.products['prod_Q'])
+                
+                self.reductor.reset_bases()
+
                 self.reductor.extend_basis(
                     U = parameter_shapshots,
                     basis = 'parameter_basis'
@@ -1174,6 +1182,10 @@ class QrVrROMOptimizer(Optimizer):
                     U = state_shapshots,
                     basis = 'state_basis'
                 )
+
+                #self.reductor.cut_bases()
+
+
                 self.QrVrROM = self.reductor.reduce()
                 q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
                 q_r = self.QrVrROM.Q.make_array(q_r)

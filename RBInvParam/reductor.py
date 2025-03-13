@@ -69,8 +69,24 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         self.residual_image_basis_mode = residual_image_basis_mode 
         self.logger.debug(f"Using residual image basis mode: '{residual_image_basis_mode}'.")
 
-        
-        
+    def reset_bases(self) -> None:
+        self.bases = {
+            'state_basis' : self.FOM.V.empty(),
+            'parameter_basis' : self.FOM.Q.empty()
+        }
+        self._cached_operators = {
+            'A' : None
+        }
+    
+    # def cut_bases(self) -> None:
+    #     self.bases = {
+    #         'state_basis' : self.bases['state_basis'][-50:],
+    #         'parameter_basis' : self.bases['parameter_basis'][-50:],
+    #     }
+    #     self._cached_operators = {
+    #         'A' : None
+    #     }
+
     def project_vectorarray(self, 
                             x : VectorArray,
                             basis: str) -> np.array:
@@ -361,38 +377,38 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         residual_image_basis = residual_config['residual_image_basis']
         A_range = residual_config['A_range']
 
-        if self.residual_image_basis_mode == 'none':
-            _Q = self.FOM.Q
-            _V = self.FOM.V
-            M = self.FOM.M
-            A = self.FOM.A
-            #
-            state_basis = self._get_projection_basis('state_basis')
-            bases = self.bases
-        else:
-            _Q = Q
-            _V = V
-            state_basis = self._get_projection_basis('state_basis')
+        # if self.residual_image_basis_mode == 'none':
+        #     _Q = self.FOM.Q
+        #     _V = self.FOM.V
+        #     M = self.FOM.M
+        #     A = self.FOM.A
+        #     #
+        #     state_basis = self._get_projection_basis('state_basis')
+        #     bases = self.bases
+        # else:
+        _Q = Q
+        _V = V
+        state_basis = self._get_projection_basis('state_basis')
 
-            unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
-                complete_operator=project(op = assembled_parameter_reduced_A, 
-                                        range_basis = residual_image_basis, 
-                                        source_basis = state_basis)
-            )
+        unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
+            complete_operator=project(op = assembled_parameter_reduced_A, 
+                                    range_basis = residual_image_basis, 
+                                    source_basis = state_basis)
+        )
 
-            M = project(self.FOM.M, residual_image_basis, state_basis)
-            A = AssembledA(
-                unconstant_operator = unconstant_operator,
-                constant_operator = constant_operator,
-                source = V,
-                range = A_range,
-                Q = Q,
-                parameters=setup['model_parameter']['parameters']
-            )
-            bases = {
-                'parameter_basis' : self.FOM.Q.empty(),
-                'state_basis' : self.FOM.V.empty()
-            }
+        M = project(self.FOM.M, residual_image_basis, state_basis)
+        A = AssembledA(
+            unconstant_operator = unconstant_operator,
+            constant_operator = constant_operator,
+            source = V,
+            range = A_range,
+            Q = Q,
+            parameters=setup['model_parameter']['parameters']
+        )
+        bases = {
+            'parameter_basis' : self.FOM.Q.empty(),
+            'state_basis' : self.FOM.V.empty()
+        }
 
         if residual_image_basis:
             if isinstance(self.FOM.L, VectorArray):
