@@ -197,21 +197,21 @@ optimizer_parameter = copy.deepcopy(FOM_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
 optimizer_parameter['lin_solver_parms']['lin_solver_tol'] = 1e-10
-EXPERIMENTS['reaction_FOM_1e-10'] = (setup, optimizer_parameter)
+EXPERIMENTS['reaction_FOM_300_1e-10'] = (setup, optimizer_parameter)
 
 setup = copy.deepcopy(reaction_300_setup)
 optimizer_parameter = copy.deepcopy(FOM_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
 optimizer_parameter['lin_solver_parms']['lin_solver_tol'] = 5 * 1e-10
-EXPERIMENTS['reaction_FOM_5_1e-10'] = (setup, optimizer_parameter)
+EXPERIMENTS['reaction_FOM_300_5_1e-10'] = (setup, optimizer_parameter)
 
 setup = copy.deepcopy(reaction_300_setup)
 optimizer_parameter = copy.deepcopy(FOM_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
 optimizer_parameter['lin_solver_parms']['lin_solver_tol'] = 1e-9
-EXPERIMENTS['reaction_FOM_1e-9'] = (setup, optimizer_parameter)
+EXPERIMENTS['reaction_FOM_300_1e-9'] = (setup, optimizer_parameter)
 
 
 
