@@ -44,10 +44,16 @@ def main():
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
+<<<<<<< Updated upstream
     nt = 50
+=======
+    #nt = 50
+    nt = 5000
+    #nt = 1
+>>>>>>> Stashed changes
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
     noise_level = 1e-5
     #noise_level = 0
@@ -77,8 +83,8 @@ def main():
             'parameter_location' : 'reaction',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'Kirchner',
-            'time_factor' : 'constant',
-            #'time_factor' : 'sinus',
+            #'time_factor' : 'constant',
+            'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -114,7 +120,7 @@ def main():
         }
     }
 
-    FOM, _ = build_InstationaryModelIP(setup, logger)
+    FOM, _, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
     # np.random.seed(42)
@@ -127,7 +133,7 @@ def main():
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.4,
-        'Theta' : 0.95,
+        'Theta' : 1.95,
         'tau_tilde' : 3.5,
         #####################
         'i_max' : 75,
@@ -139,7 +145,7 @@ def main():
         'lin_solver_parms' : {
             'method' : 'gd',
             'max_iter' : 1e4,
-            'tol' : 1e-11,
+            'tol' : 1e-10,
             'inital_step_size' : 1
         },
         # 'lin_solver_parms' : {
