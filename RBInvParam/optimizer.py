@@ -479,17 +479,45 @@ class Optimizer(BasicObject):
                product: Operator,
                eps: float = 1e-17) -> Tuple[VectorArray, np.array]:
             
+        assert basis in ['parameter_basis', 'state_basis']
+
+        if basis == 'parameter_basis':
+            norms = shapshots.norm(self.FOM.products['prod_Q'])
+        elif basis == 'state_basis':
+            norms = shapshots.norm(self.FOM.products['prod_V'])
+        else:
+            raise ValueError
+        
+        shapshots.scal(1/norms)
+
+
         if len(self.reductor.bases[basis]) != 0:
             projected_shapshots = self.reductor.bases[basis].lincomb(
                 self.reductor.project_vectorarray(shapshots, basis=basis)
             )
             shapshots.axpy(-1,projected_shapshots)
-                
+                        
         shapshots, svals, _ = \
         inc_vectorarray_hapod(steps=len(shapshots)/5, 
                               U=shapshots, 
                               eps=eps,
                               omega=0.1,                
+                              product=product)
+        
+        if basis == 'parameter_basis':
+            norms = shapshots.norm(self.FOM.products['prod_Q'])
+        elif basis == 'state_basis':
+            norms = shapshots.norm(self.FOM.products['prod_V'])
+        else:
+            raise ValueError
+        
+        shapshots.scal(1/norms)
+
+        shapshots, svals, _ = \
+        inc_vectorarray_hapod(steps=len(shapshots)/5, 
+                              U=shapshots, 
+                              eps=eps,
+                              omega=0.99,
                               product=product)
 
 
