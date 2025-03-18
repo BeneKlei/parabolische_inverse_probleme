@@ -4,7 +4,7 @@
 #SBATCH --ntasks-per-node=1         # the number of tasks/processes per node
 #SBATCH --cpus-per-task=36          # the number cpus per task
 #SBATCH --partition=long            # on which partition to submit the job
-#SBATCH --time=96:00:00             # the max wallclock time (time limit your job will run)
+#SBATCH --time=120:00:00            # the max wallclock time (time limit your job will run)
  
 #SBATCH --mail-type=ALL             # receive an email when your job starts, finishes normally or is aborted
 #SBATCH --mail-user=benedikt.klein@uni-muenster.de # your mail address
