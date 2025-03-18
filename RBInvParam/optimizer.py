@@ -452,13 +452,15 @@ class Optimizer(BasicObject):
 
         method = lin_solver_parms['method']
         if method == 'gd':
-            return gradient_descent_linearized_problem(model=model, 
+            return gradient_descent_linearized_problem(model=model,
                                                        q = q, 
                                                        d_start = d_start, 
                                                        alpha = alpha,
                                                        use_cached_operators=use_cached_operators,
                                                        logger=logger,
-                                                       lin_solver_parms = lin_solver_parms)
+                                                       lin_solver_parms = lin_solver_parms,
+                                                       bounds = self.FOM.bounds,
+                                                       reductor=self.reductor)
         elif method == 'BiCGSTAB':
             return BiCGStab_linearized_problem(model, 
                                                q = q, 

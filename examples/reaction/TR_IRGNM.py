@@ -35,8 +35,8 @@ set_defaults({})
 
 def main():
     #N = 300
-    N = 100
-    #N = 30
+    #N = 100
+    N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -44,26 +44,23 @@ def main():
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
-<<<<<<< Updated upstream
     nt = 50
-=======
-    #nt = 50
-    nt = 5000
-    #nt = 1
->>>>>>> Stashed changes
     delta_t = (T_final - T_initial) / nt
     #q_time_dep = False
     q_time_dep = True
 
     noise_level = 1e-5
-    #noise_level = 0
-    bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
     if q_time_dep:
         q_circ = 3*np.ones((nt, par_dim))
+        bounds = np.zeros((nt * par_dim, 2))
     else:
         q_circ = 3*np.ones((1, par_dim))
+        bounds = np.zeros((par_dim, 2))
+
+    bounds[:,0] = 0.001
+    bounds[:,1] = 1e3
 
     setup = {
         'dims' : {
@@ -123,6 +120,10 @@ def main():
     FOM, _, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
+
+    # FOM.visualizer.visualize(q_exact)
+    # import sys
+    # sys.exit()
     # np.random.seed(42)
     # q_start = np.random.random(q_exact.to_numpy().shape)
 
@@ -145,7 +146,7 @@ def main():
         'lin_solver_parms' : {
             'method' : 'gd',
             'max_iter' : 1e4,
-            'tol' : 1e-10,
+            'lin_solver_tol' : 1e-10,
             'inital_step_size' : 1
         },
         # 'lin_solver_parms' : {

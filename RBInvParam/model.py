@@ -56,7 +56,8 @@ class InstationaryModelIP(ImmutableObject):
                  model_constants : Dict,
                  name: str = None,
                  num_calls: Dict = None,
-                 logger: logging.Logger = None):
+                 logger: logging.Logger = None,
+                 bounds: np.ndarray = None):
         
         # TODO On palma STDERR does not go into *_IRGNM.log. Why? 
         logging.basicConfig()
@@ -97,6 +98,7 @@ class InstationaryModelIP(ImmutableObject):
         self.visualizer = visualizer
         self.model_constants = model_constants
         self.setup = setup
+        self.bounds = bounds
         
 
         self.nt = self.setup['dims']['nt']
@@ -189,6 +191,15 @@ class InstationaryModelIP(ImmutableObject):
         assert self.products['bochner_prod_Q'].product.source == self.Q
         assert 'prod_Q' in self.products
         assert self.products['prod_Q'].source == self.Q
+
+        if self.bounds is not None:
+            assert isinstance(self.bounds, np.ndarray)
+            if self.q_time_dep:
+                assert self.bounds.shape == (self.nt * self.Q.dim , 2)
+            else:
+                assert self.bounds.shape == (self.Q.dim , 2)
+            assert np.all(self.bounds[:,0] < self.bounds[:,1])
+            
 
 #%% cache methods
     def _cache_update_required(self,
