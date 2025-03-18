@@ -7,6 +7,7 @@ from pymor.vectorarrays.interface import VectorArray
 from pymor.operators.numpy import NumpyMatrixOperator
 
 from RBInvParam.model import InstationaryModelIP
+from RBInvParam.reductor import InstationaryModelIPReductor
 
 
 MACHINE_EPS = 1e-16
@@ -88,8 +89,8 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     step_size = product.apply2(delta_iterate, delta_gradient) / product.apply2(delta_gradient, delta_gradient)
     
     current_iterate = previous_iterate - step_size[0,0] * search_direction
-    current_value = func(current_iterate)
 
+    current_value = func(current_iterate)
     return (current_iterate, current_value)
 
 def gradient_descent_linearized_problem(
@@ -102,11 +103,11 @@ def gradient_descent_linearized_problem(
     use_cached_operators: bool = False) -> Tuple[VectorArray, int]:
 
     max_iter=lin_solver_parms['max_iter']
-    tol=lin_solver_parms['tol']
+    lin_solver_tol=lin_solver_parms['lin_solver_tol']
     inital_step_size =lin_solver_parms['inital_step_size']
 
     assert alpha >= 0
-    assert tol > 0
+    assert lin_solver_tol > 0
     assert inital_step_size > 0
 
     if not logger:
@@ -146,11 +147,13 @@ def gradient_descent_linearized_problem(
                                                  previous_d, 
                                                  alpha, 
                                                  use_cached_operators=use_cached_operators)
+
+
         buffer_nabla_J.pop(0)
         buffer_nabla_J.append(grad.copy())
         norm_grad = model.compute_gradient_norm(grad)
 
-        if norm_grad < tol:
+        if norm_grad < lin_solver_tol:
             last_i = i + 1
             converged = True
             break
@@ -186,8 +189,11 @@ def gradient_descent_linearized_problem(
                                                                     d, 
                                                                     alpha, 
                                                                     use_cached_operators=use_cached_operators))
-
-        if (i % 10 == 0):
+            
+        
+        #reductor.reconstruct(q + current_d, basis='parameter_basis')
+        
+        if (i % 250 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {norm_grad:3.4e}.")
 
         buffer_d.pop(0)

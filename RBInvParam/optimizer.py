@@ -452,7 +452,7 @@ class Optimizer(BasicObject):
 
         method = lin_solver_parms['method']
         if method == 'gd':
-            return gradient_descent_linearized_problem(model, 
+            return gradient_descent_linearized_problem(model=model, 
                                                        q = q, 
                                                        d_start = d_start, 
                                                        alpha = alpha,
