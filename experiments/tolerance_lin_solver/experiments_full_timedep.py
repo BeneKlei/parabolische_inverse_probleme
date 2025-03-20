@@ -165,7 +165,7 @@ TR_optimizer_parameter = {
     'i_max' : 75,
     'reg_loop_max' : 10,
     'i_max_inner' : 10,
-    'agc_armijo_max_iter' : 25,
+    'agc_armijo_max_iter' : 100,
     'TR_armijo_max_iter' : 10,
     #####################
     'lin_solver_parms' : {
