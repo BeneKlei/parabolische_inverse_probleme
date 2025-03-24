@@ -44,13 +44,9 @@ def main():
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
-<<<<<<< Updated upstream
-    nt = 50
-=======
     #nt = 50
-    nt = 5000
+    nt = 50
     #nt = 1
->>>>>>> Stashed changes
     delta_t = (T_final - T_initial) / nt
     #q_time_dep = False
     q_time_dep = True
