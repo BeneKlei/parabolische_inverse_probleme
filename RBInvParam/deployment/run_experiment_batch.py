@@ -135,7 +135,7 @@ def run_experiment_batch(
         spec.loader.exec_module(module)
     except:
         logger.error(f'Can not load {experiments}. Stopping run.')
-        return 
+        return
 
     if hasattr(module, 'EXPERIMENTS'):
         experiments = module.EXPERIMENTS        

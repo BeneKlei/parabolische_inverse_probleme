@@ -21,8 +21,8 @@ def set_dims(setup: Dict, N : int = 0, nt: int = 50, q_time_dep: bool = False) -
     T_final = setup['model_parameter']['T_final']
     setup['model_parameter']['delta_t'] = (T_final - T_initial) / nt
     if q_time_dep:
-        setup['model_parameter']['q_circ'] = 3*np.ones((nt, par_dim)
-        setup['model_parameter']['bounds'] = np.zeros((nt * par_dim, 2)))
+        setup['model_parameter']['q_circ'] = 3*np.ones((nt, par_dim))
+        setup['model_parameter']['bounds'] = np.zeros((nt * par_dim, 2))
     else:
         setup['model_parameter']['q_circ'] = 3*np.ones((1, par_dim))
         setup['model_parameter']['bounds'] = np.zeros((par_dim, 2))
