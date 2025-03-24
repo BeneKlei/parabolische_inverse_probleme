@@ -34,8 +34,8 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    N = 300
-    #N = 100
+    #N = 300
+    N = 100
     #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
@@ -101,11 +101,11 @@ def main():
             'parameters' : None,
             'products' : {
                 'prod_H' : 'l2',
-                'prod_Q' : 'l2',
+                'prod_Q' : 'h1',
                 'prod_V' : 'h1_0_semi',
                 'prod_C' : 'l2',
-                'bochner_prod_Q' : 'bochner_l2',
-                'bochner_prod_V' : 'bochner_h1'
+                'bochner_prod_Q' : 'bochner_h1',
+                'bochner_prod_V' : 'bochner_h1_0_semi'
             },
             'observation_operator' : {
                 'name' : 'identity',
@@ -121,7 +121,7 @@ def main():
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
 
-    # FOM.visualizer.visualize(q_exact)
+    FOM.visualizer.visualize(q_exact)
     # import sys
     # sys.exit()
     # np.random.seed(42)

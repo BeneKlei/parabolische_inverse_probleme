@@ -1210,6 +1210,12 @@ class QrVrROMOptimizer(Optimizer):
                 eta = beta_3 * eta
 
             ########################################### Final ###########################################
+
+            self.FOM.visualizer.visualize(q)
+            import time
+            time.sleep(5)
+
+
             if not rejected:
                 delta = delta
                 

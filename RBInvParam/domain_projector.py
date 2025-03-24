@@ -104,8 +104,6 @@ class SimpleBoundDomainProjector(DomainProjector):
             assert hasattr(self, 'r')
             suff_cond = np.sqrt(self.model.products['prod_Q'].pairwise_apply2(direction, direction)) <= self.r
             suff_cond = np.all(suff_cond)
-
-            #print(f'suff_cond : {suff_cond}')
             
             if suff_cond:
                 return center + direction
