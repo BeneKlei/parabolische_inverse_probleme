@@ -18,6 +18,8 @@ from RBInvParam.linear_solver.BiCGSTAB import BiCGStab_linearized_problem
 from RBInvParam.reductor import InstationaryModelIPReductor
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.io import save_dict_to_pkl
+from RBInvParam.domain_projector import SimpleBoundDomainProjector
+
 
 MACHINE_EPS = 1e-16
 
@@ -91,41 +93,24 @@ class Optimizer(BasicObject):
                                eta: float,
                                beta: float,
                                kappa_arm: float,
-                               use_cached_operators: bool = False) -> Tuple[NumpyVectorArray, float, bool]:
-
-        from RBInvParam.linear_solver.gradient_descent import project_to_simple_domain
-        from functools import partial
-
-        bounds = self.FOM.bounds
-        reductor=self.reductor
-        if bounds is not None:
-            if model.q_time_dep:
-                assert bounds.shape == (model.nt * reductor.FOM.Q.dim , 2)
-            else:
-                assert bounds.shape == (reductor.FOM.Q.dim , 2)
-            assert np.all(bounds[:,0] < bounds[:,1])
-
-            projector = partial(project_to_simple_domain,
-                model=model,
-                reductor = reductor,
-                bounds = bounds
-            )
-        else:
-            projector = None
-
+                               use_cached_operators: bool = False,
+                               projector: SimpleBoundDomainProjector = None) -> Tuple[NumpyVectorArray, float, bool]:
 
         assert 0 <= beta < 1
         assert 0 < eta
+        
         i = 0
         model_unsufficent = False
 
         self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
         step_size = inital_step_size
         search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
-        current_q = previous_q + step_size * search_direction
 
-        if projector: 
-            current_q = projector(previous_q, step_size * search_direction)
+        if projector:
+            projector.pre_compute(center=previous_q)
+            current_q = projector.project_domain(previous_q, step_size * search_direction)
+        else:
+            current_q = previous_q + step_size * search_direction
 
         u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
         p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
@@ -163,9 +148,12 @@ class Optimizer(BasicObject):
 
         while (not condition) and (i < max_iter):
             step_size = 0.5 * step_size
-            current_q = previous_q + step_size * search_direction
+            
             if projector: 
-                current_q = projector(previous_q, step_size * search_direction)
+                projector.pre_compute(center=previous_q)
+                current_q = projector.project_domain(previous_q, step_size * search_direction)
+            else:
+                current_q = previous_q + step_size * search_direction
 
             u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
             p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
@@ -231,7 +219,8 @@ class Optimizer(BasicObject):
               TR_backtracking_params: Dict = None,
               use_cached_operators: bool = False,
               dump_IRGNM_intermed_stats: bool = False,
-              dump_every_nth_loop: int = 0) -> Tuple[VectorArray, Dict]: 
+              dump_every_nth_loop: int = 0,
+              projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, Dict]: 
 
         assert q_0 in model.Q
         assert tol > 0
@@ -270,6 +259,12 @@ class Optimizer(BasicObject):
         start_time = timer()
         i = 0
         model_unsufficent = False
+        
+        q_ = self.reductor.reconstruct(q_0, basis='parameter_basis')
+        q_ = q_.to_numpy().flatten()
+        mask_lb = q_ >= self.FOM.bounds[:,0]
+        mask_ub = q_ <= self.FOM.bounds[:,1]
+        assert np.all(mask_lb) and np.all(mask_ub)
 
         alpha = alpha_0
         q = q_0.copy()
@@ -278,7 +273,6 @@ class Optimizer(BasicObject):
         J = model.objective(u)
         nabla_J = model.gradient(u, p, q, use_cached_operators=use_cached_operators)
         norm_nabla_J = model.compute_gradient_norm(nabla_J)
-
 
         self.IRGNM_statistics["q"].append(q)
         self.IRGNM_statistics["J"].append(J)
@@ -308,6 +302,9 @@ class Optimizer(BasicObject):
             regularization_qualification = False
             count = 1
 
+            if projector:
+                projector.pre_compute(center=q)
+
             d_start = q.to_numpy().copy()
             d_start[:,:] = 0
             d_start = model.Q.make_array(d_start)
@@ -318,7 +315,9 @@ class Optimizer(BasicObject):
                                                                alpha=alpha,
                                                                lin_solver_parms = lin_solver_parms, 
                                                                logger = self.logger,
-                                                               use_cached_operators=use_cached_operators)
+                                                               use_cached_operators=use_cached_operators,
+                                                               projector=projector)
+
             counts['lin_solver_iter'].append([lin_solver_iter])
             
             lin_u = model.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
@@ -356,7 +355,8 @@ class Optimizer(BasicObject):
                                                                    alpha=alpha,
                                                                    lin_solver_parms = lin_solver_parms,
                                                                    logger = self.logger,
-                                                                   use_cached_operators=use_cached_operators)
+                                                                   use_cached_operators=use_cached_operators,
+                                                                   projector=projector)
 
                 counts['lin_solver_iter'][-1].append(lin_solver_iter)
 
@@ -393,7 +393,8 @@ class Optimizer(BasicObject):
                                                                          previous_J = J,
                                                                          search_direction = d,
                                                                          **TR_backtracking_params,
-                                                                         use_cached_operators=use_cached_operators)
+                                                                         use_cached_operators=use_cached_operators,
+                                                                         projector=projector)
 
                 if model_unsufficent:
                     break
@@ -416,15 +417,6 @@ class Optimizer(BasicObject):
             self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
             self.IRGNM_statistics["alpha"].append(alpha)
 
-            #self.reductor.FOM.visualizer.visualize(self.reductor.reconstruct(q, basis='parameter_basis'))
-            print("!!!!!!!!!!!!!!!!!!!!")
-            x = self.reductor.reconstruct(q, basis='parameter_basis').to_numpy()
-            print(np.all(x >= 0))
-            print(x[x < 0])
-
-            # import time
-            # time.sleep(5)
-        
             #stagnation check
             if i > 3:
                 buffer = self.IRGNM_statistics["J"][-3:]
@@ -485,7 +477,8 @@ class Optimizer(BasicObject):
                                 alpha : float,
                                 use_cached_operators: bool,
                                 logger: logging.Logger,
-                                lin_solver_parms : Dict) -> Tuple[VectorArray, int]:
+                                lin_solver_parms : Dict,
+                                projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, int]:
 
         method = lin_solver_parms['method']
         if method == 'gd':
@@ -496,8 +489,7 @@ class Optimizer(BasicObject):
                                                        use_cached_operators=use_cached_operators,
                                                        logger=logger,
                                                        lin_solver_parms = lin_solver_parms,
-                                                       bounds = self.FOM.bounds,
-                                                       reductor=self.reductor)
+                                                       projector=projector)
         elif method == 'BiCGSTAB':
             return BiCGStab_linearized_problem(model, 
                                                q = q, 
@@ -596,7 +588,8 @@ class FOMOptimizer(Optimizer):
             "total_runtime" : [],
             "stagnation_flag" : False,
             "optimizer_parameter" : self.optimizer_parameter.copy(),
-            "FOM_num_calls" : {}
+            "FOM_num_calls" : {},
+            "counts" : {}
         }
 
     def solve(self) -> VectorArray:
@@ -665,6 +658,7 @@ class FOMOptimizer(Optimizer):
         self.statistics["total_runtime"] = IRGNM_statistic["total_runtime"]
         self.statistics["stagnation_flag"] = IRGNM_statistic["stagnation_flag"]
         self.statistics["FOM_num_calls"] = IRGNM_statistic["FOM_num_calls"]
+        self.statistics["counts"] = IRGNM_statistic["counts"]
 
         self.dump_stats(data=self.statistics,
                         save_path = self.save_path / f'FOM_IRGNM_final.pkl')
@@ -876,7 +870,8 @@ class QrVrROMOptimizer(Optimizer):
             "optimizer_parameter" : self.optimizer_parameter.copy(),
             "FOM_num_calls": {},
             "dim_Q_r" : [],
-            "dim_V_r" : []
+            "dim_V_r" : [],
+            "counts" : []
         }
 
 
@@ -1045,6 +1040,14 @@ class QrVrROMOptimizer(Optimizer):
             
             IRGNM_statistic = None
 
+            projector = SimpleBoundDomainProjector(
+                model = self.QrVrROM,
+                bounds = self.FOM.bounds,
+                reductor = self.reductor,
+                use_sufficient_condition = True,
+                logger = self.logger
+            )
+
             ########################################### AGC ###########################################
 
             self.logger.warning("Calculate AGC with Armijo backtracking.")
@@ -1059,7 +1062,8 @@ class QrVrROMOptimizer(Optimizer):
                 eta = eta,
                 beta = beta_1,
                 kappa_arm = kappa_arm,
-                use_cached_operators=use_cached_operators
+                use_cached_operators=use_cached_operators,
+                projector=projector
             )
             
             q_r = q_agc.copy()
@@ -1086,7 +1090,8 @@ class QrVrROMOptimizer(Optimizer):
                                                   use_TR=True,
                                                   TR_backtracking_params=TR_backtracking_params,
                                                   lin_solver_parms=lin_solver_parms,
-                                                  use_cached_operators=use_cached_operators)
+                                                  use_cached_operators=use_cached_operators,
+                                                  projector=projector)
 
             ########################################### Accept / Reject ###########################################
 
@@ -1256,6 +1261,7 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
                 self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
                 self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
+                self.statistics["counts"].append(IRGNM_statistic['counts'])
 
             if i > 3:
                 buffer = self.statistics["J"][-3:]

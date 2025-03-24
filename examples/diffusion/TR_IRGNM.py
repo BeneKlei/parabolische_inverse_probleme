@@ -77,9 +77,9 @@ def main():
         'problem_parameter' : {
             'N': N,
             'contrast_parameter' : 2,
-            'parameter_location' : 'reaction',
+            'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
-            'exact_parameter' : 'Kirchner',
+            'exact_parameter' : 'PacMan',
             'time_factor' : 'constant',
             #'time_factor' : 'sinus',
             'T_final' : T_final,
