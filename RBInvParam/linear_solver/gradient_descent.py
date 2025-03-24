@@ -172,9 +172,17 @@ def gradient_descent_linearized_problem(
 
         buffer_nabla_J.pop(0)
         buffer_nabla_J.append(grad.copy())
-        norm_grad = model.compute_gradient_norm(grad)
 
-        if norm_grad < lin_solver_tol:
+        if projector:            
+            terminaton_lhs = projector.project_domain(
+                center = q,
+                direction = current_d
+            ) - q
+        else:
+            terminaton_lhs = grad
+
+        terminaton_lhs = model.compute_gradient_norm(grad)
+        if terminaton_lhs < lin_solver_tol:
             last_i = i + 1
             converged = True
             break
@@ -186,6 +194,7 @@ def gradient_descent_linearized_problem(
 
         # TODO Allow toggle between armijo and BB
         if i < 2:
+            norm_grad = model.compute_gradient_norm(grad)
             grad.scal(1.0 / norm_grad)
             current_d, current_J = armijo_line_serach(
                 previous_iterate = previous_d,
@@ -218,6 +227,7 @@ def gradient_descent_linearized_problem(
         
         
         if (i % 250 == 0):
+            norm_grad = model.compute_gradient_norm(grad)
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {norm_grad:3.4e}.")
 
         buffer_d.pop(0)
