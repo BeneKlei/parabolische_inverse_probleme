@@ -54,8 +54,13 @@ def main():
     assert T_final > T_initial
     if q_time_dep:
         q_circ = 3*np.ones((nt, par_dim))
+        bounds = np.zeros((nt * par_dim, 2))
     else:
         q_circ = 3*np.ones((1, par_dim))
+        bounds = np.zeros((par_dim, 2))
+
+    bounds[:,0] = 0.001
+    bounds[:,1] = 1e3
 
     setup = {
         'dims' : {
@@ -75,6 +80,7 @@ def main():
             'parameter_location' : 'reaction',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'Kirchner',
+            'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -98,11 +104,14 @@ def main():
                 'prod_C' : 'l2',
                 'bochner_prod_Q' : 'bochner_l2',
                 'bochner_prod_V' : 'bochner_h1'
+            },
+            'observation_operator' : {
+                'name' : 'identity',
             }
         }
     }
 
-    FOM = build_InstationaryModelIP(setup, logger)
+    FOM, _, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
 
@@ -120,9 +129,10 @@ def main():
         'i_max_inner' : 2,
         #####################
         'lin_solver_parms' : {
-            'lin_solver_max_iter' : 1e4,
-            'lin_solver_tol' : 1e-12,
-            'lin_solver_inital_step_size' : 1
+            'method' : 'gd',
+            'max_iter' : 1e4,
+            'lin_solver_tol' : 1e-10,
+            'inital_step_size' : 1
         },
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2

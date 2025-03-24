@@ -260,7 +260,11 @@ class Optimizer(BasicObject):
         i = 0
         model_unsufficent = False
         
-        q_ = self.reductor.reconstruct(q_0, basis='parameter_basis')
+        if not q_0 in self.FOM.Q:
+            q_ = self.reductor.reconstruct(q_0, basis='parameter_basis')
+        else:
+            q_ = q_0.copy()
+
         q_ = q_.to_numpy().flatten()
         mask_lb = q_ >= self.FOM.bounds[:,0]
         mask_ub = q_ <= self.FOM.bounds[:,1]
