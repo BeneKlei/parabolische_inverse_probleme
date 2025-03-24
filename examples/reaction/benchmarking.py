@@ -31,10 +31,10 @@ def _HaPOD(reductor,
             
     shapshots, svals, _ = \
     inc_vectorarray_hapod(steps=len(shapshots)/5, 
-                            U=shapshots, 
-                            eps=eps,
-                            omega=0.1,                
-                            product=product)
+                          U=shapshots, 
+                          eps=eps,
+                          omega=0.1,                
+                          product=product)
 
 
     return shapshots, svals

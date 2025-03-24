@@ -70,14 +70,12 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         self.logger.debug(f"Using residual image basis mode: '{residual_image_basis_mode}'.")
 
         
-        
     def project_vectorarray(self, 
                             x : VectorArray,
-                            basis: str) -> np.array:
-
+                            basis: str) -> np.ndarray:
         _basis = self.bases[basis]
         assert isinstance(x, VectorArray)
-
+        
         if len(_basis) == 0:
             return x.to_numpy()
         else:
@@ -166,9 +164,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         model_parameter = self.FOM.setup['model_parameter'].copy()
         model_parameter['q_circ'] = self.project_vectorarray(self.FOM.q_circ, basis='parameter_basis')
         model_parameter['q_exact'] = None
-        model_parameter['bounds'] = \
-        [self.bases['parameter_basis'].to_numpy().dot(self.FOM.setup['model_parameter']['bounds'][0]), 
-         self.bases['parameter_basis'].to_numpy().dot(self.FOM.setup['model_parameter']['bounds'][1]) ]
+        model_parameter['bounds'] = None
         
         # TODO Check how A(q) can be calc without parameter
         # At the moment only unique kind of parameter is supported.
@@ -272,7 +268,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'bilinear_reg_term' : project(self.FOM.bilinear_reg_term, parameter_basis, parameter_basis),
             'products' : products,
             'visualizer' : self.FOM.visualizer,            
-            'setup' : setup,
+            'setup' : setup
         }
         return projected_operators 
 

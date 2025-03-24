@@ -127,7 +127,8 @@ def whole_problem(N : int = 100,
         pass
     elif time_factor == 'sinus':
         time_factor = ExpressionFunction(
-            expression = 'sin(2*pi*t)[0]',
+            #expression = 'sin(2*pi*t)[0]',
+            expression = 'sin(pi*t)[0]',
             dim_domain = 2,
             parameters = {'t' : 1}
         )

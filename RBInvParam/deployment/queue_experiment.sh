@@ -4,11 +4,11 @@
 #SBATCH --ntasks-per-node=1         # the number of tasks/processes per node
 #SBATCH --cpus-per-task=36          # the number cpus per task
 #SBATCH --partition=long            # on which partition to submit the job
-#SBATCH --time=96:00:00             # the max wallclock time (time limit your job will run)
+#SBATCH --time=120:00:00            # the max wallclock time (time limit your job will run)
  
 #SBATCH --mail-type=ALL             # receive an email when your job starts, finishes normally or is aborted
 #SBATCH --mail-user=benedikt.klein@uni-muenster.de # your mail address
- 
+
 # LOAD MODULES HERE IF REQUIRED
 #module load foss/2019a
 
@@ -20,9 +20,6 @@ SCRIPT_PATH="RBInvParam/deployment/run_optimization.py"
 "$WORKING_DIR/$INTERPRETER_PATH" "$WORKING_DIR/$SCRIPT_PATH" \
                                  "--setup" $1 \
                                  "--optimizer-parameter" $2 \
-                                 "--save-path" $3
-
-
-
-
-
+                                 "--save-path" $3 \
+                                 > "$3/out.log" \
+                                 2> "$3/err.log"
