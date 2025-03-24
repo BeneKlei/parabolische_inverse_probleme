@@ -119,7 +119,7 @@ diffusion_setup = {
             'prod_V' : 'h1_0_semi',
             'prod_C' : 'l2',
             'bochner_prod_Q' : 'bochner_h1',
-            'bochner_prod_V' : 'bochner_h1'
+            'bochner_prod_V' : 'bochner_h1_0_semi'
         },
         'observation_operator' : {
             'name' : 'identity',
@@ -139,7 +139,7 @@ FOM_optimizer_parameter = {
     #####################
     'i_max' : 75,
     'reg_loop_max' : 10,
-    'i_max_inner' : 2,
+    'i_max_inner' : 10,
     ####################
     'lin_solver_parms' : {
         'method' : 'gd',

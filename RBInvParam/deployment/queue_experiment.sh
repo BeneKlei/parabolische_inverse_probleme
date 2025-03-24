@@ -20,11 +20,6 @@ SCRIPT_PATH="RBInvParam/deployment/run_optimization.py"
 "$WORKING_DIR/$INTERPRETER_PATH" "$WORKING_DIR/$SCRIPT_PATH" \
                                  "--setup" $1 \
                                  "--optimizer-parameter" $2 \
-                                 "--save-path" $3 > \
+                                 "--save-path" $3 \
                                  > "$3/out.log" \
                                  2> "$3/err.log"
-
-
-
-
-
