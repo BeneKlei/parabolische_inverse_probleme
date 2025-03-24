@@ -70,14 +70,12 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         self.logger.debug(f"Using residual image basis mode: '{residual_image_basis_mode}'.")
 
         
-        
     def project_vectorarray(self, 
                             x : VectorArray,
                             basis: str) -> np.ndarray:
-
         _basis = self.bases[basis]
         assert isinstance(x, VectorArray)
-
+        
         if len(_basis) == 0:
             return x.to_numpy()
         else:

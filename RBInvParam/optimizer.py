@@ -92,7 +92,28 @@ class Optimizer(BasicObject):
                                beta: float,
                                kappa_arm: float,
                                use_cached_operators: bool = False) -> Tuple[NumpyVectorArray, float, bool]:
-        
+
+        from RBInvParam.linear_solver.gradient_descent import project_to_simple_domain
+        from functools import partial
+
+        bounds = self.FOM.bounds
+        reductor=self.reductor
+        if bounds is not None:
+            if model.q_time_dep:
+                assert bounds.shape == (model.nt * reductor.FOM.Q.dim , 2)
+            else:
+                assert bounds.shape == (reductor.FOM.Q.dim , 2)
+            assert np.all(bounds[:,0] < bounds[:,1])
+
+            projector = partial(project_to_simple_domain,
+                model=model,
+                reductor = reductor,
+                bounds = bounds
+            )
+        else:
+            projector = None
+
+
         assert 0 <= beta < 1
         assert 0 < eta
         i = 0
@@ -102,6 +123,10 @@ class Optimizer(BasicObject):
         step_size = inital_step_size
         search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
         current_q = previous_q + step_size * search_direction
+
+        if projector: 
+            current_q = projector(previous_q, step_size * search_direction)
+
         u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
         p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
         current_J = model.objective(u=u,
@@ -139,6 +164,9 @@ class Optimizer(BasicObject):
         while (not condition) and (i < max_iter):
             step_size = 0.5 * step_size
             current_q = previous_q + step_size * search_direction
+            if projector: 
+                current_q = projector(previous_q, step_size * search_direction)
+
             u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
             p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
             current_J = model.objective(u=u,
@@ -387,6 +415,15 @@ class Optimizer(BasicObject):
             self.IRGNM_statistics["J"].append(J)
             self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
             self.IRGNM_statistics["alpha"].append(alpha)
+
+            #self.reductor.FOM.visualizer.visualize(self.reductor.reconstruct(q, basis='parameter_basis'))
+            print("!!!!!!!!!!!!!!!!!!!!")
+            x = self.reductor.reconstruct(q, basis='parameter_basis').to_numpy()
+            print(np.all(x >= 0))
+            print(x[x < 0])
+
+            # import time
+            # time.sleep(5)
         
             #stagnation check
             if i > 3:

@@ -48,7 +48,7 @@ def armijo_line_serach(previous_iterate: NumpyVectorArray,
         current_iterate = previous_iterate + step_size * search_direction
 
         if projector: 
-            current_iterate = projector(q + current_iterate) - q
+            current_iterate = projector(q, current_iterate) - q
 
         current_value = func(current_iterate)
 
@@ -65,7 +65,7 @@ def armijo_line_serach(previous_iterate: NumpyVectorArray,
             current_iterate = previous_iterate + step_size * search_direction
 
             if projector: 
-                current_iterate = projector(q + current_iterate) - q
+                current_iterate = projector(q, current_iterate) - q
 
 
             current_value = func(current_iterate)
@@ -105,30 +105,155 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     current_iterate = previous_iterate - step_size[0,0] * search_direction
 
     if projector: 
-        current_iterate = projector(q + current_iterate) - q
+        current_iterate = projector(q, current_iterate) - q
 
     current_value = func(current_iterate)
     return (current_iterate, current_value)
 
 def project_to_simple_domain(q: NumpyVectorArray,
+                             d: NumpyVectorArray,
                              model: InstationaryModelIP,
                              reductor: InstationaryModelIPReductor, 
                              bounds: np.ndarray) -> NumpyVectorArray:
+    from timeit import default_timer as timer
+    start = timer()
+    # start_ = timer()
+    # # q_recon = reductor.reconstruct(q, basis='parameter_basis')
+    # # print(f"I.I {timer() - start_}")
+    # # q_recon = q_recon.to_numpy().flatten()
+    # # print(f"I {timer() - start_}")
+
+    # # _min = np.min(reductor.bases['parameter_basis'].to_numpy(), axis=0)
+    # # _max = np.max(reductor.bases['parameter_basis'].to_numpy(), axis=0)
+    # # print("aaaaaaaaaaaaa")
+    # # print(_min)
+
+    # # start_ = timer()
+    # # q_ = q.to_numpy()
+    # # pos_coef = np.sum(np.where(q_ >= 0,q_,0),axis=1)
+    # # neg_coef = np.sum(np.where(q_ < 0,q_,0),axis=1)
+
+    # # r = np.einsum('i,j->ij', pos_coef, _min) + np.einsum('i,j->ij', neg_coef, _max)
+    # # print(np.einsum('i,j->ij', pos_coef, _min))
+    # # print(np.einsum('i,j->ij', neg_coef, _max))
+    # # print(r.flatten())
+    # # print(bounds[:,0])
+
+    # # # m = r.flatten() >= bounds[:,0] 
+
+    # # # print(np.all(m))
+    # # # print(np.sum(m * 1))
     
+
+    # # # # # print(f"II {timer() - start_}")
+    # c = (bounds[0:10201,1] - bounds[0:10201,0]) / 2 + bounds[0:10201,0]
+    # #c = bounds[0:10201,0]
+    # #b = np.abs((reductor.products['parameter_basis'].apply(reductor.bases['parameter_basis'])).to_numpy())
+    # b = np.abs(reductor.bases['parameter_basis'].to_numpy())
+    # assert np.all(b > 0)
+    # x = np.min((bounds[0:10201,1] - c) * (1 / (2*b)), axis = 1)
+    # y = np.min((c - bounds[0:10201,0]) * (1 / (2*b)), axis = 1)
+    # z = np.stack([x,y])
+    # r = np.min(z, axis=0)
+
+    # # print(q[0])
+    # # print(reductor.project_vectorarray(reductor.FOM.Q.make_array(c), basis='parameter_basis'))
+    # # import sys
+    # # sys.exit()
+
+    # u = reductor.project_vectorarray(reductor.FOM.Q.make_array(c), basis='parameter_basis') + r
+    # l = reductor.project_vectorarray(reductor.FOM.Q.make_array(c), basis='parameter_basis') - r
+
+    # # print(reductor.project_vectorarray(reductor.FOM.Q.make_array(c), basis='parameter_basis'))
+    # # print(r)
+    # # print(u)
+    # # print(l)
+    # # print(q[0])
+    # # print(l <= q[0].to_numpy())
+    # # print(u >= q[0].to_numpy())
+    
+    # ok = True
+    # for i in range(50):
+    #     #print((np.all(u >= q[i].to_numpy()) & np.all(l <= q[i].to_numpy())))
+    #     if not (np.all(u >= q[i].to_numpy()) & np.all(l <= q[i].to_numpy())):
+    #         ok = False
+    
+    # # print("---------------------------------")
+    # # print(ok)
+
+    # # import sys
+    # # sys.exit()
+
+
+    # d = 0.5 * d
+
+    #c = (bounds[0:10201,1] - bounds[0:10201,0]) / 2
+    c = reductor.reconstruct(q, basis='parameter_basis').to_numpy()        
+    mask_lb = c.flatten() >= bounds[:,0]
+    mask_ub = c.flatten() <= bounds[:,1]
+    assert np.all(mask_lb) and np.all(mask_ub)
+    
+    #c = bounds[0:10201,0]
+    proj_c = reductor.project_vectorarray(reductor.FOM.Q.make_array(c), basis='parameter_basis')
+    # # #c = bounds[0:10201,0]
+    # # #b = np.abs((reductor.products['parameter_basis'].apply(reductor.bases['parameter_basis'])).to_numpy())
+    b = np.linalg.norm(reductor.bases['parameter_basis'].to_numpy(), axis=0)
+
+    assert np.all(b > 0)
+    x = np.min((bounds[0:90601,1] - c) * (1 / (b)), axis = 0)
+    y = np.min((c - bounds[0:90601,0]) * (1 / (b)), axis = 0)
+    z = np.stack([x,y])
+    r = np.min(z, axis=0)
+    assert np.all(r > 0)
+
+    ok = True
+    for i in range(50):
+        V = d[i] 
+        # print(np.sqrt(model.products['prod_Q'].apply2(V, V))[0,0])
+        # print(r[i])
+        # print('-----------------')
+        #print((np.all(u >= q[i].to_numpy()) & np.all(l <= q[i].to_numpy())))
+        if np.sqrt(model.products['prod_Q'].apply2(V, V))[0,0] > r[i]:
+            ok = False
+
+    print(ok)
+    # reductor.FOM.visualizer.visualize(reductor.reconstruct(q+d, basis='parameter_basis'))
+
+    
+    # import time
+    # time.sleep(5)
+    #ok = False
+    if ok:
+        # reductor.FOM.visualizer.visualize(reductor.reconstruct(q+d, basis='parameter_basis'))
+        # import time
+        # time.sleep(5)
+        return q + d
+
+    #d = 0.5 * d
+    q = q + d
+
     q_recon = reductor.reconstruct(q, basis='parameter_basis')
     q_recon = q_recon.to_numpy().flatten()
-    
+        
+    start_ = timer()
     mask_lb = q_recon < bounds[:,0]
     mask_ub = q_recon > bounds[:,1]
+    print("---------------------------")
+    print(np.any(mask_lb) or np.any(mask_ub))
 
-    q_recon[mask_lb] = bounds[mask_lb,0]
-    q_recon[mask_ub] = bounds[mask_ub,1]
+    if np.any(mask_lb) or np.any(mask_ub):
+        q_recon[mask_lb] = bounds[mask_lb,0]
+        q_recon[mask_ub] = bounds[mask_ub,1]
+        
+        q_recon = q_recon.reshape((reductor.FOM.nt, reductor.FOM.Q.dim))
+        q_recon = reductor.FOM.Q.make_array(q_recon)  
+        q_recon = reductor.project_vectorarray(q_recon, basis='parameter_basis')
+        return model.Q.make_array(q_recon)
+    else:
+        #print(f"Total {timer() - start}") 
+        return q
 
-    q_recon = q_recon.reshape((reductor.FOM.nt, reductor.FOM.Q.dim))
-    q_recon = reductor.FOM.Q.make_array(q_recon)  
-    q_recon = reductor.project_vectorarray(q_recon, basis='parameter_basis')
 
-    return model.Q.make_array(q_recon)
 
 def gradient_descent_linearized_problem(
     model : InstationaryModelIP,
@@ -153,23 +278,25 @@ def gradient_descent_linearized_problem(
         logger = logging.getLogger('gradient_descent')
         logger.setLevel(logging.DEBUG)
 
-    if bounds is not None:
-        assert isinstance(bounds, np.ndarray)
-        assert reductor
+    # if bounds is not None:
+    #     assert isinstance(bounds, np.ndarray)
+    #     assert reductor
 
-        if model.q_time_dep:
-            assert bounds.shape == (model.nt * reductor.FOM.Q.dim , 2)
-        else:
-            assert bounds.shape == (reductor.FOM.Q.dim , 2)
-        assert np.all(bounds[:,0] < bounds[:,1])
+    #     if model.q_time_dep:
+    #         assert bounds.shape == (model.nt * reductor.FOM.Q.dim , 2)
+    #     else:
+    #         assert bounds.shape == (reductor.FOM.Q.dim , 2)
+    #     assert np.all(bounds[:,0] < bounds[:,1])
 
-        projector = partial(project_to_simple_domain,
-            model=model,
-            reductor = reductor,
-            bounds = bounds
-        )
-    else:
-        projector = None
+    #     projector = partial(project_to_simple_domain,
+    #         model=model,
+    #         reductor = reductor,
+    #         bounds = bounds
+    #     )
+    # else:
+    #     projector = None
+    
+    projector = None
 
     previous_d = np.nan
     current_d = d_start
@@ -195,8 +322,10 @@ def gradient_descent_linearized_problem(
     buffer_J.append(current_J)
 
     logger.info(f"Initial objective = {current_J:3.4e}.")
-    
+
     for i in range(int(max_iter)):
+        from timeit import default_timer as timer
+        start = timer()
         previous_d = current_d.copy()
         previous_J = current_J.copy()
 
@@ -261,6 +390,9 @@ def gradient_descent_linearized_problem(
 
         buffer_J.pop(0)
         buffer_J.append(current_J)    
+
+        # print(f"GC iter {timer()-start}")
+        # print(f"######################################")
 
         #stagnation check
         if i > 5:
