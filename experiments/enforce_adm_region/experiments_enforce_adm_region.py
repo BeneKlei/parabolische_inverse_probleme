@@ -189,11 +189,15 @@ TR_optimizer_parameter = {
 }
 reaction_300_setup = copy.deepcopy(reaction_setup)
 reaction_300_setup = set_dims(reaction_300_setup, N = 300, q_time_dep=True)
-reaction_300_setup_non_time_dep = set_dims(reaction_300_setup, N = 300, q_time_dep=False)
+
+reaction_300_setup_non_time_dep = copy.deepcopy(reaction_setup)
+reaction_300_setup_non_time_dep = set_dims(reaction_300_setup_non_time_dep, N = 300, q_time_dep=False)
 
 diffusion_300_setup = copy.deepcopy(diffusion_setup)
 diffusion_300_setup = set_dims(diffusion_300_setup, N = 300, q_time_dep=True)
-diffusion_300_setup_non_time_dep = set_dims(diffusion_300_setup, N = 300, q_time_dep=False)
+
+diffusion_300_setup_non_time_dep = copy.deepcopy(diffusion_setup)
+diffusion_300_setup_non_time_dep = set_dims(diffusion_300_setup_non_time_dep, N = 300, q_time_dep=False)
 
 
 EXPERIMENTS = {}
