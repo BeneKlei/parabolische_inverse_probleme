@@ -176,12 +176,12 @@ def gradient_descent_linearized_problem(
         if projector:            
             terminaton_lhs = projector.project_domain(
                 center = q,
-                direction = current_d
+                direction = -grad
             ) - q
         else:
-            terminaton_lhs = grad
+            terminaton_lhs = -grad
 
-        terminaton_lhs = model.compute_gradient_norm(grad)
+        terminaton_lhs = model.compute_gradient_norm(terminaton_lhs)
         if terminaton_lhs < lin_solver_tol:
             last_i = i + 1
             converged = True
@@ -247,6 +247,7 @@ def gradient_descent_linearized_problem(
     else:
         logger.info(f"Gradient decent NOT converged after {int(max_iter)} iterations.")
 
+    norm_grad = model.compute_gradient_norm(grad)
     logger.info(f"objective = {current_J:3.4e}, norm gradient = {norm_grad:3.4e}.")
 
     return current_d, last_i
