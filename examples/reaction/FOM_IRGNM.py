@@ -35,7 +35,7 @@ set_defaults({})
 
 def main():
 
-    N = 100
+    N = 300
     #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
@@ -43,7 +43,8 @@ def main():
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
-    nt = 50
+    nt = 100
+    #nt = 50
     delta_t = (T_final - T_initial) / nt
     #q_time_dep = False
     q_time_dep = True
