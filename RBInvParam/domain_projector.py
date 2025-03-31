@@ -102,7 +102,7 @@ class SimpleBoundDomainProjector(DomainProjector):
 
         if self.use_sufficient_condition:
             assert hasattr(self, 'r')
-            suff_cond = np.sqrt(self.model.products['prod_Q'].pairwise_apply2(direction, direction)) <= self.r
+            suff_cond = np.linalg.norm(direction.to_numpy(), axis=1) <= self.r
             suff_cond = np.all(suff_cond)
             
             if suff_cond:
