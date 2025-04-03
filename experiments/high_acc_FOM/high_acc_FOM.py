@@ -135,7 +135,7 @@ FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
     'q_0' : None,
     'alpha_0' : 1e-5,
-    'tol' : 1e-7,
+    'tol' : 1e-9,
     'tau' : 3.5,
     'noise_level' : None,
     'theta' : 0.4,        
@@ -190,44 +190,44 @@ FOM_optimizer_parameter = {
 
 nt = 50
 
-reaction_300_setup = copy.deepcopy(reaction_setup)
-reaction_300_setup = set_dims(reaction_300_setup, N = 300, q_time_dep=True, nt=nt)
+reaction_500_setup = copy.deepcopy(reaction_setup)
+reaction_500_setup = set_dims(reaction_500_setup, N = 300, q_time_dep=True, nt=nt)
 
-reaction_300_setup_non_time_dep = copy.deepcopy(reaction_setup)
-reaction_300_setup_non_time_dep = set_dims(reaction_300_setup_non_time_dep, N = 300, q_time_dep=False, nt=nt)
+reaction_500_setup_non_time_dep = copy.deepcopy(reaction_setup)
+reaction_500_setup_non_time_dep = set_dims(reaction_500_setup_non_time_dep, N = 300, q_time_dep=False, nt=nt)
 
-diffusion_300_setup = copy.deepcopy(diffusion_setup)
-diffusion_300_setup = set_dims(diffusion_300_setup, N = 300, q_time_dep=True, nt=nt)
+diffusion_500_setup = copy.deepcopy(diffusion_setup)
+diffusion_500_setup = set_dims(diffusion_500_setup, N = 300, q_time_dep=True, nt=nt)
 
-diffusion_300_setup_non_time_dep = copy.deepcopy(diffusion_setup)
-diffusion_300_setup_non_time_dep = set_dims(diffusion_300_setup_non_time_dep, N = 300, q_time_dep=False, nt=nt)
+diffusion_500_setup_non_time_dep = copy.deepcopy(diffusion_setup)
+diffusion_500_setup_non_time_dep = set_dims(diffusion_500_setup_non_time_dep, N = 300, q_time_dep=False, nt=nt)
 
 
 EXPERIMENTS = {}
 
 ###################################### FOM ######################################
 
-setup = copy.deepcopy(reaction_300_setup)
+setup = copy.deepcopy(reaction_500_setup)
 optimizer_parameter = copy.deepcopy(FOM_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-#EXPERIMENTS['reaction_FOM_300_time_dep'] = (setup, optimizer_parameter)
+EXPERIMENTS['reaction_FOM_300_time_dep_1e-9'] = (setup, optimizer_parameter)
 
-setup = copy.deepcopy(diffusion_300_setup)
+setup = copy.deepcopy(diffusion_500_setup)
 optimizer_parameter = copy.deepcopy(FOM_optimizer_parameter)
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
 #EXPERIMENTS['diffusion_FOM_300_time_dep'] = (setup, optimizer_parameter)
 
-setup = copy.deepcopy(reaction_300_setup_non_time_dep)
+setup = copy.deepcopy(reaction_500_setup_non_time_dep)
 optimizer_parameter = copy.deepcopy(FOM_optimizer_parameter)
 setup['model_parameter']['q_time_dep'] = False
 setup['problem_parameter']['time_factor'] = 'constant'
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-EXPERIMENTS['reaction_FOM_300_non_time_dep'] = (setup, optimizer_parameter)
+EXPERIMENTS['reaction_FOM_300_non_time_dep_1e-9'] = (setup, optimizer_parameter)
 
-setup = copy.deepcopy(diffusion_300_setup_non_time_dep)
+setup = copy.deepcopy(diffusion_500_setup_non_time_dep)
 optimizer_parameter = copy.deepcopy(FOM_optimizer_parameter)
 setup['model_parameter']['q_time_dep'] = False
 setup['problem_parameter']['time_factor'] = 'constant'
