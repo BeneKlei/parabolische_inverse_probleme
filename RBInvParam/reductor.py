@@ -13,6 +13,7 @@ from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.parameters.functionals import ProjectionParameterFunctional
 from pymor.parameters.base import Parameters
 from pymor.tools.floatcmp import float_cmp_all
+from pymor.operators.constructions import InverseOperator
 
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.evaluators import AssembledA, AssembledB
@@ -326,7 +327,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if mode == 'none':
             ret["residual_image_basis"] = None
             ret["A_range"] = self.FOM.V
-            ret["riesz_representative"] = True
+            #ret["riesz_representative"] = True
+            ret["riesz_representative"] = False
             return ret
         else:
             raise ValueError
@@ -441,10 +443,17 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if orthonormal_basis:
             product = None
         else:
-            product = project(self.FOM.products['prod_V'], 
+            # product = project(self.FOM.products['prod_V'], 
+            #                   residual_image_basis, 
+            #                   residual_image_basis, 
+            #                   product=None)
+            product = project(InverseOperator(self.FOM.products['prod_V']), 
                               residual_image_basis, 
                               residual_image_basis, 
                               product=None)
+
+            assert not state_residual_operator.riesz_representative
+            assert not adjoint_residual_operator.riesz_representative
 
         A_coercivity_constant_estimator = self.FOM.model_constants['A_coercivity_constant_estimator']
         A_coercivity_constant_estimator = copy.copy(A_coercivity_constant_estimator)

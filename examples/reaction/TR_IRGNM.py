@@ -47,8 +47,8 @@ def main():
     nt = 50
     #nt = 100
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
     noise_level = 1e-5
 
