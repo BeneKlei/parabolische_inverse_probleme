@@ -875,9 +875,9 @@ class QrVrROMOptimizer(Optimizer):
             "FOM_num_calls": {},
             "dim_Q_r" : [],
             "dim_V_r" : [],
-            "counts" : []
+            "counts" : [],
+            "reduced_bases" : None
         }
-
 
     def solve(self) -> VectorArray :
         q_0 = self.optimizer_parameter["q_0"].copy()
@@ -1227,6 +1227,8 @@ class QrVrROMOptimizer(Optimizer):
                 self.logger.debug(f"Extending Qr-space")
                 parameter_shapshots = self.FOM.Q.empty()
                 parameter_shapshots.append(nabla_J)
+                
+                parameter_shapshots.append(q)
 
                 if self.FOM.setup['model_parameter']['q_time_dep']:
                     self.logger.debug(f"Performing HaPOD on parameter snapshots.")
@@ -1285,6 +1287,9 @@ class QrVrROMOptimizer(Optimizer):
 
         self.statistics["total_runtime"].append(timer() - start_time)
         self.statistics["FOM_num_calls"] = self.FOM.num_calls
+
+        self.statistics["reduced_bases"] = self.reductor.bases
+
         self.dump_stats(data=self.statistics,
                         save_path = self.save_path / f'TR_IRGNM_final.pkl')
         return q

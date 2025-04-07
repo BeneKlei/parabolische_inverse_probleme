@@ -44,11 +44,11 @@ def main():
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
-    #nt = 50
-    nt = 100
+    nt = 50
+    #nt = 100
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
     noise_level = 1e-5
 
