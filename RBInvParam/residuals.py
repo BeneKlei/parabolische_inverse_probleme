@@ -128,7 +128,8 @@ class ImplicitEulerResidualOperator(Operator):
         R = - Au - 1/ self.delta_t * self.M.apply(u - u_old) + rhs
         
         if self.riesz_representative:
-            R = self.riesz_op.apply(R)
+            #R = self.riesz_op.apply(R)
+            R = self.riesz_op.apply_inverse(R)
             return R
         else:
             return R

@@ -525,7 +525,6 @@ class Optimizer(BasicObject):
         
         shapshots.scal(1/norms)
 
-
         if len(self.reductor.bases[basis]) != 0:
             projected_shapshots = self.reductor.bases[basis].lincomb(
                 self.reductor.project_vectorarray(shapshots, basis=basis)
@@ -548,12 +547,12 @@ class Optimizer(BasicObject):
         
         shapshots.scal(1/norms)
 
-        shapshots, svals, _ = \
-        inc_vectorarray_hapod(steps=len(shapshots)/5, 
-                              U=shapshots, 
-                              eps=eps,
-                              omega=0.99,
-                              product=product)
+        # shapshots, svals, _ = \
+        # inc_vectorarray_hapod(steps=len(shapshots)/5, 
+        #                       U=shapshots, 
+        #                       eps=eps,
+        #                       omega=0.99,
+        #                       product=product)
 
 
         return shapshots, svals
