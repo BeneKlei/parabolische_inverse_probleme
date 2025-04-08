@@ -34,8 +34,8 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    #N = 300
-    N = 100
+    N = 300
+    #N = 100
     #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
@@ -47,8 +47,8 @@ def main():
     nt = 50
     #nt = 100
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
     noise_level = 1e-5
 

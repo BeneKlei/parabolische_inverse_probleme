@@ -847,6 +847,10 @@ class InstationaryModelIP(ImmutableObject):
                 d = d,
                 use_cached_operators=use_cached_operators
             )            
+            self.adjoint_error_estimator.adjoint_residual_operator._cached_d = self.state_error_estimator.state_residual_operator._cached_d
+            self.adjoint_error_estimator.adjoint_residual_operator._cached_residual_A_d = self.state_error_estimator.state_residual_operator._cached_residual_A_d
+
+
             adjoint_residuum = self.adjoint_error_estimator.compute_residuum(
                 q = q,
                 u = u,
