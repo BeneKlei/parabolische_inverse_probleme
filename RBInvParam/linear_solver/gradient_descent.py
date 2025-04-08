@@ -227,8 +227,7 @@ def gradient_descent_linearized_problem(
         
         
         if (i % 250 == 0):
-            norm_grad = model.compute_gradient_norm(grad)
-            logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {norm_grad:3.4e}.")
+            logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {terminaton_lhs:3.4e}.")
 
         buffer_d.pop(0)
         buffer_d.append(current_d)

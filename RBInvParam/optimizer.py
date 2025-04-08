@@ -128,12 +128,23 @@ class Optimizer(BasicObject):
             rhs = 0
 
         armijo_condition = lhs >= rhs
+
+        t = model.compute_gradient_norm(current_q - previous_q) / model.compute_gradient_norm(search_direction)
+
         if current_J > 0:
             J_rel_error = model.estimate_objective_error(
-                q=current_q,
+                q=previous_q,
+                t=t,
+                d=search_direction,
                 u = u,
                 p = p,
                 use_cached_operators=use_cached_operators) / current_J
+            # print(r"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+            # J_rel_error = model.estimate_objective_error(
+            #     q=current_q,
+            #     u = u,
+            #     p = p,
+            #     use_cached_operators=False) / current_J
         else:
             J_rel_error = np.inf
         
@@ -177,12 +188,23 @@ class Optimizer(BasicObject):
 
             armijo_condition = lhs >= rhs
 
+            t = model.compute_gradient_norm(current_q - previous_q) / model.compute_gradient_norm(search_direction)
+            #assert 0 <= t <= 1
+
             if current_J > 0:                
                 J_rel_error = model.estimate_objective_error(
-                    q=current_q,
+                    q=previous_q,
+                    t=t,
+                    d=search_direction,
                     u = u,
                     p = p,
                     use_cached_operators=use_cached_operators) / current_J
+                # print(r"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+                # J_rel_error = model.estimate_objective_error(
+                #     q=current_q,
+                #     u = u,
+                #     p = p,
+                #     use_cached_operators=False) / current_J
             else:
                 J_rel_error = np.inf
 
@@ -420,6 +442,8 @@ class Optimizer(BasicObject):
             self.IRGNM_statistics["J"].append(J)
             self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
             self.IRGNM_statistics["alpha"].append(alpha)
+
+            model._cached_operators['residual_A_q'] = []
 
             #stagnation check
             if i > 3:

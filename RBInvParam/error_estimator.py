@@ -65,6 +65,8 @@ class StateErrorEstimator():
     def compute_residuum(self, 
                          q: VectorArray,
                          u: VectorArray,
+                         t: float = 0.0,
+                         d: VectorArray = None,
                          use_cached_operators: bool = False,
                          cached_operators: Dict = None) -> VectorArray:
         
@@ -84,6 +86,8 @@ class StateErrorEstimator():
             u = u, 
             u_old = u_old,
             q = q,
+            t = t,
+            d = d,
             use_cached_operators = use_cached_operators,
             cached_operators = cached_operators
         )
@@ -93,6 +97,8 @@ class StateErrorEstimator():
     def estimate_error(self, 
                        q: VectorArray,
                        u: VectorArray,
+                       t: float = 0.0,
+                       d: VectorArray = None,
                        use_cached_operators: bool = False,
                        cached_operators: Dict = None) -> float:
         
@@ -105,14 +111,22 @@ class StateErrorEstimator():
         assert u in self.V
         assert len(u) == self.nt
 
-        alpha_q = np.min(self.A_coercivity_constant_estimator(q))
+        if d:
+            alpha_q = np.min(self.A_coercivity_constant_estimator(q + t * d))
+        else:
+            alpha_q = np.min(self.A_coercivity_constant_estimator(q))
+
         r = self.compute_residuum(q=q, 
-                                  u=u, 
+                                  u=u,
+                                  t=t,
+                                  d=d,
                                   use_cached_operators = use_cached_operators,
                                   cached_operators = cached_operators)
         
+
+        
         return np.sqrt(self.delta_t / alpha_q * np.sum(r.norm2(product=self.product)))
-             
+   
 class AdjointErrorEstimator():
     def __init__(self,
                  adjoint_residual_operator : AdjointResidualOperator,
@@ -145,6 +159,8 @@ class AdjointErrorEstimator():
                          q: VectorArray,
                          u: VectorArray,
                          p: VectorArray,
+                         t: float = 0.0,
+                         d: VectorArray = None,
                          use_cached_operators: bool = False,
                          cached_operators: Dict = None) -> VectorArray:
 
@@ -168,6 +184,8 @@ class AdjointErrorEstimator():
             p_old = p_old,
             u = u,
             q = q,
+            t = t,
+            d = d,
             use_cached_operators = use_cached_operators,
             cached_operators = cached_operators
         )
@@ -204,10 +222,15 @@ class ObjectiveErrorEstimator():
     def estimate_error(self, 
                        q: VectorArray,
                        estimated_state_error: float,
-                       adjoint_residuum: float) -> float:
+                       adjoint_residuum: float,
+                       t: float = 0.0,
+                       d: VectorArray = None) -> float:
 
         # TODO Is this correct? I do not think so 
-        alpha_q = np.min(self.A_coercivity_constant_estimator(q))
+        if d:
+            alpha_q = np.min(self.A_coercivity_constant_estimator(q+t*d))
+        else:
+            alpha_q = np.min(self.A_coercivity_constant_estimator(q))
 
         ret = 0
         ret += adjoint_residuum * estimated_state_error / np.sqrt(alpha_q)

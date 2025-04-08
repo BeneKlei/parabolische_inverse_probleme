@@ -62,6 +62,31 @@ class ImplicitEulerResidualOperator(Operator):
 
 
             #self.riesz_op.with_(solver_options='scipy_spsolve')
+        
+        self._cached_d = None
+        self._cached_residual_A_d = []
+    
+    def _compute_cached_residual_A_d(self,
+                                     d: VectorArray) -> None:
+        
+        if self._cached_d == d:
+            return
+        
+        self._cached_d = d
+        self._cached_residual_A_d = []
+        
+        if self.setup['model_parameter']['q_time_dep']:
+            assert len(self._cached_d) == self.nt
+            for n in range(self.nt):
+                self._cached_residual_A_d.append(
+                    self._precompute_residual_A_q(d[n])
+                )
+        else:
+            assert len(self._cached_d) == 1
+            self._cached_residual_A_d.append(
+                self._precompute_residual_A_q(d[0])
+            )
+
     
     def _precompute_residual_A_q(self, 
                                  q: VectorArray) -> List:
@@ -79,6 +104,8 @@ class ImplicitEulerResidualOperator(Operator):
                u: VectorArray,
                u_old: VectorArray,
                q: VectorArray,
+               t: float = 0.0,
+               d: VectorArray = None,
                use_cached_operators: bool = False,
                cached_operators: Dict = None) -> VectorArray:
 
@@ -87,13 +114,17 @@ class ImplicitEulerResidualOperator(Operator):
             'q' in cached_operators.keys()
             'residual_A_q' in cached_operators.keys()
 
-            if len(cached_operators['q']) > 0:
-                assert ((cached_operators['q']-q).norm() <= 1e-16)[0]
+            # if len(cached_operators['q']) > 0:
+            #     assert ((cached_operators['q']-q).norm() <= 1e-16)[0]
 
             if self.setup['model_parameter']['q_time_dep']:
                 assert len(cached_operators['residual_A_q']) == self.nt
             else:
                 assert len(cached_operators['residual_A_q']) == 1
+
+            if d:
+                self._compute_cached_residual_A_d(d)
+
         
         if len(self.bases['parameter_basis']) != 0:
             q = self._reconstruct(q, basis='parameter_basis')
@@ -119,9 +150,25 @@ class ImplicitEulerResidualOperator(Operator):
             if self.q_time_dep:
                 Au = self.A.range.empty(reserve = len(u)) 
                 for i in range(len(u)):
-                    Au.append(A_q[i].apply(u[i]))
+                    A_ = A_q[i]
+                    if d:
+                        A_ += t * self._cached_residual_A_d[i]
+                    
+                    Au.append(A_.apply(u[i]))
             else:
-                Au = A_q[0].apply(u)
+                A_ = A_q[0]
+                if d:
+                    A_ += t * self._cached_residual_A_d[0]
+                Au = A_.apply(u)
+            
+            # if d:
+            #     A_q = cached_operators['residual_A_q'] 
+            #     print(type(self.A))
+            #     print(self.A.constant_operator)
+            #     print(self.A(q[0]).assemble().matrix.todense())
+            #     print(self._cached_residual_A_d[0])
+            #     print((A_q[0] + t * (self._cached_residual_A_d[0]-self.A.constant_operator)).assemble().matrix.todense())
+
         else:
             if self.q_time_dep:
                 Au = self.A.range.empty(reserve = len(u)) 
@@ -129,6 +176,13 @@ class ImplicitEulerResidualOperator(Operator):
                     Au.append(self.A(q[i]).apply(u[i]))
             else:
                 Au = self.A(q[0]).apply(u)
+
+            A_q = cached_operators['residual_A_q']
+            # print("§§§§§§§§§§§§§§§§§§§§")
+            # print(self.A(q[0]).assemble().matrix.todense())
+        
+        # print(self._cached_residual_A_d[0])
+        # print((A_q[0] + t * self._cached_residual_A_d[0]).assemble().matrix.todense())
         
         R = - Au - 1/ self.delta_t * self.M.apply(u - u_old) + rhs
 
@@ -165,10 +219,13 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
         assert isinstance(self.L, VectorArray)
         assert len(self.L) in [1, self.nt]
 
+    # TODO Add asserts everywhere for d
     def apply(self,
               u: VectorArray,
               u_old: VectorArray,
               q: VectorArray,
+              t: float = 0.0,
+              d: VectorArray = None,
               use_cached_operators: bool = False,
               cached_operators: Dict = None) -> VectorArray:
         
@@ -177,6 +234,8 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
                            u = u,
                            u_old = u_old,
                            q=q,
+                           t=t,
+                           d=d,
                            use_cached_operators=use_cached_operators,
                            cached_operators=cached_operators)
 
@@ -218,6 +277,8 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
               p_old: VectorArray,
               u: VectorArray,
               q: VectorArray,
+              t: float = 0.0,
+              d: VectorArray = None,
               use_cached_operators: bool = False,
               cached_operators: Dict = None) -> VectorArray:
         
@@ -230,5 +291,7 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
                            u = p,
                            u_old = p_old,
                            q=q,
+                           t=t,
+                           d=d,
                            use_cached_operators=use_cached_operators,
                            cached_operators=cached_operators)

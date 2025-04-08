@@ -141,8 +141,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     _, constant_operator = split_constant_and_parameterized_operator(
         primal_fom.operator
     )
-
-
+    
     A = UnAssembledA(
         constant_operator = constant_operator,
         reaction_problem = ('reaction' in setup['model_parameter']['problem_type']),
