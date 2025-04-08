@@ -862,10 +862,10 @@ class InstationaryModelIP(ImmutableObject):
                     product=self.adjoint_error_estimator.product
                 )
             ))
-            # print("§§§§§§§§§§§§§§§§§§§§")
-            # print(estimated_state_error)
-            # print(adjoint_residuum)
-            # print("§§§§§§§§§§§§§§§§§§§§")
+            print("§§§§§§§§§§§§§§§§§§§§")
+            print(estimated_state_error)
+            print(adjoint_residuum)
+            print("§§§§§§§§§§§§§§§§§§§§")
 
             return self.objective_error_estimator.estimate_error(
                 q = q,

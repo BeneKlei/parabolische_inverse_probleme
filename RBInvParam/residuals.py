@@ -9,6 +9,7 @@ from pymor.operators.constructions import InverseOperator
 
 from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
 
+import timeit
 
 class ImplicitEulerResidualOperator(Operator):
     def __init__(self,
@@ -79,12 +80,12 @@ class ImplicitEulerResidualOperator(Operator):
             assert len(self._cached_d) == self.nt
             for n in range(self.nt):
                 self._cached_residual_A_d.append(
-                    self._precompute_residual_A_q(d[n])
+                    self._precompute_residual_A_q(d[n])-self.A.constant_operator
                 )
         else:
             assert len(self._cached_d) == 1
             self._cached_residual_A_d.append(
-                self._precompute_residual_A_q(d[0])
+                self._precompute_residual_A_q(d[0])-self.A.constant_operator
             )
 
     
@@ -109,6 +110,7 @@ class ImplicitEulerResidualOperator(Operator):
                use_cached_operators: bool = False,
                cached_operators: Dict = None) -> VectorArray:
 
+        start = timeit.default_timer()
         if use_cached_operators:
             assert cached_operators
             'q' in cached_operators.keys()
@@ -149,12 +151,22 @@ class ImplicitEulerResidualOperator(Operator):
             A_q = cached_operators['residual_A_q']
             if self.q_time_dep:
                 Au = self.A.range.empty(reserve = len(u)) 
+                if d:
+                    A_ = [
+                        A_q[i] + t * (self._cached_residual_A_d[i])    
+                        for i in range(len(self._cached_residual_A_d))
+                    ]
+                else:
+                    A_ = A_q
                 for i in range(len(u)):
-                    A_ = A_q[i]
-                    if d:
-                        A_ += t * self._cached_residual_A_d[i]
+                    Au.append(A_[i].apply(u[i]))
+
+                # for i in range(len(u)):
+                #     A_ = A_q[i]
+                #     if d:
+                #         A_ += t * (self._cached_residual_A_d[i])
                     
-                    Au.append(A_.apply(u[i]))
+                #     Au.append(A_.apply(u[i]))
             else:
                 A_ = A_q[0]
                 if d:
@@ -185,6 +197,9 @@ class ImplicitEulerResidualOperator(Operator):
         # print((A_q[0] + t * self._cached_residual_A_d[0]).assemble().matrix.todense())
         
         R = - Au - 1/ self.delta_t * self.M.apply(u - u_old) + rhs
+        stop = timeit.default_timer()
+
+        print('Time: ', stop - start)  
 
         if self.riesz_representative:
             R = self.riesz_op.apply(R)
