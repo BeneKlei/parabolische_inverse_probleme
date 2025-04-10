@@ -1286,7 +1286,6 @@ class QrVrROMOptimizer(Optimizer):
 
         self.statistics["total_runtime"].append(timer() - start_time)
         self.statistics["FOM_num_calls"] = self.FOM.num_calls
-
         self.statistics["reduced_bases"] = self.reductor.bases
 
         self.dump_stats(data=self.statistics,
