@@ -837,11 +837,14 @@ class InstationaryModelIP(ImmutableObject):
                     product=self.adjoint_error_estimator.product
                 )
             ))
-            return self.objective_error_estimator.estimate_error(
+            e = self.objective_error_estimator.estimate_error(
                 q = q,
                 estimated_state_error = estimated_state_error,
                 adjoint_residuum = adjoint_residuum
             )
+            print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+            print(e)
+            return e
         else:
             return 0.0
     

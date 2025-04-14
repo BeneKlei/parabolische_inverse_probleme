@@ -201,7 +201,7 @@ class Optimizer(BasicObject):
         else:
             self.logger.debug(f"Armijo backtracking does terminate normally with step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
 
-        return (current_q, current_J, model_unsufficent)
+        return (current_q, current_J, model_unsufficent, step_size)
     
     def IRGNM(self,
               model: InstationaryModelIP,
@@ -392,13 +392,17 @@ class Optimizer(BasicObject):
             ########################################### Armijo ###########################################
             if use_TR:
                 self.logger.info(f"Enforcing TR condition.")
-                q_TR, _, model_unsufficent = self._armijo_TR_line_serach(model = model,
-                                                                         previous_q = q,
-                                                                         previous_J = J,
-                                                                         search_direction = d,
-                                                                         **TR_backtracking_params,
-                                                                         use_cached_operators=use_cached_operators,
-                                                                         projector=projector)
+                q_TR, _, model_unsufficent, step_size = self._armijo_TR_line_serach(
+                    model = model,
+                    previous_q = q,
+                    previous_J = J,
+                    search_direction = d,
+                    **TR_backtracking_params,
+                    use_cached_operators=use_cached_operators,
+                    projector=projector
+                )
+                
+                TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 1])
 
                 if model_unsufficent:
                     break
@@ -924,7 +928,7 @@ class QrVrROMOptimizer(Optimizer):
         inital_agc_armijo_step_size = 0.5 / norm_nabla_J
         inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1])
         eta = eta0
-        
+                    
         self.logger.debug("Running Qr-Vr-IRGNM:")
         self.logger.debug(f"  J : {J:3.4e}")
         self.logger.debug(f"  norm_nabla_J : {norm_nabla_J:3.4e}")
@@ -1027,7 +1031,9 @@ class QrVrROMOptimizer(Optimizer):
         self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
         self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
 
-        while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
+        convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
+
+        while not convergence_criterium and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             self.logger.warning(f"Qr-Vr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start Qr-Vr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
@@ -1055,7 +1061,7 @@ class QrVrROMOptimizer(Optimizer):
 
             self.logger.warning("Calculate AGC with Armijo backtracking.")
 
-            q_agc, J_r_AGC, model_unsufficent = self._armijo_TR_line_serach(
+            q_agc, J_r_AGC, model_unsufficent, _ = self._armijo_TR_line_serach(
                 model = self.QrVrROM,
                 previous_q = q_r,
                 previous_J = J_r,
@@ -1071,15 +1077,14 @@ class QrVrROMOptimizer(Optimizer):
             
             q_r = q_agc.copy()
             ########################################### IRGNM ###########################################
+            TR_backtracking_params = {
+                'max_iter' : TR_armijo_max_iter, 
+                'inital_step_size' : 1, 
+                'eta' : eta, 
+                'beta' : beta_1, 
+                "kappa_arm" : kappa_arm
+            }
             if not model_unsufficent:
-                TR_backtracking_params = {
-                    'max_iter' : TR_armijo_max_iter, 
-                    'inital_step_size' : 1, 
-                    'eta' : eta, 
-                    'beta' : beta_1, 
-                    "kappa_arm" : kappa_arm
-                }
-
                 q_r, IRGNM_statistic = self.IRGNM(model = self.QrVrROM,
                                                   q_0 = q_r,
                                                   alpha_0 = alpha,
@@ -1143,6 +1148,7 @@ class QrVrROMOptimizer(Optimizer):
                     u = self.FOM.solve_state(q)
                     p = self.FOM.solve_adjoint(q, u)
                     J = self.FOM.objective(u)
+
                     nabla_J = self.FOM.gradient(u, p, q)
                     norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
@@ -1214,6 +1220,8 @@ class QrVrROMOptimizer(Optimizer):
 
             ########################################### Final ###########################################
 
+            convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
+
             if not rejected:
                 delta = delta
                 
@@ -1222,41 +1230,42 @@ class QrVrROMOptimizer(Optimizer):
                         alpha = IRGNM_statistic["alpha"][1]
                     except IndexError:
                         pass
-                
-                self.logger.debug(f"Extending Qr-space")
-                parameter_shapshots = self.FOM.Q.empty()
-                parameter_shapshots.append(nabla_J)
-                
-                parameter_shapshots.append(q)
+                    
+                if not convergence_criterium:
+                    self.logger.debug(f"Extending Qr-space")
+                    parameter_shapshots = self.FOM.Q.empty()
+                    parameter_shapshots.append(nabla_J)
+                    
+                    parameter_shapshots.append(q)
 
-                if self.FOM.setup['model_parameter']['q_time_dep']:
-                    self.logger.debug(f"Performing HaPOD on parameter snapshots.")
-                    parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, 
-                                                        basis='parameter_basis',
-                                                        product=self.FOM.products['prod_Q'])
-                self.reductor.extend_basis(
-                    U = parameter_shapshots,
-                    basis = 'parameter_basis'
-                )
-                self.logger.debug(f"Extending Vr-space")
-                state_shapshots = self.FOM.V.empty()
-                state_shapshots.append(u)
-                state_shapshots.append(p)
+                    if self.FOM.setup['model_parameter']['q_time_dep']:
+                        self.logger.debug(f"Performing HaPOD on parameter snapshots.")
+                        parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, 
+                                                            basis='parameter_basis',
+                                                            product=self.FOM.products['prod_Q'])
+                    self.reductor.extend_basis(
+                        U = parameter_shapshots,
+                        basis = 'parameter_basis'
+                    )
+                    self.logger.debug(f"Extending Vr-space")
+                    state_shapshots = self.FOM.V.empty()
+                    state_shapshots.append(u)
+                    state_shapshots.append(p)
 
-                self.logger.debug(f"Performing HaPOD on state snapshots.")
-                state_shapshots, _ = self._HaPOD(shapshots=state_shapshots, 
-                                                basis='state_basis',
-                                                product=self.FOM.products['prod_V'])
-                
-                self.reductor.extend_basis(
-                    U = state_shapshots,
-                    basis = 'state_basis'
-                )
-                self.QrVrROM = self.reductor.reduce()
-                q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
-                q_r = self.QrVrROM.Q.make_array(q_r)
-                self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
-                self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
+                    self.logger.debug(f"Performing HaPOD on state snapshots.")
+                    state_shapshots, _ = self._HaPOD(shapshots=state_shapshots, 
+                                                    basis='state_basis',
+                                                    product=self.FOM.products['prod_V'])
+                    
+                    self.reductor.extend_basis(
+                        U = state_shapshots,
+                        basis = 'state_basis'
+                    )
+                    self.QrVrROM = self.reductor.reduce()
+                    q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
+                    q_r = self.QrVrROM.Q.make_array(q_r)
+                    self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
+                    self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
                 self.statistics["q"].append(q)
                 self.statistics["alpha"].append(alpha)
@@ -1268,6 +1277,9 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
                 self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
                 self.statistics["counts"].append(IRGNM_statistic['counts'])
+            
+            if convergence_criterium:
+                break
 
             if i > 3:
                 buffer = self.statistics["J"][-3:]

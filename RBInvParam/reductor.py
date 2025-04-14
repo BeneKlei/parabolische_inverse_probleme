@@ -451,7 +451,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                               residual_image_basis, 
                               residual_image_basis, 
                               product=None)
-
             assert not state_residual_operator.riesz_representative
             assert not adjoint_residual_operator.riesz_representative
 
