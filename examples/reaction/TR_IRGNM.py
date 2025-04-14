@@ -142,7 +142,7 @@ def main():
         'reg_loop_max' : 10,
         'i_max_inner' : 10,
         'agc_armijo_max_iter' : 100,
-        'TR_armijo_max_iter' : 10,
+        'TR_armijo_max_iter' : 5,
         #####################
         'lin_solver_parms' : {
             'method' : 'gd',

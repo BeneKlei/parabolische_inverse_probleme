@@ -121,12 +121,6 @@ def main():
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
 
-    FOM.visualizer.visualize(q_exact)
-    # import sys
-    # sys.exit()
-    # np.random.seed(42)
-    # q_start = np.random.random(q_exact.to_numpy().shape)
-
     optimizer_parameter = {
         'q_0' : q_start,
         'alpha_0' : 1e-5,
@@ -141,7 +135,8 @@ def main():
         'reg_loop_max' : 10,
         'i_max_inner' : 10,
         'agc_armijo_max_iter' : 100,
-        'TR_armijo_max_iter' : 10,
+        #'TR_armijo_max_iter' : 10,
+        'TR_armijo_max_iter' : 5,
         #####################
         'lin_solver_parms' : {
             'method' : 'gd',

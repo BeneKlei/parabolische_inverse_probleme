@@ -182,7 +182,7 @@ def gradient_descent_linearized_problem(
             terminaton_lhs = -grad
 
         terminaton_lhs = model.compute_gradient_norm(terminaton_lhs)
-        if terminaton_lhs < lin_solver_tol:
+        if (terminaton_lhs < lin_solver_tol) and i > 0:
             last_i = i + 1
             converged = True
             break

@@ -22,6 +22,8 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 
 
 MACHINE_EPS = 1e-16
+STAGNATION_TOL = 1e-3
+EPS = 1e-6
 
 class Optimizer(BasicObject):
     def __init__(self, 
@@ -101,6 +103,7 @@ class Optimizer(BasicObject):
         
         i = 0
         model_unsufficent = False
+        TR_max_iter_cond = False
 
         self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
         step_size = inital_step_size
@@ -190,8 +193,11 @@ class Optimizer(BasicObject):
             condition = armijo_condition & TR_condition
             
             i += 1
-        if (J_rel_error > beta * eta) or (i == max_iter):
+        if (J_rel_error > beta * eta):
             model_unsufficent = True
+        
+        if i == max_iter:
+            TR_max_iter_cond = True
     
 
         if not condition:
@@ -201,7 +207,7 @@ class Optimizer(BasicObject):
         else:
             self.logger.debug(f"Armijo backtracking does terminate normally with step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
 
-        return (current_q, current_J, model_unsufficent, step_size)
+        return (current_q, current_J, model_unsufficent, TR_max_iter_cond, step_size)
     
     def IRGNM(self,
               model: InstationaryModelIP,
@@ -392,7 +398,7 @@ class Optimizer(BasicObject):
             ########################################### Armijo ###########################################
             if use_TR:
                 self.logger.info(f"Enforcing TR condition.")
-                q_TR, _, model_unsufficent, step_size = self._armijo_TR_line_serach(
+                q_TR, _, model_unsufficent, TR_max_iter_cond, step_size = self._armijo_TR_line_serach(
                     model = model,
                     previous_q = q,
                     previous_J = J,
@@ -401,10 +407,10 @@ class Optimizer(BasicObject):
                     use_cached_operators=use_cached_operators,
                     projector=projector
                 )
-                
+
                 TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 1])
 
-                if model_unsufficent:
+                if model_unsufficent or TR_max_iter_cond:
                     break
                 else:
                     q = q_TR
@@ -428,7 +434,7 @@ class Optimizer(BasicObject):
             #stagnation check
             if i > 3:
                 buffer = self.IRGNM_statistics["J"][-3:]
-                if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] -buffer[2]) < MACHINE_EPS:
+                if abs(buffer[0] - buffer[1]) / abs(buffer[0]) < STAGNATION_TOL and abs(buffer[1] - buffer[2]) / abs(buffer[1])< STAGNATION_TOL:
                     self.IRGNM_statistics["stagnation_flag"] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     stagnation_flag = True
@@ -460,6 +466,8 @@ class Optimizer(BasicObject):
             self.logger.info(f'     {method_name} converged at i = {i}')
         elif model_unsufficent:
             self.logger.info(f'     {method_name} TR boundary criterium triggered at i = {i}')
+        elif TR_max_iter_cond:
+            self.logger.info(f'     {method_name} TR backtracking reach maximum iteration number at i = {i}')
         elif stagnation_flag:
             self.logger.info(f'     {method_name} TR stagnated at at i = {i}')
         else:
@@ -549,17 +557,21 @@ class Optimizer(BasicObject):
         else:
             raise ValueError
         
-        shapshots.scal(1/norms)
+        #shapshots.scal(1/norms)
+        print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+        print(svals)
 
+        # # For orthogonalization
+        # # TODO Check
         # shapshots, svals, _ = \
         # inc_vectorarray_hapod(steps=len(shapshots)/5, 
         #                       U=shapshots, 
         #                       eps=eps,
-        #                       omega=0.99,
+        #                       omega=0.1,
         #                       product=product)
 
 
-        return shapshots, svals
+        # return shapshots, svals
 
     def dump_stats(self, 
                    data: Dict,
@@ -976,7 +988,8 @@ class QrVrROMOptimizer(Optimizer):
             self.logger.debug(f"Performing HaPOD on parameter snapshots.")
             parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, 
                                                  basis='parameter_basis',
-                                                 product=self.FOM.products['prod_Q'])
+                                                 product=self.FOM.products['prod_Q'],
+                                                 eps=EPS)
 
         self.reductor.extend_basis(
              U = parameter_shapshots,
@@ -991,7 +1004,8 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"Performing HaPOD on state snapshots.")
         state_shapshots, _ = self._HaPOD(shapshots=state_shapshots, 
                                          basis='state_basis',
-                                         product=self.FOM.products['prod_V'])
+                                         product=self.FOM.products['prod_V'],
+                                         eps=EPS)
         
         self.reductor.extend_basis(
              U = state_shapshots,
@@ -1061,7 +1075,7 @@ class QrVrROMOptimizer(Optimizer):
 
             self.logger.warning("Calculate AGC with Armijo backtracking.")
 
-            q_agc, J_r_AGC, model_unsufficent, _ = self._armijo_TR_line_serach(
+            q_agc, J_r_AGC, model_unsufficent, AGC_max_iter_cond, _ = self._armijo_TR_line_serach(
                 model = self.QrVrROM,
                 previous_q = q_r,
                 previous_J = J_r,
@@ -1074,7 +1088,7 @@ class QrVrROMOptimizer(Optimizer):
                 use_cached_operators=use_cached_operators,
                 projector=projector
             )
-            
+            assert not AGC_max_iter_cond
             q_r = q_agc.copy()
             ########################################### IRGNM ###########################################
             TR_backtracking_params = {
@@ -1242,7 +1256,8 @@ class QrVrROMOptimizer(Optimizer):
                         self.logger.debug(f"Performing HaPOD on parameter snapshots.")
                         parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, 
                                                             basis='parameter_basis',
-                                                            product=self.FOM.products['prod_Q'])
+                                                            product=self.FOM.products['prod_Q'],
+                                                            eps=EPS)
                     self.reductor.extend_basis(
                         U = parameter_shapshots,
                         basis = 'parameter_basis'
@@ -1255,7 +1270,8 @@ class QrVrROMOptimizer(Optimizer):
                     self.logger.debug(f"Performing HaPOD on state snapshots.")
                     state_shapshots, _ = self._HaPOD(shapshots=state_shapshots, 
                                                     basis='state_basis',
-                                                    product=self.FOM.products['prod_V'])
+                                                    product=self.FOM.products['prod_V'],
+                                                    eps=EPS)
                     
                     self.reductor.extend_basis(
                         U = state_shapshots,
@@ -1283,7 +1299,7 @@ class QrVrROMOptimizer(Optimizer):
 
             if i > 3:
                 buffer = self.statistics["J"][-3:]
-                if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] - buffer[2]) < MACHINE_EPS:
+                if abs(buffer[0] - buffer[1]) / abs(buffer[0]) < STAGNATION_TOL and abs(buffer[1] - buffer[2]) / abs(buffer[1])< STAGNATION_TOL:
                     self.statistics["stagnation_flag"] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break

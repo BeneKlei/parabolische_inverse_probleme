@@ -842,8 +842,6 @@ class InstationaryModelIP(ImmutableObject):
                 estimated_state_error = estimated_state_error,
                 adjoint_residuum = adjoint_residuum
             )
-            print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-            print(e)
             return e
         else:
             return 0.0
