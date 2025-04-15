@@ -23,7 +23,6 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 
 MACHINE_EPS = 1e-16
 STAGNATION_TOL = 1e-3
-EPS = 1e-6
 
 class Optimizer(BasicObject):
     def __init__(self, 
@@ -395,6 +394,8 @@ class Optimizer(BasicObject):
                 self.logger.error(f"Not found valid alpha before reaching maximum number of tries : {reg_loop_max}.\n\
                                    Using the last alpha tested = {alpha:3.4e}.")
                 
+                break
+                
             ########################################### Armijo ###########################################
             if use_TR:
                 self.logger.info(f"Enforcing TR condition.")
@@ -460,16 +461,18 @@ class Optimizer(BasicObject):
             self.IRGNM_statistics["total_runtime"].append(timer() - start_time) 
 
         self.logger.info(f'Final {method_name} Statistics:')
-        if i == i_max and not model_unsufficent:
+        if loop_terminated:
+            self.logger.info(f'     {method_name} No sufficient regularization constant found i = {i}')
+        elif i == i_max and not model_unsufficent:
             self.logger.info(f'     {method_name} reached maxit at i = {i}')
         elif i < i_max and not model_unsufficent:
             self.logger.info(f'     {method_name} converged at i = {i}')
-        elif model_unsufficent:
-            self.logger.info(f'     {method_name} TR boundary criterium triggered at i = {i}')
         elif TR_max_iter_cond:
             self.logger.info(f'     {method_name} TR backtracking reach maximum iteration number at i = {i}')
+        elif model_unsufficent:
+            self.logger.info(f'     {method_name} TR boundary criterium triggered at i = {i}')
         elif stagnation_flag:
-            self.logger.info(f'     {method_name} TR stagnated at at i = {i}')
+            self.logger.info(f'     {method_name} TR stagnated at i = {i}')
         else:
             # Should never be happend
             raise NotImplementedError
@@ -558,8 +561,8 @@ class Optimizer(BasicObject):
             raise ValueError
         
         #shapshots.scal(1/norms)
-        print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
-        print(svals)
+        # print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+        # print(svals)
 
         # # For orthogonalization
         # # TODO Check
@@ -571,7 +574,7 @@ class Optimizer(BasicObject):
         #                       product=product)
 
 
-        # return shapshots, svals
+        return shapshots, svals
 
     def dump_stats(self, 
                    data: Dict,
@@ -913,6 +916,7 @@ class QrVrROMOptimizer(Optimizer):
 
         lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
         use_cached_operators = self.optimizer_parameter['use_cached_operators']
+        HaPOD_tol = self.optimizer_parameter['HaPOD_tol']
 
         dump_every_nth_loop = self.optimizer_parameter['dump_every_nth_loop']
 
@@ -963,6 +967,7 @@ class QrVrROMOptimizer(Optimizer):
         for (key,val) in lin_solver_parms.items():
             self.logger.debug(f"        {key} : {val}")
         self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
+        self.logger.debug(f"  HaPOD_tol : {HaPOD_tol}")
         self.logger.debug(f"                ")
         self.logger.debug(f"  eta0 : {eta0:3.4e}")
         self.logger.debug(f"  kappa_arm : {kappa_arm:3.4e}")
@@ -977,19 +982,12 @@ class QrVrROMOptimizer(Optimizer):
         parameter_shapshots.append(q)
         parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
 
-        # np.random.seed(42)
-        # for _ in range(5):
-        #     parameter_shapshots.append(self.FOM.Q.make_array(np.random.random(q.to_numpy().shape)))
-        #parameter_shapshots.append(self.FOM.setup['model_parameter']['q_exact'])
-        
-        
-        
         if self.FOM.setup['model_parameter']['q_time_dep']:
             self.logger.debug(f"Performing HaPOD on parameter snapshots.")
             parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, 
                                                  basis='parameter_basis',
                                                  product=self.FOM.products['prod_Q'],
-                                                 eps=EPS)
+                                                 eps=HaPOD_tol)
 
         self.reductor.extend_basis(
              U = parameter_shapshots,
@@ -1005,7 +1003,7 @@ class QrVrROMOptimizer(Optimizer):
         state_shapshots, _ = self._HaPOD(shapshots=state_shapshots, 
                                          basis='state_basis',
                                          product=self.FOM.products['prod_V'],
-                                         eps=EPS)
+                                         eps=HaPOD_tol)
         
         self.reductor.extend_basis(
              U = state_shapshots,
@@ -1257,7 +1255,7 @@ class QrVrROMOptimizer(Optimizer):
                         parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, 
                                                             basis='parameter_basis',
                                                             product=self.FOM.products['prod_Q'],
-                                                            eps=EPS)
+                                                            eps=HaPOD_tol)
                     self.reductor.extend_basis(
                         U = parameter_shapshots,
                         basis = 'parameter_basis'
@@ -1271,7 +1269,7 @@ class QrVrROMOptimizer(Optimizer):
                     state_shapshots, _ = self._HaPOD(shapshots=state_shapshots, 
                                                     basis='state_basis',
                                                     product=self.FOM.products['prod_V'],
-                                                    eps=EPS)
+                                                    eps=HaPOD_tol)
                     
                     self.reductor.extend_basis(
                         U = state_shapshots,

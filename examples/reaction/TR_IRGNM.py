@@ -81,8 +81,8 @@ def main():
             'parameter_location' : 'reaction',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'Kirchner',
-            'time_factor' : 'constant',
-            #'time_factor' : 'sinus',
+            #'time_factor' : 'constant',
+            'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -142,7 +142,7 @@ def main():
         'reg_loop_max' : 10,
         'i_max_inner' : 10,
         'agc_armijo_max_iter' : 100,
-        'TR_armijo_max_iter' : 5,
+        'TR_armijo_max_iter' : 10,
         #####################
         'lin_solver_parms' : {
             'method' : 'gd',
@@ -156,6 +156,7 @@ def main():
         #     'atol' : 1e-12,
         #     'maxiter' : 1e3
         # },
+        'HaPOD_tol': 1e-3,
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,
         #####################

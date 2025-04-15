@@ -152,6 +152,7 @@ def main():
         # },
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,
+        'HaPOD_tol': 1e-6,
         #####################
         'eta0' : 1e-1,
         'kappa_arm' : 1e-12,
