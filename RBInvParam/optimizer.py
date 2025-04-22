@@ -1194,12 +1194,12 @@ class QrVrROMOptimizer(Optimizer):
                     if EASDC:
                         self.logger.info(f"    Accept q.")
                         rejected = False
-                        q = self.reductor.reconstruct(q_r, basis='parameter_basis')
-                        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-                        p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
-                        J = self.FOM.objective(u)
-                        nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
-                        norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
+                        # q = self.reductor.reconstruct(q_r, basis='parameter_basis')
+                        # u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+                        # p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+                        # J = self.FOM.objective(u)
+                        # nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
+                        # norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
                         delta_J = self.statistics["J"][-1] - J
                         delta_J_r = self.statistics["J_r"][-1] - J_r

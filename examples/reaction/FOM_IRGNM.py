@@ -46,8 +46,8 @@ def main():
     nt = 100
     #nt = 50
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
     noise_level = 1e-5
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
@@ -81,7 +81,8 @@ def main():
             'parameter_location' : 'reaction',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'Kirchner',
-            'time_factor' : 'sinus',
+            #'time_factor' : 'sinus',
+            'time_factor' : 'constant',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -106,8 +107,13 @@ def main():
                 'bochner_prod_Q' : 'bochner_l2',
                 'bochner_prod_V' : 'bochner_h1'
             },
+            # 'observation_operator' : {
+            #     'name' : 'identity',
+            # }
             'observation_operator' : {
-                'name' : 'identity',
+                'name' : 'sensors',
+                'N' : 5,
+                'r' : 0.05,    
             }
         }
     }
@@ -125,9 +131,9 @@ def main():
         'theta' : 0.25,
         'Theta' : 0.95,
         #####################
-        'i_max' : 25,
+        'i_max' : 75,
         'reg_loop_max' : 10,
-        'i_max_inner' : 2,
+        'i_max_inner' : 10,
         #####################
         'lin_solver_parms' : {
             'method' : 'gd',

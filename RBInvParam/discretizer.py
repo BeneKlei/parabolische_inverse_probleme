@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 from typing import Dict
+from itertools import product
 import logging
 import inspect
 
@@ -293,7 +294,52 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
             source_id = V_h.id,
             range_id = V_h.id,
         )
-        C_continuity_constant = 1.0     
+        C_continuity_constant = 1.0
+    elif setup['model_parameter']['observation_operator']['name'] == 'sensors':
+        N = setup['model_parameter']['observation_operator']['N']
+        r = setup['model_parameter']['observation_operator']['r']
+        assert 2*r < 1/(N+1)
+
+        centers = grid_data['grid'].centers(codim=2)
+        mask = np.zeros(centers.shape[0], dtype=bool)
+
+        for (i,j) in product(np.arange(1,N+1), np.arange(1,N+1)):
+            sensor_x = 1/(N+1) * i 
+            sensor_y = 1/(N+1) * j
+            _mask = (centers[:, 0] >= sensor_x - r) \
+                  & (centers[:, 0] <= sensor_x + r) \
+                  & (centers[:, 1] >= sensor_y - r) \
+                  & (centers[:, 1] <= sensor_y + r)
+            mask = np.logical_xor(mask, _mask)
+
+        mask = np.logical_not(mask)
+        idxes = np.argwhere(mask)
+
+        C = scipy.sparse.identity(V_h.dim)
+        C = C.tolil()
+        C[idxes, idxes] = 0
+        C = C.tocsr()
+
+        C = NumpyMatrixOperator(
+            C,
+            source_id = V_h.id,
+            range_id = V_h.id,
+        )
+        C_continuity_constant = 1.0
+
+        # import matplotlib.tri as tri
+        # import matplotlib.pyplot as plt
+
+        # triang = tri.Triangulation(centers[:, 0], centers[:, 1])
+
+        # l = V_h.make_array(np.ones((centers.shape[0],)))
+        # fig, ax = plt.subplots()
+        # ax.tripcolor(triang, C.apply(l).to_numpy()[0], cmap='viridis', shading='gouraud')
+        # ax.set_aspect('equal')
+        # plt.show()
+        
+        # import sys
+        # sys.exit()
     else:
         raise ValueError
 

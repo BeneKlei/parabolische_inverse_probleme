@@ -47,8 +47,8 @@ def main():
     nt = 50
     #nt = 100
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
     noise_level = 1e-5
 
@@ -81,8 +81,8 @@ def main():
             'parameter_location' : 'reaction',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'Kirchner',
-            #'time_factor' : 'constant',
-            'time_factor' : 'sinus',
+            'time_factor' : 'constant',
+            #'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -108,19 +108,30 @@ def main():
                 'bochner_prod_Q' : 'bochner_l2',
                 'bochner_prod_V' : 'bochner_h1'
             },
-            'observation_operator' : {
-                'name' : 'identity',
-            }
+            # 'observation_operator' : {
+            #     'name' : 'identity',
+            # },
             # 'observation_operator' : {
             #     'name' : 'RoI',
             #     'RoI' : np.array([[0.0,0.5], [0.0,0.5]])
             # }
+            'observation_operator' : {
+                'name' : 'sensors',
+                'N' : 5,
+                'r' : 0.05,    
+            }
         }
     }
 
     FOM, _, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
+
+    # FOM.visualizer.visualize()
+
+    # import sys
+    # sys.exit()
+
 
     # FOM.visualizer.visualize(q_exact)
     # import sys
@@ -156,7 +167,7 @@ def main():
         #     'atol' : 1e-12,
         #     'maxiter' : 1e3
         # },
-        'HaPOD_tol': 1e-3,
+        'HaPOD_tol': 1e-6,
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,
         #####################
