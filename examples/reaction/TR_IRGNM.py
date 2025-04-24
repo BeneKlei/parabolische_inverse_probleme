@@ -47,8 +47,8 @@ def main():
     nt = 50
     #nt = 100
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
     noise_level = 1e-5
 
@@ -150,13 +150,8 @@ def main():
             'lin_solver_tol' : 1e-10,
             'inital_step_size' : 1
         },
-        # 'lin_solver_parms' : {
-        #     'method' : 'BiCGSTAB',
-        #     'rtol' : 1e-12,
-        #     'atol' : 1e-12,
-        #     'maxiter' : 1e3
-        # },
-        'HaPOD_tol': 1e-3,
+        #'HaPOD_tol': 1e-30,
+        'HaPOD_tol': 1e-6,
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,
         #####################

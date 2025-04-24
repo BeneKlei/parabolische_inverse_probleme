@@ -920,6 +920,20 @@ class InstationaryModelIP(ImmutableObject):
                                         alpha=alpha,
                                         use_cached_operators=use_cached_operators)
 
+    def compute_objective_error_estimate(self,
+                                         q: VectorArray,
+                                         use_cached_operators: bool = False) -> float:
+        u = self.solve_state(q, 
+                             use_cached_operators=use_cached_operators)
+        p = self.solve_adjoint(q=q, 
+                               u=u, 
+                               use_cached_operators=use_cached_operators)   
+
+        return self.estimate_objective_error(q=q,
+                                             u = u,
+                                             p = p,
+                                             use_cached_operators=use_cached_operators)
+
 #%% helpers
     def compute_gradient_norm(self,
                               V: VectorArray) -> float:
