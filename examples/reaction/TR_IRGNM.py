@@ -152,9 +152,9 @@ def main():
         },
         'enrichment' : {
             'parameter_strategy' : 'snapshot_HaPOD',
-            'parameter_HaPOD_tol': 1e-9,
+            'parameter_HaPOD_tol': 1e-12,
             'state_strategy' : 'snapshot_HaPOD',
-            'state_HaPOD_tol': 1e-9,
+            'state_HaPOD_tol': 1e-6,
         },
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,

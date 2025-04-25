@@ -248,42 +248,6 @@ optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
 setup['problem_parameter']['time_factor'] = 'sinus'
 optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
 optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-optimizer_parameter['enrichment']['parameter_HaPOD_tol'] = 1e-3
-optimizer_parameter['enrichment']['state_HaPOD_tol'] = 1e-3
-EXPERIMENTS['reaction_TR_time_dep_1e-3'] = (setup, optimizer_parameter)
-
-setup = copy.deepcopy(diffusion_300_setup)
-optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
-setup['problem_parameter']['time_factor'] = 'sinus'
-optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
-optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-optimizer_parameter['enrichment']['parameter_HaPOD_tol'] = 1e-3
-optimizer_parameter['enrichment']['state_HaPOD_tol'] = 1e-3
-EXPERIMENTS['diffusion_TR_time_dep_1e-3'] = (setup, optimizer_parameter)
-
-setup = copy.deepcopy(reaction_300_setup)
-optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
-setup['problem_parameter']['time_factor'] = 'sinus'
-optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
-optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-optimizer_parameter['enrichment']['parameter_HaPOD_tol'] = 1e-6
-optimizer_parameter['enrichment']['state_HaPOD_tol'] = 1e-6
-EXPERIMENTS['reaction_TR_time_dep_1e-6'] = (setup, optimizer_parameter)
-
-setup = copy.deepcopy(diffusion_300_setup)
-optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
-setup['problem_parameter']['time_factor'] = 'sinus'
-optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
-optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-optimizer_parameter['enrichment']['parameter_HaPOD_tol'] = 1e-6
-optimizer_parameter['enrichment']['state_HaPOD_tol'] = 1e-6
-EXPERIMENTS['diffusion_TR_time_dep_1e-6'] = (setup, optimizer_parameter)
-
-setup = copy.deepcopy(reaction_300_setup)
-optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
-setup['problem_parameter']['time_factor'] = 'sinus'
-optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
-optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
 optimizer_parameter['enrichment']['parameter_HaPOD_tol'] = 1e-9
 optimizer_parameter['enrichment']['state_HaPOD_tol'] = 1e-9
 EXPERIMENTS['reaction_TR_time_dep_1e-9'] = (setup, optimizer_parameter)
@@ -352,46 +316,6 @@ optimizer_parameter['enrichment']['state_HaPOD_tol'] = 1e-6
 EXPERIMENTS['diffusion_TR_time_dep_1e-12_1e-6'] = (setup, optimizer_parameter)
 
 ###################################### TR non-time-dep ######################################
-
-setup = copy.deepcopy(reaction_300_setup_non_time_dep)
-optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
-setup['model_parameter']['q_time_dep'] = False
-setup['problem_parameter']['time_factor'] = 'constant'
-optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
-optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-optimizer_parameter['enrichment']['parameter_HaPOD_tol'] = 1e-3
-optimizer_parameter['enrichment']['state_HaPOD_tol'] = 1e-3
-EXPERIMENTS['reaction_TR_non_time_dep_1e-3'] = (setup, optimizer_parameter)
-
-setup = copy.deepcopy(diffusion_300_setup_non_time_dep)
-optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
-setup['model_parameter']['q_time_dep'] = False
-setup['problem_parameter']['time_factor'] = 'constant'
-optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
-optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-optimizer_parameter['enrichment']['parameter_HaPOD_tol'] = 1e-3
-optimizer_parameter['enrichment']['state_HaPOD_tol'] = 1e-3
-EXPERIMENTS['diffusion_TR_non_time_dep_1e-3'] = (setup, optimizer_parameter)
-
-setup = copy.deepcopy(reaction_300_setup_non_time_dep)
-optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
-setup['model_parameter']['q_time_dep'] = False
-setup['problem_parameter']['time_factor'] = 'constant'
-optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
-optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-optimizer_parameter['enrichment']['parameter_HaPOD_tol'] = 1e-6
-optimizer_parameter['enrichment']['state_HaPOD_tol'] = 1e-6
-EXPERIMENTS['reaction_TR_non_time_dep_1e-6'] = (setup, optimizer_parameter)
-
-setup = copy.deepcopy(diffusion_300_setup_non_time_dep)
-optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
-setup['model_parameter']['q_time_dep'] = False
-setup['problem_parameter']['time_factor'] = 'constant'
-optimizer_parameter['q_0'] = setup['model_parameter']['q_circ']
-optimizer_parameter['noise_level'] = setup['model_parameter']['noise_level']
-optimizer_parameter['enrichment']['parameter_HaPOD_tol'] = 1e-6
-optimizer_parameter['enrichment']['state_HaPOD_tol'] = 1e-6
-EXPERIMENTS['diffusion_TR_non_time_dep_1e-6'] = (setup, optimizer_parameter)
 
 setup = copy.deepcopy(reaction_300_setup_non_time_dep)
 optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)

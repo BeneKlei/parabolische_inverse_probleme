@@ -134,7 +134,7 @@ def main():
         'i_max' : 75,
         'reg_loop_max' : 10,
         'i_max_inner' : 10,
-        'agc_armijo_max_iter' : 25,
+        'agc_armijo_max_iter' : 100,
         #'TR_armijo_max_iter' : 10,
         'TR_armijo_max_iter' : 5,
         #####################
@@ -152,7 +152,7 @@ def main():
         # },
         'enrichment' : {
             'parameter_strategy' : 'snapshot_HaPOD',
-            'parameter_HaPOD_tol': 1e-9,
+            'parameter_HaPOD_tol': 1e-12,
             'state_strategy' : 'snapshot_HaPOD',
             'state_HaPOD_tol': 1e-9,
         },
