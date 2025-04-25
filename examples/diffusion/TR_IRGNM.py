@@ -134,7 +134,7 @@ def main():
         'i_max' : 75,
         'reg_loop_max' : 10,
         'i_max_inner' : 10,
-        'agc_armijo_max_iter' : 100,
+        'agc_armijo_max_iter' : 25,
         #'TR_armijo_max_iter' : 10,
         'TR_armijo_max_iter' : 5,
         #####################
@@ -152,7 +152,8 @@ def main():
         # },
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,
-        'HaPOD_tol': 1e-6,
+        'HaPOD_tol': 1e-9,
+        #'HaPOD_tol': 1e-3,
         #####################
         'eta0' : 1e-1,
         'kappa_arm' : 1e-12,
