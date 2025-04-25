@@ -70,10 +70,19 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         self.residual_image_basis_mode = residual_image_basis_mode 
         self.logger.debug(f"Using residual image basis mode: '{residual_image_basis_mode}'.")
     
+    def delete_cached_operators(self) -> None:
+        self.logger.debug('Deleting cache')
+
+        del self._cached_operators['A']
+        
+        self._cached_operators = {
+            'A' : None,
+        }
+    
     def calc_projection_error(self,
                               x: VectorArray,
                               basis: str,
-                              normalize: bool =False) -> float:   
+                              normalize: bool = False) -> float:   
                               
         
         assert isinstance(x, VectorArray)
@@ -136,14 +145,12 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         assert len(self.FOM.setup['model_parameter']['parameters']) == 1
         parameter_name = list(self.FOM.setup['model_parameter']['parameters'].keys())[0] 
 
-        operators = [self.FOM.A.constant_operator]
-        start = 0
-        # if not self._cached_operators['A']:
-        #     operators = [self.FOM.A.constant_operator]
-        #     start = 0
-        # else:
-        #     operators = list(self._cached_operators['A'].operators)        
-        #     start = len(operators) - 1
+        if not self._cached_operators['A']:
+            operators = [self.FOM.A.constant_operator]
+            start = 0
+        else:
+            operators = list(self._cached_operators['A'].operators)        
+            start = len(operators) - 1
         coefficients = [1]
         
 

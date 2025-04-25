@@ -34,7 +34,7 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    # = 300
+    #N = 300
     N = 100
     #N = 30
     par_dim = (N+1)**2
@@ -47,8 +47,8 @@ def main():
     nt = 50
     #nt = 100
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
     noise_level = 1e-5
 
@@ -150,8 +150,12 @@ def main():
             'lin_solver_tol' : 1e-10,
             'inital_step_size' : 1
         },
-        #'HaPOD_tol': 1e-30,
-        'HaPOD_tol': 1e-6,
+        'enrichment' : {
+            'parameter_strategy' : 'snapshot_HaPOD',
+            'parameter_HaPOD_tol': 1e-9,
+            'state_strategy' : 'snapshot_HaPOD',
+            'state_HaPOD_tol': 1e-9,
+        },
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2,
         #####################

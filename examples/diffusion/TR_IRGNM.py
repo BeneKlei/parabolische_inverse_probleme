@@ -46,8 +46,8 @@ def main():
     # TODO Here is a Bug
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
     noise_level = 1e-5
 
@@ -80,8 +80,8 @@ def main():
             'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'PacMan',
-            'time_factor' : 'constant',
-            #'time_factor' : 'sinus',
+            #'time_factor' : 'constant',
+            'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -150,10 +150,14 @@ def main():
         #     'atol' : 1e-12,
         #     'maxiter' : 1e3
         # },
+        'enrichment' : {
+            'parameter_strategy' : 'snapshot_HaPOD',
+            'parameter_HaPOD_tol': 1e-9,
+            'state_strategy' : 'snapshot_HaPOD',
+            'state_HaPOD_tol': 1e-9,
+        },
         'use_cached_operators' : True,
-        'dump_every_nth_loop' : 2,
-        'HaPOD_tol': 1e-9,
-        #'HaPOD_tol': 1e-3,
+        'dump_every_nth_loop' : 2,        
         #####################
         'eta0' : 1e-1,
         'kappa_arm' : 1e-12,
