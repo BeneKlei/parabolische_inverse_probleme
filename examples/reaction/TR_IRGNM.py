@@ -34,8 +34,8 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    #N = 300
-    N = 100
+    N = 300
+    #N = 100
     #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
@@ -152,7 +152,7 @@ def main():
         },
         'enrichment' : {
             'parameter_strategy' : 'snapshot_HaPOD',
-            'parameter_HaPOD_tol': 1e-12,
+            'parameter_HaPOD_tol': 1e-9,
             'state_strategy' : 'snapshot_HaPOD',
             'state_HaPOD_tol': 1e-6,
         },

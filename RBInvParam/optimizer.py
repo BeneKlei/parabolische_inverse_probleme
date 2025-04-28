@@ -11,7 +11,7 @@ from pymor.algorithms.hapod import inc_vectorarray_hapod
 from pymor.vectorarrays.numpy import NumpyVectorArray
 from pymor.operators.interface import Operator
 from pymor.core.base import BasicObject
-from pymor.algorithms.gram_schmidt import gram_schmidt
+from pymor.core.exceptions import ExtensionError
 
 
 from RBInvParam.model import InstationaryModelIP
@@ -24,7 +24,7 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 
 
 MACHINE_EPS = 1e-16
-STAGNATION_TOL = 1e-3
+STAGNATION_TOL = 1e-6
 
 class Optimizer(BasicObject):
     def __init__(self, 
@@ -413,10 +413,10 @@ class Optimizer(BasicObject):
 
                 TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 1])
 
-                if model_unsufficent or TR_max_iter_cond:
+                if TR_max_iter_cond:
                     break
-                else:
-                    q = q_TR
+                
+                q = q_TR
             else:
                 q += d
 
@@ -461,6 +461,9 @@ class Optimizer(BasicObject):
                                     save_path=save_path)
 
             self.IRGNM_statistics["total_runtime"].append(timer() - start_time) 
+
+            if model_unsufficent:
+                break
 
         self.logger.info(f'Final {method_name} Statistics:')
         if loop_terminated:
@@ -895,10 +898,14 @@ class QrVrROMOptimizer(Optimizer):
                               omega=0.1,                
                               product=product)
         
-        self.reductor.extend_basis(
-            U = snapshots,
-            basis = basis
-        )
+        try:
+            self.reductor.extend_basis(
+                U = snapshots,
+                basis = basis
+            )
+        except ExtensionError:
+            self._logger.warning(f"No new vectors were added to {basis}, with tol = {HaPOD_tol}.")
+
 
     def _extend_basis_full_HaPOD(self,
                                  snapshots: VectorArray,
