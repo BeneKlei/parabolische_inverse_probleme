@@ -4,20 +4,27 @@ from abc import abstractmethod
 from typing import Dict, Union, Tuple
 from timeit import default_timer as timer
 from pathlib import Path
+import scipy.sparse.linalg as spla
 
 from pymor.vectorarrays.interface import VectorArray
 from pymor.algorithms.hapod import inc_vectorarray_hapod
 from pymor.vectorarrays.numpy import NumpyVectorArray
 from pymor.operators.interface import Operator
 from pymor.core.base import BasicObject
+from pymor.core.exceptions import ExtensionError
+
 
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.gradient_descent import gradient_descent_linearized_problem
+from RBInvParam.linear_solver.gradient_descent import gradient_descent_linearized_problem
+from RBInvParam.linear_solver.BiCGSTAB import BiCGStab_linearized_problem
 from RBInvParam.reductor import InstationaryModelIPReductor
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.io import save_dict_to_pkl
+from RBInvParam.domain_projector import SimpleBoundDomainProjector
+
 
 MACHINE_EPS = 1e-16
+STAGNATION_TOL = 1e-6
 
 class Optimizer(BasicObject):
     def __init__(self, 
@@ -45,6 +52,8 @@ class Optimizer(BasicObject):
         self.name = None
         self.IRGNM_idx = 0
         self.IRGNM_statistics = {}
+
+        self.linear_solver_operator = None
 
     def _check_optimizer_parameter(self) -> None:
         keys = self.optimizer_parameter.keys()
@@ -87,19 +96,26 @@ class Optimizer(BasicObject):
                                eta: float,
                                beta: float,
                                kappa_arm: float,
-                               use_cached_operators: bool = False) -> Tuple[NumpyVectorArray, float, bool]:
-        
+                               use_cached_operators: bool = False,
+                               projector: SimpleBoundDomainProjector = None) -> Tuple[NumpyVectorArray, float, bool]:
+
         assert 0 <= beta < 1
         assert 0 < eta
+        
         i = 0
         model_unsufficent = False
+        TR_max_iter_cond = False
 
         self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
         step_size = inital_step_size
-        print(inital_step_size)
-        print(model.compute_gradient_norm(search_direction))
         search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
-        current_q = previous_q + step_size * search_direction
+
+        if projector:
+            projector.pre_compute(center=previous_q)
+            current_q = projector.project_domain(previous_q, step_size * search_direction)
+        else:
+            current_q = previous_q + step_size * search_direction
+
         u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
         p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
         current_J = model.objective(u=u,
@@ -114,6 +130,7 @@ class Optimizer(BasicObject):
 
         if abs(rhs) <= MACHINE_EPS:
             rhs = 0
+
         armijo_condition = lhs >= rhs
         if current_J > 0:
             J_rel_error = model.estimate_objective_error(
@@ -129,9 +146,19 @@ class Optimizer(BasicObject):
         condition = armijo_condition & TR_condition
         i += 1
 
+        # print(lhs)
+        # print(rhs)
+        # print(step_size)
+
         while (not condition) and (i < max_iter):
             step_size = 0.5 * step_size
-            current_q = previous_q + step_size * search_direction
+            
+            if projector: 
+                projector.pre_compute(center=previous_q)
+                current_q = projector.project_domain(previous_q, step_size * search_direction)
+            else:
+                current_q = previous_q + step_size * search_direction
+
             u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
             p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
             current_J = model.objective(u=u,
@@ -146,6 +173,11 @@ class Optimizer(BasicObject):
 
             if abs(rhs) <= MACHINE_EPS:
                 rhs = 0
+
+            # print("############")
+            # print(lhs)
+            # print(rhs)
+            # print(step_size)
 
             armijo_condition = lhs >= rhs
 
@@ -162,16 +194,12 @@ class Optimizer(BasicObject):
             condition = armijo_condition & TR_condition
             
             i += 1
-        if (J_rel_error > beta * eta) or (i == max_iter):
+        if (J_rel_error > beta * eta):
             model_unsufficent = True
+        
+        if i == max_iter:
+            TR_max_iter_cond = True
     
-        print(max_iter)
-        print(i)
-        print(J_rel_error)
-        print(eta)      
-        print(beta * eta)
-        print(model_unsufficent)
-
 
         if not condition:
             self.logger.error(f"Armijo backtracking does NOT terminate normally. step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
@@ -180,7 +208,7 @@ class Optimizer(BasicObject):
         else:
             self.logger.debug(f"Armijo backtracking does terminate normally with step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
 
-        return (current_q, current_J, model_unsufficent)
+        return (current_q, current_J, model_unsufficent, TR_max_iter_cond, step_size)
     
     def IRGNM(self,
               model: InstationaryModelIP,
@@ -198,7 +226,8 @@ class Optimizer(BasicObject):
               TR_backtracking_params: Dict = None,
               use_cached_operators: bool = False,
               dump_IRGNM_intermed_stats: bool = False,
-              dump_every_nth_loop: int = 0) -> Tuple[VectorArray, Dict]: 
+              dump_every_nth_loop: int = 0,
+              projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, Dict]: 
 
         assert q_0 in model.Q
         assert tol > 0
@@ -206,10 +235,7 @@ class Optimizer(BasicObject):
         assert noise_level >= 0
         #assert 0 < theta < Theta < 1
 
-        assert lin_solver_parms is not None
-        lin_solver_max_iter = lin_solver_parms['lin_solver_max_iter']
-        lin_solver_tol = lin_solver_parms['lin_solver_tol']
-        lin_solver_inital_step_size = lin_solver_parms['lin_solver_inital_step_size']
+        assert lin_solver_parms is not None        
 
         if use_TR:
             assert TR_backtracking_params is not None
@@ -227,11 +253,29 @@ class Optimizer(BasicObject):
             "norm_nabla_J" : [],
             "total_runtime" : [],
             "stagnation_flag" : False,
-            "FOM_num_calls" : {}
+            "FOM_num_calls" : {},
+            "counts" : None
         }
+        counts = {
+            'IRGNM_loop_iter' : -1,
+            'reg_loop_iter' : [],
+            'lin_solver_iter' : [],
+            'loop_terminated' : []
+        }
+
         start_time = timer()
         i = 0
         model_unsufficent = False
+        
+        if not q_0 in self.FOM.Q:
+            q_ = self.reductor.reconstruct(q_0, basis='parameter_basis')
+        else:
+            q_ = q_0.copy()
+
+        q_ = q_.to_numpy().flatten()
+        mask_lb = q_ >= self.FOM.bounds[:,0]
+        mask_ub = q_ <= self.FOM.bounds[:,1]
+        assert np.all(mask_lb) and np.all(mask_ub)
 
         alpha = alpha_0
         q = q_0.copy()
@@ -240,7 +284,6 @@ class Optimizer(BasicObject):
         J = model.objective(u)
         nabla_J = model.gradient(u, p, q, use_cached_operators=use_cached_operators)
         norm_nabla_J = model.compute_gradient_norm(nabla_J)
-
 
         self.IRGNM_statistics["q"].append(q)
         self.IRGNM_statistics["J"].append(J)
@@ -265,25 +308,28 @@ class Optimizer(BasicObject):
             self.logger.warning(f"{method_name}: Iteration {i} | J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start {method_name} iteration {i}: J = {J:3.4e}, norm_nabla_J = {model.compute_gradient_norm(nabla_J):3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
-            self.logger.info(f"Try 0: test alpha = {alpha:3.4e}.")
+            self.logger.info(f"Try 1: test alpha = {alpha:3.4e}.")
 
             regularization_qualification = False
             count = 1
+
+            if projector:
+                projector.pre_compute(center=q)
 
             d_start = q.to_numpy().copy()
             d_start[:,:] = 0
             d_start = model.Q.make_array(d_start)
 
-            d = self.solve_linearized_problem(model=model,
-                                              q=q,
-                                              d_start=d_start,
-                                              alpha=alpha,
-                                              method='gd',
-                                              max_iter=lin_solver_max_iter,
-                                              tol=lin_solver_tol,
-                                              inital_step_size=lin_solver_inital_step_size, 
-                                              logger = self.logger,
-                                              use_cached_operators=use_cached_operators)
+            d, lin_solver_iter = self.solve_linearized_problem(model=model,
+                                                               q=q,
+                                                               d_start=d_start,
+                                                               alpha=alpha,
+                                                               lin_solver_parms = lin_solver_parms, 
+                                                               logger = self.logger,
+                                                               use_cached_operators=use_cached_operators,
+                                                               projector=projector)
+
+            counts['lin_solver_iter'].append([lin_solver_iter])
             
             lin_u = model.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
             lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0, use_cached_operators=use_cached_operators)
@@ -298,6 +344,7 @@ class Optimizer(BasicObject):
 
             loop_terminated = False
             while (not regularization_qualification) and (count < reg_loop_max):
+                count += 1
 
                 if alpha <= 1e-14:
                     loop_terminated = True
@@ -312,16 +359,17 @@ class Optimizer(BasicObject):
                 
                 self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
                 self.logger.info(f"Try {count}: test alpha = {alpha:3.4e}.")
-                d = self.solve_linearized_problem(model=model,
-                                                  q=q,
-                                                  d_start=d_start,
-                                                  alpha=alpha,
-                                                  method='gd',
-                                                  max_iter=lin_solver_max_iter,
-                                                  tol=lin_solver_tol,
-                                                  inital_step_size=lin_solver_inital_step_size, 
-                                                  logger = self.logger,
-                                                  use_cached_operators=use_cached_operators)
+
+                d, lin_solver_iter = self.solve_linearized_problem(model=model,
+                                                                   q=q,
+                                                                   d_start=d_start,
+                                                                   alpha=alpha,
+                                                                   lin_solver_parms = lin_solver_parms,
+                                                                   logger = self.logger,
+                                                                   use_cached_operators=use_cached_operators,
+                                                                   projector=projector)
+
+                counts['lin_solver_iter'][-1].append(lin_solver_iter)
 
                 lin_u = model.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
                 lin_J = model.linearized_objective(q, d, u, lin_u, alpha=0, use_cached_operators=use_cached_operators)
@@ -335,9 +383,12 @@ class Optimizer(BasicObject):
                 else:
                     self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
 
-                count += 1
+                
 
             loop_terminated = loop_terminated or (count >= reg_loop_max)
+
+            counts['reg_loop_iter'].append(count)
+            counts['loop_terminated'].append(loop_terminated)
 
             if not loop_terminated:
                 self.logger.warning(f"Used alpha = {alpha:3.4e} does satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
@@ -345,20 +396,27 @@ class Optimizer(BasicObject):
                 self.logger.error(f"Not found valid alpha before reaching maximum number of tries : {reg_loop_max}.\n\
                                    Using the last alpha tested = {alpha:3.4e}.")
                 
+                break
+                
             ########################################### Armijo ###########################################
             if use_TR:
                 self.logger.info(f"Enforcing TR condition.")
-                q_TR, _, model_unsufficent = self._armijo_TR_line_serach(model = model,
-                                                                         previous_q = q,
-                                                                         previous_J = J,
-                                                                         search_direction = d,
-                                                                         **TR_backtracking_params,
-                                                                         use_cached_operators=use_cached_operators)
+                q_TR, _, model_unsufficent, TR_max_iter_cond, step_size = self._armijo_TR_line_serach(
+                    model = model,
+                    previous_q = q,
+                    previous_J = J,
+                    search_direction = d,
+                    **TR_backtracking_params,
+                    use_cached_operators=use_cached_operators,
+                    projector=projector
+                )
 
-                if model_unsufficent:
+                TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 1])
+
+                if TR_max_iter_cond:
                     break
-                else:
-                    q = q_TR
+                
+                q = q_TR
             else:
                 q += d
 
@@ -375,11 +433,11 @@ class Optimizer(BasicObject):
             self.IRGNM_statistics["J"].append(J)
             self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
             self.IRGNM_statistics["alpha"].append(alpha)
-        
+
             #stagnation check
             if i > 3:
                 buffer = self.IRGNM_statistics["J"][-3:]
-                if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] -buffer[2]) < MACHINE_EPS:
+                if abs(buffer[0] - buffer[1]) / abs(buffer[0]) < STAGNATION_TOL and abs(buffer[1] - buffer[2]) / abs(buffer[1])< STAGNATION_TOL:
                     self.IRGNM_statistics["stagnation_flag"] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     stagnation_flag = True
@@ -404,15 +462,22 @@ class Optimizer(BasicObject):
 
             self.IRGNM_statistics["total_runtime"].append(timer() - start_time) 
 
+            if model_unsufficent:
+                break
+
         self.logger.info(f'Final {method_name} Statistics:')
-        if i == i_max and not model_unsufficent:
+        if loop_terminated:
+            self.logger.info(f'     {method_name} No sufficient regularization constant found i = {i}')
+        elif i == i_max and not model_unsufficent:
             self.logger.info(f'     {method_name} reached maxit at i = {i}')
         elif i < i_max and not model_unsufficent:
             self.logger.info(f'     {method_name} converged at i = {i}')
+        elif TR_max_iter_cond:
+            self.logger.info(f'     {method_name} TR backtracking reach maximum iteration number at i = {i}')
         elif model_unsufficent:
             self.logger.info(f'     {method_name} TR boundary criterium triggered at i = {i}')
         elif stagnation_flag:
-            self.logger.info(f'     {method_name} TR stagnated at at i = {i}')
+            self.logger.info(f'     {method_name} TR stagnated at i = {i}')
         else:
             # Should never be happend
             raise NotImplementedError
@@ -422,52 +487,47 @@ class Optimizer(BasicObject):
         self.logger.info(f'     Start norm_nabla_J = {self.IRGNM_statistics["norm_nabla_J"][0]:3.4e}; Final norm_nabla_J = {self.IRGNM_statistics["norm_nabla_J"][-1]:3.4e}.')
         self.logger.info(f'     Euclidian distance final q and inital q = {np.linalg.norm(q.to_numpy() - q_0.to_numpy()):3.4e}')
 
+        counts['IRGNM_loop_iter'] = self.IRGNM_idx
+
+        self.IRGNM_statistics["counts"] = counts
         self.IRGNM_statistics["total_runtime"].append(timer() - start_time)
         self.IRGNM_idx += 1
         return (q, self.IRGNM_statistics)
 
     def solve_linearized_problem(self,
                                 model : InstationaryModelIP, 
-                                q : np.array,
-                                d_start : np.array,
+                                q : VectorArray,
+                                d_start : VectorArray,
                                 alpha : float,
-                                method : str,
                                 use_cached_operators: bool,
-                                **kwargs : Dict) -> np.array:
-    
+                                logger: logging.Logger,
+                                lin_solver_parms : Dict,
+                                projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, int]:
+
+        method = lin_solver_parms['method']
         if method == 'gd':
-            return gradient_descent_linearized_problem(model, 
-                                                       q, 
-                                                       d_start, 
-                                                       alpha, 
+            return gradient_descent_linearized_problem(model=model,
+                                                       q = q, 
+                                                       d_start = d_start, 
+                                                       alpha = alpha,
                                                        use_cached_operators=use_cached_operators,
-                                                       **kwargs)
-        elif method == 'cg':
-            raise NotImplementedError
+                                                       logger=logger,
+                                                       lin_solver_parms = lin_solver_parms,
+                                                       projector=projector)
+        elif method == 'BiCGSTAB':
+            return BiCGStab_linearized_problem(model, 
+                                               q = q, 
+                                               d_start = d_start, 
+                                               alpha = alpha,
+                                               use_cached_operators=use_cached_operators,
+                                               logger=logger,
+                                               lin_solver_parms = lin_solver_parms)
+
+
+           
         else:
             raise ValueError
-    
-    def _HaPOD(self, 
-               shapshots: VectorArray, 
-               basis: str,
-               product: Operator,
-               eps: float = 1e-14) -> Tuple[VectorArray, np.array]:
-            
-        if len(self.reductor.bases[basis]) != 0:
-            projected_shapshots = self.reductor.bases[basis].lincomb(
-                self.reductor.project_vectorarray(shapshots, basis=basis)
-            )
-            shapshots.axpy(-1,projected_shapshots)
-                
-        shapshots, svals, _ = \
-        inc_vectorarray_hapod(steps=len(shapshots)/5, 
-                              U=shapshots, 
-                              eps=eps,
-                              omega=0.1,                
-                              product=product)
-
-
-        return shapshots, svals
+        
 
     def dump_stats(self, 
                    data: Dict,
@@ -503,7 +563,8 @@ class FOMOptimizer(Optimizer):
             "total_runtime" : [],
             "stagnation_flag" : False,
             "optimizer_parameter" : self.optimizer_parameter.copy(),
-            "FOM_num_calls" : {}
+            "FOM_num_calls" : {},
+            "counts" : {}
         }
 
     def solve(self) -> VectorArray:
@@ -572,6 +633,7 @@ class FOMOptimizer(Optimizer):
         self.statistics["total_runtime"] = IRGNM_statistic["total_runtime"]
         self.statistics["stagnation_flag"] = IRGNM_statistic["stagnation_flag"]
         self.statistics["FOM_num_calls"] = IRGNM_statistic["FOM_num_calls"]
+        self.statistics["counts"] = IRGNM_statistic["counts"]
 
         self.dump_stats(data=self.statistics,
                         save_path = self.save_path / f'FOM_IRGNM_final.pkl')
@@ -584,7 +646,7 @@ class QrFOMOptimizer(Optimizer):
                  FOM : InstationaryModelIP,
                  save_path : Path,
                  logger: logging.Logger = None) -> None:
-
+        raise Exception("QrFOMOptimizer is deprecated.")
         super().__init__(optimizer_parameter = optimizer_parameter, 
                          FOM = FOM, 
                          logger = logger, 
@@ -662,25 +724,23 @@ class QrFOMOptimizer(Optimizer):
         self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
         
         self.logger.debug(f"Extending Qr-space")
-        parameter_shapshots = self.FOM.Q.empty()
-        parameter_shapshots.append(nabla_J)
-        parameter_shapshots.append(q)
-        parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
+        self.parameter_shapshots = self.FOM.Q.empty()
+        self.parameter_shapshots.append(nabla_J)
+        self.parameter_shapshots.append(q)
+        self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
 
         if self.FOM.setup['model_parameter']['q_time_dep']:
             self.logger.debug(f"Performing HaPOD on parameter snapshots.")
-            parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, 
-                                                 basis='parameter_basis',
-                                                 product=self.FOM.products['prod_Q'])
+            _parameter_shapshots, _ = self._HaPOD(shapshots=self.parameter_shapshots, 
+                                                  basis='parameter_basis',
+                                                  product=self.FOM.products['prod_Q'])
 
         self.reductor.extend_basis(
-             U = parameter_shapshots,
+             U = _parameter_shapshots,
              basis = 'parameter_basis'
         )
         self.QrFOM = self.reductor.reduce()
 
-        self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
-        self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
         while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
@@ -730,17 +790,17 @@ class QrFOMOptimizer(Optimizer):
                             save_path = self.save_path / f'QrFOM_IRGNM_{i}.pkl')
             
             self.logger.debug(f"Extending Qr-space")
-            parameter_shapshots = self.FOM.Q.empty()
-            parameter_shapshots.append(nabla_J)
+            self.parameter_shapshots = self.FOM.Q.empty()
+            self.parameter_shapshots.append(nabla_J)
             
             if self.FOM.setup['model_parameter']['q_time_dep']:
                 self.logger.debug(f"Performing HaPOD on parameter snapshots.")
-                parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, 
-                                                     basis='parameter_basis',
-                                                     product=self.FOM.products['prod_Q'])
+                _parameter_shapshots, _ = self._HaPOD(shapshots=self.parameter_shapshots, 
+                                                      basis='parameter_basis',
+                                                      product=self.FOM.products['prod_Q'])
 
             self.reductor.extend_basis(
-                U = parameter_shapshots,
+                U = _parameter_shapshots,
                 basis = 'parameter_basis'
             )
             self.QrFOM = self.reductor.reduce()
@@ -770,6 +830,9 @@ class QrVrROMOptimizer(Optimizer):
         )
         self.QrVrROM = None
 
+        self.parameter_shapshots = None
+        self.state_shapshots = None
+
         self.statistics = {
             "q" : [],
             "alpha" : [],
@@ -781,9 +844,178 @@ class QrVrROMOptimizer(Optimizer):
             "total_runtime" : [],
             "stagnation_flag" : False,
             "optimizer_parameter" : self.optimizer_parameter.copy(),
-            "FOM_num_calls": {}
+            "FOM_num_calls": {},
+            "dim_Q_r" : [],
+            "dim_V_r" : [],
+            "counts" : [],
+            "reduced_bases" : None,
+            "extention_stats" : {
+                "snapshot_projection_error" : {
+                    "parameter_basis" : [],
+                    "state_basis" : []
+                },
+
+            }
         }
 
+    def _extend_basis_projected_error_HaPOD(self,
+                                            snapshots: VectorArray,
+                                            basis: str,
+                                            product: Operator,
+                                            HaPOD_tol: float = 1e-16) -> None:
+        assert isinstance(snapshots, VectorArray) 
+        assert basis in ['parameter_basis','state_basis']
+        assert HaPOD_tol > 0
+        assert product.source == product.range == snapshots.space
+
+        if len(self.reductor.bases[basis]) != 0:
+            projected_snapshots = self.reductor.bases[basis].lincomb(
+                self.reductor.project_vectorarray(snapshots, basis=basis)
+            )
+            snapshots.axpy(-1,projected_snapshots)
+        
+        self._extend_basis_projected_error_HaPOD(
+            snapshots = snapshots,
+            basis = basis,
+            product = product,
+            HaPOD_tol = HaPOD_tol
+        )
+
+    def _extend_basis_snapshot_HaPOD(self,
+                                     snapshots: VectorArray,
+                                     basis: str,
+                                     product: Operator,
+                                     HaPOD_tol: float = 1e-16) -> None:
+        assert isinstance(snapshots, VectorArray) 
+        assert basis in ['parameter_basis','state_basis']
+        assert HaPOD_tol > 0
+        assert product.source == product.range == snapshots.space
+
+        snapshots, _, _ = \
+        inc_vectorarray_hapod(steps=len(snapshots)/5, 
+                              U=snapshots, 
+                              eps=HaPOD_tol,
+                              omega=0.1,                
+                              product=product)
+        
+        try:
+            self.reductor.extend_basis(
+                U = snapshots,
+                basis = basis
+            )
+        except ExtensionError:
+            self._logger.warning(f"No new vectors were added to {basis}, with tol = {HaPOD_tol}.")
+
+
+    def _extend_basis_full_HaPOD(self,
+                                 snapshots: VectorArray,
+                                 basis: str,
+                                 product: Operator,
+                                 HaPOD_tol: float = 1e-16) -> None:
+        
+        assert isinstance(snapshots, VectorArray) 
+        assert basis in ['parameter_basis','state_basis']
+        assert HaPOD_tol > 0
+        assert product.source == product.range == snapshots.space
+
+        self.reductor.bases[basis].append(snapshots)
+        _snapshots, _, _ = \
+        inc_vectorarray_hapod(steps=len(snapshots)/5, 
+                              U=snapshots, 
+                              eps=HaPOD_tol,
+                              omega=0.1,                
+                              product=product)
+
+        self.reductor.bases[basis] = _snapshots
+
+    def extend_bases_and_rebuild_QrVrROM(self,
+                                         basis: str,
+                                         parameter_strategy: str = 'snapshot_HaPOD',
+                                         parameter_HaPOD_tol: float = 1e-16,
+                                         state_strategy: str = 'snapshot_HaPOD',
+                                         state_HaPOD_tol: float = 1e-16) -> InstationaryModelIP:
+
+        assert basis in ['parameter_basis', 'state_basis', 'both']
+        assert parameter_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
+        assert parameter_HaPOD_tol > 0
+        assert state_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
+        assert state_HaPOD_tol > 0
+
+
+        self.statistics['extention_stats']['snapshot_projection_error']['parameter_basis'].append(
+            self.reductor.calc_projection_error(
+                x = self.parameter_shapshots.copy(),
+                basis = 'parameter_basis',
+                normalize = False
+            )
+        )
+        self.statistics['extention_stats']['snapshot_projection_error']['state_basis'].append(
+            self.reductor.calc_projection_error(
+                x = self.state_shapshots.copy(),
+                basis = 'state_basis',
+                normalize = False
+            )
+        )
+
+        if basis in ['parameter_basis', 'both']:
+            self.logger.debug(f"Extending parameter basis, using {parameter_strategy}, with tol = {parameter_HaPOD_tol}.")
+            if parameter_strategy == 'snapshot_HaPOD':
+                self._extend_basis_snapshot_HaPOD(
+                    snapshots = self.parameter_shapshots,
+                    basis='parameter_basis',
+                    product=self.FOM.products['prod_Q'],
+                    HaPOD_tol = parameter_HaPOD_tol
+                )
+            elif parameter_strategy == 'projected_error_HaPOD':
+                self._extend_basis_projected_error_HaPOD(
+                    snapshots = self.parameter_shapshots,
+                    basis='parameter_basis',
+                    product=self.FOM.products['prod_Q'],
+                    HaPOD_tol = parameter_HaPOD_tol
+                )
+            elif parameter_strategy == 'full_HaPOD':
+                self._extend_basis_full_HaPOD(
+                    snapshots = self.parameter_shapshots,
+                    basis='parameter_basis',
+                    product=self.FOM.products['prod_Q'],
+                    HaPOD_tol = parameter_HaPOD_tol
+                )
+                self.reductor.delete_cached_operators()
+            else:
+                raise ValueError
+
+        if basis in ['state_basis', 'both']:
+            self.logger.debug(f"Extending state basis, using {state_strategy}, with tol = {state_HaPOD_tol}.")
+            if state_strategy == 'snapshot_HaPOD':
+                self._extend_basis_snapshot_HaPOD(
+                    snapshots = self.state_shapshots,
+                    basis='state_basis',
+                    product=self.FOM.products['prod_V'],
+                    HaPOD_tol = state_HaPOD_tol
+                )
+            elif state_strategy == 'projected_error_HaPOD':
+                self._extend_basis_projected_error_HaPOD(
+                    snapshots = self.state_shapshots,
+                    basis='state_basis',
+                    product=self.FOM.products['prod_V'],
+                    HaPOD_tol = state_HaPOD_tol
+                )
+            elif state_strategy == 'full_HaPOD':
+                self._extend_basis_full_HaPOD(
+                    snapshots = self.state_shapshots,
+                    basis='state_basis',
+                    product=self.FOM.products['prod_V'],
+                    HaPOD_tol = state_HaPOD_tol
+                )
+                self.reductor.delete_cached_operators()
+            else:
+                raise ValueError
+            
+        self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
+        self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
+
+        return self.reductor.reduce() 
+        
 
     def solve(self) -> VectorArray :
         q_0 = self.optimizer_parameter["q_0"].copy()
@@ -803,7 +1035,8 @@ class QrVrROMOptimizer(Optimizer):
 
 
         lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
-        use_cached_operators = self.optimizer_parameter['use_cached_operators']
+        use_cached_operators = self.optimizer_parameter['use_cached_operators']        
+        enrichment = self.optimizer_parameter['enrichment']
 
         dump_every_nth_loop = self.optimizer_parameter['dump_every_nth_loop']
 
@@ -831,7 +1064,7 @@ class QrVrROMOptimizer(Optimizer):
         inital_agc_armijo_step_size = 0.5 / norm_nabla_J
         inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1])
         eta = eta0
-        
+                    
         self.logger.debug("Running Qr-Vr-IRGNM:")
         self.logger.debug(f"  J : {J:3.4e}")
         self.logger.debug(f"  norm_nabla_J : {norm_nabla_J:3.4e}")
@@ -853,6 +1086,9 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"  lin_solver_parms : ")
         for (key,val) in lin_solver_parms.items():
             self.logger.debug(f"        {key} : {val}")
+        self.logger.debug(f"  enrichment : ")
+        for (key,val) in enrichment.items():
+            self.logger.debug(f"        {key} : {val}")
         self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
         self.logger.debug(f"                ")
         self.logger.debug(f"  eta0 : {eta0:3.4e}")
@@ -862,42 +1098,22 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"  beta_3 : {beta_3:3.4e}")
 
 
-        self.logger.debug(f"Extending Qr-space")
-        parameter_shapshots = self.FOM.Q.empty()
-        parameter_shapshots.append(nabla_J)
-        parameter_shapshots.append(q)
-        parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
-        
-        if self.FOM.setup['model_parameter']['q_time_dep']:
-            self.logger.debug(f"Performing HaPOD on parameter snapshots.")
-            parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, 
-                                                 basis='parameter_basis',
-                                                 product=self.FOM.products['prod_Q'])
+        self.logger.debug(f"Extending Qr-snapshots")
+        self.parameter_shapshots = self.FOM.Q.empty()
+        self.parameter_shapshots.append(nabla_J)
+        self.parameter_shapshots.append(q)
+        self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
 
-        self.reductor.extend_basis(
-             U = parameter_shapshots,
-             basis = 'parameter_basis'
+        self.logger.debug(f"Extending Vr-snapshots")
+        self.state_shapshots = self.FOM.V.empty()
+        self.state_shapshots.append(u)
+        self.state_shapshots.append(p)
+
+        self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+            basis='both',
+            **enrichment
         )
-
-        self.logger.debug(f"Extending Vr-space")
-        state_shapshots = self.FOM.V.empty()
-        state_shapshots.append(u)
-        state_shapshots.append(p)
-
-        self.logger.debug(f"Performing HaPOD on state snapshots.")
-        state_shapshots, _ = self._HaPOD(shapshots=state_shapshots, 
-                                         basis='state_basis',
-                                         product=self.FOM.products['prod_V'])
         
-        self.reductor.extend_basis(
-             U = state_shapshots,
-             basis = 'state_basis'
-        )
-
-        self.QrVrROM = self.reductor.reduce()
-        
-        self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
-        self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
         q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
         q_r = self.QrVrROM.Q.make_array(q_r)
@@ -924,8 +1140,12 @@ class QrVrROMOptimizer(Optimizer):
         self.statistics["J_r"].append(J_r)
         self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
         self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
+        self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
+        self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
 
-        while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
+        convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
+
+        while not convergence_criterium and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             self.logger.warning(f"Qr-Vr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start Qr-Vr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
@@ -938,13 +1158,48 @@ class QrVrROMOptimizer(Optimizer):
             p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
             J_r = self.QrVrROM.objective(u_r)
             nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
+
+            abs_est_error_J_r = self.QrVrROM.estimate_objective_error(
+                q=q_r,
+                u = u_r,
+                p = p_r,
+                use_cached_operators=use_cached_operators)
             
+            if J_r > 0:
+                rel_est_error_J_r = abs_est_error_J_r / J_r
+            else:
+                rel_est_error_J_r = np.inf
+
+            if rel_est_error_J_r > eta:
+                assert enrichment['parameter_strategy'] in ['snapshot_HaPOD', 'projected_error_HaPOD']
+                assert enrichment['state_strategy'] in ['snapshot_HaPOD', 'projected_error_HaPOD']
+
+                self._logger.warning(f"q^(i) is not in the trust region.")
+                self._logger.warning(f"Extending reduced spaces with all snapshots.")
+
+                self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                    basis='both',
+                    parameter_strategy = enrichment['parameter_strategy'],
+                    parameter_HaPOD_tol=MACHINE_EPS,
+                    state_strategy = enrichment['state_strategy'],
+                    state_HaPOD_tol=MACHINE_EPS
+                )
+                assert rel_est_error_J_r <= eta
+
             IRGNM_statistic = None
+            projector = SimpleBoundDomainProjector(
+                model = self.QrVrROM,
+                bounds = self.FOM.bounds,
+                reductor = self.reductor,
+                use_sufficient_condition = True,
+                logger = self.logger
+            )
 
             ########################################### AGC ###########################################
 
             self.logger.warning("Calculate AGC with Armijo backtracking.")
-            q_agc, J_r_AGC, model_unsufficent = self._armijo_TR_line_serach(
+
+            q_agc, J_r_AGC, model_unsufficent, AGC_max_iter_cond, _ = self._armijo_TR_line_serach(
                 model = self.QrVrROM,
                 previous_q = q_r,
                 previous_J = J_r,
@@ -954,20 +1209,34 @@ class QrVrROMOptimizer(Optimizer):
                 eta = eta,
                 beta = beta_1,
                 kappa_arm = kappa_arm,
-                use_cached_operators=use_cached_operators
+                use_cached_operators=use_cached_operators,
+                projector=projector
             )
-            
+
+            if J_r_AGC >= J:
+                self._logger.warning(f"J_r_AGC = {J_r_AGC:3.4e} is greater or equal than J = {J:3.4e}.")
+                self._logger.warning(f"Extending reduced spaces with all snapshots and recomputing AGC.")
+
+                self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                    basis='both',
+                    parameter_strategy = enrichment['parameter_strategy'],
+                    parameter_HaPOD_tol=MACHINE_EPS,
+                    state_strategy = enrichment['state_strategy'],
+                    state_HaPOD_tol=MACHINE_EPS
+                )
+                continue
+
+            assert not AGC_max_iter_cond
             q_r = q_agc.copy()
             ########################################### IRGNM ###########################################
+            TR_backtracking_params = {
+                'max_iter' : TR_armijo_max_iter, 
+                'inital_step_size' : 1, 
+                'eta' : eta, 
+                'beta' : beta_1, 
+                "kappa_arm" : kappa_arm
+            }
             if not model_unsufficent:
-                TR_backtracking_params = {
-                    'max_iter' : TR_armijo_max_iter, 
-                    'inital_step_size' : 1, 
-                    'eta' : eta, 
-                    'beta' : beta_1, 
-                    "kappa_arm" : kappa_arm
-                }
-
                 q_r, IRGNM_statistic = self.IRGNM(model = self.QrVrROM,
                                                   q_0 = q_r,
                                                   alpha_0 = alpha,
@@ -981,7 +1250,8 @@ class QrVrROMOptimizer(Optimizer):
                                                   use_TR=True,
                                                   TR_backtracking_params=TR_backtracking_params,
                                                   lin_solver_parms=lin_solver_parms,
-                                                  use_cached_operators=use_cached_operators)
+                                                  use_cached_operators=use_cached_operators,
+                                                  projector=projector)
 
             ########################################### Accept / Reject ###########################################
 
@@ -1030,6 +1300,7 @@ class QrVrROMOptimizer(Optimizer):
                     u = self.FOM.solve_state(q)
                     p = self.FOM.solve_adjoint(q, u)
                     J = self.FOM.objective(u)
+
                     nabla_J = self.FOM.gradient(u, p, q)
                     norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
@@ -1063,12 +1334,6 @@ class QrVrROMOptimizer(Optimizer):
                     if EASDC:
                         self.logger.info(f"    Accept q.")
                         rejected = False
-                        q = self.reductor.reconstruct(q_r, basis='parameter_basis')
-                        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-                        p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
-                        J = self.FOM.objective(u)
-                        nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
-                        norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
                         delta_J = self.statistics["J"][-1] - J
                         delta_J_r = self.statistics["J_r"][-1] - J_r
@@ -1100,6 +1365,9 @@ class QrVrROMOptimizer(Optimizer):
                 eta = beta_3 * eta
 
             ########################################### Final ###########################################
+
+            convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
+
             if not rejected:
                 delta = delta
                 
@@ -1108,7 +1376,25 @@ class QrVrROMOptimizer(Optimizer):
                         alpha = IRGNM_statistic["alpha"][1]
                     except IndexError:
                         pass
-                
+                    
+                if not convergence_criterium:
+                    self.logger.debug(f"Extending Qr-snapshots")
+                    self.parameter_shapshots = self.FOM.Q.empty()
+                    self.parameter_shapshots.append(nabla_J)
+
+                    self.logger.debug(f"Extending Vr-snapshots")
+                    self.state_shapshots = self.FOM.V.empty()
+                    self.state_shapshots.append(u)
+                    self.state_shapshots.append(p)
+
+                    self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                        basis='both',
+                        **enrichment
+                    )
+
+                    q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
+                    q_r = self.QrVrROM.Q.make_array(q_r)
+
                 self.statistics["q"].append(q)
                 self.statistics["alpha"].append(alpha)
                 self.statistics["J"].append(J)
@@ -1116,44 +1402,16 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics["J_r"].append(J_r)
                 self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
                 self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
-
-                self.logger.debug(f"Extending Qr-space")
-                parameter_shapshots = self.FOM.Q.empty()
-                parameter_shapshots.append(nabla_J)
-
-                if self.FOM.setup['model_parameter']['q_time_dep']:
-                    self.logger.debug(f"Performing HaPOD on parameter snapshots.")
-                    parameter_shapshots, _ = self._HaPOD(shapshots=parameter_shapshots, 
-                                                        basis='parameter_basis',
-                                                        product=self.FOM.products['prod_Q'])
-                self.reductor.extend_basis(
-                    U = parameter_shapshots,
-                    basis = 'parameter_basis'
-                )
-                self.logger.debug(f"Extending Vr-space")
-                state_shapshots = self.FOM.V.empty()
-                state_shapshots.append(u)
-                state_shapshots.append(p)
-
-                self.logger.debug(f"Performing HaPOD on state snapshots.")
-                state_shapshots, _ = self._HaPOD(shapshots=state_shapshots, 
-                                                basis='state_basis',
-                                                product=self.FOM.products['prod_V'])
-                
-                self.reductor.extend_basis(
-                    U = state_shapshots,
-                    basis = 'state_basis'
-                )
-                self.QrVrROM = self.reductor.reduce()
-                q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
-                q_r = self.QrVrROM.Q.make_array(q_r)
-                self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
-                self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
-
+                self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
+                self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
+                self.statistics["counts"].append(IRGNM_statistic['counts'])
+            
+            if convergence_criterium:
+                break
 
             if i > 3:
                 buffer = self.statistics["J"][-3:]
-                if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] - buffer[2]) < MACHINE_EPS:
+                if abs(buffer[0] - buffer[1]) / abs(buffer[0]) < STAGNATION_TOL and abs(buffer[1] - buffer[2]) / abs(buffer[1])< STAGNATION_TOL:
                     self.statistics["stagnation_flag"] = True
                     self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
                     break
@@ -1168,6 +1426,8 @@ class QrVrROMOptimizer(Optimizer):
 
         self.statistics["total_runtime"].append(timer() - start_time)
         self.statistics["FOM_num_calls"] = self.FOM.num_calls
+        self.statistics["reduced_bases"] = self.reductor.bases
+
         self.dump_stats(data=self.statistics,
                         save_path = self.save_path / f'TR_IRGNM_final.pkl')
         return q

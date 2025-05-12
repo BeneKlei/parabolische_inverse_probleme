@@ -5,8 +5,10 @@ import copy
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.interface import VectorArray, VectorSpace
+from pymor.operators.constructions import InverseOperator
 
 from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
+
 
 class ImplicitEulerResidualOperator(Operator):
     def __init__(self,
@@ -56,7 +58,10 @@ class ImplicitEulerResidualOperator(Operator):
         if riesz_representative:
             # TODO Maybe set solver options globally
             self.riesz_op = copy.deepcopy(self.products['prod_V'])
-            self.riesz_op.with_(solver_options='scipy_spsolve')
+            self.riesz_op = InverseOperator(self.riesz_op)
+
+
+            #self.riesz_op.with_(solver_options='scipy_spsolve')
     
     def _precompute_residual_A_q(self, 
                                  q: VectorArray) -> List:
@@ -76,7 +81,7 @@ class ImplicitEulerResidualOperator(Operator):
                q: VectorArray,
                use_cached_operators: bool = False,
                cached_operators: Dict = None) -> VectorArray:
-        
+
         if use_cached_operators:
             assert cached_operators
             'q' in cached_operators.keys()
@@ -126,7 +131,7 @@ class ImplicitEulerResidualOperator(Operator):
                 Au = self.A(q[0]).apply(u)
         
         R = - Au - 1/ self.delta_t * self.M.apply(u - u_old) + rhs
-        
+
         if self.riesz_representative:
             R = self.riesz_op.apply(R)
             return R

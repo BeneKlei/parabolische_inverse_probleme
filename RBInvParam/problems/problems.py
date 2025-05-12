@@ -18,6 +18,7 @@ import sys
 from typing import Dict, Tuple
 
 from pymor.basic import *
+from pymor.analyticalproblems.functions import ProductFunction
 from pymor.analyticalproblems.instationary import InstationaryProblem
 
 from RBInvParam.problems.utils import thermal_block_problem_h1, twodhatfunction
@@ -32,12 +33,14 @@ def whole_problem(N : int = 100,
                   boundary_conditions : str = 'dirichlet', 
                   exact_parameter : str = 'PacMan', 
                   parameter_elements : str = 'P1',
+                  time_factor: str = 'constant',
                   T_final : int = 1) -> Tuple:
     
     # check input and set problem type
     assert parameter_location in {'diffusion', 'reaction' }, 'Change parameter location to "diffusion" or "dirichlet"'
     assert boundary_conditions in {'dirichlet', 'robin' }, 'Change boundary conditions to "dirichlet" or "robin"'
     assert exact_parameter in {'PacMan', 'Kirchner', 'dummy', 'other' }, 'Change exact parameter to "Landweber" or "other"'
+    assert time_factor in {'constant', 'sinus'}
     assert parameter_elements in {'P1' }, ' "P1" '
     
     problem_type = parameter_location + ' ' + boundary_conditions + ' ' + exact_parameter + ' ' + parameter_elements
@@ -76,9 +79,10 @@ def whole_problem(N : int = 100,
                                            robin_data = robin_data,
                                            dirichlet_data = dirichlet_data)
     
+
+    background = ConstantFunction(3, 2)
     # define exact parameter 
-    if exact_parameter == 'PacMan':
-        
+    if exact_parameter == 'PacMan':      
         # Note:
         # Exact parameter from the paper [A Reduced Basis Landweber method for nonlinear inverse problems]
         # by D. Garmatter, B. Haasdonk, B. Harrach, 2016.
@@ -92,8 +96,7 @@ def whole_problem(N : int = 100,
                                        * (23/30. < x[1]) * (x[1] < 27/30.)', 2)
         omega_2 = ExpressionFunction('sqrt((x[0]-18/30.)**2 \
                                      + (x[1]-15/30.)**2) <= 4/30.', 2)
-        exact_q_function = ConstantFunction(3, 2) +\
-                    ccc * contrast_parameter * (omega_1_1 + omega_1_2 + omega_1_3) - 2 * omega_2
+        q_exact_function = ccc * contrast_parameter * (omega_1_1 + omega_1_2 + omega_1_3) - 2 * omega_2
                     
     elif exact_parameter == 'Kirchner':  
          
@@ -104,10 +107,9 @@ def whole_problem(N : int = 100,
          ccc = 1
          q_1 = ExpressionFunction('1/(2*pi*0.01)*exp(-0.5*((2*x[0]-0.5)/0.1)**2 - 0.5*((2*x[1]-0.5)/0.1)**2)', 2 )  
          q_2 = ExpressionFunction('1/(2*pi*0.01)*exp(-0.5*((0.8*x[0]-0.5)/0.1)**2 - 0.5*((0.8*x[1]-0.5)/0.1)**2)', 2 ) 
-         exact_q_function =  ccc*q_1 +  ccc*q_2 + ConstantFunction(3, 2)
+         q_exact_function =  ccc*q_1 +  ccc*q_2
     elif exact_parameter == 'dummy':
-         exact_q_function =  ConstantFunction(1, 2)
-         
+         q_exact_function =  ConstantFunction(1, 2)      
     elif exact_parameter == 'other':
         
         multiscale_part = ConstantFunction(0,2)
@@ -118,9 +120,26 @@ def whole_problem(N : int = 100,
         discontinuous_part = ExpressionFunction('sqrt((x[0]-0.25)**2 \
                                      + (x[1]-0.25)**2) <= 0.1', 2)
         smooth_part =  ExpressionFunction('exp(-20*(x[0]-0.75)**2 - 20*(x[1]-0.75)**2)', 2 )
-        background = ConstantFunction(3, 2)
         sinus_background = ConstantFunction(0,2)
-        exact_q_function = background + smooth_part + discontinuous_part + continuous_part + upper_right + multiscale_part + sinus_background #+ middle_part
+        q_exact_function = smooth_part + discontinuous_part + continuous_part + upper_right + multiscale_part + sinus_background #+ middle_part
+
+    if time_factor == 'constant':
+        pass
+    elif time_factor == 'sinus':
+        time_factor = ExpressionFunction(
+            #expression = 'sin(2*pi*t)[0]',
+            expression = 'sin(pi*t)[0]',
+            dim_domain = 2,
+            parameters = {'t' : 1}
+        )
+        
+        q_exact_function = ProductFunction(
+            functions = [time_factor, q_exact_function]
+        )
+    else:
+        raise ValueError
+    
+    q_exact_function = q_exact_function + background
         
     # create exact model with exact parameter and energy_product model
     if parameter_location == 'diffusion':
@@ -128,7 +147,7 @@ def whole_problem(N : int = 100,
         # problem for simulating the exact data
         exact_analytical_problem = StationaryProblem(
                                     domain = domain,
-                                    diffusion = exact_q_function,
+                                    diffusion = q_exact_function,
                                     reaction = reaction,
                                     rhs = f,
                                     robin_data = robin_data,
@@ -151,7 +170,7 @@ def whole_problem(N : int = 100,
         exact_analytical_problem = StationaryProblem(
                                     domain = domain,
                                     diffusion = diffusion,
-                                    reaction = exact_q_function,
+                                    reaction = q_exact_function,
                                     rhs = f,
                                     robin_data = robin_data,
                                     dirichlet_data = dirichlet_data
@@ -170,10 +189,10 @@ def whole_problem(N : int = 100,
 
 
 
-    # get exact parameter evaluated on rectangular mesh
-    discretized_domain, _ = discretize_domain_default(domain, np.sqrt(2)/N, RectGrid)
-    xp = discretized_domain.centers(2)
-    q_exact = exact_q_function(xp)
+    # # get exact parameter evaluated on rectangular mesh
+    # discretized_domain, _ = discretize_domain_default(domain, np.sqrt(2)/N, RectGrid)
+    # xp = discretized_domain.centers(2)
+    # q_exact = q_exact_function(xp)
 
     initial_data = ConstantFunction(0, 2)
 
@@ -198,7 +217,7 @@ def whole_problem(N : int = 100,
         name = 'Instationary_' + energy_problem.name
     )
 
-    return analytical_problem, q_exact, problem_type, exact_analytical_problem, energy_problem
+    return analytical_problem, q_exact_function, problem_type, exact_analytical_problem, energy_problem
 
 
 
@@ -209,19 +228,14 @@ def build_InstationaryModelIP(setup : Dict,
         logger = get_default_logger(logger_name=sys._getframe().f_code.co_name)
 
     logger.debug('Construct problem..')                                                     
-    analytical_problem, q_exact, problem_type, exact_analytical_problem, energy_problem = \
+    analytical_problem, q_exact_function, problem_type, exact_analytical_problem, energy_problem = \
         whole_problem(**setup['problem_parameter'])
     
     setup['model_parameter']['problem_type'] = problem_type
     setup['model_parameter']['parameters'] = analytical_problem.parameters
-    q_time_dep = setup['model_parameter']['q_time_dep']
-
-    if q_time_dep:
-        setup['model_parameter']['q_exact'] = np.array([q_exact for _ in range(setup['dims']['nt'])])
-    else:
-        setup['model_parameter']['q_exact'] = np.array([q_exact])
+    setup['model_parameter']['q_exact_function'] = q_exact_function
     
     logger.debug('Discretizing problem...')                
-    building_blocks, grid_data = discretize_instationary_IP(analytical_problem, setup)
+    building_blocks, grid_data, assembled_products = discretize_instationary_IP(analytical_problem, setup)
     
-    return InstationaryModelIP(**building_blocks), grid_data
+    return InstationaryModelIP(**building_blocks), grid_data, assembled_products

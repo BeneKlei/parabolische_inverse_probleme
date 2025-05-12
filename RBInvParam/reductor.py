@@ -13,6 +13,7 @@ from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.parameters.functionals import ProjectionParameterFunctional
 from pymor.parameters.base import Parameters
 from pymor.tools.floatcmp import float_cmp_all
+from pymor.operators.constructions import InverseOperator
 
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.evaluators import AssembledA, AssembledB
@@ -68,16 +69,47 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         assert residual_image_basis_mode in ['none']
         self.residual_image_basis_mode = residual_image_basis_mode 
         self.logger.debug(f"Using residual image basis mode: '{residual_image_basis_mode}'.")
+    
+    def delete_cached_operators(self) -> None:
+        self.logger.debug('Deleting cache')
 
+        del self._cached_operators['A']
         
+        self._cached_operators = {
+            'A' : None,
+        }
+    
+    def calc_projection_error(self,
+                              x: VectorArray,
+                              basis: str,
+                              normalize: bool = False) -> float:   
+                              
+        
+        assert isinstance(x, VectorArray)
+        assert basis in ['state_basis', 'parameter_basis']
+        _basis = self.bases[basis]
+    
+        if normalize:
+            norms = x.norm(self.products[basis])
+            x.scal(1/norms)
+                    
+        if len(_basis) > 0:
+            projected_x = self.bases[basis].lincomb(
+                self.project_vectorarray(x, basis=basis)
+            )
+            x.axpy(-1,projected_x)
+        
+        return np.sqrt(np.sum(self.products[basis].pairwise_apply2(x,x)))
+
         
     def project_vectorarray(self, 
                             x : VectorArray,
-                            basis: str) -> np.array:
-
-        _basis = self.bases[basis]
+                            basis: str) -> np.ndarray:
+        
         assert isinstance(x, VectorArray)
-
+        assert basis in ['state_basis', 'parameter_basis']
+        _basis = self.bases[basis]
+        
         if len(_basis) == 0:
             return x.to_numpy()
         else:
@@ -120,6 +152,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             operators = list(self._cached_operators['A'].operators)        
             start = len(operators) - 1
         coefficients = [1]
+        
 
         for i in range(start, len(parameter_basis)):
             q_i = parameter_basis[i].to_numpy()[0]
@@ -166,9 +199,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         model_parameter = self.FOM.setup['model_parameter'].copy()
         model_parameter['q_circ'] = self.project_vectorarray(self.FOM.q_circ, basis='parameter_basis')
         model_parameter['q_exact'] = None
-        model_parameter['bounds'] = \
-        [self.bases['parameter_basis'].to_numpy().dot(self.FOM.setup['model_parameter']['bounds'][0]), 
-         self.bases['parameter_basis'].to_numpy().dot(self.FOM.setup['model_parameter']['bounds'][1]) ]
+        model_parameter['bounds'] = None
         
         # TODO Check how A(q) can be calc without parameter
         # At the moment only unique kind of parameter is supported.
@@ -272,7 +303,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'bilinear_reg_term' : project(self.FOM.bilinear_reg_term, parameter_basis, parameter_basis),
             'products' : products,
             'visualizer' : self.FOM.visualizer,            
-            'setup' : setup,
+            'setup' : setup
         }
         return projected_operators 
 
@@ -330,7 +361,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if mode == 'none':
             ret["residual_image_basis"] = None
             ret["A_range"] = self.FOM.V
-            ret["riesz_representative"] = True
+            #ret["riesz_representative"] = True
+            ret["riesz_representative"] = False
             return ret
         else:
             raise ValueError
@@ -445,10 +477,16 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if orthonormal_basis:
             product = None
         else:
-            product = project(self.FOM.products['prod_V'], 
+            # product = project(self.FOM.products['prod_V'], 
+            #                   residual_image_basis, 
+            #                   residual_image_basis, 
+            #                   product=None)
+            product = project(InverseOperator(self.FOM.products['prod_V']), 
                               residual_image_basis, 
                               residual_image_basis, 
                               product=None)
+            assert not state_residual_operator.riesz_representative
+            assert not adjoint_residual_operator.riesz_representative
 
         A_coercivity_constant_estimator = self.FOM.model_constants['A_coercivity_constant_estimator']
         A_coercivity_constant_estimator = copy.copy(A_coercivity_constant_estimator)

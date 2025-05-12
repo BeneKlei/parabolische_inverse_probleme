@@ -1,6 +1,8 @@
 import numpy as np
-from pathlib import Path
 import logging
+import os
+from pathlib import Path
+from datetime import datetime
 
 from pymor.basic import *
 
@@ -14,36 +16,42 @@ from RBInvParam.problems.problems import build_InstationaryModelIP
 
 #########################################################################################''
 
-logger = get_default_logger(logger_name='TR_IRGNM',
-                            logfile_path='./logs/FOM_IRGNM.log', 
-                            use_timestemp=True)
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+save_path = Path('./dumps') / (timestamp + '_FOM_IRGNM')
+os.mkdir(save_path)
+logfile_path= save_path / 'FOM_IRGNM.log'
+
+logger = get_default_logger(logger_name='FOM_IRGNM',
+                            logfile_path=logfile_path, 
+                            use_timestemp=False)
 logger.setLevel(logging.DEBUG)
+
+#########################################################################################''
 
 set_log_levels({
     'pymor' : 'WARN'
 })
 
 set_defaults({})
-
 #########################################################################################''
 
 def main():
 
-    #N = 100
-    N = 30
+    N = 100
+    #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
-    nt = 50
+    nt = 500
     delta_t = (T_final - T_initial) / nt
-    q_time_dep = False
-    #q_time_dep = True
+    #q_time_dep = False
+    q_time_dep = True
 
-    #noise_level = 1e-7
-    noise_level = 0.0
+    noise_level = 1e-5
+   # noise_level = 0.0
     bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
@@ -70,6 +78,7 @@ def main():
             'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'PacMan',
+            'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -89,15 +98,18 @@ def main():
             'products' : {
                 'prod_H' : 'l2',
                 'prod_Q' : 'l2',
-                'prod_V' : 'h1',
+                'prod_V' : 'h1_0_semi',
                 'prod_C' : 'l2',
                 'bochner_prod_Q' : 'bochner_l2',
                 'bochner_prod_V' : 'bochner_h1'
+            },
+            'observation_operator' : {
+                'name' : 'identity',
             }
         }
     }
 
-    FOM = build_InstationaryModelIP(setup, logger)
+    FOM, _, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
 
@@ -109,7 +121,7 @@ def main():
         'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.4,
         #'Theta' : 0.75,
-        'Theta' : 1.95,
+        'Theta' : 0.95,
         #####################
         'i_max' : 35,
         'reg_loop_max' : 10,
@@ -126,7 +138,8 @@ def main():
     optimizer = FOMOptimizer(
         FOM = FOM,
         optimizer_parameter = optimizer_parameter,
-        logger = logger
+        logger = logger,
+        save_path=save_path
     )
     q_est = optimizer.solve()
 

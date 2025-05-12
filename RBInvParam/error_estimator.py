@@ -110,7 +110,7 @@ class StateErrorEstimator():
                                   u=u, 
                                   use_cached_operators = use_cached_operators,
                                   cached_operators = cached_operators)
-
+        
         return np.sqrt(self.delta_t / alpha_q * np.sum(r.norm2(product=self.product)))
              
 class AdjointErrorEstimator():

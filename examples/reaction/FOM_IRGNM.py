@@ -35,7 +35,7 @@ set_defaults({})
 
 def main():
 
-    N = 100
+    N = 300
     #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
@@ -43,7 +43,8 @@ def main():
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
-    nt = 50
+    nt = 100
+    #nt = 50
     delta_t = (T_final - T_initial) / nt
     #q_time_dep = False
     q_time_dep = True
@@ -54,8 +55,13 @@ def main():
     assert T_final > T_initial
     if q_time_dep:
         q_circ = 3*np.ones((nt, par_dim))
+        bounds = np.zeros((nt * par_dim, 2))
     else:
         q_circ = 3*np.ones((1, par_dim))
+        bounds = np.zeros((par_dim, 2))
+
+    bounds[:,0] = 0.001
+    bounds[:,1] = 1e3
 
     setup = {
         'dims' : {
@@ -75,6 +81,7 @@ def main():
             'parameter_location' : 'reaction',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'Kirchner',
+            'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -94,15 +101,18 @@ def main():
             'products' : {
                 'prod_H' : 'l2',
                 'prod_Q' : 'l2',
-                'prod_V' : 'h1',
+                'prod_V' : 'h1_0_semi',
                 'prod_C' : 'l2',
                 'bochner_prod_Q' : 'bochner_l2',
                 'bochner_prod_V' : 'bochner_h1'
+            },
+            'observation_operator' : {
+                'name' : 'identity',
             }
         }
     }
 
-    FOM = build_InstationaryModelIP(setup, logger)
+    FOM, _, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
 
@@ -113,16 +123,17 @@ def main():
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.25,
-        'Theta' : 0.75,
+        'Theta' : 0.95,
         #####################
         'i_max' : 25,
         'reg_loop_max' : 10,
         'i_max_inner' : 2,
         #####################
         'lin_solver_parms' : {
-            'lin_solver_max_iter' : 1e4,
-            'lin_solver_tol' : 1e-12,
-            'lin_solver_inital_step_size' : 1
+            'method' : 'gd',
+            'max_iter' : 1e4,
+            'lin_solver_tol' : 1e-10,
+            'inital_step_size' : 1
         },
         'use_cached_operators' : True,
         'dump_every_nth_loop' : 2

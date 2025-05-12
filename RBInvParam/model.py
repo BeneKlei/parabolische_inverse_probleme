@@ -18,17 +18,6 @@ from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.products import BochnerProductOperator
 #from RBInvParam.reductor import InstationaryModelIPReductor
 
-
-# TODO 
-# - Add caching
-# - Switch np tp pyMOR
-
-# Notes caching:
-# - Is q t dep A(q) can be stored for all time steps or calculated on the fly.
-#   - The later is maybe possible for ROMs not for FOM
-# 
-
-
 class InstationaryModelIP(ImmutableObject):
     id_iter = itertools.count()
 
@@ -56,7 +45,8 @@ class InstationaryModelIP(ImmutableObject):
                  model_constants : Dict,
                  name: str = None,
                  num_calls: Dict = None,
-                 logger: logging.Logger = None):
+                 logger: logging.Logger = None,
+                 bounds: np.ndarray = None):
         
         # TODO On palma STDERR does not go into *_IRGNM.log. Why? 
         logging.basicConfig()
@@ -97,6 +87,7 @@ class InstationaryModelIP(ImmutableObject):
         self.visualizer = visualizer
         self.model_constants = model_constants
         self.setup = setup
+        self.bounds = bounds
         
 
         self.nt = self.setup['dims']['nt']
@@ -129,6 +120,10 @@ class InstationaryModelIP(ImmutableObject):
         
         if not num_calls:
             self.num_calls = {
+                'solve_state' : 0,
+                'solve_adjoint' : 0,
+                'solve_linearized_state' : 0,
+                'solve_linearized_adjoint' : 0,
                 'objective' : 0,
                 'gradient' : 0,
                 'linearized_objective' : 0,
@@ -185,6 +180,15 @@ class InstationaryModelIP(ImmutableObject):
         assert self.products['bochner_prod_Q'].product.source == self.Q
         assert 'prod_Q' in self.products
         assert self.products['prod_Q'].source == self.Q
+
+        if self.bounds is not None:
+            assert isinstance(self.bounds, np.ndarray)
+            if self.q_time_dep:
+                assert self.bounds.shape == (self.nt * self.Q.dim , 2)
+            else:
+                assert self.bounds.shape == (self.Q.dim , 2)
+            assert np.all(self.bounds[:,0] < self.bounds[:,1])
+            
 
 #%% cache methods
     def _cache_update_required(self,
@@ -320,6 +324,8 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
+        self.num_calls['solve_state'] += 1
+
         if use_cached_operators:
             if self._cache_update_required(q):
                 self.delete_cached_operators()
@@ -355,6 +361,8 @@ class InstationaryModelIP(ImmutableObject):
             assert len(q) == 1
 
         assert len(u) == self.nt
+
+        self.num_calls['solve_adjoint'] += 1
 
         if use_cached_operators:
             # TODO Move these into one abstract function
@@ -398,6 +406,8 @@ class InstationaryModelIP(ImmutableObject):
             assert len(q) == 1
         assert len(d) == len(q)
         assert len(u) == self.nt
+
+        self.num_calls['solve_linearized_state'] += 1
 
         if use_cached_operators:
             if self._cache_update_required(q):
@@ -452,6 +462,8 @@ class InstationaryModelIP(ImmutableObject):
             assert len(q) == 1
         assert len(u) == self.nt
         assert len(lin_u) == self.nt
+
+        self.num_calls['solve_linearized_adjoint'] += 1
 
         if use_cached_operators:
             if self._cache_update_required(q):
@@ -547,8 +559,6 @@ class InstationaryModelIP(ImmutableObject):
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
         
-        #grad = 1/self.delta_t * grad
-
         if alpha > 0:
             out = grad + alpha * self.gradient_regularization_term(q)
         else:
@@ -816,12 +826,12 @@ class InstationaryModelIP(ImmutableObject):
                     product=self.adjoint_error_estimator.product
                 )
             ))
-    
-            return self.objective_error_estimator.estimate_error(
+            e = self.objective_error_estimator.estimate_error(
                 q = q,
                 estimated_state_error = estimated_state_error,
                 adjoint_residuum = adjoint_residuum
             )
+            return e
         else:
             return 0.0
     
@@ -898,6 +908,20 @@ class InstationaryModelIP(ImmutableObject):
                                         lin_p=lin_p, 
                                         alpha=alpha,
                                         use_cached_operators=use_cached_operators)
+
+    def compute_objective_error_estimate(self,
+                                         q: VectorArray,
+                                         use_cached_operators: bool = False) -> float:
+        u = self.solve_state(q, 
+                             use_cached_operators=use_cached_operators)
+        p = self.solve_adjoint(q=q, 
+                               u=u, 
+                               use_cached_operators=use_cached_operators)   
+
+        return self.estimate_objective_error(q=q,
+                                             u = u,
+                                             p = p,
+                                             use_cached_operators=use_cached_operators)
 
 #%% helpers
     def compute_gradient_norm(self,
