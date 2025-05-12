@@ -18,17 +18,6 @@ from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.products import BochnerProductOperator
 #from RBInvParam.reductor import InstationaryModelIPReductor
 
-
-# TODO 
-# - Add caching
-# - Switch np tp pyMOR
-
-# Notes caching:
-# - Is q t dep A(q) can be stored for all time steps or calculated on the fly.
-#   - The later is maybe possible for ROMs not for FOM
-# 
-
-
 class InstationaryModelIP(ImmutableObject):
     id_iter = itertools.count()
 
