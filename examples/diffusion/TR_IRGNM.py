@@ -85,7 +85,7 @@ def main():
             'T_final' : T_final,
         },
         'model_parameter' : {
-            'name' : 'reaction_FOM', 
+            'name' : 'diffusion_TR', 
             'problem_type' : None,
             'T_initial' : T_initial,
             'T_final' : T_final,

@@ -686,7 +686,7 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
-        out = (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q))
+        out = (- self.linear_reg_term.as_range_array() + self.bilinear_reg_term.apply(q))
 
         if not self.riesz_rep_grad:
             return out
@@ -726,7 +726,7 @@ class InstationaryModelIP(ImmutableObject):
         assert q in self.Q
         assert d in self.Q
 
-        out = (- self.linear_reg_term.as_range_array() + self.products['prod_Q'].apply(q + d))
+        out = (- self.linear_reg_term.as_range_array() + self.bilinear_reg_term.apply(q + d))
 
         if not self.riesz_rep_grad:
             return out
