@@ -123,7 +123,8 @@ def main():
 
     optimizer_parameter = {
         'q_0' : q_start,
-        'alpha_0' : 1e-5,
+        'alpha_0' : 1e-10,
+        #'alpha_0' : 1e-5,
         'tol' : 1e-9,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
@@ -144,12 +145,6 @@ def main():
             'lin_solver_tol' : 1e-10,
             'inital_step_size' : 1
         },
-        # 'lin_solver_parms' : {
-        #     'method' : 'BiCGSTAB',
-        #     'rtol' : 1e-12,
-        #     'atol' : 1e-12,
-        #     'maxiter' : 1e3
-        # },
         'enrichment' : {
             'parameter_strategy' : 'snapshot_HaPOD',
             'parameter_HaPOD_tol': 1e-12,

@@ -13,6 +13,7 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 
 
 MACHINE_EPS = 1e-16
+STAGNATION_TOL = 1e-5
 
 def armijo_condition(
     previous_J : float,
@@ -70,7 +71,6 @@ def armijo_line_serach(previous_iterate: NumpyVectorArray,
 
 
             current_value = func(current_iterate)
-
             condition = armijo_condition(previous_value, 
                                          current_value, 
                                          step_size, 
@@ -94,15 +94,29 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     # Using algorithm from
     # https://watermark.silverchair.com/8-1-141.pdf?token=AQECAHi208BE49Ooan9kkhW_Ercy7Dm3ZL_9Cf3qfKAc485ysgAAA2kwggNlBgkqhkiG9w0BBwagggNWMIIDUgIBADCCA0sGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQM4WESSjzDIsa2gVMsAgEQgIIDHHeiS0AQ9L_1TmZFA7rg1QFF7cezo4BC_1OnBjkdHDIidNO_gGqaOBss8MNgz6cK5xd1mDqhTB0w0Jx202D40CtChSI6QCQUfSpoFcR3D28U6jRYZnaH9NjLIh0rE59cktmXZbX0aCov-NgLpmyfyrWVhK0hdkl5aXU_2hrh3b83hg2wjA_k9JVXwxHDhaS58iAtIv8Ulw4jBc8E6iV447KcH4RKuUT8PISqwQoTWF5-5564fSGEYVWrV2SFDbiHQpqnJBSLTJdXMK5EwqxXN3Z7b7byHqUe76bZdk5f2RROTuMX2TRITeGRZdnyqQ2qL2O2lmqqOrjomiKg3qUYcX_2wqBOyD2WC3cIjHalwNEgPZfRVAqJ-UCrBsnBdcwIPDlATYhN3XG-zMBUKURfQt8ypcoPlYQoZD0NI-d2Hsr7-Bx7ishcO8tJ07hY9tETD_KGtmZQCyAHpP5IqlRK00yo2XMvZc-_mhjc-f1UWrY9OGwGh5vaBaP7xvsmZnU60Pp-A4eKoqjwucTx3mv9PzhkZR-ZzqeuEfSMBP082-Hxh7WuLOk_YuRMvHbKEzkzVU9-9h9kMeZWxfYFMVgAoyE1nd3o1gTjYupKsS1LOAdMJKe-6r75K4ceV_C4aUocXxLbPQ8j154lil5ujc0ejPvW709tWQINj7SdvnSb5zydKyGIsT-3eMGMthuWsNoCEKZB6JHnTYkeDsNzbvfwUqSexaH-eJM5MiFDPVeft-OG-OQrQxc8xrVXEOF3sGjLCgtbpmkvgcDDNYTKIByb9d0O0Mzmznz6HzWNPxhHRH8ZEvQEMPCRbxQn0UQoq-9UcHUVwoZUXl_w9kZ9zUgNVK8kNQKSikmKaWhAfI_NGz5zzqP_4-G8FfG1Vbdwt2l0g3okGtEUI7IU2hofXY4ypnIlmv_7dsjqkLsxhWChcO9BIdAyQ0svinQRW22b0ClgAQejDhpkJDwm8PJY03JKPgX9223GJ2zjXRO9Fx-OZV0TwWgt1xwhMbRenK6aJHDfnhsGZPQ5JjWAkMP_DQk8ZAGefCOHiYKdZZjpah0
 
-    # print(previous_iterate)
-    # print(pre_previous_iterate)
-    
+    # print("--------------------------------------")
+    # print(previous_gradient)
+    # print(pre_previous_gradient)
+
     delta_iterate = previous_iterate - pre_previous_iterate
     delta_gradient = previous_gradient - pre_previous_gradient
 
+    # print(product.apply2(delta_iterate, delta_gradient))
+    # print(product.apply2(delta_gradient, delta_gradient))
+
+    
     #step_size = product.apply2(delta_iterate, delta_iterate) / product.apply2(delta_iterate, delta_gradient)
     step_size = product.apply2(delta_iterate, delta_gradient) / product.apply2(delta_gradient, delta_gradient)
-    
+
+    # step_size = step_size[0,0]
+    # step_size = np.min([step_size, 1e4])
+    # step_size = np.max([step_size, 1e-4])
+    # step_size = np.array([[step_size]])
+    #step_size = np.array([[1e-1]])
+    #print(step_size)
+    # import sys
+    # sys.exit()
+
     current_iterate = previous_iterate - step_size[0,0] * search_direction
 
     if projector: 
@@ -124,7 +138,7 @@ def gradient_descent_linearized_problem(
     max_iter=lin_solver_parms['max_iter']
     lin_solver_tol=lin_solver_parms['lin_solver_tol']
     inital_step_size =lin_solver_parms['inital_step_size']
-
+    
     assert alpha >= 0
     assert lin_solver_tol > 0
     assert inital_step_size > 0
@@ -145,7 +159,7 @@ def gradient_descent_linearized_problem(
     converged = False
     last_i = -np.inf
     
-    buffer_size = 3
+    buffer_size = 10
     buffer_d = [np.nan for _ in range(buffer_size)]
     buffer_J = [np.inf for _ in range(buffer_size)]
     buffer_nabla_J = [np.nan for _ in range(buffer_size)]
@@ -180,6 +194,7 @@ def gradient_descent_linearized_problem(
             ) - q
         else:
             terminaton_lhs = -grad
+
 
         terminaton_lhs = model.compute_gradient_norm(terminaton_lhs)
         if (terminaton_lhs < lin_solver_tol) and i > 0:
@@ -237,8 +252,15 @@ def gradient_descent_linearized_problem(
         buffer_J.append(current_J)    
 
         #stagnation check
-        if i > 5:
-            if abs(buffer_J[0] - buffer_J[1]) < MACHINE_EPS and abs(buffer_J[1] - buffer_J[2]) < MACHINE_EPS:
+        if i > len(buffer_J):
+            terminate = True 
+            for j in range(len(buffer_J)-1):
+                rel_change = abs(buffer_J[j] - buffer_J[j+1]) / abs(buffer_J[j])
+                if rel_change >= STAGNATION_TOL:
+                    terminate = False
+                    break
+
+            if terminate:
                 logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
                 break
 

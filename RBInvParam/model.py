@@ -18,6 +18,9 @@ from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.products import BochnerProductOperator
 #from RBInvParam.reductor import InstationaryModelIPReductor
 
+# TODO Move this and the other to a global constant file
+MACHINE_EPS = 1e-16
+
 class InstationaryModelIP(ImmutableObject):
     id_iter = itertools.count()
 
@@ -518,7 +521,9 @@ class InstationaryModelIP(ImmutableObject):
         if alpha > 0:
             assert q is not None
             # add regularization term if alpha >0
+            #return alpha * self.regularization_term(q)
             return out + alpha * self.regularization_term(q)
+            #return out
         else:
             return out
 
@@ -559,8 +564,10 @@ class InstationaryModelIP(ImmutableObject):
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
         
-        if alpha > 0:
+        if alpha > 0:     
+            #out = alpha * self.gradient_regularization_term(q)       
             out = grad + alpha * self.gradient_regularization_term(q)
+            #out = grad
         else:
             out = grad
 
@@ -597,8 +604,9 @@ class InstationaryModelIP(ImmutableObject):
                       (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u_q_d) + \
                       self.constant_cost_term)
         if alpha > 0:
+            #return alpha * self.linearized_regularization_term(q, d)
             return out + alpha * self.linearized_regularization_term(q, d)
-            
+            #return out
         else:
             return out
         
@@ -651,6 +659,8 @@ class InstationaryModelIP(ImmutableObject):
             grad = self.products['prod_Q'].apply_inverse(grad) 
 
         if alpha > 0:
+            #out = alpha * self.linarized_gradient_regularization_term(q,d)
+            #out = grad
             out = grad + alpha * self.linarized_gradient_regularization_term(q,d)
         else:
             out = grad
@@ -668,6 +678,19 @@ class InstationaryModelIP(ImmutableObject):
             assert len(q) == self.nt
         else:
             assert len(q) == 1
+
+        if self.q_time_dep:
+            raise NotImplementedError
+        else:
+            q_circ = self.setup['model_parameter']['q_circ']
+            buf = q - self.Q.make_array(q_circ)
+            #norm = self.compute_gradient_norm(buf)
+            norm = buf.norm()[0]
+            if norm > MACHINE_EPS:
+                return norm
+            else:
+                return np.float64(0.0)
+
         
         if self.q_time_dep:
             return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q,q) 
@@ -686,7 +709,17 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
-        out = (- self.linear_reg_term.as_range_array() + self.bilinear_reg_term.apply(q))
+        #out = (- self.linear_reg_term.as_range_array() + self.bilinear_reg_term.apply(q))
+        assert not self.q_time_dep
+        q_circ = self.setup['model_parameter']['q_circ']
+        buf = q - self.Q.make_array(q_circ)
+        #buf = d
+        #norm = self.compute_gradient_norm(buf)
+        norm = buf.norm()[0]
+        if norm > MACHINE_EPS:
+            out = buf / norm
+        else:
+            out = self.Q.zeros()
 
         if not self.riesz_rep_grad:
             return out
@@ -704,6 +737,19 @@ class InstationaryModelIP(ImmutableObject):
         
         assert q in self.Q
         assert d in self.Q
+
+        if self.q_time_dep:
+            raise NotImplementedError
+        else:
+            q_circ = self.setup['model_parameter']['q_circ']
+            buf = q + d - self.Q.make_array(q_circ)
+            #norm = self.compute_gradient_norm(buf)
+            norm = buf.norm()[0]
+            if norm > MACHINE_EPS:
+                return norm
+            else:
+                return np.float64(0.0)
+
         
         if self.q_time_dep:
             return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q+d,q+d)
@@ -726,7 +772,19 @@ class InstationaryModelIP(ImmutableObject):
         assert q in self.Q
         assert d in self.Q
 
-        out = (- self.linear_reg_term.as_range_array() + self.bilinear_reg_term.apply(q + d))
+        #out = (- self.linear_reg_term.as_range_array() + self.bilinear_reg_term.apply(q + d))
+        # assert not self.q_time_dep
+        q_circ = self.setup['model_parameter']['q_circ']
+        out = q + d - self.Q.make_array(q_circ)
+
+        #norm = self.compute_gradient_norm(out)
+        #out = self.products['prod_Q'].apply(out)
+
+        norm = out.norm()[0]
+        if norm > MACHINE_EPS:
+            out.scal(1 / norm)
+        else:
+            out = self.Q.zeros()
 
         if not self.riesz_rep_grad:
             return out

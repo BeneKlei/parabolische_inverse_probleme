@@ -182,25 +182,6 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         Q = Q_h,
         q_time_dep = setup['model_parameter']['q_time_dep']
     )
-    
-    ############################### Regularization ###############################
-
-    q_circ = setup['model_parameter']['q_circ']
-    assert type(q_circ) == np.ndarray
-    q_circ = Q_h.make_array(q_circ)
-    assert len(q_circ) in [setup['dims']['nt'], 1]
-
-    constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
-    linear_reg_term = NumpyMatrixOperator(
-        matrix = products['prod_Q'].matrix.T @ q_circ.to_numpy().T,
-        source_id = Q_h.id,
-        range_id = Q_h.id
-    )
-    bilinear_reg_term = NumpyMatrixOperator(
-        matrix = products['prod_Q'].matrix,
-        source_id = Q_h.id,
-        range_id = Q_h.id
-    )
 
     ############################### Dummy Model ###############################
 
@@ -229,6 +210,27 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
             )])
 
     setup['model_parameter']['q_exact'] = Q_h.make_array(setup['model_parameter']['q_exact'])
+
+    #setup['model_parameter']['q_circ'] = setup['model_parameter']['q_exact'].to_numpy()
+    
+    ############################### Regularization ###############################
+
+    q_circ = setup['model_parameter']['q_circ']
+    assert type(q_circ) == np.ndarray
+    q_circ = Q_h.make_array(q_circ)
+    assert len(q_circ) in [setup['dims']['nt'], 1]
+
+    constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
+    linear_reg_term = NumpyMatrixOperator(
+        matrix = products['prod_Q'].matrix.T @ q_circ.to_numpy().T,
+        source_id = Q_h.id,
+        range_id = Q_h.id
+    )
+    bilinear_reg_term = NumpyMatrixOperator(
+        matrix = products['prod_Q'].matrix,
+        source_id = Q_h.id,
+        range_id = Q_h.id
+    )
 
     building_blocks = {
         'u_0' : u_0, 

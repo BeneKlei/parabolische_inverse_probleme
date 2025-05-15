@@ -24,7 +24,7 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 
 
 MACHINE_EPS = 1e-16
-STAGNATION_TOL = 1e-6
+STAGNATION_TOL = 1e-3
 
 class Optimizer(BasicObject):
     def __init__(self, 
@@ -339,6 +339,11 @@ class Optimizer(BasicObject):
             regularization_qualification = condition_low and condition_up
 
             if (not regularization_qualification) and (count < reg_loop_max):
+                self.logger.warning(f"J = {J:3.4e}")
+                self.logger.warning(f"lin_J = {lin_J:3.4e}")
+                self.logger.warning(f"2lin_J = {2*lin_J:3.4e}")
+                self.logger.warning(f"lin_J_alpha = {model.linearized_objective(q, d, u, lin_u, alpha=alpha, use_cached_operators=use_cached_operators):3.4e}")
+                
                 self.logger.warning(f"Used alpha = {alpha:3.4e} does NOT satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
                 self.logger.info(f"Searching for alpha:") 
 
@@ -346,14 +351,14 @@ class Optimizer(BasicObject):
             while (not regularization_qualification) and (count < reg_loop_max):
                 count += 1
 
-                if alpha <= 1e-14:
+                if alpha <= 1e-100:
                     loop_terminated = True
                     break
                 
                 if not condition_low:
                     alpha *= 1.5  
                 elif not condition_up:
-                    alpha = max(alpha/2,1e-14)
+                    alpha = max(alpha/2,1e-100)
                 else:
                     raise ValueError
                 
@@ -379,6 +384,10 @@ class Optimizer(BasicObject):
                 regularization_qualification = condition_low and condition_up
                             
                 if (not regularization_qualification) and (count < reg_loop_max):
+                    self.logger.warning(f"J = {J:3.4e}")
+                    self.logger.warning(f"lin_J = {lin_J:3.4e}")
+                    self.logger.warning(f"2lin_J = {2*lin_J:3.4e}")
+                    self.logger.warning(f"lin_J_alpha = {model.linearized_objective(q, d, u, lin_u, alpha=alpha, use_cached_operators=use_cached_operators):3.4e}")
                     self.logger.warning(f"Used alpha = {alpha:3.4e} does NOT satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
                 else:
                     self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
@@ -391,6 +400,10 @@ class Optimizer(BasicObject):
             counts['loop_terminated'].append(loop_terminated)
 
             if not loop_terminated:
+                self.logger.warning(f"J = {J:3.4e}")
+                self.logger.warning(f"lin_J = {lin_J:3.4e}")
+                self.logger.warning(f"2lin_J = {2*lin_J:3.4e}")
+                self.logger.warning(f"lin_J_alpha = {model.linearized_objective(q, d, u, lin_u, alpha=alpha, use_cached_operators=use_cached_operators)}")
                 self.logger.warning(f"Used alpha = {alpha:3.4e} does satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
             else:
                 self.logger.error(f"Not found valid alpha before reaching maximum number of tries : {reg_loop_max}.\n\

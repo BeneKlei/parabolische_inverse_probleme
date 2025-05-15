@@ -11,8 +11,6 @@ from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
 
 from RBInvParam.problems.problems import build_InstationaryModelIP
-# TODO
-# - Find better way to handle time independ parameter
 
 #########################################################################################''
 
@@ -37,8 +35,8 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    #N = 300
-    N = 100
+    N = 300
+    #N = 100
     #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
@@ -47,12 +45,14 @@ def main():
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
-    nt = 50
+    #nt = 50
+    nt = 1
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
-    noise_level = 1e-5
+    #noise_level = 1e-5
+    noise_level = 0
 
     assert T_final > T_initial
     if q_time_dep:
@@ -83,11 +83,12 @@ def main():
             'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'PacMan',
-            'time_factor' : 'sinus',
+            #'time_factor' : 'sinus',
+            'time_factor' : 'constant',
             'T_final' : T_final,
         },
         'model_parameter' : {
-            'name' : 'reaction_FOM', 
+            'name' : 'diffusion_FOM', 
             'problem_type' : None,
             'T_initial' : T_initial,
             'T_final' : T_final,
@@ -97,16 +98,16 @@ def main():
             'q_circ' : q_circ, 
             'q_exact' : None,
             'q_time_dep' : q_time_dep,
-            'riesz_rep_grad' : True,
+            'riesz_rep_grad' : False,
             'bounds' : bounds,
             'parameters' : None,
             'products' : {
                 'prod_H' : 'l2',
-                'prod_Q' : 'l2',
+                'prod_Q' : 'h1',
                 'prod_V' : 'h1_0_semi',
                 'prod_C' : 'l2',
-                'bochner_prod_Q' : 'bochner_l2',
-                'bochner_prod_V' : 'bochner_h1'
+                'bochner_prod_Q' : 'bochner_h1',
+                'bochner_prod_V' : 'bochner_h1_0_semi'
             },
             'observation_operator' : {
                 'name' : 'identity',
@@ -120,22 +121,21 @@ def main():
 
     optimizer_parameter = {
         'q_0' : q_start,
-        'alpha_0' : 1e-5,
+        'alpha_0' : 1e-8,
         'tol' : 1e-11,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.4,
-        #'Theta' : 0.75,
-        'Theta' : 0.95,
+        'Theta' : 0.8,
         #####################
         'i_max' : 35,
-        'reg_loop_max' : 10,
+        'reg_loop_max' : 50,
         'i_max_inner' : 2,
         ####################
         'lin_solver_parms' : {
             'method' : 'gd',
-            'max_iter' : 1e4,
-            'lin_solver_tol' : 1e-10,
+            'max_iter' : 1e3,
+            'lin_solver_tol' : 1e-12,
             'inital_step_size' : 1
         },
         'use_cached_operators' : True,

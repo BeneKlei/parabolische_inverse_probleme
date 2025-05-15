@@ -71,6 +71,9 @@ class UnAssembledEvaluator:
             g.jacobian_inverse_transposed(0), 
             SF_GRAD
         )
+        # print(self.SF_GRADS.shape)
+        # import sys
+        # sys.exit()
         self.SF_I0 = np.repeat(g.subentities(0, g.dim), 4, axis=1).ravel()
         self.SF_I1 = np.tile(g.subentities(0, g.dim), [1, 4]).ravel() 
         SF = LAGRANGE_SHAPE_FUNCTIONS[1]
