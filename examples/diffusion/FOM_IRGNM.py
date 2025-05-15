@@ -35,9 +35,9 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    N = 300
+    #N = 300
     #N = 100
-    #N = 30
+    N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -51,8 +51,8 @@ def main():
     q_time_dep = False
     #q_time_dep = True
 
-    #noise_level = 1e-5
-    noise_level = 0
+    noise_level = 1e-5
+    #noise_level = 0
 
     assert T_final > T_initial
     if q_time_dep:
@@ -121,11 +121,11 @@ def main():
 
     optimizer_parameter = {
         'q_0' : q_start,
-        'alpha_0' : 1e-8,
+        'alpha_0' : 5 * 1e-8,
         'tol' : 1e-11,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
-        'theta' : 0.4,
+        'theta' : 0.15,
         'Theta' : 0.8,
         #####################
         'i_max' : 35,

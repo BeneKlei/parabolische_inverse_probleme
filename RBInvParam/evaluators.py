@@ -66,14 +66,16 @@ class UnAssembledEvaluator:
         self.quad_weights = w
         SF_GRAD = LAGRANGE_SHAPE_FUNCTIONS_GRAD[1]
         SF_GRAD = SF_GRAD(q)
+        
         self.SF_GRADS = np.einsum(
             'eij,pjc->epic', 
             g.jacobian_inverse_transposed(0), 
             SF_GRAD
         )
-        # print(self.SF_GRADS.shape)
-        # import sys
-        # sys.exit()
+
+        print(g.jacobian_inverse_transposed(0).shape)
+
+
         self.SF_I0 = np.repeat(g.subentities(0, g.dim), 4, axis=1).ravel()
         self.SF_I1 = np.tile(g.subentities(0, g.dim), [1, 4]).ravel() 
         SF = LAGRANGE_SHAPE_FUNCTIONS[1]
@@ -133,6 +135,9 @@ class UnAssembledA(UnAssembledEvaluator):
             SF_I1 = self.SF_I1
             D = self.nodes_to_element_projection.dot(q)
             SF_INTS = np.einsum('epic,eqic,c,e,e->epq', SF_GRADS, SF_GRADS, w, g.integration_elements(0), D).ravel()
+            print(np.einsum('epic,eqic,c,e,e->epq', SF_GRADS, SF_GRADS, w, g.integration_elements(0), D).shape)
+            # import sys
+            # sys.exit()
             del D 
             if bi.has_dirichlet and dirichlet_clear:
                 SF_INTS = np.where(bi.dirichlet_mask(g.dim)[SF_I0], 0, SF_INTS) 

@@ -10,7 +10,7 @@ from pymor.vectorarrays.interface import VectorSpace
 from pymor.core.base import ImmutableObject
 from pymor.operators.constructions import ZeroOperator
 
-from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
+from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB, LAGRANGE_SHAPE_FUNCTIONS_GRAD
 from RBInvParam.timestepping import ImplicitEulerTimeStepper
 from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, \
     ObjectiveErrorEstimator, CoercivityConstantEstimator
@@ -679,17 +679,19 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
-        if self.q_time_dep:
-            raise NotImplementedError
-        else:
-            q_circ = self.setup['model_parameter']['q_circ']
-            buf = q - self.Q.make_array(q_circ)
-            #norm = self.compute_gradient_norm(buf)
-            norm = buf.norm()[0]
-            if norm > MACHINE_EPS:
-                return norm
-            else:
-                return np.float64(0.0)
+        # if self.q_time_dep:
+        #     raise NotImplementedError
+        # else:
+        #     q_circ = self.setup['model_parameter']['q_circ']
+        #     buf = q - self.Q.make_array(q_circ)
+        #     #norm = self.compute_gradient_norm(buf)
+
+        #     norm = np.sqrt(self.products['prod_Q_reg'].apply2(buf, buf))[0,0]
+            
+        #     if norm > MACHINE_EPS:
+        #         return norm
+        #     else:
+        #         return np.float64(0.0)
 
         
         if self.q_time_dep:
@@ -709,17 +711,20 @@ class InstationaryModelIP(ImmutableObject):
         else:
             assert len(q) == 1
 
-        #out = (- self.linear_reg_term.as_range_array() + self.bilinear_reg_term.apply(q))
+        out = (- self.linear_reg_term.as_range_array() + self.bilinear_reg_term.apply(q))
         assert not self.q_time_dep
-        q_circ = self.setup['model_parameter']['q_circ']
-        buf = q - self.Q.make_array(q_circ)
-        #buf = d
-        #norm = self.compute_gradient_norm(buf)
-        norm = buf.norm()[0]
-        if norm > MACHINE_EPS:
-            out = buf / norm
-        else:
-            out = self.Q.zeros()
+        # q_circ = self.setup['model_parameter']['q_circ']
+        # buf = q - self.Q.make_array(q_circ)
+        # #buf = d
+        # #norm = self.compute_gradient_norm(buf)
+        # norm = np.sqrt(self.products['prod_Q_reg'].apply2(buf, buf))[0,0]
+        # out = self.products['prod_Q_reg'].apply(out)
+        # #norm = buf.norm()[0]
+        # if norm > MACHINE_EPS:
+        #     out.scal(1 / norm)
+        # else:
+        #     out = self.Q.zeros()
+
 
         if not self.riesz_rep_grad:
             return out
@@ -738,17 +743,51 @@ class InstationaryModelIP(ImmutableObject):
         assert q in self.Q
         assert d in self.Q
 
-        if self.q_time_dep:
-            raise NotImplementedError
-        else:
-            q_circ = self.setup['model_parameter']['q_circ']
-            buf = q + d - self.Q.make_array(q_circ)
-            #norm = self.compute_gradient_norm(buf)
-            norm = buf.norm()[0]
-            if norm > MACHINE_EPS:
-                return norm
-            else:
-                return np.float64(0.0)
+        # if self.q_time_dep:
+        #     raise NotImplementedError
+        # else:
+        #     q_circ = self.setup['model_parameter']['q_circ']
+        #     buf = q + d - self.Q.make_array(q_circ)
+        #     #norm = self.compute_gradient_norm(buf)
+        #     norm = np.sqrt(self.products['prod_Q_reg'].apply2(buf, buf))[0,0]
+        #     #norm = buf.norm()[0]
+        #     if norm > MACHINE_EPS:
+        #         return norm
+        #     else:
+        #         return np.float64(0.0)
+
+        #-------------------------------------------------
+        q_circ = self.setup['model_parameter']['q_circ']
+        
+        g = self.A.grid
+        c = g.reference_element.center()
+        SF_GRAD = LAGRANGE_SHAPE_FUNCTIONS_GRAD[1]
+        SF_GRAD = SF_GRAD(c)
+        print(SF_GRAD.shape)
+        
+        SF_GRADS = np.einsum(
+            'eij,pj->epi', 
+            g.jacobian_inverse_transposed(0), 
+            SF_GRAD
+        )        
+        #q_ = q.to_numpy()[0].reshape((31,31))
+        print(SF_GRADS.shape)
+        x = np.einsum('epi,p->epi',SF_GRADS,q.to_numpy()[0])
+        print(x.shape)
+
+        # print(SF_GRADS[0,:,0])
+        # print(SF_GRADS[0,:,1])
+        # print(SF_GRADS[1,:,0])
+        # print(SF_GRADS[1,:,1])
+        
+        # D = self.A.nodes_to_element_projection.dot(q.to_numpy()[0])
+        # print(D.shape)
+
+        # print(SF_GRADS.shape)
+
+        import sys
+        sys.exit()
+        out = 0
 
         
         if self.q_time_dep:
@@ -772,19 +811,19 @@ class InstationaryModelIP(ImmutableObject):
         assert q in self.Q
         assert d in self.Q
 
-        #out = (- self.linear_reg_term.as_range_array() + self.bilinear_reg_term.apply(q + d))
-        # assert not self.q_time_dep
-        q_circ = self.setup['model_parameter']['q_circ']
-        out = q + d - self.Q.make_array(q_circ)
+        out = (- self.linear_reg_term.as_range_array() + self.bilinear_reg_term.apply(q + d))
+        # # assert not self.q_time_dep
+        # q_circ = self.setup['model_parameter']['q_circ']
+        # out = q + d - self.Q.make_array(q_circ)
 
-        #norm = self.compute_gradient_norm(out)
-        #out = self.products['prod_Q'].apply(out)
+        # #norm = self.compute_gradient_norm(out)
+        # norm = np.sqrt(self.products['prod_Q_reg'].apply2(out, out))[0,0]
+        # out = self.products['prod_Q_reg'].apply(out)
 
-        norm = out.norm()[0]
-        if norm > MACHINE_EPS:
-            out.scal(1 / norm)
-        else:
-            out = self.Q.zeros()
+        # if norm > MACHINE_EPS:
+        #     out.scal(1 / norm)
+        # else:
+        #     out = self.Q.zeros()
 
         if not self.riesz_rep_grad:
             return out

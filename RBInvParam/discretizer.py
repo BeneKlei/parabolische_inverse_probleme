@@ -86,6 +86,11 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         source_id = Q_h.id,
         range_id = Q_h.id
     )
+    products['prod_Q_reg'] = NumpyMatrixOperator(
+        matrix = assembled_products['h1_0_semi'],
+        source_id = Q_h.id,
+        range_id = Q_h.id
+    )
     products['prod_V'] = NumpyMatrixOperator(
         matrix = assembled_products[product_names['prod_V']],
         source_id = V_h.id,

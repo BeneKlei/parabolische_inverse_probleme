@@ -403,7 +403,7 @@ class Optimizer(BasicObject):
                 self.logger.warning(f"J = {J:3.4e}")
                 self.logger.warning(f"lin_J = {lin_J:3.4e}")
                 self.logger.warning(f"2lin_J = {2*lin_J:3.4e}")
-                self.logger.warning(f"lin_J_alpha = {model.linearized_objective(q, d, u, lin_u, alpha=alpha, use_cached_operators=use_cached_operators)}")
+                self.logger.warning(f"lin_J_alpha = {model.linearized_objective(q, d, u, lin_u, alpha=alpha, use_cached_operators=use_cached_operators):3.4e}")
                 self.logger.warning(f"Used alpha = {alpha:3.4e} does satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
             else:
                 self.logger.error(f"Not found valid alpha before reaching maximum number of tries : {reg_loop_max}.\n\
