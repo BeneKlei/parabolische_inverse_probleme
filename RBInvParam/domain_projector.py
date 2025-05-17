@@ -68,7 +68,7 @@ class SimpleBoundDomainProjector(DomainProjector):
     def pre_compute(self,
                     center: NumpyVectorArray) -> None:
 
-        self.logger.debug('Precomputing domain projector.')
+        self.logger.debug('Precomputing domain proximal operator.')
         if self.use_sufficient_condition:
             center_recon = self.reductor.reconstruct(center, basis='parameter_basis')
             center_recon = center_recon.to_numpy()

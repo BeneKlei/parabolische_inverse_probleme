@@ -9,11 +9,11 @@ from pymor.operators.numpy import NumpyMatrixOperator
 
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.reductor import InstationaryModelIPReductor
-from RBInvParam.domain_projector import SimpleBoundDomainProjector
+from RBInvParam.proximal_operators import ProximalOperator
 
 
 MACHINE_EPS = 1e-16
-STAGNATION_TOL = 1e-5
+STAGNATION_TOL = 1e-4
 
 def armijo_condition(
     previous_J : float,
@@ -40,17 +40,21 @@ def armijo_condition(
 def armijo_line_serach(previous_iterate: NumpyVectorArray,
                        previous_value: float,
                        search_direction : NumpyVectorArray,
+                       alpha: float,
                        func: Callable,
                        product : NumpyMatrixOperator,
                        inital_step_size: float,
-                       projector: SimpleBoundDomainProjector = None,
+                       proximal_op: ProximalOperator = None,
                        q: NumpyVectorArray = None) -> Tuple[NumpyVectorArray, float]:
 
         step_size = inital_step_size
         current_iterate = previous_iterate + step_size * search_direction
 
-        if projector: 
-            current_iterate = projector.project_domain(q, current_iterate) - q
+        if proximal_op: 
+            current_iterate = proximal_op.apply(center=q, 
+                                                direction=current_iterate,
+                                                step_size = step_size,
+                                                alpha=alpha) - q
 
         current_value = func(current_iterate)
 
@@ -66,8 +70,11 @@ def armijo_line_serach(previous_iterate: NumpyVectorArray,
             step_size = 0.5 * step_size
             current_iterate = previous_iterate + step_size * search_direction
 
-            if projector: 
-                current_iterate = projector.project_domain(q, current_iterate) - q
+            if proximal_op: 
+                current_iterate = proximal_op.apply(center=q, 
+                                                    direction=current_iterate,
+                                                    step_size = step_size,
+                                                    alpha=alpha) - q
 
 
             current_value = func(current_iterate)
@@ -87,8 +94,9 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
                                  pre_previous_gradient: NumpyVectorArray,
                                  product : NumpyMatrixOperator,
                                  search_direction : NumpyVectorArray,
+                                 alpha: float,
                                  func: Callable, 
-                                 projector: SimpleBoundDomainProjector = None,
+                                 proximal_op: ProximalOperator = None,
                                  q: NumpyVectorArray = None) -> Tuple[NumpyVectorArray, float]:
     
     # Using algorithm from
@@ -109,7 +117,7 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     step_size = product.apply2(delta_iterate, delta_gradient) / product.apply2(delta_gradient, delta_gradient)
 
     # step_size = step_size[0,0]
-    # step_size = np.min([step_size, 1e4])
+    # step_size = np.min([step_size, 1e6])
     # step_size = np.max([step_size, 1e-4])
     # step_size = np.array([[step_size]])
     #step_size = np.array([[1e-1]])
@@ -117,11 +125,15 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     # import sys
     # sys.exit()
 
-    current_iterate = previous_iterate - step_size[0,0] * search_direction
+    step_size = step_size[0,0]
+    current_iterate = previous_iterate - step_size * search_direction
 
-    if projector: 
-        current_iterate = projector.project_domain(q, current_iterate) - q
-
+    if proximal_op: 
+        current_iterate = proximal_op.apply(center=q, 
+                                            direction=current_iterate,
+                                            step_size = step_size,
+                                            alpha=alpha) - q
+    
     current_value = func(current_iterate)
     return (current_iterate, current_value)
 
@@ -133,7 +145,7 @@ def gradient_descent_linearized_problem(
     lin_solver_parms : Dict, 
     logger: logging.Logger = None,
     use_cached_operators: bool = False,
-    projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, int]:
+    proximal_op: ProximalOperator = None) -> Tuple[VectorArray, int]:
 
     max_iter=lin_solver_parms['max_iter']
     lin_solver_tol=lin_solver_parms['lin_solver_tol']
@@ -159,7 +171,7 @@ def gradient_descent_linearized_problem(
     converged = False
     last_i = -np.inf
     
-    buffer_size = 10
+    buffer_size = 50
     buffer_d = [np.nan for _ in range(buffer_size)]
     buffer_J = [np.inf for _ in range(buffer_size)]
     buffer_nabla_J = [np.nan for _ in range(buffer_size)]
@@ -173,8 +185,6 @@ def gradient_descent_linearized_problem(
     logger.info(f"Initial objective = {current_J:3.4e}.")
 
     for i in range(int(max_iter)):
-        from timeit import default_timer as timer
-        start = timer()
         previous_d = current_d.copy()
         previous_J = current_J.copy()
 
@@ -187,10 +197,12 @@ def gradient_descent_linearized_problem(
         buffer_nabla_J.pop(0)
         buffer_nabla_J.append(grad.copy())
 
-        if projector:            
-            terminaton_lhs = projector.project_domain(
+        if proximal_op:      
+            terminaton_lhs = proximal_op.apply(
                 center = q,
-                direction = -grad
+                direction = -grad,
+                step_size = 1,
+                alpha = alpha
             ) - q
         else:
             terminaton_lhs = -grad
@@ -215,13 +227,14 @@ def gradient_descent_linearized_problem(
                 previous_iterate = previous_d,
                 previous_value = previous_J,
                 search_direction = -grad,
+                alpha=alpha,
                 func = lambda d: model.compute_linearized_objective(q, 
                                                                     d, 
                                                                     alpha, 
                                                                     use_cached_operators=use_cached_operators),
                 product=product,
                 inital_step_size = inital_step_size,
-                projector = projector,
+                proximal_op = proximal_op,
                 q=q)       
 
         else:
@@ -232,11 +245,12 @@ def gradient_descent_linearized_problem(
                 pre_previous_gradient = buffer_nabla_J[-2],
                 product=product,
                 search_direction = grad,
+                alpha=alpha,
                 func = lambda d: model.compute_linearized_objective(q, 
                                                                     d, 
                                                                     alpha, 
                                                                     use_cached_operators=use_cached_operators),
-                projector = projector,
+                proximal_op = proximal_op,
                 q=q)
             
         
@@ -247,6 +261,8 @@ def gradient_descent_linearized_problem(
 
         buffer_d.pop(0)
         buffer_d.append(current_d)
+
+        #print(model.compute_gradient_norm(buffer_d[-1]buffer_d[-1]))
 
         buffer_J.pop(0)
         buffer_J.append(current_J)    

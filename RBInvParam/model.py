@@ -518,6 +518,8 @@ class InstationaryModelIP(ImmutableObject):
         out = 0.5 * self.delta_t * np.sum(self.bilinear_cost_term.pairwise_apply2(u,u)
                                           + (-2) * self.linear_cost_term.as_range_array().pairwise_inner(u) 
                                           + self.constant_cost_term)
+
+        alpha = 0
         if alpha > 0:
             assert q is not None
             # add regularization term if alpha >0
@@ -564,6 +566,8 @@ class InstationaryModelIP(ImmutableObject):
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
         
+
+        alpha = 0
         if alpha > 0:     
             #out = alpha * self.gradient_regularization_term(q)       
             out = grad + alpha * self.gradient_regularization_term(q)
@@ -603,6 +607,8 @@ class InstationaryModelIP(ImmutableObject):
                       self.bilinear_cost_term.pairwise_apply2(u_q_d,u_q_d) + \
                       (-2)  * self.linear_cost_term.as_range_array().pairwise_inner(u_q_d) + \
                       self.constant_cost_term)
+
+        alpha = 0
         if alpha > 0:
             #return alpha * self.linearized_regularization_term(q, d)
             return out + alpha * self.linearized_regularization_term(q, d)
@@ -658,6 +664,7 @@ class InstationaryModelIP(ImmutableObject):
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
 
+        alpha = 0
         if alpha > 0:
             #out = alpha * self.linarized_gradient_regularization_term(q,d)
             #out = grad
@@ -693,7 +700,6 @@ class InstationaryModelIP(ImmutableObject):
         #     else:
         #         return np.float64(0.0)
 
-        
         if self.q_time_dep:
             return 0.5 * self.delta_t * np.sum(self.bilinear_reg_term.pairwise_apply2(q,q) 
                                             + (-2) * self.linear_reg_term.as_range_array().pairwise_inner(q) 
@@ -757,37 +763,37 @@ class InstationaryModelIP(ImmutableObject):
         #         return np.float64(0.0)
 
         #-------------------------------------------------
-        q_circ = self.setup['model_parameter']['q_circ']
+        # q_circ = self.setup['model_parameter']['q_circ']
         
-        g = self.A.grid
-        c = g.reference_element.center()
-        SF_GRAD = LAGRANGE_SHAPE_FUNCTIONS_GRAD[1]
-        SF_GRAD = SF_GRAD(c)
-        print(SF_GRAD.shape)
+        # g = self.A.grid
+        # c = g.reference_element.center()
+        # SF_GRAD = LAGRANGE_SHAPE_FUNCTIONS_GRAD[1]
+        # SF_GRAD = SF_GRAD(c)
+        # print(SF_GRAD.shape)
         
-        SF_GRADS = np.einsum(
-            'eij,pj->epi', 
-            g.jacobian_inverse_transposed(0), 
-            SF_GRAD
-        )        
-        #q_ = q.to_numpy()[0].reshape((31,31))
-        print(SF_GRADS.shape)
-        x = np.einsum('epi,p->epi',SF_GRADS,q.to_numpy()[0])
-        print(x.shape)
-
-        # print(SF_GRADS[0,:,0])
-        # print(SF_GRADS[0,:,1])
-        # print(SF_GRADS[1,:,0])
-        # print(SF_GRADS[1,:,1])
-        
-        # D = self.A.nodes_to_element_projection.dot(q.to_numpy()[0])
-        # print(D.shape)
-
+        # SF_GRADS = np.einsum(
+        #     'eij,pj->epi', 
+        #     g.jacobian_inverse_transposed(0), 
+        #     SF_GRAD
+        # )        
+        # #q_ = q.to_numpy()[0].reshape((31,31))
         # print(SF_GRADS.shape)
+        # x = np.einsum('epi,p->epi',SF_GRADS,q.to_numpy()[0])
+        # print(x.shape)
 
-        import sys
-        sys.exit()
-        out = 0
+        # # print(SF_GRADS[0,:,0])
+        # # print(SF_GRADS[0,:,1])
+        # # print(SF_GRADS[1,:,0])
+        # # print(SF_GRADS[1,:,1])
+        
+        # # D = self.A.nodes_to_element_projection.dot(q.to_numpy()[0])
+        # # print(D.shape)
+
+        # # print(SF_GRADS.shape)
+
+        # import sys
+        # sys.exit()
+        # out = 0
 
         
         if self.q_time_dep:

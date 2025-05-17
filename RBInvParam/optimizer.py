@@ -20,11 +20,12 @@ from RBInvParam.linear_solver.BiCGSTAB import BiCGStab_linearized_problem
 from RBInvParam.reductor import InstationaryModelIPReductor
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.io import save_dict_to_pkl
-from RBInvParam.domain_projector import SimpleBoundDomainProjector
+from RBInvParam.proximal_operators import ProximalOperator, SimpleBoundDomainL1ProximalOperator
 
 
 MACHINE_EPS = 1e-16
-STAGNATION_TOL = 1e-3
+#STAGNATION_TOL = 1e-3
+STAGNATION_TOL = 1e-6
 
 class Optimizer(BasicObject):
     def __init__(self, 
@@ -97,7 +98,7 @@ class Optimizer(BasicObject):
                                beta: float,
                                kappa_arm: float,
                                use_cached_operators: bool = False,
-                               projector: SimpleBoundDomainProjector = None) -> Tuple[NumpyVectorArray, float, bool]:
+                               proximal_op: ProximalOperator = None) -> Tuple[NumpyVectorArray, float, bool]:
 
         assert 0 <= beta < 1
         assert 0 < eta
@@ -110,9 +111,11 @@ class Optimizer(BasicObject):
         step_size = inital_step_size
         search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
 
-        if projector:
-            projector.pre_compute(center=previous_q)
-            current_q = projector.project_domain(previous_q, step_size * search_direction)
+        if proximal_op:
+            proximal_op.pre_compute(center=previous_q)
+            current_q = proximal_op.apply(center = previous_q, 
+                                          direction = step_size * search_direction,
+                                          step_size = step_size)
         else:
             current_q = previous_q + step_size * search_direction
 
@@ -153,9 +156,11 @@ class Optimizer(BasicObject):
         while (not condition) and (i < max_iter):
             step_size = 0.5 * step_size
             
-            if projector: 
-                projector.pre_compute(center=previous_q)
-                current_q = projector.project_domain(previous_q, step_size * search_direction)
+            if proximal_op: 
+                proximal_op.pre_compute(center=previous_q)
+                current_q = proximal_op.apply(center = previous_q, 
+                                              direction = step_size * search_direction,
+                                              step_size = step_size)
             else:
                 current_q = previous_q + step_size * search_direction
 
@@ -227,7 +232,7 @@ class Optimizer(BasicObject):
               use_cached_operators: bool = False,
               dump_IRGNM_intermed_stats: bool = False,
               dump_every_nth_loop: int = 0,
-              projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, Dict]: 
+              proximal_op: ProximalOperator = None) -> Tuple[VectorArray, Dict]: 
 
         assert q_0 in model.Q
         assert tol > 0
@@ -313,8 +318,8 @@ class Optimizer(BasicObject):
             regularization_qualification = False
             count = 1
 
-            if projector:
-                projector.pre_compute(center=q)
+            if proximal_op:
+                proximal_op.pre_compute(center=q)
 
             d_start = q.to_numpy().copy()
             d_start[:,:] = 0
@@ -327,7 +332,7 @@ class Optimizer(BasicObject):
                                                                lin_solver_parms = lin_solver_parms, 
                                                                logger = self.logger,
                                                                use_cached_operators=use_cached_operators,
-                                                               projector=projector)
+                                                               proximal_op=proximal_op)
 
             counts['lin_solver_iter'].append([lin_solver_iter])
             
@@ -351,14 +356,14 @@ class Optimizer(BasicObject):
             while (not regularization_qualification) and (count < reg_loop_max):
                 count += 1
 
-                if alpha <= 1e-100:
+                if alpha <= 1e-16:
                     loop_terminated = True
                     break
                 
                 if not condition_low:
                     alpha *= 1.5  
                 elif not condition_up:
-                    alpha = max(alpha/2,1e-100)
+                    alpha = max(alpha/2,1e-16)
                 else:
                     raise ValueError
                 
@@ -372,7 +377,7 @@ class Optimizer(BasicObject):
                                                                    lin_solver_parms = lin_solver_parms,
                                                                    logger = self.logger,
                                                                    use_cached_operators=use_cached_operators,
-                                                                   projector=projector)
+                                                                   proximal_op=proximal_op)
 
                 counts['lin_solver_iter'][-1].append(lin_solver_iter)
 
@@ -393,7 +398,6 @@ class Optimizer(BasicObject):
                     self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
 
                 
-
             loop_terminated = loop_terminated or (count >= reg_loop_max)
 
             counts['reg_loop_iter'].append(count)
@@ -421,7 +425,7 @@ class Optimizer(BasicObject):
                     search_direction = d,
                     **TR_backtracking_params,
                     use_cached_operators=use_cached_operators,
-                    projector=projector
+                    proximal_op=proximal_op
                 )
 
                 TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 1])
@@ -515,7 +519,7 @@ class Optimizer(BasicObject):
                                 use_cached_operators: bool,
                                 logger: logging.Logger,
                                 lin_solver_parms : Dict,
-                                projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, int]:
+                                proximal_op: ProximalOperator = None) -> Tuple[VectorArray, int]:
 
         method = lin_solver_parms['method']
         if method == 'gd':
@@ -526,7 +530,7 @@ class Optimizer(BasicObject):
                                                        use_cached_operators=use_cached_operators,
                                                        logger=logger,
                                                        lin_solver_parms = lin_solver_parms,
-                                                       projector=projector)
+                                                       proximal_op=proximal_op)
         elif method == 'BiCGSTAB':
             return BiCGStab_linearized_problem(model, 
                                                q = q, 
@@ -623,6 +627,15 @@ class FOMOptimizer(Optimizer):
         self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
 
         self.name = 'FOM'
+
+        proximal_op = SimpleBoundDomainL1ProximalOperator(
+                model = self.FOM,
+                bounds = self.FOM.bounds,
+                reductor = None,
+                use_sufficient_condition = False,
+                logger = self.logger
+        )
+
         q, IRGNM_statistic = self.IRGNM(model = self.FOM,
                                         q_0 = q,
                                         alpha_0 = alpha_0,
@@ -636,7 +649,8 @@ class FOMOptimizer(Optimizer):
                                         lin_solver_parms = lin_solver_parms,
                                         use_cached_operators = use_cached_operators,
                                         dump_IRGNM_intermed_stats = True,
-                                        dump_every_nth_loop=dump_every_nth_loop)
+                                        dump_every_nth_loop=dump_every_nth_loop,
+                                        proximal_op = proximal_op)
 
         self.statistics["q"] = IRGNM_statistic["q"]
         self.statistics['time_steps'] = IRGNM_statistic['time_steps']
@@ -1200,11 +1214,11 @@ class QrVrROMOptimizer(Optimizer):
                 assert rel_est_error_J_r <= eta
 
             IRGNM_statistic = None
-            projector = SimpleBoundDomainProjector(
+            proximal_op = SimpleBoundDomainL1ProximalOperator(
                 model = self.QrVrROM,
                 bounds = self.FOM.bounds,
                 reductor = self.reductor,
-                use_sufficient_condition = True,
+                use_sufficient_condition = False,
                 logger = self.logger
             )
 
@@ -1223,7 +1237,7 @@ class QrVrROMOptimizer(Optimizer):
                 beta = beta_1,
                 kappa_arm = kappa_arm,
                 use_cached_operators=use_cached_operators,
-                projector=projector
+                proximal_op=proximal_op
             )
 
             if J_r_AGC >= J:
@@ -1264,7 +1278,7 @@ class QrVrROMOptimizer(Optimizer):
                                                   TR_backtracking_params=TR_backtracking_params,
                                                   lin_solver_parms=lin_solver_parms,
                                                   use_cached_operators=use_cached_operators,
-                                                  projector=projector)
+                                                  proximal_op=proximal_op)
 
             ########################################### Accept / Reject ###########################################
 
@@ -1386,6 +1400,7 @@ class QrVrROMOptimizer(Optimizer):
                 
                 if IRGNM_statistic is not None:
                     try:
+
                         alpha = IRGNM_statistic["alpha"][1]
                     except IndexError:
                         pass

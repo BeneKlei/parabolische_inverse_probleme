@@ -35,9 +35,9 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    #N = 300
+    N = 300
     #N = 100
-    N = 30
+    #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -46,7 +46,7 @@ def main():
     T_final = 1
     # TODO Here is a Bug
     #nt = 50
-    nt = 1
+    nt = 10
     delta_t = (T_final - T_initial) / nt
     q_time_dep = False
     #q_time_dep = True
@@ -98,7 +98,7 @@ def main():
             'q_circ' : q_circ, 
             'q_exact' : None,
             'q_time_dep' : q_time_dep,
-            'riesz_rep_grad' : False,
+            'riesz_rep_grad' : True,
             'bounds' : bounds,
             'parameters' : None,
             'products' : {
@@ -121,12 +121,12 @@ def main():
 
     optimizer_parameter = {
         'q_0' : q_start,
-        'alpha_0' : 5 * 1e-8,
+        'alpha_0' : 1e-4,
         'tol' : 1e-11,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
-        'theta' : 0.15,
-        'Theta' : 0.8,
+        'theta' : 0.4,
+        'Theta' : 1.95,
         #####################
         'i_max' : 35,
         'reg_loop_max' : 50,
@@ -134,8 +134,8 @@ def main():
         ####################
         'lin_solver_parms' : {
             'method' : 'gd',
-            'max_iter' : 1e3,
-            'lin_solver_tol' : 1e-12,
+            'max_iter' : 1e4,
+            'lin_solver_tol' : 1e-10,
             'inital_step_size' : 1
         },
         'use_cached_operators' : True,

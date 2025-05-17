@@ -34,9 +34,9 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    N = 300
+    #N = 300
     #N = 100
-    #N = 30
+    N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -44,12 +44,14 @@ def main():
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
-    nt = 50
+    #nt = 50
+    nt = 1
     delta_t = (T_final - T_initial) / nt
     #q_time_dep = False
     q_time_dep = True
 
     noise_level = 1e-5
+    #noise_level = 0
 
     assert T_final > T_initial
     if q_time_dep:
@@ -80,8 +82,8 @@ def main():
             'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'PacMan',
-            #'time_factor' : 'constant',
-            'time_factor' : 'sinus',
+            'time_factor' : 'constant',
+            #'time_factor' : 'sinus',
             'T_final' : T_final,
         },
         'model_parameter' : {
@@ -119,17 +121,19 @@ def main():
 
     FOM, _, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
-    q_start = q_circ
+
+    q_start = 1.5 * q_exact.to_numpy()
 
     optimizer_parameter = {
         'q_0' : q_start,
-        'alpha_0' : 1e-10,
-        #'alpha_0' : 1e-5,
+        'alpha_0' : 1e-5,
         'tol' : 1e-9,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
         'theta' : 0.4,
         'Theta' : 1.95,
+        # 'theta' : 1e-16,
+        # 'Theta' : 1e16,
         'tau_tilde' : 3.5,
         #####################
         'i_max' : 75,
@@ -141,8 +145,9 @@ def main():
         #####################
         'lin_solver_parms' : {
             'method' : 'gd',
-            'max_iter' : 1e4,
-            'lin_solver_tol' : 1e-10,
+            'max_iter' : 5 * 1e3,
+            #'lin_solver_tol' : 1e-10,
+            'lin_solver_tol' : 1e-13,
             'inital_step_size' : 1
         },
         'enrichment' : {
