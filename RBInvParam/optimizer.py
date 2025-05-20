@@ -361,9 +361,11 @@ class Optimizer(BasicObject):
                     break
                 
                 if not condition_low:
-                    alpha *= 1.5  
+                    #alpha *= 1.5  
+                    alpha *= 10  
                 elif not condition_up:
-                    alpha = max(alpha/2,1e-16)
+                    #alpha = max(alpha/2,1e-16)
+                    alpha = max(alpha/10,1e-16)
                 else:
                     raise ValueError
                 
@@ -1400,8 +1402,8 @@ class QrVrROMOptimizer(Optimizer):
                 
                 if IRGNM_statistic is not None:
                     try:
-
                         alpha = IRGNM_statistic["alpha"][1]
+                        #alpha = IRGNM_statistic["alpha"][2]
                     except IndexError:
                         pass
                     

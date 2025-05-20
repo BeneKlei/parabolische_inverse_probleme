@@ -108,8 +108,9 @@ class SimpleBoundDomainL1ProximalOperator(ProximalOperator):
               center: VectorArray,
               direction: VectorArray,
               step_size: float,
-              alpha: float = 0) -> VectorArray:
-        
+              alpha: float = 0,
+              i = -1) -> VectorArray:
+                
         assert alpha >= 0
         if self.use_sufficient_condition:
             raise NotImplementedError
@@ -120,9 +121,13 @@ class SimpleBoundDomainL1ProximalOperator(ProximalOperator):
         else:
             center_recon = center
             direction_recon = direction
-
+        
         center_recon = center_recon.to_numpy().flatten()
         direction_recon = direction_recon.to_numpy().flatten()
+
+        #print("-----------------------------------------------------------")
+        #print(np.linalg.norm(self.reductor.project_vectorarray(self.reductor.FOM.Q.make_array(center_recon - step_size * direction_recon), basis='parameter_basis') - center.to_numpy()))
+        #print(np.linalg.norm(self.reductor.project_vectorarray(self.reductor.FOM.Q.make_array(direction_recon), basis='parameter_basis')))
 
         C_2 = step_size * alpha * self.W.to_numpy()
         C_2 = C_2[0]
@@ -131,18 +136,28 @@ class SimpleBoundDomainL1ProximalOperator(ProximalOperator):
            
       
         C_1 = center_recon - self.q_circ
+
         buf = np.abs(direction_recon - C_1) - C_2
         buf = np.where(buf >= 0, buf, 0)
         direction_recon = C_1 + np.sign(direction_recon - C_1) * buf
-                         
+        #print(np.linalg.norm(self.reductor.project_vectorarray(self.reductor.FOM.Q.make_array(direction_recon), basis='parameter_basis')))
+        
+        #print(np.linalg.norm(self.reductor.project_vectorarray(self.reductor.FOM.Q.make_array(center_recon + direction_recon), basis='parameter_basis') - center.to_numpy()))        #if (i % 2510000 == 0):
+        #print("-----------------------------------------------------------")
+        #    print((alpha * self.W.to_numpy() @ np.abs(direction_recon - C_1))[0])
+        #print(np.linalg.norm(direction_recon_old - direction_recon) / np.linalg.norm(direction_recon_old))
+        #print(np.linalg.norm(direction_recon - center_recon))
+        #print(np.linalg.norm(buf))
+
+        
         update_recon = center_recon + direction_recon
 
-        mask_lb = update_recon < self.bounds[:,0]
-        mask_ub = update_recon > self.bounds[:,1]
+        # mask_lb = update_recon < self.bounds[:,0]
+        # mask_ub = update_recon > self.bounds[:,1]
 
-        if np.any(mask_lb) or np.any(mask_ub):
-            update_recon[mask_lb] = self.bounds[mask_lb,0]
-            update_recon[mask_ub] = self.bounds[mask_ub,1]
+        # if np.any(mask_lb) or np.any(mask_ub):
+        #     update_recon[mask_lb] = self.bounds[mask_lb,0]
+        #     update_recon[mask_ub] = self.bounds[mask_ub,1]
             
 
         if self.model.setup['model_parameter']['q_time_dep']:  
@@ -153,6 +168,11 @@ class SimpleBoundDomainL1ProximalOperator(ProximalOperator):
         if self.reductor: 
             update_recon = self.reductor.FOM.Q.make_array(update_recon)  
             update_recon = self.reductor.project_vectorarray(update_recon, basis='parameter_basis')
-            
+        
+        
+        #if (i % 251 == 0):
+        #print(np.linalg.norm(direction_recon_old - direction_recon) / np.linalg.norm(direction_recon_old))
+        
+        #print(np.linalg.norm(self.reductor.project_vectorarray(self.reductor.FOM.Q.make_array(direction_recon), basis='parameter_basis')))
         return self.model.Q.make_array(update_recon)
         

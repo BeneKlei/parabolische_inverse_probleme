@@ -35,8 +35,8 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    N = 300
-    #N = 100
+    #N = 300
+    N = 100
     #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
@@ -118,17 +118,18 @@ def main():
     FOM, _, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
     q_start = q_circ
+    #q_start = 1.5 * q_exact.to_numpy()
 
     optimizer_parameter = {
         'q_0' : q_start,
-        'alpha_0' : 1e-4,
+        'alpha_0' : 1e-8,
         'tol' : 1e-11,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
-        'theta' : 0.4,
+        'theta' : 0.15,
         'Theta' : 1.95,
         #####################
-        'i_max' : 35,
+        'i_max' : 100,
         'reg_loop_max' : 50,
         'i_max_inner' : 2,
         ####################

@@ -35,8 +35,8 @@ set_defaults({})
 
 def main():
     #N = 300
-    #N = 100
-    N = 30
+    N = 100
+    #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -45,10 +45,11 @@ def main():
     T_final = 1
     # TODO Here is a Bug
     #nt = 50
-    nt = 1
+    nt = 10
+    #nt = 1
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
     noise_level = 1e-5
     #noise_level = 0
@@ -122,7 +123,7 @@ def main():
     FOM, _, _ = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['model_parameter']['q_exact']
 
-    q_start = 1.5 * q_exact.to_numpy()
+    q_start = q_circ
 
     optimizer_parameter = {
         'q_0' : q_start,
@@ -130,14 +131,14 @@ def main():
         'tol' : 1e-9,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
-        'theta' : 0.4,
-        'Theta' : 1.95,
-        # 'theta' : 1e-16,
-        # 'Theta' : 1e16,
+        # 'theta' : 0.4,
+        # 'Theta' : 1.95,
+        'theta' : 0.15,
+        'Theta' : 1.50,
         'tau_tilde' : 3.5,
         #####################
         'i_max' : 75,
-        'reg_loop_max' : 10,
+        'reg_loop_max' : 5,
         'i_max_inner' : 10,
         'agc_armijo_max_iter' : 100,
         #'TR_armijo_max_iter' : 10,
@@ -145,9 +146,8 @@ def main():
         #####################
         'lin_solver_parms' : {
             'method' : 'gd',
-            'max_iter' : 5 * 1e3,
-            #'lin_solver_tol' : 1e-10,
-            'lin_solver_tol' : 1e-13,
+            'max_iter' : 2 * 1e4,
+            'lin_solver_tol' : 1e-10,
             'inital_step_size' : 1
         },
         'enrichment' : {
