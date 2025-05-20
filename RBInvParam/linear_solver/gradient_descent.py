@@ -89,7 +89,8 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
                                  search_direction : NumpyVectorArray,
                                  func: Callable, 
                                  projector: SimpleBoundDomainProjector = None,
-                                 q: NumpyVectorArray = None) -> Tuple[NumpyVectorArray, float]:
+                                 q: NumpyVectorArray = None,
+                                 i: float = 0) -> Tuple[NumpyVectorArray, float]:
     
     # Using algorithm from
     # https://watermark.silverchair.com/8-1-141.pdf?token=AQECAHi208BE49Ooan9kkhW_Ercy7Dm3ZL_9Cf3qfKAc485ysgAAA2kwggNlBgkqhkiG9w0BBwagggNWMIIDUgIBADCCA0sGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQM4WESSjzDIsa2gVMsAgEQgIIDHHeiS0AQ9L_1TmZFA7rg1QFF7cezo4BC_1OnBjkdHDIidNO_gGqaOBss8MNgz6cK5xd1mDqhTB0w0Jx202D40CtChSI6QCQUfSpoFcR3D28U6jRYZnaH9NjLIh0rE59cktmXZbX0aCov-NgLpmyfyrWVhK0hdkl5aXU_2hrh3b83hg2wjA_k9JVXwxHDhaS58iAtIv8Ulw4jBc8E6iV447KcH4RKuUT8PISqwQoTWF5-5564fSGEYVWrV2SFDbiHQpqnJBSLTJdXMK5EwqxXN3Z7b7byHqUe76bZdk5f2RROTuMX2TRITeGRZdnyqQ2qL2O2lmqqOrjomiKg3qUYcX_2wqBOyD2WC3cIjHalwNEgPZfRVAqJ-UCrBsnBdcwIPDlATYhN3XG-zMBUKURfQt8ypcoPlYQoZD0NI-d2Hsr7-Bx7ishcO8tJ07hY9tETD_KGtmZQCyAHpP5IqlRK00yo2XMvZc-_mhjc-f1UWrY9OGwGh5vaBaP7xvsmZnU60Pp-A4eKoqjwucTx3mv9PzhkZR-ZzqeuEfSMBP082-Hxh7WuLOk_YuRMvHbKEzkzVU9-9h9kMeZWxfYFMVgAoyE1nd3o1gTjYupKsS1LOAdMJKe-6r75K4ceV_C4aUocXxLbPQ8j154lil5ujc0ejPvW709tWQINj7SdvnSb5zydKyGIsT-3eMGMthuWsNoCEKZB6JHnTYkeDsNzbvfwUqSexaH-eJM5MiFDPVeft-OG-OQrQxc8xrVXEOF3sGjLCgtbpmkvgcDDNYTKIByb9d0O0Mzmznz6HzWNPxhHRH8ZEvQEMPCRbxQn0UQoq-9UcHUVwoZUXl_w9kZ9zUgNVK8kNQKSikmKaWhAfI_NGz5zzqP_4-G8FfG1Vbdwt2l0g3okGtEUI7IU2hofXY4ypnIlmv_7dsjqkLsxhWChcO9BIdAyQ0svinQRW22b0ClgAQejDhpkJDwm8PJY03JKPgX9223GJ2zjXRO9Fx-OZV0TwWgt1xwhMbRenK6aJHDfnhsGZPQ5JjWAkMP_DQk8ZAGefCOHiYKdZZjpah0
@@ -99,12 +100,18 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     
     delta_iterate = previous_iterate - pre_previous_iterate
     delta_gradient = previous_gradient - pre_previous_gradient
-
-    #step_size = product.apply2(delta_iterate, delta_iterate) / product.apply2(delta_iterate, delta_gradient)
-    step_size = product.apply2(delta_iterate, delta_gradient) / product.apply2(delta_gradient, delta_gradient)
     
-    current_iterate = previous_iterate - step_size[0,0] * search_direction
 
+    if (i % 1 == 0):
+        step_size = product.apply2(delta_iterate, delta_iterate) / product.apply2(delta_iterate, delta_gradient)
+    else:
+        step_size = product.apply2(delta_iterate, delta_gradient) / product.apply2(delta_gradient, delta_gradient)
+
+    step_size = step_size[0,0]
+    step_size = np.min([step_size, 1e6])
+    step_size = np.max([step_size, 1e-4])
+    current_iterate = previous_iterate - step_size * search_direction
+    
     if projector: 
         current_iterate = projector.project_domain(q, current_iterate) - q
 
