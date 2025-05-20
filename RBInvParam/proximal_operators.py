@@ -135,7 +135,8 @@ class SimpleBoundDomainL1ProximalOperator(ProximalOperator):
            C_2 = np.stack([C_2] * self.reductor.FOM.nt, axis=0).flatten()
            
       
-        C_1 = center_recon - self.q_circ
+        #C_1 = center_recon - self.q_circ
+        C_1 = -center_recon + self.q_circ
 
         buf = np.abs(direction_recon - C_1) - C_2
         buf = np.where(buf >= 0, buf, 0)
