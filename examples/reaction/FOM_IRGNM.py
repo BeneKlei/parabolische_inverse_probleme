@@ -43,8 +43,8 @@ def main():
     T_initial = 0
     T_final = 1
     # TODO Here is a Bug
-    nt = 100
-    #nt = 50
+    #nt = 100
+    nt = 50
     delta_t = (T_final - T_initial) / nt
     #q_time_dep = False
     q_time_dep = True
@@ -122,12 +122,12 @@ def main():
         'tol' : 1e-9,
         'tau' : 3.5,
         'noise_level' : setup['model_parameter']['noise_level'],
-        'theta' : 0.25,
-        'Theta' : 0.95,
+        'theta' : 0.4,
+        'Theta' : 1.95,
         #####################
-        'i_max' : 25,
+        'i_max' : 75,
         'reg_loop_max' : 10,
-        'i_max_inner' : 2,
+        'i_max_inner' : 10,
         #####################
         'lin_solver_parms' : {
             'method' : 'gd',
