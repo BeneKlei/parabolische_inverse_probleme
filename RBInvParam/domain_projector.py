@@ -50,7 +50,8 @@ class SimpleBoundDomainProjector(DomainProjector):
 
         assert isinstance(self.model, InstationaryModelIP)
         assert isinstance(self.bounds, np.ndarray)
-        assert isinstance(self.reductor, InstationaryModelIPReductor)
+        if self.reductor:
+            assert isinstance(self.reductor, InstationaryModelIPReductor)
         assert isinstance(self.use_sufficient_condition, bool)
 
         if self.use_sufficient_condition:
@@ -58,11 +59,18 @@ class SimpleBoundDomainProjector(DomainProjector):
             assert self.reductor is not None
         else:
             self.logger.debug('NOT using sufficient condition.')
+
+        if self.reductor:
+            self.FOM_Q_dim = self.reductor.FOM.Q.dim
+        else:
+            self.FOM_Q_dim = self.model.Q.dim
+        
+        
                     
         if self.model.q_time_dep:
-            assert self.bounds.shape == (self.model.nt * self.reductor.FOM.Q.dim , 2)
+            assert self.bounds.shape == (self.model.nt * self.FOM_Q_dim, 2)
         else:
-            assert self.bounds.shape == (self.reductor.FOM.Q.dim , 2)
+            assert self.bounds.shape == (self.FOM_Q_dim , 2)
         assert np.all(self.bounds[:,0] < self.bounds[:,1])
 
     def pre_compute(self,
@@ -110,8 +118,11 @@ class SimpleBoundDomainProjector(DomainProjector):
                 return center + direction
         
         update = center + direction
-        update_recon = self.reductor.reconstruct(update, basis='parameter_basis')
-        update_recon = update_recon.to_numpy().flatten()
+        if self.reductor:
+            update_recon = self.reductor.reconstruct(update, basis='parameter_basis')
+            update_recon = update_recon.to_numpy().flatten()
+        else:
+            update_recon = update.to_numpy().flatten()
             
         mask_lb = update_recon < self.bounds[:,0]
         mask_ub = update_recon > self.bounds[:,1]
@@ -119,14 +130,20 @@ class SimpleBoundDomainProjector(DomainProjector):
         if np.any(mask_lb) or np.any(mask_ub):
             update_recon[mask_lb] = self.bounds[mask_lb,0]
             update_recon[mask_ub] = self.bounds[mask_ub,1]
+        else:
+            return update    
             
-            if self.model.setup['model_parameter']['q_time_dep']:  
-                update_recon = update_recon.reshape((self.reductor.FOM.nt, self.reductor.FOM.Q.dim))
-            else:
-                update_recon = update_recon.reshape((1, self.reductor.FOM.Q.dim))
-
+        if self.model.setup['model_parameter']['q_time_dep']:  
+            update_recon = update_recon.reshape((self.model.nt, self.FOM_Q_dim))
+        else:
+            update_recon = update_recon.reshape((1, self.FOM_Q_dim))
+        
+        if self.reductor:
             update_recon = self.reductor.FOM.Q.make_array(update_recon)  
             update_recon = self.reductor.project_vectorarray(update_recon, basis='parameter_basis')
             return self.model.Q.make_array(update_recon)
         else:
-            return update        
+            return self.model.Q.make_array(update_recon)  
+        
+        
+        
