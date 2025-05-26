@@ -900,7 +900,7 @@ class QrVrROMOptimizer(Optimizer):
         inc_vectorarray_hapod(steps=len(snapshots)/2, 
                               U=snapshots, 
                               eps=HaPOD_tol,
-                              omega=0.5,                
+                              omega=0.1,                
                               product=product)
         
 
@@ -929,7 +929,7 @@ class QrVrROMOptimizer(Optimizer):
         inc_vectorarray_hapod(steps=len(snapshots)/2, 
                               U=snapshots, 
                               eps=HaPOD_tol,
-                              omega=0.5,                
+                              omega=0.1,                
                               product=product)
 
         self.reductor.bases[basis] = _snapshots
