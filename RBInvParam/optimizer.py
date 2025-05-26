@@ -901,7 +901,7 @@ class QrVrROMOptimizer(Optimizer):
         assert product.source == product.range == snapshots.space
 
         snapshots, _, _ = \
-        inc_vectorarray_hapod(steps=len(snapshots)/5, 
+        inc_vectorarray_hapod(steps=len(snapshots)/2, 
                               U=snapshots, 
                               eps=HaPOD_tol,
                               omega=0.1,                
@@ -929,7 +929,7 @@ class QrVrROMOptimizer(Optimizer):
 
         self.reductor.bases[basis].append(snapshots)
         _snapshots, _, _ = \
-        inc_vectorarray_hapod(steps=len(snapshots)/5, 
+        inc_vectorarray_hapod(steps=len(snapshots)/2, 
                               U=snapshots, 
                               eps=HaPOD_tol,
                               omega=0.1,                
