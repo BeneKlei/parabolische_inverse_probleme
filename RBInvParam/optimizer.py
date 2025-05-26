@@ -146,10 +146,6 @@ class Optimizer(BasicObject):
         condition = armijo_condition & TR_condition
         i += 1
 
-        # print(lhs)
-        # print(rhs)
-        # print(step_size)
-
         while (not condition) and (i < max_iter):
             step_size = 0.5 * step_size
             
@@ -904,9 +900,10 @@ class QrVrROMOptimizer(Optimizer):
         inc_vectorarray_hapod(steps=len(snapshots)/5, 
                               U=snapshots, 
                               eps=HaPOD_tol,
-                              omega=0.1,                
+                              omega=0.5,                
                               product=product)
         
+
         try:
             self.reductor.extend_basis(
                 U = snapshots,
@@ -932,7 +929,7 @@ class QrVrROMOptimizer(Optimizer):
         inc_vectorarray_hapod(steps=len(snapshots)/5, 
                               U=snapshots, 
                               eps=HaPOD_tol,
-                              omega=0.1,                
+                              omega=0.5,                
                               product=product)
 
         self.reductor.bases[basis] = _snapshots
