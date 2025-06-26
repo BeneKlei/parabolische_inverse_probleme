@@ -609,6 +609,14 @@ class FOMOptimizer(Optimizer):
             self.logger.debug(f"        {key} : {val}")
         self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
 
+        projector = SimpleBoundDomainProjector(
+            model = self.FOM,
+            bounds = self.FOM.bounds,
+            reductor = None,
+            use_sufficient_condition = False,
+            logger = self.logger
+        )
+
         self.name = 'FOM'
         q, IRGNM_statistic = self.IRGNM(model = self.FOM,
                                         q_0 = q,
@@ -623,7 +631,8 @@ class FOMOptimizer(Optimizer):
                                         lin_solver_parms = lin_solver_parms,
                                         use_cached_operators = use_cached_operators,
                                         dump_IRGNM_intermed_stats = True,
-                                        dump_every_nth_loop=dump_every_nth_loop)
+                                        dump_every_nth_loop=dump_every_nth_loop,
+                                        projector=projector)
 
         self.statistics["q"] = IRGNM_statistic["q"]
         self.statistics['time_steps'] = IRGNM_statistic['time_steps']
@@ -892,7 +901,7 @@ class QrVrROMOptimizer(Optimizer):
         assert product.source == product.range == snapshots.space
 
         snapshots, _, _ = \
-        inc_vectorarray_hapod(steps=len(snapshots)/5, 
+        inc_vectorarray_hapod(steps=len(snapshots)/2, 
                               U=snapshots, 
                               eps=HaPOD_tol,
                               omega=0.1,                
@@ -920,7 +929,7 @@ class QrVrROMOptimizer(Optimizer):
 
         self.reductor.bases[basis].append(snapshots)
         _snapshots, _, _ = \
-        inc_vectorarray_hapod(steps=len(snapshots)/5, 
+        inc_vectorarray_hapod(steps=len(snapshots)/2, 
                               U=snapshots, 
                               eps=HaPOD_tol,
                               omega=0.1,                
