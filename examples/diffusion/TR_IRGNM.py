@@ -80,7 +80,6 @@ def main():
             'parameter_location' : 'diffusion',
             'boundary_conditions' : 'dirichlet',
             'exact_parameter' : 'PacMan',
-            #'time_factor' : 'constant',
             'time_factor' : 'sinus',
             'T_final' : T_final,
         },
@@ -110,10 +109,6 @@ def main():
             'observation_operator' : {
                 'name' : 'identity',
             }
-            # 'observation_operator' : {
-            #     'name' : 'RoI',
-            #     'RoI' : np.array([[0.0,0.5], [0.0,0.5]])
-            # }
         }
     }
 
