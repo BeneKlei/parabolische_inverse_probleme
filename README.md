@@ -41,7 +41,8 @@ You can modify the behavior of the optimization algorithms by editing the values
 To run the full set of experiments from the paper as a batch:
 
 ```bash
-# TODO: Add batch script or command sequence here
+cd /path/to/parabolische_inverse_probleme/experiments/paper_POD_tol_compare
+python ../../RBInvParam/deployment/run_experiment_batch.py ./paper_POD_tol_compare.py local
 ```
 
 ⚠️ **Warning:** Running the full experiment set may take several days to complete.
