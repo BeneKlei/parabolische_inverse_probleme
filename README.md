@@ -1,6 +1,6 @@
 # Parabolische Inverse Probleme
 
-This repository contains the code for the numerical experiments presented in the paper *"Adaptive Reduced Basis Trust Region Methods for Parabolic Inverse Problems"* by Michael Kartmann, Benedikt Klein, Mario Ohlberger, Thomas Schuster, and Stefan Volkwein. The implementation builds upon [previous work](https://zenodo.org/records/8328835) by Michael Kartmann and Tim Keil.
+This repository contains the code for the numerical experiments presented in the paper *Adaptive Reduced Basis Trust Region Methods for Parabolic Inverse Problems* by Michael Kartmann, Benedikt Klein, Mario Ohlberger, Thomas Schuster, and Stefan Volkwein. The implementation builds upon [previous work](https://zenodo.org/records/8328835) by Michael Kartmann and Tim Keil.
 
 The experiments in the paper were conducted on the PALMA II HPC cluster at the University of Münster, funded by the DFG (INST 211/667-1), using compute nodes with Intel Skylake Gold 6140 CPUs @ 2.30 GHz and 92 GB RAM. You can rerun these experiments on your local Linux machine or use the code to explore and experiment further.
 
