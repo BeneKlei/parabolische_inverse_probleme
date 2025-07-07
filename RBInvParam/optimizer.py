@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+
 from abc import abstractmethod
 from typing import Dict, Union, Tuple
 from timeit import default_timer as timer
@@ -12,7 +13,6 @@ from pymor.vectorarrays.numpy import NumpyVectorArray
 from pymor.operators.interface import Operator
 from pymor.core.base import BasicObject
 from pymor.core.exceptions import ExtensionError
-
 
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.linear_solver.gradient_descent import gradient_descent_linearized_problem

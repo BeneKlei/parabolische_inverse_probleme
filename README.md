@@ -32,9 +32,11 @@ pip install -e .
 
 Tested on **Ubuntu 24.04 LTS** with **Intel® Core™ i7-7700** and **32 GiB RAM**
 
+TODO: Test all configs
+
 To solve a single inverse problem, first follow the setup steps. Then navigate to either `./examples/reaction` or `./examples/diffusion`, and run `FOM_IRGNM.py` or `TR_IRGNM.py` using your local Python environment.
 
-You can modify the behavior of the optimization algorithms by editing the values in the `setup` dictionary.
+You can modify the behavior of the optimization algorithms by editing the values in the `setup` and `optimizer_parameter` dictionaries.
 
 To run the full set of experiments from the paper as a batch:
 
