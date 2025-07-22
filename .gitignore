@@ -336,3 +336,6 @@ __pycache__/
 *.prof
 dumps/
 experiments/*/
+*.o
+*.so
+**/build
