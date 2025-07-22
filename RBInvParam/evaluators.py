@@ -105,9 +105,7 @@ class UnAssembledA(UnAssembledEvaluator):
         A_q = self._assemble_A_q(q.to_numpy()[0])
         if self.source:
             A_q = NumpyMatrixOperator(
-                A_q, 
-                source_id = self.source.id, 
-                range_id = self.range.id,
+                A_q
             ) 
         else:
             A_q = NumpyMatrixOperator(A_q)

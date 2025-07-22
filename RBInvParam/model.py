@@ -259,8 +259,7 @@ class InstationaryModelIP(ImmutableObject):
             else:
                 self.logger.error(f'Target {target} is not known.')
                 raise ValueError
-    
-    
+      
     def cache_operators(self, 
                         q: VectorArray,
                         u: VectorArray = None,

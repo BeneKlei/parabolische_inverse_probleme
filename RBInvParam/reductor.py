@@ -157,9 +157,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         for i in range(start, len(parameter_basis)):
             q_i = parameter_basis[i].to_numpy()[0]
             A_q = self.FOM.A._assemble_A_q(q_i)
-            A_q = NumpyMatrixOperator(A_q,
-                                      source_id = self.FOM.A.source.id, 
-                                      range_id = self.FOM.A.range.id)
+            A_q = NumpyMatrixOperator(A_q)
             operators.append(A_q)
 
         

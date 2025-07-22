@@ -79,9 +79,7 @@ def split_constant_and_parameterized_operator(
         matrix.eliminate_zeros()
         
     constant_operator = NumpyMatrixOperator(
-        matrix = matrix,
-        source_id = complete_operator.source.id,
-        range_id = complete_operator.range.id
+        matrix = matrix
     )
     
     return parameterized_operator, constant_operator
