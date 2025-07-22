@@ -10,7 +10,7 @@ from pymor.basic import *
 from RBInvParam.optimizer import FOMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
-from RBInvParam.problems.problems import build_InstationaryModelIP
+from RBInvParam.problems.reaction_diffusion import build_InstationaryModelIP
 
 #########################################################################################''
 

@@ -1,0 +1,20 @@
+[project]
+name = "parabolische_inverse_probleme"
+version = "1.2.2"
+description = ""
+authors = [
+    { name = "Benedikt Klein", email = "benedikt.klein@uni-muenster.de" }
+]
+requires-python = "==3.9"
+dependencies = [
+    "pymor==2024.2.0",
+    "numpy==1.26.4",
+    "PyQt6==6.8.0",
+    "pytest==8.3.4",
+    "jupyter==1.1.1",
+    "snakeviz==2.2.2",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
