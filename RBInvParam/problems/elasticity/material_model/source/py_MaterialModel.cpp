@@ -29,14 +29,15 @@ PYBIND11_MODULE(material_model, m) {
           .def("assemble_h1_matrix", &MaterialModel::assemble_h1_matrix)
           .def("assemble_h1_0_matrix", &MaterialModel::assemble_h1_0_matrix)
           .def("assemble_mass_matrix", &MaterialModel::assemble_mass_matrix)
-          .def("sparsity_pattern", &MaterialModel::sparsity_pattern, py::return_value_policy::reference_internal);
+          .def("sparsity_pattern", &MaterialModel::sparsity_pattern, py::return_value_policy::reference_internal)
+          .def("n_dofs", &MaterialModel::n_dofs, py::return_value_policy::reference_internal)
+          .def("get_force_list", &MaterialModel::get_force_list, py::return_value_policy::reference_internal);
 
      py::class_<MaterialModelConfig>(m, "MaterialModelConfig")
           .def(py::init<>())
           .def_readwrite("T_initial", &MaterialModelConfig::T_initial)
           .def_readwrite("T_final", &MaterialModelConfig::T_final)
           .def_readwrite("delta_t", &MaterialModelConfig::delta_t)
-          .def_readwrite("polynomial_degree", &MaterialModelConfig::polynomial_degree)
           .def_readwrite("par_dim", &MaterialModelConfig::par_dim)
-          .def_readwrite("refine_global", &MaterialModelConfig::refine_global);
+          .def_readwrite("nt", &MaterialModelConfig::nt);
 }

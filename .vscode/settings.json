@@ -78,7 +78,12 @@
     "typeinfo": "cpp",
     "valarray": "cpp",
     "variant": "cpp",
-    "cassert": "cpp"
+    "cassert": "cpp",
+    "charconv": "cpp",
+    "source_location": "cpp",
+    "format": "cpp",
+    "span": "cpp",
+    "stdfloat": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }

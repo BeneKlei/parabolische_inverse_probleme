@@ -14,7 +14,7 @@ class BochnerProductOperator(Operator):
         self.delta_t = delta_t
         self.space = space
         self.nt = nt
-
+        
         assert self.product.source == self.product.range
         assert self.product.source == self.space
     

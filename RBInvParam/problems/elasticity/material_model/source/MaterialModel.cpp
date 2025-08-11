@@ -24,12 +24,13 @@
 
 MaterialModel::MaterialModel(const MaterialModelConfig& config)
   : m_config(config), 
-    m_fe(dealii::FE_Q<dim>(config.polynomial_degree), dim),
+    m_fe(dealii::FE_Q<dim>(1), dim),
     m_dof_handler(m_triangulation)
-    // m_solver_control(1000, 1e-12),
-    // m_solver(m_solver_control)
 {
-  m_K = (m_config.T_final - m_config.T_initial) / m_config.delta_t;
+  const double computed_nt = (m_config.T_final - m_config.T_initial) / m_config.delta_t;
+  if (std::abs(computed_nt - static_cast<double>(m_config.nt)) > 1e-8) {
+    throw std::runtime_error("Invalid time discretization: check T_final, T_initial, delta_t, and nt.");
+  }
 }
 
 void MaterialModel::make_grid()
@@ -58,12 +59,10 @@ void MaterialModel::setup_system()
 
   m_sparsity_pattern.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
   DoFTools::make_sparsity_pattern(m_dof_handler, m_sparsity_pattern);
-
   m_sparsity_pattern.compress();
 
   m_q.reinit(m_config.par_dim);
-  m_system_matrix.reinit(m_sparsity_pattern);
-  m_system_matrix = 0;
+
   
   std::cout << "\t Setting up BC constraints." << std::endl;
   setup_BC_constraints();
@@ -206,13 +205,13 @@ void MaterialModel::assemble_force(Vector<Number>& result, double time)
 
 void MaterialModel::assemble_force_list()
 {
-  m_L.clear();
-  m_L.resize(m_K);
+  m_force_list.clear();
+  m_force_list.resize(m_config.nt);
 
   double time = m_config.T_initial + m_config.delta_t;
-  for (uint32_t idx = 0; idx < m_K; idx++) {
-    m_L[idx].reinit(m_dof_handler.n_dofs());
-    assemble_force(m_L[idx], time);
+  for (uint32_t idx = 0; idx < m_config.nt; idx++) {
+    m_force_list[idx].reinit(m_dof_handler.n_dofs());
+    assemble_force(m_force_list[idx], time);
     time += m_config.delta_t;
   }
 }

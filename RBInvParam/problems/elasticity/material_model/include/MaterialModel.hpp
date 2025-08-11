@@ -32,9 +32,8 @@ struct MaterialModelConfig {
     double T_initial = 0.0;
     double T_final = 1.0;
     double delta_t = 1.0 / 50;
-    int polynomial_degree = 1;
     int par_dim = 2;
-    int refine_global = 2;
+    int nt = 50;
 };
 
 class MaterialModel
@@ -73,6 +72,7 @@ public:
     
   const SparsityPattern& sparsity_pattern() const { return m_sparsity_pattern; }
   uint32_t n_dofs() const { return m_dof_handler.n_dofs(); }
+  const std::vector<Vector<Number>>& get_force_list() const { return m_force_list; };
   
 
 private:
@@ -87,17 +87,10 @@ private:
 
   BodyForce m_body_force;
 
-  uint32_t m_K;
-
-  SparseMatrix<Number> m_lhs;
-  Vector<Number> m_rhs;
-  Vector<Number> m_solution;
-
   MatrixStack m_system_matricies;
   MatrixStack m_adjoint_system_matricies;
 
-  SparseMatrix<Number> m_system_matrix;  
-  std::vector<Vector<Number>> m_L;
+  std::vector<Vector<Number>> m_force_list;
 
   void setup_system_matricies();
   void setup_adjoint_system_matricies();
