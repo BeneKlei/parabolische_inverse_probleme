@@ -10,8 +10,8 @@ from pymor.vectorarrays.interface import VectorSpace
 from pymor.core.base import ImmutableObject
 from pymor.operators.constructions import ZeroOperator
 
-from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
-from RBInvParam.timestepping import ImplicitEulerTimeStepper
+from RBInvParam.evaluators import FOMEvaluatorA, EvaluatorA, EvaluatorB
+from RBInvParam.timestepping import get_time_stepper
 from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, \
     ObjectiveErrorEstimator, CoercivityConstantEstimator
 from RBInvParam.utils.logger import get_default_logger
@@ -22,11 +22,11 @@ class InstationaryModelIP(ImmutableObject):
     id_iter = itertools.count()
 
     def __init__(self,
-                 u_0 : VectorArray, 
+                 initial_data : dict, 
                  M : Operator,
-                 A : Union[UnAssembledA, AssembledA],
+                 A : EvaluatorA,
                  L : VectorArray,
-                 B : Union[UnAssembledB, AssembledB],
+                 B : EvaluatorB,
                  constant_cost_term: Union[None, float],
                  linear_cost_term: Union[None, NumpyMatrixOperator],
                  bilinear_cost_term: Union[None, NumpyMatrixOperator],
@@ -59,11 +59,11 @@ class InstationaryModelIP(ImmutableObject):
             self._logger.setLevel(logging.DEBUG)
         self.logger.debug(f"Setting up {self.__class__.__name__}")
         
-        self.u_0 = u_0
-        assert np.all(u_0.to_numpy() == 0)
-        self.p_0 = u_0.copy()
-        self.linearized_u_0 = u_0.copy()
-        self.linearized_p_0 = u_0.copy()
+        assert 'state' in initial_data.keys()
+        assert 'adjoint' in initial_data.keys()
+        assert 'lin_state' in initial_data.keys()
+        assert 'lin_adjoint' in initial_data.keys()
+        self.initial_data = initial_data
 
         assert not M.parametric
         self.M = M.assemble() 
@@ -90,15 +90,18 @@ class InstationaryModelIP(ImmutableObject):
         self.bounds = bounds
         
 
-        self.nt = self.setup['dims']['nt']
-        self.T_initial = self.setup['model_parameter']['T_initial']
-        self.T_final = self.setup['model_parameter']['T_final']
+        self.nt = self.setup['nt']
+        self.T_initial = self.setup['T_initial']
+        self.T_final = self.setup['T_final']
 
-        self.delta_t = self.setup['model_parameter']['delta_t']
-        self.q_time_dep = self.setup['model_parameter']['q_time_dep']
-        self.riesz_rep_grad = self.setup['model_parameter']['riesz_rep_grad']
+        self.delta_t = self.setup['delta_t']
+        self.q_time_dep = self.setup['q_time_dep']
+        self.riesz_rep_grad = self.setup['riesz_rep_grad']
+        self.time_stepper = self.setup['time_stepper']
 
-        self.timestepper = ImplicitEulerTimeStepper(
+        assert self.time_stepper['name'] in ['implicit_euler', 'newman_second_order']
+
+        self.timestepper = get_time_stepper(
             nt = self.nt,
             M = self.M,
             A = self.A,
@@ -106,7 +109,8 @@ class InstationaryModelIP(ImmutableObject):
             V = self.V,
             T_initial= self.T_initial,
             T_final= self.T_final,
-            setup = self.setup,
+            q_time_dep=self.q_time_dep,
+            time_stepper = self.time_stepper
         )
 
         self.solver_options = None
@@ -140,7 +144,7 @@ class InstationaryModelIP(ImmutableObject):
         assert self.M.source == self.A.source
         assert self.A.range == self.V
         assert isinstance(self.L, VectorArray)
-        assert len(self.L) in [1, self.nt]
+        assert len(self.L) in [1, self.nt + 1]
         assert self.L in self.V
         assert self.A.Q == self.Q
         assert self.q_circ in self.Q
@@ -199,7 +203,6 @@ class InstationaryModelIP(ImmutableObject):
         else:
             return np.any((self._cached_operators['q']-q).norm() != 0)
     
-
     def _cache_time_independed_operators(self, 
                                        q: VectorArray,
                                        u: VectorArray,
@@ -291,7 +294,6 @@ class InstationaryModelIP(ImmutableObject):
                 target = target
             )
             
-
     def delete_cached_operators(self) -> None:
         self.logger.debug('Deleting cache')
 
@@ -319,7 +321,7 @@ class InstationaryModelIP(ImmutableObject):
         assert q in self.Q
 
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == (self.nt + 1)
         else:
             assert len(q) == 1
 
@@ -332,13 +334,13 @@ class InstationaryModelIP(ImmutableObject):
             if len(self._cached_operators['M_dt_A_q']) == 0:
                 self.cache_operators(q=q, target='M_dt_A_q')
             
-        iterator = self.timestepper.iterate(initial_data = self.u_0, 
+        iterator = self.timestepper.iterate(initial_data = self.initial_data['state'], 
                                             q=q,
                                             rhs=self.L,
                                             use_cached_operators=use_cached_operators,
                                             cached_operators=self._cached_operators)
         
-        u = self.V.empty(reserve= self.nt)
+        u = self.V.empty(reserve= (self.nt + 1))
         for u_n, _ in iterator:
             u.append(u_n)
 
@@ -355,11 +357,11 @@ class InstationaryModelIP(ImmutableObject):
         assert u in self.V
 
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == self.nt + 1
         else:
             assert len(q) == 1
 
-        assert len(u) == self.nt
+        assert len(u) == self.nt + 1
 
         self.num_calls['solve_adjoint'] += 1
 
@@ -373,19 +375,20 @@ class InstationaryModelIP(ImmutableObject):
 
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
-        if isinstance(self.A, UnAssembledA):
+        
+        if isinstance(self.A, FOMEvaluatorA):
             I = self.A.boundary_info.dirichlet_boundaries(2)
             rhs[:,I] = 0
         #rhs = self.delta_t * self.V.make_array(rhs)
         rhs = self.V.make_array(rhs)
 
-        iterator = self.timestepper.iterate(initial_data = self.p_0, 
+        iterator = self.timestepper.iterate(initial_data = self.initial_data['adjoint'], 
                                             q=q,
                                             rhs=rhs,
                                             use_cached_operators=use_cached_operators,
                                             cached_operators=self._cached_operators)
         
-        p = self.V.empty(reserve= self.nt)
+        p = self.V.empty(reserve= (self.nt + 1))
         for p_n, _ in iterator:
             p.append(p_n)
         return self.V.make_array(np.flip(p.to_numpy(), axis=0))
@@ -400,11 +403,11 @@ class InstationaryModelIP(ImmutableObject):
         assert d in self.Q
         assert u in self.V
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == self.nt + 1
         else:
             assert len(q) == 1
         assert len(d) == len(q)
-        assert len(u) == self.nt
+        assert len(u) == self.nt + 1
 
         self.num_calls['solve_linearized_state'] += 1
 
@@ -433,13 +436,13 @@ class InstationaryModelIP(ImmutableObject):
                 B_u[idx].B_u(d[0]).to_numpy()[0] for idx in range(len(u))
             ]))
         
-        iterator = self.timestepper.iterate(initial_data = self.linearized_u_0, 
+        iterator = self.timestepper.iterate(initial_data = self.initial_data['lin_state'], 
                                             q=q,
                                             rhs=rhs,
                                             use_cached_operators=use_cached_operators,
                                             cached_operators=self._cached_operators)
         
-        lin_u = self.V.empty(reserve= self.nt)
+        lin_u = self.V.empty(reserve= (self.nt + 1))
         for lin_u_n, _ in iterator:
             lin_u.append(lin_u_n)
         return lin_u
@@ -456,11 +459,11 @@ class InstationaryModelIP(ImmutableObject):
         assert u in self.V
         assert lin_u in self.V
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == self.nt + 1
         else:
             assert len(q) == 1
-        assert len(u) == self.nt
-        assert len(lin_u) == self.nt
+        assert len(u) == self.nt + 1
+        assert len(lin_u) == self.nt + 1
 
         self.num_calls['solve_linearized_adjoint'] += 1
 
@@ -473,19 +476,19 @@ class InstationaryModelIP(ImmutableObject):
 
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
         rhs = np.flip(rhs.to_numpy(), axis=0)
-        if isinstance(self.A, UnAssembledA):
+        if isinstance(self.A, FOMEvaluatorA):
             I = self.A.boundary_info.dirichlet_boundaries(2)
             rhs[:,I] = 0
 
         #rhs = self.delta_t * self.V.make_array(rhs)
         rhs = self.V.make_array(rhs)
-        iterator = self.timestepper.iterate(initial_data = self.p_0, 
+        iterator = self.timestepper.iterate(initial_data = self.initial_data['lin_adjoint'], 
                                             q=q,
                                             rhs=rhs,
                                             use_cached_operators=use_cached_operators,
                                             cached_operators=self._cached_operators)
         
-        lin_p = self.V.empty(reserve= self.nt)
+        lin_p = self.V.empty(reserve= (self.nt + 1))
         for lin_p_n, _ in iterator:
             lin_p.append(lin_p_n)
 
@@ -500,11 +503,11 @@ class InstationaryModelIP(ImmutableObject):
         if q:
             assert q in self.Q
             if self.q_time_dep:
-                assert len(q) == self.nt
+                assert len(q) == self.nt + 1
             else:
                 assert len(q) == 1
 
-        assert len(u) == self.nt
+        assert len(u) == self.nt + 1
         assert u in self.V
         assert self.bilinear_cost_term 
         assert self.linear_cost_term
@@ -530,8 +533,8 @@ class InstationaryModelIP(ImmutableObject):
         
         assert u in self.V
         assert p in self.V
-        assert len(u) == self.nt
-        assert len(p) == self.nt
+        assert len(u) == self.nt + 1
+        assert len(p) == self.nt + 1
 
         if use_cached_operators:
             if self._cache_update_required(q):
@@ -546,10 +549,10 @@ class InstationaryModelIP(ImmutableObject):
             B_u = [self.B(u[idx]) for idx in range(len(u))]
 
         self.num_calls['gradient'] += 1
-        grad = self.Q.empty(reserve=self.nt)
+        grad = self.Q.empty(reserve=(self.nt + 1))
 
         # TODO Check if this is efficent and / or how its efficeny can be improved
-        for idx in range(0, self.nt):
+        for idx in range(0, self.nt + 1):
             grad.append(B_u[idx].B_u_ad(p[idx]))
 
         if not self.q_time_dep:
@@ -574,12 +577,12 @@ class InstationaryModelIP(ImmutableObject):
                             use_cached_operators: bool = False) -> float:
 
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == self.nt + 1
         else:
             assert len(q) == 1
         assert len(d) == len(q)
-        assert len(u) == self.nt
-        assert len(lin_u) == self.nt
+        assert len(u) == self.nt + 1
+        assert len(lin_u) == self.nt + 1
 
         assert q in self.Q
         assert d in self.Q
@@ -610,12 +613,12 @@ class InstationaryModelIP(ImmutableObject):
                             use_cached_operators: bool = False) -> VectorArray:
         
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == self.nt + 1
         else:
             assert len(q) == 1
         assert len(q) == len(d)
-        assert len(u) == self.nt
-        assert len(lin_p) == self.nt
+        assert len(u) == self.nt + 1
+        assert len(lin_p) == self.nt + 1
         
 
         assert q in self.Q
@@ -637,10 +640,10 @@ class InstationaryModelIP(ImmutableObject):
 
         self.num_calls['linearized_gradient'] += 1
         #grad = np.empty((self.nt, self.setup['dims']['par_dim']))        
-        grad = self.Q.empty(reserve=self.nt)
+        grad = self.Q.empty(reserve=(self.nt + 1))
 
         # TODO Check if this is efficent and / or how its efficeny can be improved
-        for idx in range(0, self.nt):
+        for idx in range(0, self.nt + 1):
             grad.append(B_u[idx].B_u_ad(lin_p[idx]))
 
         if not self.q_time_dep:
@@ -664,7 +667,7 @@ class InstationaryModelIP(ImmutableObject):
                             q: VectorArray) -> float:
         assert q in self.Q
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == self.nt + 1
         else:
             assert len(q) == 1
         
@@ -681,7 +684,7 @@ class InstationaryModelIP(ImmutableObject):
                                      q: VectorArray) -> float:
         assert q in self.Q
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == self.nt + 1
         else:
             assert len(q) == 1
 
@@ -696,7 +699,7 @@ class InstationaryModelIP(ImmutableObject):
                                        q: VectorArray,
                                        d: VectorArray) -> float:
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == self.nt + 1
         else:
             assert len(q) == 1
         assert len(q) == len(d)
@@ -717,7 +720,7 @@ class InstationaryModelIP(ImmutableObject):
                                                q: VectorArray,
                                                d: VectorArray) -> float:
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == self.nt + 1
         else:
             assert len(q) == 1
         assert len(q) == len(d)
@@ -741,7 +744,7 @@ class InstationaryModelIP(ImmutableObject):
                              u: VectorArray,
                              use_cached_operators: bool = False) -> float:        
         
-        assert len(u) == self.nt
+        assert len(u) == self.nt + 1
         assert q in self.Q
         assert u in self.V
 
@@ -768,7 +771,7 @@ class InstationaryModelIP(ImmutableObject):
                                p: VectorArray,
                                use_cached_operators: bool = False) -> float:
         
-        assert len(u) == self.nt
+        assert len(u) == self.nt + 1
         assert len(u) == len(p)
 
         assert q in self.Q

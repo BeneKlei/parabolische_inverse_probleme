@@ -1,5 +1,8 @@
 import numpy as np
 from typing import Union, Dict
+from abc import ABC, abstractmethod
+from typing import Protocol, Callable, runtime_checkable
+from types import SimpleNamespace
 
 import pymor.vectorarrays as VectorArray
 from pymor.discretizers.builtin.grids.interfaces import BoundaryInfo, Grid
@@ -7,7 +10,6 @@ from pymor.operators.numpy import NumpyMatrixOperator
 from scipy.sparse import coo_matrix, csc_matrix
 from pymor.discretizers.builtin.grids.referenceelements import square
 from pymor.operators.interface import Operator
-from pymor.vectorarrays.numpy import NumpyVectorArray
 from pymor.operators.constructions import LincombOperator
 from pymor.parameters.base import Parameters
 from pymor.vectorarrays.interface import VectorSpace
@@ -26,13 +28,23 @@ LAGRANGE_SHAPE_FUNCTIONS_GRAD = {1: lambda X: np.array(([X[..., 1] - 1., X[..., 
                                             [X[..., 1], X[..., 0]], # o rechts
                                             [-X[..., 1], 1. - X[..., 0]]))}# o links
 
-# TODO Rename unconstant_operator
+# TODO Rename this whole buisness here
+class EvaluatorA(ABC):
+    @abstractmethod
+    def __call__(self, q: VectorArray) -> Operator:
+        pass
 
+class EvaluatorB(ABC):
+    @abstractmethod
+    def __call__(self, u: VectorArray) -> Struct:
+        pass
 
-# FOM Unassebled
-# Q-FOM Assebled
-# ROM Assebled
-class UnAssembledEvaluator:
+@runtime_checkable
+class BU(Protocol):
+    B_u: Callable[[VectorArray], VectorArray]
+    B_u_ad: Callable[[VectorArray], VectorArray]
+
+class UnAssembledEvaluator():
     def __init__(self,
                  constant_operator : Operator,
                  reaction_problem: bool,
@@ -76,7 +88,7 @@ class UnAssembledEvaluator:
         SF = LAGRANGE_SHAPE_FUNCTIONS[1]
         self.SF = np.array(tuple(f(q) for f in SF))    
 
-class UnAssembledA(UnAssembledEvaluator):
+class FOMEvaluatorA(EvaluatorA, UnAssembledEvaluator):
     def __init__(self,
                  constant_operator : Operator,
                  reaction_problem: bool,
@@ -172,8 +184,7 @@ class AssembledEvaluator():
         self.source = source
         self.range = range
 
-
-class AssembledA(AssembledEvaluator):    
+class ROMEvaluatorA(EvaluatorA, AssembledEvaluator):    
     def __init__(self, 
                  unconstant_operator: Operator,
                  constant_operator : Operator,
@@ -197,8 +208,7 @@ class AssembledA(AssembledEvaluator):
         q_as_par = self.parameters.parse(q.to_numpy()[0])
         return self.unconstant_operator.assemble(q_as_par) + self.constant_operator
     
-
-class UnAssembledB(UnAssembledEvaluator):
+class FOMEvaluatorB(EvaluatorB, UnAssembledEvaluator):
     def __init__(self,
                  reaction_problem: bool,
                  grid: Grid,
@@ -233,7 +243,7 @@ class UnAssembledB(UnAssembledEvaluator):
         out = csc_matrix(out).copy()
         return -out
     
-    def __call__(self, u: VectorArray) -> NumpyMatrixOperator:
+    def __call__(self, u: VectorArray) -> BU:
         assert u in self.V
         # TODO Check how this function can be vectorized
         assert len(u) == 1
@@ -254,12 +264,22 @@ class UnAssembledB(UnAssembledEvaluator):
         else:
             B_u_mat = self.assemble_B_u_advection(u)
 
-        B_u.B_u = lambda d: self.V.from_numpy(B_u_mat.dot(d.to_numpy()[0]))
-        B_u.B_u_ad = lambda p: self.Q.make_array(B_u_mat.T.dot(p.to_numpy()[0]))
-        return B_u
-    
+        # TODO Check if this is equal to below and move to mother class if possible
+        def _B_u(d: VectorArray) -> VectorArray:
+            d_np = d.to_numpy()[0]          # shape (T,)
+            #out = np.einsum("ti,t->i", B_u_mat, d_np)  # (DoFs,)
+            out = B_u_mat.dot(d_np)
+            return self.V.make_array(out[None, :])     # (1, DoFs)
 
-class AssembledB(AssembledEvaluator):
+        def _B_u_ad(p: VectorArray) -> VectorArray:
+            p_np = p.to_numpy()[0]          # shape (DoFs,)
+            #out = np.einsum("ti,i->t", B_u_mat, p_np)  # (T,)
+            out = B_u_mat.T.dot(p_np)
+            return self.Q.make_array(out[None, :])     # (1, T)
+    
+        return SimpleNamespace(B_u=_B_u, B_u_ad=_B_u_ad)
+    
+class ROMEvaluatorB(EvaluatorB, AssembledEvaluator):
     def __init__(self, 
                 unconstant_operator: Operator,
                 constant_operator : Operator,
@@ -276,21 +296,32 @@ class AssembledB(AssembledEvaluator):
         self.Q = Q
         self.V = V
 
-    def __call__(self, u: VectorArray) -> Struct:
-        assert u in self.V
-        # TODO Check how this function can be vectorized
-        assert len(u) == 1
+    def __call__(self, u: VectorArray) -> BU:
+        """Return an object with B_u and B_u_ad callables constructed from u."""
+        assert u in self.V, "u must belong to space V"
+        assert len(u) == 1, "This implementation expects a single vector (len(u) == 1)"
+        if not self.unconstant_operator:
+            raise NotImplementedError("Only the unconstant_operator case is implemented.")
 
-        B_u = Struct()
-        if self.unconstant_operator:
-            DoFs = u.space.dim
-            B_u_list = np.zeros((len(self.unconstant_operator.operators), DoFs))
-            for i, op in enumerate(self.unconstant_operator.operators):
-                B_u_list[i] = -op.apply_adjoint(u).to_numpy()[0,:]
-            
-            B_u.B_u = lambda d: self.V.make_array(np.einsum("ti,t->i", B_u_list, d.to_numpy()[0]))
-            B_u.B_u_ad = lambda p: self.Q.make_array(np.einsum("ti,i->t", B_u_list, p.to_numpy()[0]))
-        else:
-            raise NotImplementedError
+        DoFs = u.space.dim
+        ops = self.unconstant_operator.operators
+        T = len(ops)
 
-        return B_u
+        # Stack adjoint applications into a (T, DoFs) matrix
+        B_u_mat = np.empty((T, DoFs))
+        for i, op in enumerate(ops):
+            B_u_mat[i] = -op.apply_adjoint(u).to_numpy()[0, :]
+
+        # Define the two required callables; wrap result back to length-1 VectorArray
+        def _B_u(d: VectorArray) -> VectorArray:
+            d_np = d.to_numpy()[0]          # shape (T,)
+            out = np.einsum("ti,t->i", B_u_mat, d_np)  # (DoFs,)
+            return self.V.make_array(out[None, :])     # (1, DoFs)
+
+        def _B_u_ad(p: VectorArray) -> VectorArray:
+            p_np = p.to_numpy()[0]          # shape (DoFs,)
+            out = np.einsum("ti,i->t", B_u_mat, p_np)  # (T,)
+            return self.Q.make_array(out[None, :])     # (1, T)
+
+        # Return a simple object that satisfies the BU protocol
+        return SimpleNamespace(B_u=_B_u, B_u_ad=_B_u_ad)

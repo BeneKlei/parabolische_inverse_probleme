@@ -16,7 +16,7 @@ from pymor.tools.floatcmp import float_cmp_all
 from pymor.operators.constructions import InverseOperator
 
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.evaluators import AssembledA, AssembledB
+from RBInvParam.evaluators import ROMEvaluatorA, ROMEvaluatorB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.utils.logger import get_default_logger
@@ -236,7 +236,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             complete_operator=complete_operator
         )
 
-        A = AssembledA(
+        A = ROMEvaluatorA(
             unconstant_operator = unconstant_operator,
             constant_operator = constant_operator,
             source = V,
@@ -244,7 +244,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             Q = Q,
             parameters=setup['model_parameter']['parameters']
         )
-        B = AssembledB(
+        B = ROMEvaluatorB(
             unconstant_operator = unconstant_operator, 
             constant_operator = constant_operator,
             source = Q,
@@ -411,7 +411,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             )
 
             M = project(self.FOM.M, residual_image_basis, state_basis)
-            A = AssembledA(
+            A = ROMEvaluatorA(
                 unconstant_operator = unconstant_operator,
                 constant_operator = constant_operator,
                 source = V,

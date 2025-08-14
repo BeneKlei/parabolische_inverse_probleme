@@ -10,8 +10,6 @@ from pymor.parameters.functionals import ProjectionParameterFunctional, Paramete
 from pymor.operators.numpy import NumpyMatrixOperator
 from scipy.sparse import csr_matrix
 
-from RBInvParam.products import BochnerProductOperator
-
 def construct_noise_data(model : InstationaryModel,
                          q_exact : np.ndarray,
                          noise_level : float,
@@ -20,12 +18,10 @@ def construct_noise_data(model : InstationaryModel,
 
     u_exact = model.solve_state(q_exact)
     if time_depend_noise:
-        noise = np.random.rand(len(u_exact), u_exact.dim)
-        assert isinstance(product, BochnerProductOperator)
+        noise = model.V.random(len(u_exact))
     else:
-        noise = np.random.rand(1, u_exact.dim)
-    
-    noise = model.V.make_array(noise)
+        noise = model.V.random(1)
+
     noise_norm = np.sqrt(product.apply2(noise,noise))[0,0]
     assert noise_norm > 0
     

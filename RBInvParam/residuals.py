@@ -7,13 +7,13 @@ from pymor.operators.interface import Operator
 from pymor.vectorarrays.interface import VectorArray, VectorSpace
 from pymor.operators.constructions import InverseOperator
 
-from RBInvParam.evaluators import UnAssembledA, UnAssembledB, AssembledA, AssembledB
+from RBInvParam.evaluators import EvaluatorA
 
 
 class ImplicitEulerResidualOperator(Operator):
     def __init__(self,
                  M : Operator,
-                 A : Union[UnAssembledA, AssembledA],
+                 A : EvaluatorA,
                  Q : VectorSpace,
                  V : VectorSpace,
                  riesz_representative : bool,
@@ -142,7 +142,7 @@ class ImplicitEulerResidualOperator(Operator):
 class StateResidualOperator(ImplicitEulerResidualOperator):
     def __init__(self,
                  M : Operator,
-                 A : Union[UnAssembledA, AssembledA],
+                 A : EvaluatorA,
                  L : VectorArray,
                  Q : VectorSpace,
                  V : VectorSpace,
@@ -184,7 +184,7 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
 class AdjointResidualOperator(ImplicitEulerResidualOperator):
     def __init__(self,
                  M : Operator,
-                 A : Union[UnAssembledA, AssembledA],
+                 A : EvaluatorA,
                  linear_cost_term: NumpyMatrixOperator,
                  bilinear_cost_term: NumpyMatrixOperator,
                  Q : VectorSpace,

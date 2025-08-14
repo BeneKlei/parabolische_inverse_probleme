@@ -119,8 +119,8 @@ void bind_vector(pybind11::module& module) {
 
 template <typename Number>
 void bind_sparse_matrix(pybind11::module& module) {
-  typedef dealii::SparseMatrix<Number> Matrix;
-  typedef dealii::Vector<Number> Vector;
+  using Matrix = dealii::SparseMatrix<Number>;
+  using Vector = dealii::Vector<Number>;
 
   auto cg_solve = [](Matrix& self, Vector& solution, const Vector& rhs) {
     dealii::SolverControl solver_control(20000, 1e-12);
@@ -133,7 +133,6 @@ void bind_sparse_matrix(pybind11::module& module) {
     // linear solvers, we have to print the number of iterations by hand.
     std::cout << "   " << solver_control.last_step() << " CG iterations needed to obtain convergence." << std::endl;
   };
-  
 
   py::class_<Matrix>(module, "SparseMatrix")
       .def(py::init<>())
@@ -146,6 +145,22 @@ void bind_sparse_matrix(pybind11::module& module) {
       .def("linfty_norm", &Matrix::linfty_norm)
       .def("vmult", &Matrix::template vmult<Vector, Vector>)
       .def("Tvmult", &Matrix::template Tvmult<Vector, Vector>)
+      .def("mmult",
+          static_cast<void (Matrix::*)(
+              Matrix&, const Matrix&, const Vector&, const bool) const>
+          (&Matrix::template mmult<Number, Number>),
+          py::arg("C"), 
+          py::arg("B"),
+          py::arg("V") = Vector(),
+          py::arg("rebuild_sparsity_pattern") = true)
+      .def("Tmmult",
+          static_cast<void (Matrix::*)(
+              Matrix&, const Matrix&, const Vector&, const bool) const>
+          (&Matrix::template Tmmult<Number, Number>),
+          py::arg("C"), 
+          py::arg("B"),
+          py::arg("V") = Vector(),
+          py::arg("rebuild_sparsity_pattern") = true)
       .def("get_sparsity_pattern", &Matrix::get_sparsity_pattern, py::return_value_policy::reference)
       .def("add", (void(Matrix::*)(Number, const Matrix&)) & Matrix::template add<Number>)
       .def("copy_from", (Matrix & (Matrix::*)(const Matrix&)) & Matrix::template copy_from<Number>)

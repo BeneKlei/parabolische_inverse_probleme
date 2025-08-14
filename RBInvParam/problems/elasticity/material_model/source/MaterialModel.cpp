@@ -206,10 +206,10 @@ void MaterialModel::assemble_force(Vector<Number>& result, double time)
 void MaterialModel::assemble_force_list()
 {
   m_force_list.clear();
-  m_force_list.resize(m_config.nt);
+  m_force_list.resize(m_config.nt+1);
 
-  double time = m_config.T_initial + m_config.delta_t;
-  for (uint32_t idx = 0; idx < m_config.nt; idx++) {
+  double time = m_config.T_initial;
+  for (uint32_t idx = 0; idx <= m_config.nt; idx++) {
     m_force_list[idx].reinit(m_dof_handler.n_dofs());
     assemble_force(m_force_list[idx], time);
     time += m_config.delta_t;
@@ -255,9 +255,6 @@ void MaterialModel::_assemble_product_matrix(SparseMatrix<Number>& matrix,
           continue;
 
         for (unsigned int q_point = 0; q_point < n_quadrature_points; ++q_point) {
-          // cell_matrix(i, j) += fe_values.shape_value(i, q_point) *
-          //                      fe_values.shape_value(j, q_point) *
-          //                      fe_values.JxW(q_point);
           cell_matrix(i, j) += integrand(i, j, q_point, fe_values) * fe_values.JxW(q_point);
           
         }
@@ -389,3 +386,26 @@ void MaterialModel::output_results(Vector<double>& solution) const
   std::ofstream output(dim == 2 ? "solution-2d.vtk" : "solution-3d.vtk");
   data_out.write_vtk(output);
 }
+
+
+void MaterialModel::assemble_observation_operator_matrix(
+    SparseMatrix<Number>& operator_matrix, 
+    std::string operator_name)
+{
+    if (operator_name == "identity")
+        assemble_identity_observation_operator_matrix(operator_matrix);
+    else
+        throw std::runtime_error(
+            "Unknown observation operator: " + operator_name +". Supported operator: 'identity'."
+        );  
+}
+
+void MaterialModel::assemble_identity_observation_operator_matrix(SparseMatrix<Number>& matrix)
+{
+  matrix.reinit(m_sparsity_pattern);
+  matrix = 0;
+
+  const auto n_dofs = m_dof_handler.n_dofs();
+  for (types::global_dof_index i = 0; i < n_dofs; ++i)
+    matrix.set(i, i, Number(1));
+};

@@ -34,7 +34,7 @@ from .utils import thermal_block_problem_h1, twodhatfunction
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator, construct_noise_data
-from RBInvParam.evaluators import UnAssembledA, UnAssembledB
+from RBInvParam.evaluators import FOMEvaluatorA, FOMEvaluatorB
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.error_estimator import CoercivityConstantEstimator
@@ -345,7 +345,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
     )
 
 
-    A = UnAssembledA(
+    A = FOMEvaluatorA(
         constant_operator = constant_operator,
         reaction_problem = ('reaction' in setup['model_parameter']['problem_type']),
         grid = grid_data['grid'],
@@ -355,7 +355,7 @@ def discretize_instationary_IP(analytical_problem : InstationaryProblem,
         Q = Q_h
     )
     
-    B = UnAssembledB(
+    B = FOMEvaluatorB(
         reaction_problem = ('reaction' in setup['model_parameter']['problem_type']),
         grid = grid_data['grid'],
         boundary_info = grid_data['boundary_info'],
