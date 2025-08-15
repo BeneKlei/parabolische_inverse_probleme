@@ -32,6 +32,7 @@ MaterialModel::MaterialModel(const MaterialModelConfig& config)
   if (std::abs(computed_nt - static_cast<double>(m_config.nt)) > 1e-8) {
     throw std::runtime_error("Invalid time discretization: check T_final, T_initial, delta_t, and nt.");
   }
+  m_param_space_dim = m_config.par_dim;
 }
 
 void MaterialModel::make_grid()
@@ -63,6 +64,7 @@ void MaterialModel::setup_system()
   m_sparsity_pattern.compress();
 
   m_q.reinit(m_config.par_dim);
+  m_state_space_dim = m_dof_handler.n_dofs();
 
   
   std::cout << "\t Setting up BC constraints." << std::endl;
@@ -427,4 +429,29 @@ void MaterialModel::assemble_bilinear_cost_matrix(
   matrix.reinit(m_bilinear_cost_sparsity_pattern);
 
   C.Tmmult(matrix, buf, Vector<Number>(), false); 
+}
+
+void MaterialModel::clear_rhs_boundary_dofs(Vector<Number>& v) 
+{
+  m_BC_constraints.distribute(v);
+}
+
+void MaterialModel::assemble_system_matrix_derivative(
+  FullMatrix<Number>& system_matrix_derivative,
+  const Vector<Number>& state_DoFs)
+{
+    assert(system_matrix_derivative.m() == system_matrix_derivative.n() == m_state_space_dim);
+    assert(m_system_matricies.get_size() == m_param_space_dim &&
+       "Mismatch between system matrices count and parameter dimension");
+
+    //std::vector<Vector<Number>> A_q_basis_us;
+    //A_q_basis_us.resize(m_config.par_dim);
+    Vector<Number> A_q_basis_u;
+    A_q_basis_u.reinit(m_state_space_dim);
+    
+    for (size_t i = 0; i < m_param_space_dim; i++) {
+        //A_q_basis_us[i].reinit(m_state_space_dim);
+        m_system_matricies.get_matrix(i).vmult(A_q_basis_u, state_DoFs);
+        system_matrix_derivative.set_column(i, A_q_basis_u);
+    }
 }

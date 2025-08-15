@@ -18,7 +18,8 @@ class TimeStepper(ABC):
                 V: VectorSpace,
                 T_initial: float,
                 T_final: float,
-                q_time_dep: Dict):
+                q_time_dep: Dict,
+                required_cache_keys: List[str] = []):
     
         self.nt = nt
         self.M = M 
@@ -28,6 +29,7 @@ class TimeStepper(ABC):
         self.T_initial = T_initial
         self.T_final = T_final
         self.q_time_dep = q_time_dep
+        self.required_cache_keys = required_cache_keys
 
         assert isinstance(self.M, Operator)
         assert isinstance(self.A, EvaluatorA)
@@ -192,7 +194,7 @@ class NewmanSecondOrder(TimeStepper):
 
         if use_cached_operators:
             self._check_cache(
-               keys = ['A_q'],
+               keys = self.required_cache_keys,
                q = q,
                cached_operators = cached_operators
             )
@@ -290,7 +292,8 @@ def get_time_stepper(
             V = V,
             T_initial= T_initial,
             T_final= T_final,
-            q_time_dep=q_time_dep
+            q_time_dep=q_time_dep,
+            required_cache_keys = ['M_dt_A_q'] 
         )
 
     elif time_stepper['name'] == 'newman_second_order':
@@ -303,7 +306,9 @@ def get_time_stepper(
             T_initial= T_initial,
             T_final= T_final,
             q_time_dep=q_time_dep,
+            required_cache_keys = ['A_q'],
             zeta=time_stepper['zeta']
+            
         )
     else:
         raise ValueError

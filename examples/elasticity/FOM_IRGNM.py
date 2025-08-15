@@ -9,7 +9,7 @@ from pymor.basic import *
 from RBInvParam.optimizer import FOMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
-from RBInvParam.problems.reaction_diffusion.problem import build_InstationaryModelIP
+from RBInvParam.problems.elasticity.build import build_InstationaryModelIP
 
 #########################################################################################''
 
@@ -34,85 +34,59 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-
-    #N = 300
-    N = 30
-    par_dim = (N+1)**2
-    fine_N = 2 * N
+    par_dim = 2
 
     T_initial = 0
     T_final = 1
     nt = 50
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
-
-    noise_level = 1e-5
-    bounds = [0.001*np.ones((par_dim,)), 10e2*np.ones((par_dim,))]
 
     assert T_final > T_initial
-    if q_time_dep:
-        q_circ = 3*np.ones((nt, par_dim))
-        bounds = np.zeros((nt * par_dim, 2))
-    else:
-        q_circ = 3*np.ones((1, par_dim))
-        bounds = np.zeros((par_dim, 2))
+    q_circ = 3*np.ones((1, par_dim))
+    
+    buf = np.zeros((1, par_dim))
+    buf[10:50] = 1
+    q_exact = buf + q_circ
 
+    bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 0.001
     bounds[:,1] = 1e3
 
+
     setup = {
-        'dims': {
-            'N': N,                                       # Coarse spatial discretization parameter (grid resolution)
-            'nt': nt,                                     # Number of time steps
-            'fine_N': fine_N,                             # Fine spatial discretization parameter (higher resolution than N)
-            'state_dim': (N+1)**2,                        # Total number of spatial degrees of freedom for coarse grid
-            'fine_state_dim': (fine_N+1)**2,              # Total number of spatial degrees of freedom for fine grid
-            'diameter': np.sqrt(2)/N,                     # Max diameter of elements in coarse mesh
-            'fine_diameter': np.sqrt(2)/fine_N,           # Max diameter of elements in fine mesh
-            'par_dim': par_dim,                           # Dimension of parameter space (e.g., number of parameters to infer)
-            'output_dim': 1,                              # Dimension of model output (e.g., scalar output per time step)
+        'T_initial': T_initial,                       # Start time of the simulation
+        'T_final': T_final,                           # End time of the simulation
+        'delta_t': delta_t,                           # Time step size
+        'nt': nt,                                     # Number of time steps
+        'N' : None,
+        'par_dim' : 2,
+        'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
+        'noise_level': 1e-5,                          # Absolute noise magnitude added to data
+        'q_circ': q_circ,                             # Backgroundlevel for the parameter
+        'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
+        'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
+        'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
+        'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
+        'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
+        'products': {                                 # Inner products used in the problem
+            'prod_H': 'l2',                           # Product on H_h
+            'prod_Q': 'euclid',                       # Product on Q_h
+            'prod_V': 'h1_0_semi',                    # Product on V_h
+            'prod_C': 'l2',                           # Product on C_h
+            'bochner_prod_Q': 'bochner_euclid',       # Product on Q_h^K
+            'bochner_prod_V': 'bochner_h1_0_semi'     # Product on V_h^K
         },
-        'problem_parameter': {
-            'N': N,                                       # Grid size used in the PDE problem
-            'contrast_parameter': 2,                      # Material contrast in the diffusion coefficient
-            'parameter_location': 'reaction',             # Location in PDE where parameter acts (e.g., in reaction term)
-            'boundary_conditions': 'dirichlet',           # Type of boundary conditions applied (fixed value)
-            'exact_parameter': 'Kirchner',                # Shape or distribution of true parameter (used for testing)
-            'time_factor': 'sinus',                       # Time dependence type of source or parameter (e.g., sinusoidal)
-            'T_final': T_final,                           # Final simulation time
+        'observation_operator': {
+            'name': 'identity',                       # Type of observation operator (e.g., identity = full state observed)
         },
-        'model_parameter': {
-            'name': 'reaction_FOM',                       # Name of the model, e.g., Full Order Model for reaction-diffusion
-            'problem_type': None,                         # Problem type, will be set by 'build_InstationaryModelIP'
-            'T_initial': T_initial,                       # Start time of the simulation
-            'T_final': T_final,                           # End time of the simulation
-            'delta_t': delta_t,                           # Time step size
-            'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-            'noise_level': noise_level,                   # Absolute noise magnitude added to data
-            'q_circ': q_circ,                             # Backgroundlevel for the parameter
-            'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
-            'q_exact': None,                              # Exact parameter values, will be set by 'build_InstationaryModelIP'
-            'q_time_dep': q_time_dep,                     # Whether parameter is time-dependent (bool)
-            'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
-            'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
-            'parameters': None,                           # List of the parameters use.
-            'products': {                                 # Inner products used in the problem
-                'prod_H': 'l2',                           # Product on H_h
-                'prod_Q': 'l2',                           # Product on Q_h
-                'prod_V': 'h1_0_semi',                    # Product on V_h
-                'prod_C': 'l2',                           # Product on C_h
-                'bochner_prod_Q': 'bochner_l2',           # Product on Q_h^K
-                'bochner_prod_V': 'bochner_h1_0_semi'     # Product on V_h^K
-            },
-            'observation_operator': {
-                'name': 'identity',                       # Type of observation operator (e.g., identity = full state observed)
-            }
+        'time_stepper' : {
+            'name' : 'newman_second_order',
+            'zeta' : 0.5
         }
     }
 
-    FOM, _, _ = build_InstationaryModelIP(setup, logger)
-    q_exact = FOM.setup['model_parameter']['q_exact']
+    FOM = build_InstationaryModelIP(setup, logger)
+    q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
     optimizer_parameter = {
@@ -120,7 +94,7 @@ def main():
         'alpha_0': 1e-5,                                         # Initial regularization parameter
         'tol': 1e-11,                                            # Absolute convergence tolerance for optimization
         'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
-        'noise_level': setup['model_parameter']['noise_level'],  # Noise level in observed data (from model setup)
+        'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
         'theta': 0.4,                                            # Lower tolerance for the direction acceptance condition
         'Theta': 0.95,                                           # Upper tolerance for the direction acceptance condition
         #####################
@@ -157,20 +131,20 @@ def main():
     )
     q_est = optimizer.solve()
 
-    logger.debug("Differnce to q_exact:")
-    logger.debug("L^inf") 
-    delta_q = q_est - q_exact
-    logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
+    # logger.debug("Differnce to q_exact:")
+    # logger.debug("L^inf") 
+    # delta_q = q_est - q_exact
+    # logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
     
-    if q_time_dep:
-        norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]
-        norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))[0,0]
-    else:
-        norm_delta_q = np.sqrt(FOM.products['prod_Q'].apply2(delta_q, delta_q))[0,0]
-        norm_q_exact = np.sqrt(FOM.products['prod_Q'].apply2(q_exact, q_exact))[0,0]
+    # if q_time_dep:
+    #     norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]
+    #     norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))[0,0]
+    # else:
+    #     norm_delta_q = np.sqrt(FOM.products['prod_Q'].apply2(delta_q, delta_q))[0,0]
+    #     norm_q_exact = np.sqrt(FOM.products['prod_Q'].apply2(q_exact, q_exact))[0,0]
     
-    logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
-    logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
+    # logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
+    # logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
 if __name__ == '__main__':
     main()

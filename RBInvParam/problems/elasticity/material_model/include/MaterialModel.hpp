@@ -53,6 +53,10 @@ public:
   void _solve();
 
   void assemble_system_matrix(SparseMatrix<Number>& system_matrix);
+  void assemble_system_matrix_derivative(
+    FullMatrix<Number>& system_matrix_derivative,
+    const Vector<Number>& state_DoFs
+  );
 
   template <typename Integrand>
   void _assemble_product_matrix(SparseMatrix<Number>& matrix,
@@ -72,12 +76,16 @@ public:
     const SparseMatrix<Number>& prod_C,
     const SparseMatrix<Number>& C
   );
+  void clear_rhs_boundary_dofs(Vector<Number>& v);
   
   void output_results(Vector<double>& solution) const;
     
   const SparsityPattern& sparsity_pattern() const { return m_sparsity_pattern; }
   uint32_t n_dofs() const { return m_dof_handler.n_dofs(); }
   const std::vector<Vector<Number>>& get_force_list() const { return m_force_list; };
+
+  size_t m_param_space_dim;
+  size_t m_state_space_dim;
   
 
 private:

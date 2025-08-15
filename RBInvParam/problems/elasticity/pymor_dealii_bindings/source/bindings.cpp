@@ -9,6 +9,7 @@
 #include <deal.II/lac/sparse_ilu.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/sparsity_pattern.h>
+#include <deal.II/lac/full_matrix.h>
 
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
@@ -171,6 +172,79 @@ void bind_sparse_matrix(pybind11::module& module) {
 }
 
 template <typename Number>
+void bind_full_matrix(py::module &module)
+{
+  using Matrix = dealii::FullMatrix<Number>;
+  using Vector = dealii::Vector<Number>;
+
+  py::class_<Matrix>(module, "FullMatrix")
+      // constructors
+      .def(py::init<>())
+      .def(py::init<unsigned int, unsigned int>(), py::arg("m"), py::arg("n"))
+      .def("reinit",
+          (void (Matrix::*)(const unsigned int,
+                            const unsigned int,
+                            const bool)) &Matrix::reinit,
+          py::arg("m"), py::arg("n"),
+          py::arg("omit_zeroing_entries") = false)
+      .def("m", &Matrix::m)
+      .def("n", &Matrix::n)
+      .def("clear", &Matrix::clear)
+      .def(py::self *= Number())
+      .def("l1_norm", &Matrix::l1_norm)
+      .def("linfty_norm", &Matrix::linfty_norm)
+      .def("vmult",
+          (void(Matrix::*)(Vector&, const Vector&, bool) const) & Matrix::template vmult<Number>
+      );
+      
+      //.def("Tvmult", &Matrix::template Tvmult<Vector, Vector>);
+
+
+      // // element access helpers
+      // .def("set",
+      //      [](Matrix &A, unsigned int i, unsigned int j, Number v) { A(i, j) = v; })
+      // .def("get",
+      //      [](const Matrix &A, unsigned int i, unsigned int j) { return A(i, j); })
+      // .def("add_to_entry",
+      //      [](Matrix &A, unsigned int i, unsigned int j, Number v) { A(i, j) += v; })
+
+      // // vector–matrix products (keep templates explicit like your sparse binding)
+      // // matrix–matrix products (in-place, 9.6.0 signatures)
+      // .def("mmult",
+      //      (void (Matrix::*)(Matrix &, const Matrix &, const bool) const)
+      //          & Matrix::mmult,
+      //      py::arg("C"), py::arg("B"), py::arg("add") = false)
+      // .def("Tmmult",
+      //      (void (Matrix::*)(Matrix &, const Matrix &, const bool) const)
+      //          & Matrix::Tmmult,
+      //      py::arg("C"), py::arg("B"), py::arg("add") = false)
+
+      // // BLAS-like ops
+      // .def("add",
+      //      (void (Matrix::*)(Number, const Matrix &)) & Matrix::template add<Number>,
+      //      py::arg("a"), py::arg("A"))
+
+      // // convenience: set whole row/column from a dealii::Vector
+      // .def("set_row",
+      //      [](Matrix &A, unsigned int i, const Vector &row) {
+      //        if (row.size() != A.n())
+      //          throw std::runtime_error("set_row: size mismatch");
+      //        for (unsigned int j = 0; j < A.n(); ++j) A(i, j) = row[j];
+      //      },
+      //      py::arg("i"), py::arg("row"))
+      // .def("set_column",
+      //      [](Matrix &A, unsigned int j, const Vector &col) {
+      //        if (col.size() != A.m())
+      //          throw std::runtime_error("set_column: size mismatch");
+      //        for (unsigned int i = 0; i < A.m(); ++i) A(i, j) = col[i];
+      //      },
+      //      py::arg("j"), py::arg("col"))
+
+      // // convenience: zero everything (handy “reset”)
+      // .def("set_to_zero", [](Matrix &A) { A = 0; });
+}
+
+template <typename Number>
 void bind_ILU_solver(pybind11::module& module) {
   using Matrix = dealii::SparseMatrix<Number>;
   using Vector = dealii::Vector<Number>;
@@ -208,6 +282,7 @@ PYBIND11_MODULE(pymor_dealii_bindings, m) {
   m.doc() = "Python bindings for deal.II";
   bind_sparsity_pattern(m);
   bind_vector<double>(m);
+  bind_full_matrix<double>(m);
   bind_sparse_matrix<double>(m);
   bind_ILU_solver<double>(m);
 

@@ -106,8 +106,9 @@ class FOMEvaluatorA(EvaluatorA, UnAssembledEvaluator):
             range = range)
 
         self.Q = Q
-        
     
+    #def clear_rhs_boundary_dofs(self, rhs: VectorArray) -> VectorArray:
+
     def __call__(self, q: VectorArray) -> NumpyMatrixOperator:
         assert q in self.Q
         # TODO Check _assemble_A_q can be vectorized

@@ -33,7 +33,9 @@ PYBIND11_MODULE(material_model, m) {
           .def("n_dofs", &MaterialModel::n_dofs, py::return_value_policy::reference_internal)
           .def("get_force_list", &MaterialModel::get_force_list, py::return_value_policy::reference_internal)
           .def("assemble_observation_operator_matrix", &MaterialModel::assemble_observation_operator_matrix, py::return_value_policy::reference_internal)
-          .def("assemble_bilinear_cost_matrix", &MaterialModel::assemble_bilinear_cost_matrix, py::return_value_policy::reference_internal);
+          .def("assemble_bilinear_cost_matrix", &MaterialModel::assemble_bilinear_cost_matrix, py::return_value_policy::reference_internal)
+          .def("clear_rhs_boundary_dofs", &MaterialModel::clear_rhs_boundary_dofs, py::return_value_policy::reference_internal)
+          .def("assemble_system_matrix_derivative", &MaterialModel::assemble_system_matrix_derivative, py::return_value_policy::reference_internal);
 
      py::class_<MaterialModelConfig>(m, "MaterialModelConfig")
           .def(py::init<>())

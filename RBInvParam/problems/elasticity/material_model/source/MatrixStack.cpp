@@ -37,3 +37,16 @@ void MatrixStack::sum(SparseMatrix<Number>& result, Vector<Number>& weights)
         result.add(weights[i], m_matrices[i]);
     }
 }
+
+
+const SparseMatrix<Number>& MatrixStack::get_matrix(size_t index)
+{
+    assert(index < m_matrices.size() && "Index out of range in get_matrix()");
+    return m_matrices[index];
+}
+
+size_t MatrixStack::get_size()
+{
+    return m_matrices.size();
+}
+

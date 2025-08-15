@@ -21,7 +21,7 @@ from RBInvParam.utils.discretization import construct_noise_data
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.products import BochnerProductOperator
 
-from RBInvParam.problems.elasticity.evaluators import FOMEvaluatorA
+from RBInvParam.problems.elasticity.evaluators import ElasticitiyFOMEvaluatorA, ElasticitiyFOMEvaluatorB
 
 def build_InstationaryModelIP(setup : Dict,
                               logger : logging.Logger = None) -> InstationaryModelIP:
@@ -164,14 +164,20 @@ def build_InstationaryModelIP(setup : Dict,
 
     L = V_h.make_array(material_model.get_force_list())
 
-    A = FOMEvaluatorA(
+    A = ElasticitiyFOMEvaluatorA(
         material_model = material_model,
         source = V_h,
         range = V_h,
         Q = Q_h,
     )
-
-    B = None
+    
+    B = ElasticitiyFOMEvaluatorB(
+        material_model = material_model,
+        source=Q_h,
+        range=V_h,
+        Q = Q_h,
+        V = V_h   
+    )
     ############################### Coercivity ###############################
 
     A_coercivity_constant_estimator = None
@@ -266,12 +272,10 @@ def build_InstationaryModelIP(setup : Dict,
         C.matrix
     )
 
-
     bilinear_cost_term = DealIIMatrixOperator(
         matrix = CTprod_CC
     )
-    print("hERE")
-    print(bilinear_cost_term.matrix.l1_norm())
+
 
 
     ############################### Final ###############################
@@ -285,14 +289,12 @@ def build_InstationaryModelIP(setup : Dict,
     #     'C_continuity_constant' : C_continuity_constant
     # }
 
-    return building_blocks
+    return InstationaryModelIP(
+        **building_blocks,
+        logger= logger
+    )
 
 
-    ############################### Final ###############################
-    
-
-    
-    return building_blocks
 
 if __name__ == "__main__":
     par_dim = 2

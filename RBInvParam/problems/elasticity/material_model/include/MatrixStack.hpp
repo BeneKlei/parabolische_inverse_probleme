@@ -5,25 +5,22 @@
 using namespace dealii;
 
 typedef double Number;
-typedef SparseMatrix<Number> Matrix;
-//typedef std::vector<Matrix> Matrices;
 
 class MatrixStack 
 {
 public:
     explicit MatrixStack() = default;
     void sum(SparseMatrix<Number>& result, Vector<Number>& weights);
-    uint32_t length() {return m_matrices.size();};
     void resize(uint32_t size);
     void reinit(const SparsityPattern& sparsity_pattern);
 
-    //void push_matrix(Matrix& matrix);
+    const SparseMatrix<Number>& get_matrix(size_t index);
+    size_t get_size();
 
-    std::vector<Matrix> m_matrices;
-
-  //const dealii::SparseMatrix<Number>& sum(std::vector<Number>& weights);
+    // TODO Move protected. Allow the return of iterator
+    std::vector<SparseMatrix<Number>> m_matrices;
     SparseMatrix<Number> m_sum;
-// private:
-//     SparseMatrix<Number> m_sum;
- 
+
+//protected:
+    //std::vector<SparseMatrix<Number>> m_matrices;
 };
