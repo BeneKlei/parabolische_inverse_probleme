@@ -1,4 +1,3 @@
-version: '3'
 services:
   dealii_workbench:
     build:
@@ -6,8 +5,9 @@ services:
       dockerfile: Dockerfile
     container_name: parabolische_inverse_probleme
     volumes:
-      - ./:/workdir
-    user: "root:root"
+      - ./:/home/dealii/workdir
+    working_dir: /home/dealii/workdir
+    user: "dealii:dealii"
     command: tail -f /dev/null
 
 

@@ -14,12 +14,13 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/solver_cg.h>
 
-#include<deal.II/base/function.h>
+#include <deal.II/base/function.h>
 
 #include <fstream>
 #include <iostream>
 
 #include "MaterialModel.hpp"
+#include "utils.hpp"
 
 
 MaterialModel::MaterialModel(const MaterialModelConfig& config)
@@ -409,3 +410,21 @@ void MaterialModel::assemble_identity_observation_operator_matrix(SparseMatrix<N
   for (types::global_dof_index i = 0; i < n_dofs; ++i)
     matrix.set(i, i, Number(1));
 };
+
+
+void MaterialModel::assemble_bilinear_cost_matrix(
+  SparseMatrix<Number>& matrix,
+  const SparseMatrix<Number>& prod_C,
+  const SparseMatrix<Number>& C)
+{
+  SparseMatrix<Number> buf;
+  SparsityPattern buf_sp = utils::make_product_sparsity_AB(prod_C, C);
+  buf.reinit(buf_sp);
+  prod_C.mmult(buf, C, Vector<Number>(), false);
+  
+  SparsityPattern buf_sp_ = utils::make_product_sparsity_ATB(C, buf);
+  m_bilinear_cost_sparsity_pattern.copy_from(buf_sp_);
+  matrix.reinit(m_bilinear_cost_sparsity_pattern);
+
+  C.Tmmult(matrix, buf, Vector<Number>(), false); 
+}

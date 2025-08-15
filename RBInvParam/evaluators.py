@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from typing import Protocol, Callable, runtime_checkable
 from types import SimpleNamespace
 
-import pymor.vectorarrays as VectorArray
 from pymor.discretizers.builtin.grids.interfaces import BoundaryInfo, Grid
 from pymor.operators.numpy import NumpyMatrixOperator
 from scipy.sparse import coo_matrix, csc_matrix
@@ -12,7 +11,7 @@ from pymor.discretizers.builtin.grids.referenceelements import square
 from pymor.operators.interface import Operator
 from pymor.operators.constructions import LincombOperator
 from pymor.parameters.base import Parameters
-from pymor.vectorarrays.interface import VectorSpace
+from pymor.vectorarrays.interface import VectorSpace, VectorArray
 
 from RBInvParam.utils.discretization import Struct, build_projection
 

@@ -67,6 +67,11 @@ public:
   void assemble_h1_0_matrix(SparseMatrix<Number>& h1_0_matrix);
   void assemble_mass_matrix(SparseMatrix<Number>& mass_matrix);
   void assemble_observation_operator_matrix(SparseMatrix<Number>& operator_matrix, std::string operator_name);
+  void assemble_bilinear_cost_matrix(
+    SparseMatrix<Number>& matrix,
+    const SparseMatrix<Number>& prod_C,
+    const SparseMatrix<Number>& C
+  );
   
   void output_results(Vector<double>& solution) const;
     
@@ -81,6 +86,7 @@ private:
   FESystem<dim> m_fe;
   DoFHandler<dim> m_dof_handler;
   SparsityPattern m_sparsity_pattern;
+  SparsityPattern m_bilinear_cost_sparsity_pattern;
 
   AffineConstraints<Number> m_BC_constraints;
   SparseILU<Number> m_solver;

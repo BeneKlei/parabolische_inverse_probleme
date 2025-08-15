@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+
 import numpy as np
 import scipy
 import logging
@@ -237,11 +240,11 @@ def build_InstationaryModelIP(setup : Dict,
             C_mat,
             'identity'
         )
-        C = DealIIMatrixOperator(matrix = C_mat)        
-        print(C)
+        C = DealIIMatrixOperator(matrix = C_mat)
+        C_continuity_constant = 1.0
     else:
         raise ValueError
-
+    
     y_delta = C.apply(u_delta)
 
     assert (len(y_delta) == setup['nt'] + 1)
@@ -250,65 +253,37 @@ def build_InstationaryModelIP(setup : Dict,
     logger.debug(f'noise percentage is {percentage:3.4e}')
     logger.debug(f'noise_level is {setup["noise_level"]:3.4e}')
 
-    y_delta = y_delta[1:]
+    #--------------------------------------------------------
     constant_cost_term = y_delta.pairwise_inner(y_delta, product=products['prod_C'])
-
-    # #print(products['prod_C'].assemble().matrix)
-
-    # linear_cost_term = NumpyMatrixOperator(
-    #     matrix = np.arange(135*135).reshape((135,135))
-    # )
-    
-
-    # print(linear_cost_term.apply(u_delta))
-    
-
-    # # linear_cost_term_mat = products['prod_C'].apply(y_delta)
-    # # linear_cost_term_mat = C.apply_adjoint(linear_cost_term_mat)
-    # # print(linear_cost_term_mat)
-
-    # import sys
-    # sys.exit()
-
-
-
-
-    
-
-    # linear_cost_term = DealIIMatrixOperator(
-    #     matrix = linear_cost_mat
-    # )
-    # bilinear_cost_term = DealIIMatrixOperator(
-    #     matrix = C_mat_T @ products['prod_C'].assemble().matrix @ C_mat
-    # )
-
-    print(products['prod_C'].matrix.m())
-    print(C.matrix.m())
-
-    bilinear_cost_mat = pd2.SparseMatrix(C.matrix.get_sparsity_pattern())
-    print(products['prod_C'].matrix.m())
-    print(C.matrix.m())
-
-    products['prod_C'].matrix.mmult(bilinear_cost_mat, C.matrix)
-
-    #C.matrix.Tmmult(bilinear_cost_mat, bilinear_cost_mat)    
-    
-    bilinear_cost_term = DealIIMatrixOperator(
-        matrix = bilinear_cost_mat
+    #--------------------------------------------------------
+    linear_cost_term = products['prod_C'].apply(y_delta)
+    linear_cost_term = C.apply_adjoint(linear_cost_term)
+    #--------------------------------------------------------    
+    CTprod_CC = pd2.SparseMatrix()
+    material_model.assemble_bilinear_cost_matrix(
+        CTprod_CC,
+        products['prod_C'].matrix,
+        C.matrix
     )
-    print(bilinear_cost_term)
-    import sys
-    sys.exit()
+
+
+    bilinear_cost_term = DealIIMatrixOperator(
+        matrix = CTprod_CC
+    )
+    print("hERE")
+    print(bilinear_cost_term.matrix.l1_norm())
+
 
     ############################### Final ###############################
 
     building_blocks['constant_cost_term'] = constant_cost_term
     building_blocks['linear_cost_term'] = linear_cost_term
     building_blocks['bilinear_cost_term'] = bilinear_cost_term
-    building_blocks['model_constants'] = {
-        'A_coercivity_constant_estimator' : A_coercivity_constant_estimator,
-        'C_continuity_constant' : C_continuity_constant
-    }
+    building_blocks['model_constants'] = None
+    # building_blocks['model_constants'] = {
+    #     'A_coercivity_constant_estimator' : A_coercivity_constant_estimator,
+    #     'C_continuity_constant' : C_continuity_constant
+    # }
 
     return building_blocks
 
@@ -371,10 +346,7 @@ if __name__ == "__main__":
         }
     }
 
-
-
-
-    build_InstationaryModelIP(
+    FOM = InstationaryModelIP(**build_InstationaryModelIP(
         setup = setup,
         logger=None
-    ) 
+    )) 

@@ -27,18 +27,18 @@ class InstationaryModelIP(ImmutableObject):
                  A : EvaluatorA,
                  L : VectorArray,
                  B : EvaluatorB,
-                 constant_cost_term: Union[None, float],
-                 linear_cost_term: Union[None, NumpyMatrixOperator],
-                 bilinear_cost_term: Union[None, NumpyMatrixOperator],
+                 constant_cost_term: None | float,
+                 linear_cost_term: None | VectorArray,
+                 bilinear_cost_term: None | Operator,
                  Q : VectorSpace,
                  V : VectorSpace,
                  q_circ: VectorArray,
                  constant_reg_term: float,
                  linear_reg_term: NumpyMatrixOperator,
                  bilinear_reg_term: NumpyMatrixOperator,
-                 state_error_estimator: Union[None, StateErrorEstimator],
-                 adjoint_error_estimator: Union[None, AdjointErrorEstimator],
-                 objective_error_estimator: Union[None, ObjectiveErrorEstimator],
+                 state_error_estimator: None | StateErrorEstimator,
+                 adjoint_error_estimator: None | AdjointErrorEstimator,
+                 objective_error_estimator: None | ObjectiveErrorEstimator,
                  products : Dict,
                  visualizer,
                  setup : Dict,
@@ -153,8 +153,8 @@ class InstationaryModelIP(ImmutableObject):
             assert self.bilinear_cost_term.source == self.bilinear_cost_term.range
             assert self.bilinear_cost_term.source == self.A.range
         if self.linear_cost_term:
-            assert self.linear_cost_term.range == self.A.range
-            assert len(self.linear_cost_term.as_range_array()) == self.nt
+            assert self.linear_cost_term in self.A.range
+            assert len(self.linear_cost_term) == (self.nt + 1)
 
         assert self.bilinear_reg_term.source == self.bilinear_reg_term.range
         assert self.bilinear_reg_term.source == self.Q
@@ -193,7 +193,6 @@ class InstationaryModelIP(ImmutableObject):
                 assert self.bounds.shape == (self.Q.dim , 2)
             assert np.all(self.bounds[:,0] < self.bounds[:,1])
             
-
 #%% cache methods
     def _cache_update_required(self,
                                q : VectorArray) -> bool:
@@ -311,7 +310,6 @@ class InstationaryModelIP(ImmutableObject):
             'residual_A_q' : [],
             'B_u' : []
         }
-
 
 #%% solve methods
     def solve_state(self, 

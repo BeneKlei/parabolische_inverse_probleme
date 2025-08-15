@@ -1,5 +1,11 @@
-// #include <deal.II/lac/sparse_matrix.h>
 
-// using namespace dealii;
+#include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 
-// bool is_symmetric(const SparseMatrix<double> &matrix, const double tolerance = 1e-12);
+using namespace dealii;
+
+namespace utils 
+{
+SparsityPattern make_product_sparsity_AB(const SparseMatrix<double>& A, const SparseMatrix<double>& B);
+SparsityPattern make_product_sparsity_ATB(const SparseMatrix<double>& A, const SparseMatrix<double>& B);
+}

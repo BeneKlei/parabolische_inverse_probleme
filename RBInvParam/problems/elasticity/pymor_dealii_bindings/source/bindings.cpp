@@ -15,6 +15,8 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
+#include "utils.hpp"
+
 namespace py = pybind11;
 
 template <typename Number>
@@ -161,7 +163,7 @@ void bind_sparse_matrix(pybind11::module& module) {
           py::arg("B"),
           py::arg("V") = Vector(),
           py::arg("rebuild_sparsity_pattern") = true)
-      .def("get_sparsity_pattern", &Matrix::get_sparsity_pattern, py::return_value_policy::reference)
+      .def("get_sparsity_pattern", &Matrix::get_sparsity_pattern, py::return_value_policy::reference_internal)
       .def("add", (void(Matrix::*)(Number, const Matrix&)) & Matrix::template add<Number>)
       .def("copy_from", (Matrix & (Matrix::*)(const Matrix&)) & Matrix::template copy_from<Number>)
       .def("reinit", (void(Matrix::*)(const dealii::SparsityPattern& sparsity))& Matrix::reinit)
@@ -192,10 +194,25 @@ void bind_ILU_solver(pybind11::module& module) {
              const Vector &) const>(&SparseILU::vmult));
 }
 
+void bind_sparsity_pattern(pybind11::module& module) {
+  py::class_<dealii::SparsityPattern, std::shared_ptr<dealii::SparsityPattern>>(module, "SparsityPattern")
+    .def(py::init<>())
+    .def("reinit", (void (dealii::SparsityPattern::*)(unsigned int,unsigned int,unsigned int))
+                 &dealii::SparsityPattern::reinit)
+    .def("n_rows", &dealii::SparsityPattern::n_rows)
+    .def("n_cols", &dealii::SparsityPattern::n_cols)
+    .def("max_entries_per_row", &dealii::SparsityPattern::max_entries_per_row);
+}
+
 PYBIND11_MODULE(pymor_dealii_bindings, m) {
   m.doc() = "Python bindings for deal.II";
-  py::class_<dealii::SparsityPattern>(m, "SparsityPattern");
+  bind_sparsity_pattern(m);
   bind_vector<double>(m);
   bind_sparse_matrix<double>(m);
   bind_ILU_solver<double>(m);
+
+  // auto utils = m.def_submodule("utils");
+  // utils.def("make_product_sparsity_AB", &make_product_sparsity_AB);
+  // utils.def("make_product_sparsity_ATB", &make_product_sparsity_ATB);
+
 }
