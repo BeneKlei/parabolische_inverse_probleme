@@ -69,8 +69,12 @@ public:
   void assemble_h1_0_semi_matrix(SparseMatrix<Number>& h1_0_semi_matrix);
   void assemble_h1_matrix(SparseMatrix<Number>& h1_matrix);
   void assemble_h1_0_matrix(SparseMatrix<Number>& h1_0_matrix);
+  void assemble_euclidian_matrix(SparseMatrix<Number>& operator_matrix);
+
   void assemble_mass_matrix(SparseMatrix<Number>& mass_matrix);
   void assemble_observation_operator_matrix(SparseMatrix<Number>& operator_matrix, std::string operator_name);
+  
+
   void assemble_bilinear_cost_matrix(
     SparseMatrix<Number>& matrix,
     const SparseMatrix<Number>& prod_C,
@@ -111,8 +115,6 @@ private:
   void setup_BC_constraints();
   void assemble_force_list();
   void assemble_force(Vector<Number>& result, double time);
-
-  void assemble_identity_observation_operator_matrix(SparseMatrix<Number>& matrix);
 };
 
 

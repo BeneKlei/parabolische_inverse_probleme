@@ -181,12 +181,6 @@ void bind_full_matrix(py::module &module)
       // constructors
       .def(py::init<>())
       .def(py::init<unsigned int, unsigned int>(), py::arg("m"), py::arg("n"))
-      .def("reinit",
-          (void (Matrix::*)(const unsigned int,
-                            const unsigned int,
-                            const bool)) &Matrix::reinit,
-          py::arg("m"), py::arg("n"),
-          py::arg("omit_zeroing_entries") = false)
       .def("m", &Matrix::m)
       .def("n", &Matrix::n)
       .def("clear", &Matrix::clear)
@@ -194,10 +188,24 @@ void bind_full_matrix(py::module &module)
       .def("l1_norm", &Matrix::l1_norm)
       .def("linfty_norm", &Matrix::linfty_norm)
       .def("vmult",
-          (void(Matrix::*)(Vector&, const Vector&, bool) const) & Matrix::template vmult<Number>
-      );
+          static_cast<void (Matrix::*)(Vector&, const Vector&, bool) const>
+          (&Matrix::template vmult<Number>),
+          py::arg("dst"), 
+          py::arg("src"), 
+          py::arg("adding") = false)
+      .def("Tvmult",
+          static_cast<void(Matrix::*)(Vector&, const Vector&, bool) const>
+          (&Matrix::template Tvmult<Number>),
+          py::arg("dst"), 
+          py::arg("src"), 
+          py::arg("adding") = false);
+      // .def("vmult",
+      //     (void(Matrix::*)(Vector&, const Vector&, bool) const) & Matrix::template vmult<Number>
+      // )
+      // .def("Tvmult",
+      //     (void(Matrix::*)(Vector&, const Vector&, bool) const) & Matrix::template Tvmult<Number>
+      // );
       
-      //.def("Tvmult", &Matrix::template Tvmult<Vector, Vector>);
 
 
       // // element access helpers

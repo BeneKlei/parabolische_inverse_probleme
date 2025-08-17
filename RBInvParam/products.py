@@ -15,7 +15,7 @@ class BochnerProductOperator(Operator):
         self.space = space
         self.nt = nt
         
-        assert self.product.source == self.product.range
+        assert self.product.source == self.product.range        
         assert self.product.source == self.space
     
     def apply(self, U, mu=None):

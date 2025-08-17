@@ -396,14 +396,14 @@ void MaterialModel::assemble_observation_operator_matrix(
     std::string operator_name)
 {
     if (operator_name == "identity")
-        assemble_identity_observation_operator_matrix(operator_matrix);
+        assemble_euclidian_matrix(operator_matrix);
     else
         throw std::runtime_error(
             "Unknown observation operator: " + operator_name +". Supported operator: 'identity'."
         );  
 }
 
-void MaterialModel::assemble_identity_observation_operator_matrix(SparseMatrix<Number>& matrix)
+void MaterialModel::assemble_euclidian_matrix(SparseMatrix<Number>& matrix)
 {
   matrix.reinit(m_sparsity_pattern);
   matrix = 0;
@@ -440,7 +440,10 @@ void MaterialModel::assemble_system_matrix_derivative(
   FullMatrix<Number>& system_matrix_derivative,
   const Vector<Number>& state_DoFs)
 {
-    assert(system_matrix_derivative.m() == system_matrix_derivative.n() == m_state_space_dim);
+    assert(
+      (system_matrix_derivative.m() == m_state_space_dim) && 
+      (system_matrix_derivative.n() == m_param_space_dim)
+    );
     assert(m_system_matricies.get_size() == m_param_space_dim &&
        "Mismatch between system matrices count and parameter dimension");
 
@@ -452,6 +455,8 @@ void MaterialModel::assemble_system_matrix_derivative(
     for (size_t i = 0; i < m_param_space_dim; i++) {
         //A_q_basis_us[i].reinit(m_state_space_dim);
         m_system_matricies.get_matrix(i).vmult(A_q_basis_u, state_DoFs);
-        system_matrix_derivative.set_column(i, A_q_basis_u);
+        for (size_t j = 0; j < m_state_space_dim; j++) {
+          system_matrix_derivative.set(j,i, A_q_basis_u[i]);
+        }        
     }
 }

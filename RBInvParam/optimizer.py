@@ -303,6 +303,7 @@ class Optimizer(BasicObject):
         self.logger.debug(f"  i_max : {i_max:3.4e}")
         self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
 
+
         while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"##############################################################################################################################")
             self.logger.warning(f"{method_name}: Iteration {i} | J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")

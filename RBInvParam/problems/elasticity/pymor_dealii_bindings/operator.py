@@ -12,8 +12,8 @@ class DealIIMatrixOperator(LinearComplexifiedListVectorArrayOperatorBase):
     """Wraps a dealII matrix as an |Operator|."""
 
     def __init__(self, matrix, name=None):
-        self.source = DealIIVectorSpace(matrix.m())
-        self.range = DealIIVectorSpace(matrix.n())
+        self.source = DealIIVectorSpace(matrix.n())
+        self.range = DealIIVectorSpace(matrix.m())
         self.solver = pd2.SparseILU()
         self._solver_initialized = False
         self.__auto_init(locals())

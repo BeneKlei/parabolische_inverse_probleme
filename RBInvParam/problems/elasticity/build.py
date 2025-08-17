@@ -48,6 +48,7 @@ def build_InstationaryModelIP(setup : Dict,
     setup['N'] = material_model.n_dofs()
 
     Q_h = NumpyVectorSpace(dim = setup['par_dim'])
+    #Q_h = DealIIVectorSpace(dim = setup['par_dim'])
     V_h = DealIIVectorSpace(dim = setup['N'])
 
     ############################### Products ###############################
@@ -60,6 +61,12 @@ def build_InstationaryModelIP(setup : Dict,
         'bochner_prod_Q' : None,
         'bochner_prod_V' : None,
     }
+
+    # assembled_parameter_products = {
+    #     'euclid' : pd2.SparseMatrix()
+    # }
+
+    # material_model.assemble_h1_matrix(assembled_parameter_products['h1'])
 
     assembled_state_products = {
         'h1' : pd2.SparseMatrix(),

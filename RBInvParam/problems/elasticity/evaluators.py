@@ -6,6 +6,7 @@ import pymor.vectorarrays as VectorArray
 from pymor.vectorarrays.interface import VectorSpace
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.vectorarrays.list import ListVectorArray
+from pymor.vectorarrays.numpy import NumpyVectorArray
 
 
 from RBInvParam.evaluators import FOMEvaluatorA, FOMEvaluatorB, BU
@@ -78,17 +79,14 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
         assert isinstance(u, ListVectorArray)
 
             
-        B_u_mat = pd2.FullMatrix()
-        B_u_mat.reinit(self.V.dim, self.V.dim)
-        print(u.vectors[0].real_part.impl)
+        B_u_mat = pd2.FullMatrix(self.V.dim, self.Q.dim)
         self.material_model.assemble_system_matrix_derivative(B_u_mat, u.vectors[0].real_part.impl)
-        import sys
-        sys.exit()
+        B_u_op = DealIIMatrixOperator(matrix = B_u_mat)
 
-        def _B_u(d: ListVectorArray) -> ListVectorArray:
-            return
+        def _B_u(d: ListVectorArray) -> NumpyVectorArray:
+            return self.Q.make_array(B_u_op.apply(d).to_numpy())
             
-        def _B_u_ad(p: ListVectorArray) -> ListVectorArray:
-            return
+        def _B_u_ad(p: ListVectorArray) -> NumpyVectorArray:
+            return self.Q.make_array(B_u_op.apply_adjoint(p).to_numpy())
 
         return SimpleNamespace(B_u=_B_u, B_u_ad=_B_u_ad)

@@ -44,8 +44,7 @@ def main():
     assert T_final > T_initial
     q_circ = 3*np.ones((1, par_dim))
     
-    buf = np.zeros((1, par_dim))
-    buf[10:50] = 1
+    buf = 100 * np.ones((1, par_dim))
     q_exact = buf + q_circ
 
     bounds = np.zeros((par_dim, 2))
@@ -88,6 +87,12 @@ def main():
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
+
+    #print(FOM.compute_objective(FOM.Q.make_array(q_circ)))
+    #print(FOM.compute_objective(FOM.Q.make_array(q_exact)))
+
+    import sys
+    sys.exit()
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized

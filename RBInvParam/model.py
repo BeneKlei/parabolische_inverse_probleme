@@ -389,6 +389,7 @@ class InstationaryModelIP(ImmutableObject):
         if isinstance(self.A, FOMEvaluatorA):
             # TODO The state depended parts has already zero BVs. 
             # Maybe zero the other part only once.
+            rhs = (-1) * rhs
             self.A.clear_rhs_boundary_dofs(
                 rhs = rhs,
                 flip = True
@@ -456,6 +457,9 @@ class InstationaryModelIP(ImmutableObject):
                 B_u[idx].B_u(d[0]).to_numpy()[0] for idx in range(len(u))
             ]))
         
+        if isinstance(self.A, FOMEvaluatorA):
+            rhs = (-1) * rhs
+        
         iterator = self.time_stepper.iterate(initial_data = self.initial_data['lin_state'], 
                                              q=q,
                                              rhs=rhs,
@@ -495,13 +499,25 @@ class InstationaryModelIP(ImmutableObject):
         )
 
         rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
-        rhs = np.flip(rhs.to_numpy(), axis=0)
-        if isinstance(self.A, FOMEvaluatorA):
-            I = self.A.boundary_info.dirichlet_boundaries(2)
-            rhs[:,I] = 0
 
-        #rhs = self.delta_t * self.V.make_array(rhs)
-        rhs = self.V.make_array(rhs)
+        if isinstance(self.A, FOMEvaluatorA):
+            # TODO The state depended parts has already zero BVs. 
+            # Maybe zero the other part only once.
+            rhs = (-1) * rhs
+            self.A.clear_rhs_boundary_dofs(
+                rhs = rhs,
+                flip = True
+            )
+
+        # rhs = np.flip(rhs.to_numpy(), axis=0)
+        # if isinstance(self.A, FOMEvaluatorA):
+        #     I = self.A.boundary_info.dirichlet_boundaries(2)
+        #     rhs[:,I] = 0
+
+        # #rhs = self.delta_t * self.V.make_array(rhs)
+        # rhs = self.V.make_array(rhs)#
+
+
         iterator = self.time_stepper.iterate(initial_data = self.initial_data['lin_adjoint'], 
                                             q=q,
                                             rhs=rhs,
