@@ -39,8 +39,8 @@ void MaterialModel::make_grid()
 {
   //std::vector<uint32_t> resolution = {10,50,50};
   //std::vector<uint32_t> resolution = {4,30,30};
-  //std::vector<uint32_t> resolution = {4,20,20};
-  std::vector<uint32_t> resolution = {4,10,10};
+  std::vector<uint32_t> resolution = {4,20,20};
+  //std::vector<uint32_t> resolution = {4,10,10};
 
   Point<3> ori = Point<3> (-0.1, -15.0, -15.0);
 	Point<3> dest = Point<3> (0.1, 15.0, 15.0);
@@ -447,16 +447,14 @@ void MaterialModel::assemble_system_matrix_derivative(
     assert(m_system_matricies.get_size() == m_param_space_dim &&
        "Mismatch between system matrices count and parameter dimension");
 
-    //std::vector<Vector<Number>> A_q_basis_us;
-    //A_q_basis_us.resize(m_config.par_dim);
     Vector<Number> A_q_basis_u;
-    A_q_basis_u.reinit(m_state_space_dim);
+    //A_q_basis_u.reinit(m_state_space_dim);
     
     for (size_t i = 0; i < m_param_space_dim; i++) {
-        //A_q_basis_us[i].reinit(m_state_space_dim);
+        A_q_basis_u.reinit(m_state_space_dim);
         m_system_matricies.get_matrix(i).vmult(A_q_basis_u, state_DoFs);
         for (size_t j = 0; j < m_state_space_dim; j++) {
-          system_matrix_derivative.set(j,i, A_q_basis_u[i]);
+          system_matrix_derivative.set(j,i, A_q_basis_u[j]);
         }        
     }
 }

@@ -4,9 +4,9 @@ import numpy as np
 import itertools
 
 from pymor.operators.numpy import NumpyMatrixOperator
-from pymor.vectorarrays.interface import VectorArray
+from pymor.vectorarrays.interface import VectorArray, VectorSpace
+from pymor.vectorarrays.numpy import NumpyVectorArray, VectorSpace
 from pymor.operators.interface import Operator
-from pymor.vectorarrays.interface import VectorSpace
 from pymor.core.base import ImmutableObject
 from pymor.operators.constructions import ZeroOperator
 
@@ -322,8 +322,6 @@ class InstationaryModelIP(ImmutableObject):
             
             for key in required_cache_keys:
                 if len(self._cached_operators[key]) == 0:
-                    print("Called")
-                    print(key)
                     self.cache_operators(q=q, u=u, target=key)
         
 
@@ -467,7 +465,6 @@ class InstationaryModelIP(ImmutableObject):
             #         B_u[idx].B_u(d[0]).to_numpy()[0] for idx in range(len(u))
             #     ]))
                     
-        print("Heeeeeeeeere")
         iterator = self.time_stepper.iterate(initial_data = self.initial_data['lin_state'], 
                                              q=q,
                                              rhs=rhs,
@@ -538,7 +535,9 @@ class InstationaryModelIP(ImmutableObject):
         for lin_p_n, _ in iterator:
             lin_p.append(lin_p_n)
 
-        return self.V.make_array(np.flip(lin_p.to_numpy(), axis=0))
+        
+        #return self.V.make_array(np.flip(lin_p.to_numpy(), axis=0))
+        return lin_p
     
 #%% objective and gradient
     def objective(self, 
@@ -575,7 +574,7 @@ class InstationaryModelIP(ImmutableObject):
                  p: VectorArray,
                  q: VectorArray = None,
                  alpha: float = 0,
-                 use_cached_operators: bool = False) -> VectorArray:
+                 use_cached_operators: bool = False) -> NumpyVectorArray:
         
         assert u in self.V
         assert p in self.V
@@ -601,7 +600,7 @@ class InstationaryModelIP(ImmutableObject):
 
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt + 1):
-            grad.append(B_u[idx].B_u_ad(p[idx]))
+            grad.append(self.Q.make_array(B_u[idx].B_u_ad(p[idx])))
 
         if not self.q_time_dep:
             grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
@@ -688,12 +687,13 @@ class InstationaryModelIP(ImmutableObject):
             B_u = [self.B(u[idx]) for idx in range(len(u))]
 
         self.num_calls['linearized_gradient'] += 1
-        #grad = np.empty((self.nt, self.setup['dims']['par_dim']))        
         grad = self.Q.empty(reserve=(self.nt + 1))
 
+        #print(np.max(np.abs(grad.to_numpy())))
         # TODO Check if this is efficent and / or how its efficeny can be improved
         for idx in range(0, self.nt + 1):
-            grad.append(B_u[idx].B_u_ad(lin_p[idx]))
+            buf = self.Q.make_array(B_u[idx].B_u_ad(lin_p[idx]))
+            grad.append(buf)
 
         if not self.q_time_dep:
             grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
@@ -705,7 +705,6 @@ class InstationaryModelIP(ImmutableObject):
             out = grad + alpha * self.linarized_gradient_regularization_term(q,d)
         else:
             out = grad
-
         return out
     
     def linearized_hessian(self):
@@ -946,17 +945,18 @@ class InstationaryModelIP(ImmutableObject):
                                     d: VectorArray,
                                     alpha : float,
                                     use_cached_operators: bool = False) -> float:
+
         u = self.solve_state(q, 
                              use_cached_operators=use_cached_operators)
+
         lin_u = self.solve_linearized_state(q=q, 
                                             d=d, 
                                             u=u, 
-                                            use_cached_operators=use_cached_operators)
+                                            use_cached_operators=use_cached_operators)    
         lin_p = self.solve_linearized_adjoint(q=q, 
                                               u=u, 
                                               lin_u=lin_u, 
                                               use_cached_operators=use_cached_operators)
-
         return self.linearized_gradient(q=q, 
                                         d=d, 
                                         u=u, 

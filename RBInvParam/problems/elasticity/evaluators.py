@@ -84,9 +84,9 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
         assert len(u) == 1
         assert isinstance(u, ListVectorArray)
 
-            
         B_u_mat = pd2.FullMatrix(self.V.dim, self.Q.dim)
         self.material_model.assemble_system_matrix_derivative(B_u_mat, u.vectors[0].real_part.impl)
+        
         B_u_op = DealIIMatrixOperator(matrix = B_u_mat)
 
         def _B_u(d: NumpyVectorArray) -> pd2.Vector:
@@ -95,8 +95,6 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
             return B_u_op.apply(d_).vectors[0].real_part.impl
             
         def _B_u_ad(p: ListVectorArray) -> np.ndarray:
-            ret = B_u_op.apply_adjoint(p)
-            return ret
-            #return self.Q.make_array(ret.to_numpy())[0]
+            return B_u_op.apply_adjoint(p).to_numpy()
 
         return SimpleNamespace(B_u=_B_u, B_u_ad=_B_u_ad)

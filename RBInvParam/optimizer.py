@@ -369,7 +369,7 @@ class Optimizer(BasicObject):
                                                                    logger = self.logger,
                                                                    use_cached_operators=use_cached_operators,
                                                                    projector=projector)
-
+                
                 counts['lin_solver_iter'][-1].append(lin_solver_iter)
 
                 lin_u = model.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
@@ -420,7 +420,6 @@ class Optimizer(BasicObject):
                 q = q_TR
             else:
                 q += d
-
 
             ########################################### Final ###########################################
 

@@ -43,13 +43,11 @@ def main():
 
     assert T_final > T_initial
     q_circ = 3*np.ones((1, par_dim))
-    
-    buf = 100 * np.ones((1, par_dim))
-    q_exact = buf + q_circ
+    q_exact = q_circ
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 0.001
-    bounds[:,1] = 1e3
+    bounds[:,1] = 1e9
 
 
     setup = {
@@ -60,7 +58,7 @@ def main():
         'N' : None,
         'par_dim' : 2,
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-5,                          # Absolute noise magnitude added to data
+        'noise_level': 0,                             # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -86,19 +84,38 @@ def main():
 
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
-    q_start = q_circ
+    #q_start = q_circ + 1e2 * np.random.random((1, par_dim))
+    #q_start = 1e5 * q_circ 
+    q_start = 10 * q_circ 
 
-    # print("AAA")
     # print(FOM.compute_objective(FOM.Q.make_array(q_circ)))
-    # print("------------------")
-    # print(FOM.compute_objective(FOM.Q.make_array(q_exact)))
+    # print(FOM.compute_objective(FOM.Q.make_array(2 *q_circ)))
+    # print(FOM.compute_objective(FOM.Q.make_array(10 *q_circ)))
+    # print(FOM.compute_objective(FOM.Q.make_array(1e2 * q_circ)))    
+
+    # print(FOM.compute_gradient(FOM.Q.make_array(q_circ)))
+    # print(FOM.compute_gradient(FOM.Q.make_array(2 *q_circ)))
+    # print(FOM.compute_gradient(FOM.Q.make_array(10 *q_circ)))
+    # print(FOM.compute_gradient(FOM.Q.make_array(1e2 * q_circ)))
+
+    # d = FOM.Q.ones()
+    # print(FOM.compute_linearized_objective(FOM.Q.make_array(q_circ), d, alpha=0))
+    # print(FOM.compute_linearized_objective(FOM.Q.make_array(2 *q_circ), d, alpha=0))
+    # print(FOM.compute_linearized_objective(FOM.Q.make_array(10 *q_circ), d, alpha=0))
+    # print(FOM.compute_linearized_objective(FOM.Q.make_array(1e2 * q_circ), d, alpha=0))
+
+    # print(FOM.compute_linearized_gradient(FOM.Q.make_array(q_circ)), d, alpha=0)
+    # print(FOM.compute_linearized_gradient(FOM.Q.make_array(2 *q_circ)), d, alpha=0)
+    # print(FOM.compute_linearized_gradient(FOM.Q.make_array(10 *q_circ)), d, alpha=0)
+    # print(FOM.compute_linearized_gradient(FOM.Q.make_array(1e2 * q_circ)), d, alpha=0)
+
 
     # import sys
     # sys.exit()
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                         # Initial regularization parameter
+        'alpha_0': 0,                                         # Initial regularization parameter
         'tol': 1e-11,                                            # Absolute convergence tolerance for optimization
         'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
@@ -106,7 +123,7 @@ def main():
         'Theta': 0.95,                                           # Upper tolerance for the direction acceptance condition
         #####################
         'i_max': 35,                                             # Maximum number of outer optimization iterations
-        'reg_loop_max': 10,                                      # Maximum number of regularization updates per step
+        'reg_loop_max': 25,                                      # Maximum number of regularization updates per step
         'i_max_inner': 10,                                       # Maximum number of inner iterations
         ####################
         'lin_solver_parms': {

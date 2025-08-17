@@ -87,7 +87,7 @@ class SimpleBoundDomainProjector(DomainProjector):
             )
             assert np.all(b > 0)
 
-            if self.model.setup['model_parameter']['q_time_dep']:
+            if self.model.q_time_dep:
                 dim_Q_h = self.reductor.FOM.Q.dim
                 self.r = np.zeros(self.model.nt)
 
@@ -133,7 +133,7 @@ class SimpleBoundDomainProjector(DomainProjector):
         else:
             return update    
             
-        if self.model.setup['model_parameter']['q_time_dep']:  
+        if self.model.q_time_dep:  
             update_recon = update_recon.reshape((self.model.nt, self.FOM_Q_dim))
         else:
             update_recon = update_recon.reshape((1, self.FOM_Q_dim))

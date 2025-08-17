@@ -41,6 +41,11 @@ class DealIIMatrixOperator(LinearComplexifiedListVectorArrayOperatorBase):
     def _real_apply_adjoint_one_vector(self, v, mu=None, prepare_data=None):
         r = self.source.real_zero_vector()
         self.matrix.Tvmult(r.impl, v.impl)
+        
+        # print("-----")
+        # print(r.to_numpy())
+        # import numpy as np
+        # print(np.max(v.to_numpy()))
         return r
 
     def _assemble_lincomb(

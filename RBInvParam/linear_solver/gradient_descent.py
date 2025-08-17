@@ -105,8 +105,16 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     
     current_iterate = previous_iterate - step_size[0,0] * search_direction
 
+    print("-------------")
+    print(step_size)
+    print(current_iterate)
+    print(step_size)
+
     if projector: 
         current_iterate = projector.project_domain(q, current_iterate) - q
+
+    print(q)
+    print(current_iterate)
 
     current_value = func(current_iterate)
     return (current_iterate, current_value)
@@ -168,8 +176,6 @@ def gradient_descent_linearized_problem(
                                                  previous_d, 
                                                  alpha, 
                                                  use_cached_operators=use_cached_operators)
-
-
         buffer_nabla_J.pop(0)
         buffer_nabla_J.append(grad.copy())
 
@@ -194,7 +200,7 @@ def gradient_descent_linearized_problem(
 
         # TODO Allow toggle between armijo and BB
         if i < 2:
-            norm_grad = model.compute_gradient_norm(grad)
+            norm_grad = model.compute_gradient_norm(grad)            
             grad.scal(1.0 / norm_grad)
             current_d, current_J = armijo_line_serach(
                 previous_iterate = previous_d,
@@ -226,7 +232,8 @@ def gradient_descent_linearized_problem(
             
         
         
-        if (i % 250 == 0):
+        #if (i % 250 == 0):
+        if (i % 1 == 0):
             #norm_grad = model.compute_gradient_norm(grad)
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {terminaton_lhs:3.4e}.")
 
