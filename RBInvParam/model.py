@@ -339,8 +339,7 @@ class InstationaryModelIP(ImmutableObject):
 
         self.num_calls['solve_state'] += 1
 
-        required_cache_keys = self.time_stepper.required_cache_keys
-
+        required_cache_keys = self.time_stepper.required_cache_keys.copy()
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 
@@ -378,7 +377,7 @@ class InstationaryModelIP(ImmutableObject):
 
         self.num_calls['solve_adjoint'] += 1
 
-        required_cache_keys = self.time_stepper.required_cache_keys
+        required_cache_keys = self.time_stepper.required_cache_keys.copy()
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 
@@ -432,8 +431,8 @@ class InstationaryModelIP(ImmutableObject):
         assert len(u) == self.nt + 1
 
         self.num_calls['solve_linearized_state'] += 1
-
-        required_cache_keys = self.time_stepper.required_cache_keys
+        
+        required_cache_keys = self.time_stepper.required_cache_keys.copy()
         required_cache_keys += ['B_u']
         self.update_cache(
             q = q, 
@@ -496,7 +495,7 @@ class InstationaryModelIP(ImmutableObject):
 
         self.num_calls['solve_linearized_adjoint'] += 1
 
-        required_cache_keys = self.time_stepper.required_cache_keys        
+        required_cache_keys = self.time_stepper.required_cache_keys.copy()        
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 

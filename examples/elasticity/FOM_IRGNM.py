@@ -120,7 +120,7 @@ def main():
         'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
         'theta': 0.4,                                            # Lower tolerance for the direction acceptance condition
-        'Theta': 0.95,                                           # Upper tolerance for the direction acceptance condition
+        'Theta': 1.99,                                           # Upper tolerance for the direction acceptance condition
         #####################
         'i_max': 35,                                             # Maximum number of outer optimization iterations
         'reg_loop_max': 25,                                      # Maximum number of regularization updates per step
@@ -129,7 +129,7 @@ def main():
         'lin_solver_parms': {
             'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e4,                                     # Max iterations for the linear solver
-            'lin_solver_tol': 1e-12,                             # Tolerance for convergence in the linear solver
+            'lin_solver_tol': 1e-20,                             # Tolerance for convergence in the linear solver
             'inital_step_size': 1                                # Initial step size for iterative solvers (if applicable)
         },
         'use_cached_operators': True ,                           # Whether to reuse assembled operators (improves speed if True)

@@ -105,16 +105,13 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     
     current_iterate = previous_iterate - step_size[0,0] * search_direction
 
-    print("-------------")
-    print(step_size)
-    print(current_iterate)
-    print(step_size)
+    # print("-------------")
+    # print(step_size)
+    # print(search_direction)
+    # print(current_iterate)
 
     if projector: 
         current_iterate = projector.project_domain(q, current_iterate) - q
-
-    print(q)
-    print(current_iterate)
 
     current_value = func(current_iterate)
     return (current_iterate, current_value)
@@ -179,6 +176,10 @@ def gradient_descent_linearized_problem(
         buffer_nabla_J.pop(0)
         buffer_nabla_J.append(grad.copy())
 
+        # print("##########")
+        # print(current_d)
+        # print(grad)
+
         if projector:            
             terminaton_lhs = projector.project_domain(
                 center = q,
@@ -186,6 +187,8 @@ def gradient_descent_linearized_problem(
             ) - q
         else:
             terminaton_lhs = -grad
+
+       # print(terminaton_lhs)
 
         terminaton_lhs = model.compute_gradient_norm(terminaton_lhs)
         if (terminaton_lhs < lin_solver_tol) and i > 0:
