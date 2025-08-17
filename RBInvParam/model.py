@@ -322,6 +322,8 @@ class InstationaryModelIP(ImmutableObject):
             
             for key in required_cache_keys:
                 if len(self._cached_operators[key]) == 0:
+                    print("Called")
+                    print(key)
                     self.cache_operators(q=q, u=u, target=key)
         
 
@@ -385,7 +387,6 @@ class InstationaryModelIP(ImmutableObject):
             required_cache_keys = required_cache_keys)
 
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term
-
         if isinstance(self.A, FOMEvaluatorA):
             # TODO The state depended parts has already zero BVs. 
             # Maybe zero the other part only once.
@@ -394,7 +395,8 @@ class InstationaryModelIP(ImmutableObject):
                 rhs = rhs,
                 flip = True
             )
-
+        else:
+            raise NotImplementedError
             # TODO Write clear_rhs_boundary_dofs for reaction-diffusion
             # self.A.clear_rhs_boundary_dofs(rhs)
             # I = self.A.boundary_info.dirichlet_boundaries(2)
@@ -448,18 +450,24 @@ class InstationaryModelIP(ImmutableObject):
             B_u = [self.B(u[idx]) for idx in range(len(u))]
             
         # TODO Check if this is efficent and / or how its efficeny can be improved
-        if self.q_time_dep:
-            rhs = self.V.make_array(np.array([
-                B_u[idx].B_u(d[idx]).to_numpy()[0] for idx in range(len(u))
-            ]))
-        else:            
-            rhs = self.V.make_array(np.array([
-                B_u[idx].B_u(d[0]).to_numpy()[0] for idx in range(len(u))
-            ]))
-        
         if isinstance(self.A, FOMEvaluatorA):
+            if self.q_time_dep:
+                rhs = self.V.make_array([B_u[idx].B_u(d[idx]) for idx in range(len(u))])
+            else:            
+                rhs = self.V.make_array([B_u[idx].B_u(d[0]) for idx in range(len(u))])
             rhs = (-1) * rhs
-        
+        else:
+            raise NotImplementedError
+            # if self.q_time_dep:
+            #     rhs = self.V.make_array(np.array([
+            #         B_u[idx].B_u(d[idx]).to_numpy()[0] for idx in range(len(u))
+            #     ]))
+            # else:            
+            #     rhs = self.V.make_array(np.array([
+            #         B_u[idx].B_u(d[0]).to_numpy()[0] for idx in range(len(u))
+            #     ]))
+                    
+        print("Heeeeeeeeere")
         iterator = self.time_stepper.iterate(initial_data = self.initial_data['lin_state'], 
                                              q=q,
                                              rhs=rhs,
@@ -498,7 +506,7 @@ class InstationaryModelIP(ImmutableObject):
             required_cache_keys = required_cache_keys
         )
 
-        rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term.as_range_array()
+        rhs = self.bilinear_cost_term.apply(u + lin_u) - self.linear_cost_term
 
         if isinstance(self.A, FOMEvaluatorA):
             # TODO The state depended parts has already zero BVs. 
@@ -508,6 +516,8 @@ class InstationaryModelIP(ImmutableObject):
                 rhs = rhs,
                 flip = True
             )
+        else:
+            raise NotImplementedError
 
         # rhs = np.flip(rhs.to_numpy(), axis=0)
         # if isinstance(self.A, FOMEvaluatorA):
@@ -898,6 +908,10 @@ class InstationaryModelIP(ImmutableObject):
                           use_cached_operators: bool = False) -> float:
         u = self.solve_state(q=q, 
                              use_cached_operators=use_cached_operators)
+        # import sys
+        # sys.exit()
+        # print(u.vectors[-1].real_part.to_numpy())
+
         return self.objective(u, q, alpha)
     
     def compute_gradient(self,

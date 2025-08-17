@@ -1,5 +1,8 @@
-import pymor_dealii_bindings as pd2
+import numpy as np
 from types import SimpleNamespace
+
+import pymor_dealii_bindings as pd2
+
 
 import pymor.vectorarrays as VectorArray
 
@@ -12,6 +15,8 @@ from pymor.vectorarrays.numpy import NumpyVectorArray
 from RBInvParam.evaluators import FOMEvaluatorA, FOMEvaluatorB, BU
 from RBInvParam.problems.elasticity.material_model import MaterialModel
 from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator
+from RBInvParam.problems.elasticity.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
+
 
 
 
@@ -67,6 +72,7 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
                  V : VectorSpace):
         
         self.Q = Q
+        self.Q_ = DealIIVectorSpace(Q.dim)
         self.V = V
         self.source = source
         self.range = range
@@ -83,10 +89,14 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
         self.material_model.assemble_system_matrix_derivative(B_u_mat, u.vectors[0].real_part.impl)
         B_u_op = DealIIMatrixOperator(matrix = B_u_mat)
 
-        def _B_u(d: ListVectorArray) -> NumpyVectorArray:
-            return self.Q.make_array(B_u_op.apply(d).to_numpy())
+        def _B_u(d: NumpyVectorArray) -> pd2.Vector:
+            # TODO Move parameter space handling to C++ and use pd2.Vector
+            d_ = self.Q_.from_numpy(d.to_numpy())
+            return B_u_op.apply(d_).vectors[0].real_part.impl
             
-        def _B_u_ad(p: ListVectorArray) -> NumpyVectorArray:
-            return self.Q.make_array(B_u_op.apply_adjoint(p).to_numpy())
+        def _B_u_ad(p: ListVectorArray) -> np.ndarray:
+            ret = B_u_op.apply_adjoint(p)
+            return ret
+            #return self.Q.make_array(ret.to_numpy())[0]
 
         return SimpleNamespace(B_u=_B_u, B_u_ad=_B_u_ad)

@@ -59,8 +59,8 @@ class TimeStepper(ABC):
 
         for key in keys:
             key in cached_operators.keys()
-            if self.q_time_dep:
-                assert len(cached_operators[key]) == self.nt
+            if self.q_time_dep or (key == 'B_u'):
+                assert len(cached_operators[key]) == (self.nt + 1)
             else:
                 assert len(cached_operators[key]) == 1
     
@@ -233,6 +233,7 @@ class NewmanSecondOrder(TimeStepper):
         ################################### Stepping ###################################
 
         for n in range(self.nt):
+            #print(rhs.vectors)
             t += dt
             U_pre = U_cur
             M_dot_U_pre = M_dot_U_cur

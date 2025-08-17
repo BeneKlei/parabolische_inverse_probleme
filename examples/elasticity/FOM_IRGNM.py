@@ -38,7 +38,7 @@ def main():
 
     T_initial = 0
     T_final = 1
-    nt = 50
+    nt = 5
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
@@ -88,11 +88,13 @@ def main():
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
-    #print(FOM.compute_objective(FOM.Q.make_array(q_circ)))
-    #print(FOM.compute_objective(FOM.Q.make_array(q_exact)))
+    # print("AAA")
+    # print(FOM.compute_objective(FOM.Q.make_array(q_circ)))
+    # print("------------------")
+    # print(FOM.compute_objective(FOM.Q.make_array(q_exact)))
 
-    import sys
-    sys.exit()
+    # import sys
+    # sys.exit()
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized

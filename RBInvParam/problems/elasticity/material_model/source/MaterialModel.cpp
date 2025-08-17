@@ -39,7 +39,8 @@ void MaterialModel::make_grid()
 {
   //std::vector<uint32_t> resolution = {10,50,50};
   //std::vector<uint32_t> resolution = {4,30,30};
-  std::vector<uint32_t> resolution = {4,2,2};
+  //std::vector<uint32_t> resolution = {4,20,20};
+  std::vector<uint32_t> resolution = {4,10,10};
 
   Point<3> ori = Point<3> (-0.1, -15.0, -15.0);
 	Point<3> dest = Point<3> (0.1, 15.0, 15.0);
@@ -202,8 +203,7 @@ void MaterialModel::assemble_force(Vector<Number>& result, double time)
                                                 local_dof_indices,
                                                 result);
   }
-
-  m_BC_constraints.condense(result);
+  m_BC_constraints.condense(result); 
 }
 
 void MaterialModel::assemble_force_list()
