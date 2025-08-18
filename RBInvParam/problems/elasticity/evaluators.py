@@ -49,10 +49,9 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
                                 rhs: ListVectorArray,
                                 flip: bool = False) -> ListVectorArray:
         
-        assert isinstance(rhs, ListVectorArray)
+        assert isinstance(rhs, ListVectorArray)        
         for v in rhs.vectors:
             self.material_model.clear_rhs_boundary_dofs(v.real_part.impl)
-        
 
         if flip:
             return self.flip_vector_array(rhs)
@@ -61,7 +60,11 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
 
     def flip_vector_array(self, vector_array: ListVectorArray) -> ListVectorArray:
         assert isinstance(vector_array, ListVectorArray)
-        return vector_array.space.make_array(vector_array.vectors[::-1])
+        #print(np.max(vector_array.vectors[-1].to_numpy()))
+        # buf = np.array([v.to_numpy() for v in vector_array.vectors[::-1]])
+        # vector_array = vector_array.space.from_numpy(buf)
+        vector_array = vector_array.space.make_array(vector_array.vectors[::-1])
+        return vector_array
 
 class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
     def __init__(self,

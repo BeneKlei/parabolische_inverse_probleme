@@ -38,16 +38,19 @@ def main():
 
     T_initial = 0
     T_final = 1
-    nt = 5
+    nt = 50
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
-    q_circ = 3*np.ones((1, par_dim))
-    q_exact = q_circ
+    #q_circ = 3*np.ones((1, par_dim))
+    q_circ = np.array([[3,3]])
+    q_exact = np.array([[5,1]])
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 0.001
-    bounds[:,1] = 1e9
+    bounds[:,1] = 1e20
+    # bounds[:,0] = -1e10
+    # bounds[:,1] = 1e10
 
 
     setup = {
@@ -58,7 +61,7 @@ def main():
         'N' : None,
         'par_dim' : 2,
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 0,                             # Absolute noise magnitude added to data
+        'noise_level': 1e-5,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -84,43 +87,17 @@ def main():
 
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
-    #q_start = q_circ + 1e2 * np.random.random((1, par_dim))
-    #q_start = 1e5 * q_circ 
-    q_start = 10 * q_circ 
+    q_start = q_circ
 
-    # print(FOM.compute_objective(FOM.Q.make_array(q_circ)))
-    # print(FOM.compute_objective(FOM.Q.make_array(2 *q_circ)))
-    # print(FOM.compute_objective(FOM.Q.make_array(10 *q_circ)))
-    # print(FOM.compute_objective(FOM.Q.make_array(1e2 * q_circ)))    
-
-    # print(FOM.compute_gradient(FOM.Q.make_array(q_circ)))
-    # print(FOM.compute_gradient(FOM.Q.make_array(2 *q_circ)))
-    # print(FOM.compute_gradient(FOM.Q.make_array(10 *q_circ)))
-    # print(FOM.compute_gradient(FOM.Q.make_array(1e2 * q_circ)))
-
-    # d = FOM.Q.ones()
-    # print(FOM.compute_linearized_objective(FOM.Q.make_array(q_circ), d, alpha=0))
-    # print(FOM.compute_linearized_objective(FOM.Q.make_array(2 *q_circ), d, alpha=0))
-    # print(FOM.compute_linearized_objective(FOM.Q.make_array(10 *q_circ), d, alpha=0))
-    # print(FOM.compute_linearized_objective(FOM.Q.make_array(1e2 * q_circ), d, alpha=0))
-
-    # print(FOM.compute_linearized_gradient(FOM.Q.make_array(q_circ)), d, alpha=0)
-    # print(FOM.compute_linearized_gradient(FOM.Q.make_array(2 *q_circ)), d, alpha=0)
-    # print(FOM.compute_linearized_gradient(FOM.Q.make_array(10 *q_circ)), d, alpha=0)
-    # print(FOM.compute_linearized_gradient(FOM.Q.make_array(1e2 * q_circ)), d, alpha=0)
-
-
-    # import sys
-    # sys.exit()
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-        'alpha_0': 0,                                         # Initial regularization parameter
+        'alpha_0': 1e-5,                                            # Initial regularization parameter
         'tol': 1e-11,                                            # Absolute convergence tolerance for optimization
         'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
         'theta': 0.4,                                            # Lower tolerance for the direction acceptance condition
-        'Theta': 1.99,                                           # Upper tolerance for the direction acceptance condition
+        'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
         #####################
         'i_max': 35,                                             # Maximum number of outer optimization iterations
         'reg_loop_max': 25,                                      # Maximum number of regularization updates per step
@@ -129,10 +106,10 @@ def main():
         'lin_solver_parms': {
             'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e4,                                     # Max iterations for the linear solver
-            'lin_solver_tol': 1e-20,                             # Tolerance for convergence in the linear solver
+            'lin_solver_tol': 1e-12,                             # Tolerance for convergence in the linear solver
             'inital_step_size': 1                                # Initial step size for iterative solvers (if applicable)
         },
-        'use_cached_operators': True ,                           # Whether to reuse assembled operators (improves speed if True)
+        'use_cached_operators': False ,                          # Whether to reuse assembled operators (improves speed if True)
         'dump_every_nth_loop': 2,                                # Dump intermediate results every n optimization iterations
     }
 

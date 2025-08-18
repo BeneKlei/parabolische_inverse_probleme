@@ -388,7 +388,7 @@ class InstationaryModelIP(ImmutableObject):
             # TODO The state depended parts has already zero BVs. 
             # Maybe zero the other part only once.
             rhs = (-1) * rhs
-            self.A.clear_rhs_boundary_dofs(
+            rhs =  self.A.clear_rhs_boundary_dofs(
                 rhs = rhs,
                 flip = True
             )
@@ -450,7 +450,7 @@ class InstationaryModelIP(ImmutableObject):
         if isinstance(self.A, FOMEvaluatorA):
             if self.q_time_dep:
                 rhs = self.V.make_array([B_u[idx].B_u(d[idx]) for idx in range(len(u))])
-            else:            
+            else:    
                 rhs = self.V.make_array([B_u[idx].B_u(d[0]) for idx in range(len(u))])
             rhs = (-1) * rhs
         else:
@@ -508,7 +508,7 @@ class InstationaryModelIP(ImmutableObject):
             # TODO The state depended parts has already zero BVs. 
             # Maybe zero the other part only once.
             rhs = (-1) * rhs
-            self.A.clear_rhs_boundary_dofs(
+            rhs = self.A.clear_rhs_boundary_dofs(
                 rhs = rhs,
                 flip = True
             )
@@ -533,9 +533,8 @@ class InstationaryModelIP(ImmutableObject):
         lin_p = self.V.empty(reserve= (self.nt + 1))
         for lin_p_n, _ in iterator:
             lin_p.append(lin_p_n)
-
         
-        #return self.V.make_array(np.flip(lin_p.to_numpy(), axis=0))
+        lin_p = self.A.flip_vector_array(lin_p)
         return lin_p
     
 #%% objective and gradient
@@ -906,9 +905,6 @@ class InstationaryModelIP(ImmutableObject):
                           use_cached_operators: bool = False) -> float:
         u = self.solve_state(q=q, 
                              use_cached_operators=use_cached_operators)
-        # import sys
-        # sys.exit()
-        # print(u.vectors[-1].real_part.to_numpy())
 
         return self.objective(u, q, alpha)
     
@@ -956,6 +952,7 @@ class InstationaryModelIP(ImmutableObject):
                                               u=u, 
                                               lin_u=lin_u, 
                                               use_cached_operators=use_cached_operators)
+        
         return self.linearized_gradient(q=q, 
                                         d=d, 
                                         u=u, 

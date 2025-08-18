@@ -260,6 +260,15 @@ def build_InstationaryModelIP(setup : Dict,
     
     y_delta = C.apply(u_delta)
 
+    # print(np.max(y_delta.vectors[0].to_numpy()))
+    # print(np.max(y_delta.vectors[1].to_numpy()))
+    # print(np.min(y_delta.vectors[0].to_numpy()))
+    # print(np.min(y_delta.vectors[1].to_numpy()))
+    # print(np.y_delta.vectors[0].to_numpy() == y_delta.vectors[1].to_numpy())
+
+    # import sys
+    # sys.exit()
+
     assert (len(y_delta) == setup['nt'] + 1)
     assert (y_delta.space == C.range) 
 
@@ -282,8 +291,6 @@ def build_InstationaryModelIP(setup : Dict,
     bilinear_cost_term = DealIIMatrixOperator(
         matrix = CTprod_CC
     )
-
-
 
     ############################### Final ###############################
 

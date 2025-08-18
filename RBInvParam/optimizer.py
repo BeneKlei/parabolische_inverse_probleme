@@ -384,7 +384,10 @@ class Optimizer(BasicObject):
                 else:
                     self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
 
-                
+            print(".........................")
+            print(q)
+            print(d)
+            print(q+d)
 
             loop_terminated = loop_terminated or (count >= reg_loop_max)
 

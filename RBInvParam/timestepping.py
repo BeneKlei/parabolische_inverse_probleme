@@ -232,7 +232,7 @@ class NewmanSecondOrder(TimeStepper):
 
         ################################### Stepping ###################################
 
-        for n in range(self.nt):
+        for n in range(1,self.nt+1):
             #print(rhs.vectors)
             t += dt
             U_pre = U_cur
