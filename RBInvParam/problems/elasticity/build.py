@@ -48,10 +48,13 @@ def build_InstationaryModelIP(setup : Dict,
     else:
         raise ValueError
 
-    material_model_config.parameter_type = setup['parameter_type']
+    if setup['system_matrix_type'] == 'ConstantLame':
+        material_model_config.system_matrix_type = mm.SystemMatrixType.ConstantLame
+    else:
+        raise ValueError
     
-    if setup['system_matrix_parameter']: 
-        material_model_config.spatial_resolution = setup['system_matrix_parameter']
+    if setup['system_matrix_hyperparameter']: 
+        material_model_config.system_matrix_hyperparameter = setup['system_matrix_hyperparameter']
 
     material_model = mm.MaterialModel(material_model_config)
     material_model.make_grid()
@@ -260,12 +263,12 @@ def build_InstationaryModelIP(setup : Dict,
     dummy_model = InstationaryModelIP(                 
         **building_blocks,
     )
+
     u_delta, percentage = construct_noise_data(model = dummy_model, 
                                                q_exact = q_exact,
                                                noise_level = setup['noise_level'],
                                                product=products['bochner_prod_V'],
                                                time_depend_noise=True)
-
     
     ############################### Cost ###############################
 

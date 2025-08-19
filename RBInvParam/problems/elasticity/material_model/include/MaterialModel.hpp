@@ -1,3 +1,5 @@
+#pragma once
+
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_generator.h>
 
@@ -17,7 +19,8 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
 
-#include "MatrixStack.hpp"
+#include "SystemMatrixFactory.hpp"
+//#include "MatrixStack.hpp"
 #include "BodyForce.hpp"
 
 using namespace dealii;
@@ -25,7 +28,7 @@ using namespace dealii;
 typedef double Number;
 // TODO make Class for this with "highlevel" pymor like interface
 typedef std::vector<dealii::Vector<Number>> VectorArray;
-typedef std::variant<int, double, std::string> ModelParameterDataType;
+
 
 struct MaterialModelConfig {
     int nt = 50;
@@ -34,9 +37,8 @@ struct MaterialModelConfig {
     double delta_t = 1.0 / 50;
     std::vector<uint32_t> spatial_resolution = {4,30,30};
     BodyForceType body_force_type = BodyForceType::CenterExcite;
-    //std::string body_force_name = "center_excite";
-    std::string parameter_type = "lame";
-    std::map<std::string, ModelParameterDataType> system_matrix_parameter = {};
+    SystemMatrixType system_matrix_type = SystemMatrixType::ConstantLame;
+    SystemMatrixHyperparameter system_matrix_hyperparameter = {};
 };
 
 class MaterialModel
@@ -71,8 +73,6 @@ public:
   void assemble_euclidian_matrix(SparseMatrix<Number>& operator_matrix);
 
   
-  
-
   void assemble_bilinear_cost_matrix(
     SparseMatrix<Number>& matrix,
     const SparseMatrix<Number>& prod_C,
@@ -98,17 +98,17 @@ private:
   SparsityPattern m_sparsity_pattern;
   SparsityPattern m_bilinear_cost_sparsity_pattern;
 
+  MaterialMatricesFactory<3, Number> m_material_matrices_factory = MaterialMatricesFactory<3, Number>();
+  SystemMatrices<dim, Number> m_system_matrices;
   AffineConstraints<Number> m_BC_constraints;
   SparseILU<Number> m_solver;
 
   std::unique_ptr<BodyForce> m_body_force;
-
-  MatrixStack m_system_matricies;
-  MatrixStack m_adjoint_system_matricies;
-
   std::vector<Vector<Number>> m_force_list;
+  
+  //MatrixStack m_system_matrices;
 
-  void setup_system_matricies();
+  //void setup_system_matricies();
   void setup_adjoint_system_matricies();
   void setup_BC_constraints();
   void setup_body_force();

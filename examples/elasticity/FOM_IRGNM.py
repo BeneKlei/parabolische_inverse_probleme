@@ -54,10 +54,13 @@ def main():
 
 
     setup = {
-        'spatial_resolution' : [4,30,30],
+        'spatial_resolution' : [4,10,10],
         'body_force_type' : 'CenterExcite',
-        'parameter_type' : 'lame',
-        'system_matrix_parameter' : None,
+        'system_matrix_type' : 'ConstantLame',
+        'system_matrix_hyperparameter' : {
+            'lambda' : 1e-3,
+            'mu' : 1e-3,
+        },
         'dims' : {
             'nt': nt,                                     # Number of time steps
             'par_dim' : 2,
@@ -106,7 +109,7 @@ def main():
         'theta': 0.01,                                            # Lower tolerance for the direction acceptance condition
         'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
         #####################
-        'i_max': 70,                                             # Maximum number of outer optimization iterations
+        'i_max': 250,                                             # Maximum number of outer optimization iterations
         'reg_loop_max': 25,                                      # Maximum number of regularization updates per step
         'i_max_inner': 10,                                       # Maximum number of inner iterations
         ####################

@@ -7,6 +7,8 @@
 #include <fstream>
 
 #include "MaterialModel.hpp"
+#include "SystemMatrixFactory.hpp"
+#include "BodyForce.hpp"
 
 // -------- PYTHON BINDINGS -----------------------------------------------------------------------
 
@@ -42,6 +44,10 @@ PYBIND11_MODULE(material_model, m) {
         .value("CenterExcite", BodyForceType::CenterExcite)
         .value("Dummy", BodyForceType::Dummy)
         .export_values();
+     
+     py::enum_<SystemMatrixType>(m, "SystemMatrixType")
+        .value("ConstantLame", SystemMatrixType::ConstantLame)
+        .export_values();
 
      py::class_<MaterialModelConfig>(m, "MaterialModelConfig")
           .def(py::init<>())
@@ -51,7 +57,7 @@ PYBIND11_MODULE(material_model, m) {
           .def_readwrite("delta_t", &MaterialModelConfig::delta_t)
           .def_readwrite("spatial_resolution", &MaterialModelConfig::spatial_resolution)
           .def_readwrite("body_force_type", &MaterialModelConfig::body_force_type)
-          .def_readwrite("parameter_type", &MaterialModelConfig::parameter_type)
-          .def_readwrite("system_matrix_parameter", &MaterialModelConfig::system_matrix_parameter);
+          .def_readwrite("system_matrix_type", &MaterialModelConfig::system_matrix_type)
+          .def_readwrite("system_matrix_hyperparameter", &MaterialModelConfig::system_matrix_hyperparameter);
           
 }

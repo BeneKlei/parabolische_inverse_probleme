@@ -34,7 +34,7 @@ MaterialModel::MaterialModel(const MaterialModelConfig& config)
     throw std::runtime_error("Invalid time discretization: check T_final, T_initial, delta_t, and nt.");
   }
   
-  m_param_space_dim = 2;
+  m_param_space_dim = 0;
   m_state_space_dim = 0;
 
 }
@@ -62,16 +62,26 @@ void MaterialModel::setup_system()
   m_sparsity_pattern.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
   DoFTools::make_sparsity_pattern(m_dof_handler, m_sparsity_pattern);
   m_sparsity_pattern.compress();
-  
+
   std::cout << "\t Setting up BC constraints." << std::endl;
   setup_BC_constraints();
   std::cout << "\t Setting up system matrizies." << std::endl;
-  setup_system_matricies();
+  m_material_matrices_factory.assemble_system_matrix(
+    m_config.system_matrix_type,
+    m_fe,
+    m_dof_handler,
+    m_BC_constraints,
+    m_sparsity_pattern,
+    m_config.system_matrix_hyperparameter,
+    m_system_matrices
+  );
   std::cout << "\t Defining BodyForce." << std::endl;
   setup_body_force();
   std::cout << "\t Assembling force list." << std::endl;
   assemble_force_list();
 
+  m_param_space_dim = m_system_matrices.matrices.size();
+  std::cout << "\t #Parameter: " << m_dof_handler.n_dofs()  << std::endl;
   m_q.reinit(m_param_space_dim);
   m_state_space_dim = m_dof_handler.n_dofs();
 
@@ -92,78 +102,6 @@ void MaterialModel::setup_BC_constraints()
   m_BC_constraints.close();
 }
 
-void MaterialModel::setup_system_matricies() 
-{
-  QGauss<3> quadrature_formula(2);
-  FEValues<dim> fe_values(m_fe, quadrature_formula,
-                          update_gradients | update_JxW_values | update_quadrature_points | update_values);
-
-  const unsigned int dofs_per_cell = m_fe.dofs_per_cell;
-  const unsigned int n_quadrature_points = quadrature_formula.size();
-
-  std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-  // Resize and initialize system matrices
-  const unsigned int n_matrices = m_param_space_dim;
-  m_system_matricies.m_matrices.resize(n_matrices);
-  for (auto &matrix : m_system_matricies.m_matrices)
-  {
-    matrix.reinit(m_sparsity_pattern);
-    matrix = 0;
-  }
-
-  std::vector<FullMatrix<Number>> cell_matrices(n_matrices, FullMatrix<Number>(dofs_per_cell, dofs_per_cell));
-
-  for (const auto &cell : m_dof_handler.active_cell_iterators())
-  {
-    fe_values.reinit(cell);
-    cell->get_dof_indices(local_dof_indices);
-
-    // Reset local matrices
-    for (auto &cell_matrix : cell_matrices)
-      cell_matrix = 0;
-
-    for (unsigned int i = 0; i < dofs_per_cell; ++i)
-    {
-      const unsigned int component_i = m_fe.system_to_component_index(i).first;
-
-      for (unsigned int j = 0; j < dofs_per_cell; ++j)
-      {
-        const unsigned int component_j = m_fe.system_to_component_index(j).first;
-
-        for (unsigned int q_point = 0; q_point < n_quadrature_points; ++q_point)
-        {
-          const Tensor<1, dim> &grad_i = fe_values.shape_grad(i, q_point);
-          const Tensor<1, dim> &grad_j = fe_values.shape_grad(j, q_point);
-          const double JxW = fe_values.JxW(q_point);
-        
-          const double sym_term = grad_i[component_j] * grad_j[component_i] +
-              ((component_i == component_j) ? grad_i * grad_j : 0.0);
-          
-          cell_matrices[0](i, j) += 1e-3 * grad_i[component_i] * grad_j[component_j] * JxW;  
-          cell_matrices[1](i, j) += 1e-3 * sym_term * JxW;
-          
-        }
-      }
-    }
-
-    // Insert local matrices into global system, respecting constraints
-    for (unsigned int m = 0; m < n_matrices; ++m)
-    {
-      m_BC_constraints.distribute_local_to_global(cell_matrices[m],
-                                                  local_dof_indices,
-                                                  m_system_matricies.m_matrices[m]);
-    }
-  }
-
-  // Final condense to enforce constraints
-  for (auto &matrix : m_system_matricies.m_matrices)
-  {
-    m_BC_constraints.condense(matrix);
-  }
-
-  m_param_space_dim = 2;
-}
 
 void MaterialModel::assemble_force(Vector<Number>& result, double time) 
 {
@@ -224,7 +162,7 @@ void MaterialModel::assemble_force_list()
 
 void MaterialModel::assemble_system_matrix(SparseMatrix<Number>& system_matrix)
 {
-  m_system_matricies.sum(system_matrix, m_q);
+  m_system_matrices.sum(system_matrix, m_q);
 }
 
 template <typename Integrand>
@@ -447,7 +385,7 @@ void MaterialModel::assemble_system_matrix_derivative(
       (system_matrix_derivative.m() == m_state_space_dim) && 
       (system_matrix_derivative.n() == m_param_space_dim)
     );
-    assert(m_system_matricies.get_size() == m_param_space_dim &&
+    assert(m_system_matrices.matrices.size() == m_param_space_dim &&
        "Mismatch between system matrices count and parameter dimension");
 
     Vector<Number> A_q_basis_u;
@@ -455,7 +393,7 @@ void MaterialModel::assemble_system_matrix_derivative(
     
     for (size_t i = 0; i < m_param_space_dim; i++) {
         A_q_basis_u.reinit(m_state_space_dim);
-        m_system_matricies.get_matrix(i).vmult(A_q_basis_u, state_DoFs);
+        m_system_matrices.matrices[i].vmult(A_q_basis_u, state_DoFs);
         for (size_t j = 0; j < m_state_space_dim; j++) {
           system_matrix_derivative.set(j,i, A_q_basis_u[j]);
         }        
