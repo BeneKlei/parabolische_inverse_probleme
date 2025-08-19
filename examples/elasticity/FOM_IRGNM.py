@@ -65,7 +65,7 @@ def main():
         'delta_t': delta_t,                           # Time step size
         'N' : None,
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-5,                          # Absolute noise magnitude added to data
+        'noise_level': 1e-6,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -113,7 +113,7 @@ def main():
             'lin_solver_tol': 1e-12,                             # Tolerance for convergence in the linear solver
             'inital_step_size': 1                                # Initial step size for iterative solvers (if applicable)
         },
-        'use_cached_operators': False ,                          # Whether to reuse assembled operators (improves speed if True)
+        'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
         'dump_every_nth_loop': 2,                                # Dump intermediate results every n optimization iterations
     }
 
@@ -135,6 +135,7 @@ def main():
         save_path=save_path
     )
     q_est = optimizer.solve()
+    print(q_est)
 
     # logger.debug("Differnce to q_exact:")
     # logger.debug("L^inf") 

@@ -38,9 +38,9 @@ MaterialModel::MaterialModel(const MaterialModelConfig& config)
 void MaterialModel::make_grid()
 {
   //std::vector<uint32_t> resolution = {10,50,50};
-  //std::vector<uint32_t> resolution = {4,30,30};
+  std::vector<uint32_t> resolution = {4,30,30};
   //std::vector<uint32_t> resolution = {4,20,20};
-  std::vector<uint32_t> resolution = {4,10,10};
+  //std::vector<uint32_t> resolution = {4,10,10};
 
   Point<3> ori = Point<3> (-0.1, -15.0, -15.0);
 	Point<3> dest = Point<3> (0.1, 15.0, 15.0);

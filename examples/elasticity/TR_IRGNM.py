@@ -64,7 +64,7 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-5,                          # Absolute noise magnitude added to data
+        'noise_level': 1e-6,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -95,7 +95,7 @@ def main():
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                             # Initial regularization parameter (data fidelity vs. regularization)
+        'alpha_0': 1e-7,                                             # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         'tau': 3.5,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
@@ -155,10 +155,11 @@ def main():
         save_path=save_path
     )
     q_est = optimizer.solve()
-    logger.debug("Differnce to q_exact:")
-    logger.debug("L^inf") 
-    delta_q = q_est - q_exact
-    logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
+    print(q_est)
+    # logger.debug("Differnce to q_exact:")
+    # logger.debug("L^inf") 
+    # delta_q = q_est - q_exact
+    # logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
     
     # if q_time_dep:
     #     norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]

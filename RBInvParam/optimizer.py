@@ -5,11 +5,12 @@ from abc import abstractmethod
 from typing import Dict, Union, Tuple
 from timeit import default_timer as timer
 from pathlib import Path
-import scipy.sparse.linalg as spla
+
+import pymor_dealii_bindings as pd2
 
 from pymor.vectorarrays.interface import VectorArray
 from pymor.algorithms.hapod import inc_vectorarray_hapod
-from pymor.vectorarrays.numpy import NumpyVectorArray
+from pymor.vectorarrays.numpy import NumpyVectorArray, NumpyVectorSpace
 from pymor.operators.interface import Operator
 from pymor.core.base import BasicObject
 from pymor.core.exceptions import ExtensionError
@@ -19,7 +20,7 @@ from RBInvParam.linear_solver.gradient_descent import gradient_descent_linearize
 from RBInvParam.linear_solver.BiCGSTAB import BiCGStab_linearized_problem
 from RBInvParam.reductor import InstationaryModelIPReductor
 from RBInvParam.utils.logger import get_default_logger
-from RBInvParam.utils.io import save_dict_to_pkl
+from RBInvParam.utils.io import save_dict_to_pkl, dealii_vector_space_to_numpy
 from RBInvParam.domain_projector import SimpleBoundDomainProjector
 
 
@@ -545,6 +546,16 @@ class Optimizer(BasicObject):
         self.logger.info(f"Dumping statistics IRGNM to {save_path}.")
         save_dict_to_pkl(path=save_path, data=data, use_timestamp=False)
     
+    def dump_prepare_statistics(self, statistics: Dict) -> Dict:
+        assert 'reduced_bases' in statistics.keys()
+        _state_basis = statistics['reduced_bases']['state_basis']
+
+        if isinstance(_state_basis.vectors[0].real_part.impl, pd2.Vector):
+            statistics['reduced_bases']['state_basis'] = dealii_vector_space_to_numpy(statistics['reduced_bases']['state_basis'])
+                
+        return statistics
+        
+    
 class FOMOptimizer(Optimizer):
     def __init__(self, 
                  optimizer_parameter: Dict, 
@@ -918,7 +929,6 @@ class QrVrROMOptimizer(Optimizer):
         except ExtensionError:
             self._logger.warning(f"No new vectors were added to {basis}, with tol = {HaPOD_tol}.")
 
-
     def _extend_basis_full_HaPOD(self,
                                  snapshots: VectorArray,
                                  basis: str,
@@ -1027,7 +1037,6 @@ class QrVrROMOptimizer(Optimizer):
 
         return self.reductor.reduce() 
         
-
     def solve(self) -> VectorArray :
         q_0 = self.optimizer_parameter["q_0"].copy()
         alpha_0 = self.optimizer_parameter["alpha_0"]
@@ -1170,18 +1179,6 @@ class QrVrROMOptimizer(Optimizer):
             p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
             J_r = self.QrVrROM.objective(u_r)
             
-
-            # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")            
-            # u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-            # u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=use_cached_operators)
-
-
-            print(self.FOM.objective(u))
-            print(self.QrVrROM.objective(u_r))
-           
-            import sys
-            sys.exit()
-
             nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
 
             abs_est_error_J_r = self.QrVrROM.estimate_objective_error(
@@ -1454,7 +1451,9 @@ class QrVrROMOptimizer(Optimizer):
         self.statistics["FOM_num_calls"] = self.FOM.num_calls
         self.statistics["reduced_bases"] = self.reductor.bases
 
-        self.dump_stats(data=self.statistics,
+        data = self.statistics
+        data = self.dump_prepare_statistics(data)
+        self.dump_stats(data=data,
                         save_path = self.save_path / f'TR_IRGNM_final.pkl')
         return q
 

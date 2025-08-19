@@ -4,7 +4,12 @@ from pathlib import Path
 from typing import Dict, Union
 from datetime import datetime
 
+import pymor_dealii_bindings as pd2
+
 from pymor.core.pickle import dump
+from pymor.vectorarrays.numpy import NumpyVectorArray, NumpyVectorSpace
+from pymor.vectorarrays.list import ListVectorArray
+
 
 #from RBInvParam.model import InstationaryModelIP
 #from RBInvParam.problems.problems import whole_problem
@@ -31,6 +36,14 @@ def save_dict_to_pkl(path: Union[str, Path],
     
     with open(path_, 'wb') as file:
         dump(data, file)
+
+
+def dealii_vector_space_to_numpy(vector_array: ListVectorArray) -> NumpyVectorArray:
+    assert isinstance(vector_array.vectors[0].real_part.impl, pd2.Vector)
+    return NumpyVectorSpace(dim=vector_array.space.dim).from_numpy(
+                vector_array.to_numpy()
+            )
+
 
 # def load_FOM_from_config(config : Dict,
 #                          logger: logging.Logger = None) -> InstationaryModelIP:
