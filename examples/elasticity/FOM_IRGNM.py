@@ -54,6 +54,10 @@ def main():
 
 
     setup = {
+        'spatial_resolution' : [4,30,30],
+        'body_force_type' : 'CenterExcite',
+        'parameter_type' : 'lame',
+        'system_matrix_parameter' : None,
         'dims' : {
             'nt': nt,                                     # Number of time steps
             'par_dim' : 2,
@@ -63,7 +67,6 @@ def main():
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
-        'N' : None,
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
         'noise_level': 1e-6,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter

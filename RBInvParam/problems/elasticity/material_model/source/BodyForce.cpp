@@ -1,8 +1,17 @@
 #include "BodyForce.hpp"
 
-BodyForce::BodyForce() : Function<3>(3) {}
+void BodyForce::vector_value_list(const std::vector<Point<3>> &points, std::vector<Vector<double>> &value_list) const
+{
+    Assert (value_list.size() == points.size(),
+    ExcDimensionMismatch (value_list.size(), points.size()));
 
-void BodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
+    const unsigned int n_points = points.size();
+
+    for (unsigned int p=0; p<n_points; ++p)
+        this->vector_value(points[p], value_list[p]);
+}
+
+void CenterExciteBodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
 {
     double fx, fy, fz, ft;
     // ---------------------- ft ----------------------
@@ -50,13 +59,3 @@ void BodyForce::vector_value(const Point<3> &p, Vector<double> &values) const
     values(2) = ft*fx*fy*fz;
 }
 
-void BodyForce::vector_value_list(const std::vector<Point<3>> &points, std::vector<Vector<double>> &value_list) const
-{
-    Assert (value_list.size() == points.size(),
-    ExcDimensionMismatch (value_list.size(), points.size()));
-
-    const unsigned int n_points = points.size();
-
-    for (unsigned int p=0; p<n_points; ++p)
-        BodyForce::vector_value(points[p], value_list[p]);
-}

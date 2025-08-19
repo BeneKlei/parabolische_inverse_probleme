@@ -38,11 +38,20 @@ PYBIND11_MODULE(material_model, m) {
           .def("clear_rhs_boundary_dofs", &MaterialModel::clear_rhs_boundary_dofs, py::return_value_policy::reference_internal)
           .def("assemble_system_matrix_derivative", &MaterialModel::assemble_system_matrix_derivative, py::return_value_policy::reference_internal);
 
+     py::enum_<BodyForceType>(m, "BodyForceType")
+        .value("CenterExcite", BodyForceType::CenterExcite)
+        .value("Dummy", BodyForceType::Dummy)
+        .export_values();
+
      py::class_<MaterialModelConfig>(m, "MaterialModelConfig")
           .def(py::init<>())
+          .def_readwrite("nt", &MaterialModelConfig::nt)
           .def_readwrite("T_initial", &MaterialModelConfig::T_initial)
           .def_readwrite("T_final", &MaterialModelConfig::T_final)
           .def_readwrite("delta_t", &MaterialModelConfig::delta_t)
-          .def_readwrite("par_dim", &MaterialModelConfig::par_dim)
-          .def_readwrite("nt", &MaterialModelConfig::nt);
+          .def_readwrite("spatial_resolution", &MaterialModelConfig::spatial_resolution)
+          .def_readwrite("body_force_type", &MaterialModelConfig::body_force_type)
+          .def_readwrite("parameter_type", &MaterialModelConfig::parameter_type)
+          .def_readwrite("system_matrix_parameter", &MaterialModelConfig::system_matrix_parameter);
+          
 }

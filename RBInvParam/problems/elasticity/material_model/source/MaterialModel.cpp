@@ -21,6 +21,7 @@
 
 #include "MaterialModel.hpp"
 #include "utils.hpp"
+#include "BodyForce.hpp"
 
 
 MaterialModel::MaterialModel(const MaterialModelConfig& config)
@@ -32,22 +33,20 @@ MaterialModel::MaterialModel(const MaterialModelConfig& config)
   if (std::abs(computed_nt - static_cast<double>(m_config.nt)) > 1e-8) {
     throw std::runtime_error("Invalid time discretization: check T_final, T_initial, delta_t, and nt.");
   }
-  m_param_space_dim = m_config.par_dim;
+  
+  m_param_space_dim = 2;
+  m_state_space_dim = 0;
+
 }
 
 void MaterialModel::make_grid()
 {
-  //std::vector<uint32_t> resolution = {10,50,50};
-  std::vector<uint32_t> resolution = {4,30,30};
-  //std::vector<uint32_t> resolution = {4,20,20};
-  //std::vector<uint32_t> resolution = {4,10,10};
-
   Point<3> ori = Point<3> (-0.1, -15.0, -15.0);
 	Point<3> dest = Point<3> (0.1, 15.0, 15.0);
 
   GridGenerator::subdivided_hyper_rectangle(
     m_triangulation, 
-    resolution, 
+    m_config.spatial_resolution, 
     ori, 
     dest
   );  
@@ -63,17 +62,19 @@ void MaterialModel::setup_system()
   m_sparsity_pattern.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
   DoFTools::make_sparsity_pattern(m_dof_handler, m_sparsity_pattern);
   m_sparsity_pattern.compress();
-
-  m_q.reinit(m_config.par_dim);
-  m_state_space_dim = m_dof_handler.n_dofs();
-
   
   std::cout << "\t Setting up BC constraints." << std::endl;
   setup_BC_constraints();
-  std::cout << "\t Setting system matrizies." << std::endl;
+  std::cout << "\t Setting up system matrizies." << std::endl;
   setup_system_matricies();
-  std::cout << "\t Assemble force list." << std::endl;
+  std::cout << "\t Defining BodyForce." << std::endl;
+  setup_body_force();
+  std::cout << "\t Assembling force list." << std::endl;
   assemble_force_list();
+
+  m_q.reinit(m_param_space_dim);
+  m_state_space_dim = m_dof_handler.n_dofs();
+
 }
 
 void MaterialModel::setup_BC_constraints()
@@ -103,7 +104,7 @@ void MaterialModel::setup_system_matricies()
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
   // Resize and initialize system matrices
-  const unsigned int n_matrices = m_config.par_dim;
+  const unsigned int n_matrices = m_param_space_dim;
   m_system_matricies.m_matrices.resize(n_matrices);
   for (auto &matrix : m_system_matricies.m_matrices)
   {
@@ -160,6 +161,8 @@ void MaterialModel::setup_system_matricies()
   {
     m_BC_constraints.condense(matrix);
   }
+
+  m_param_space_dim = 2;
 }
 
 void MaterialModel::assemble_force(Vector<Number>& result, double time) 
@@ -179,14 +182,14 @@ void MaterialModel::assemble_force(Vector<Number>& result, double time)
   std::vector<Vector<double>> body_force_values(n_quadrature_points, Vector<double>(dim));
 
   result = 0;
-  m_body_force.set_time(time);
+  m_body_force->set_time(time);
 
   typename DoFHandler<dim>::active_cell_iterator cell = m_dof_handler.begin_active(), endc = m_dof_handler.end();
   for (; cell != endc; ++cell) {
     fe_values.reinit(cell);
     cell_rhs = 0;
     cell->get_dof_indices(local_dof_indices);
-    m_body_force.vector_value_list(fe_values.get_quadrature_points(), body_force_values);
+    m_body_force->vector_value_list(fe_values.get_quadrature_points(), body_force_values);
 
     for (unsigned int i = 0; i < dofs_per_cell; ++i)
     {
@@ -273,6 +276,7 @@ void MaterialModel::_assemble_product_matrix(SparseMatrix<Number>& matrix,
     constraints->get().condense(matrix);
 }
 
+//TODO Move all the product assemblies into ProductMatrixFactory or so
 void MaterialModel::assemble_l2_matrix(SparseMatrix<Number>& l2_matrix)
 {
   auto l2_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
@@ -390,7 +394,6 @@ void MaterialModel::output_results(Vector<double>& solution) const
   data_out.write_vtk(output);
 }
 
-
 void MaterialModel::assemble_observation_operator_matrix(
     SparseMatrix<Number>& operator_matrix, 
     std::string operator_name)
@@ -457,4 +460,16 @@ void MaterialModel::assemble_system_matrix_derivative(
           system_matrix_derivative.set(j,i, A_q_basis_u[j]);
         }        
     }
+}
+
+void MaterialModel::setup_body_force() {
+  switch (m_config.body_force_type)
+  {
+  case BodyForceType::CenterExcite:
+    std::cout << "\t Using CenterExcite BodyForce" << std::endl;
+    m_body_force = std::make_unique<CenterExciteBodyForce>();
+    break;
+  default:
+    throw std::runtime_error("Unknown body force.");
+  }
 }

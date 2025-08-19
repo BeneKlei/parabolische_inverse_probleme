@@ -17,23 +17,26 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
 
-
 #include "MatrixStack.hpp"
 #include "BodyForce.hpp"
-
 
 using namespace dealii;
 
 typedef double Number;
 // TODO make Class for this with "highlevel" pymor like interface
 typedef std::vector<dealii::Vector<Number>> VectorArray;
+typedef std::variant<int, double, std::string> ModelParameterDataType;
 
 struct MaterialModelConfig {
+    int nt = 50;
     double T_initial = 0.0;
     double T_final = 1.0;
     double delta_t = 1.0 / 50;
-    int par_dim = 2;
-    int nt = 50;
+    std::vector<uint32_t> spatial_resolution = {4,30,30};
+    BodyForceType body_force_type = BodyForceType::CenterExcite;
+    //std::string body_force_name = "center_excite";
+    std::string parameter_type = "lame";
+    std::map<std::string, ModelParameterDataType> system_matrix_parameter = {};
 };
 
 class MaterialModel
@@ -49,20 +52,16 @@ public:
 
   Vector<Number> m_q;
   Vector<Number> m_d;
-
-  void _solve();
-
+  
+  void assemble_mass_matrix(SparseMatrix<Number>& mass_matrix);
+  void assemble_observation_operator_matrix(SparseMatrix<Number>& operator_matrix, std::string operator_name);
   void assemble_system_matrix(SparseMatrix<Number>& system_matrix);
   void assemble_system_matrix_derivative(
     FullMatrix<Number>& system_matrix_derivative,
     const Vector<Number>& state_DoFs
   );
 
-  template <typename Integrand>
-  void _assemble_product_matrix(SparseMatrix<Number>& matrix,
-                                Integrand integrand,
-                                std::optional<std::reference_wrapper<const AffineConstraints<Number>>> constraints = std::nullopt);
-
+  
   void assemble_l2_matrix(SparseMatrix<Number>& l2_matrix);
   void assemble_l2_0_matrix(SparseMatrix<Number>& l2_0_matrix);
   void assemble_h1_semi_matrix(SparseMatrix<Number>& h1_semi_matrix);
@@ -71,8 +70,7 @@ public:
   void assemble_h1_0_matrix(SparseMatrix<Number>& h1_0_matrix);
   void assemble_euclidian_matrix(SparseMatrix<Number>& operator_matrix);
 
-  void assemble_mass_matrix(SparseMatrix<Number>& mass_matrix);
-  void assemble_observation_operator_matrix(SparseMatrix<Number>& operator_matrix, std::string operator_name);
+  
   
 
   void assemble_bilinear_cost_matrix(
@@ -103,7 +101,7 @@ private:
   AffineConstraints<Number> m_BC_constraints;
   SparseILU<Number> m_solver;
 
-  BodyForce m_body_force;
+  std::unique_ptr<BodyForce> m_body_force;
 
   MatrixStack m_system_matricies;
   MatrixStack m_adjoint_system_matricies;
@@ -113,8 +111,15 @@ private:
   void setup_system_matricies();
   void setup_adjoint_system_matricies();
   void setup_BC_constraints();
+  void setup_body_force();
+  
   void assemble_force_list();
   void assemble_force(Vector<Number>& result, double time);
+
+  template <typename Integrand>
+  void _assemble_product_matrix(SparseMatrix<Number>& matrix,
+                                Integrand integrand,
+                                std::optional<std::reference_wrapper<const AffineConstraints<Number>>> constraints = std::nullopt);
 };
 
 

@@ -146,11 +146,7 @@ class Optimizer(BasicObject):
         TR_condition = J_rel_error <= eta
         condition = armijo_condition & TR_condition
         i += 1
-
-        # print(lhs)
-        # print(rhs)
-        # print(step_size)
-
+        
         while (not condition) and (i < max_iter):
             step_size = 0.5 * step_size
             

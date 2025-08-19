@@ -37,11 +37,21 @@ def build_InstationaryModelIP(setup : Dict,
     logger.debug('Construct problem..')
 
     material_model_config = mm.MaterialModelConfig()
+    material_model_config.nt = setup['dims']['nt']
     material_model_config.T_initial = setup['T_initial']
     material_model_config.T_final = setup['T_final']
     material_model_config.delta_t = setup['delta_t']
-    material_model_config.nt = setup['dims']['nt']
-    material_model_config.par_dim = setup['dims']['par_dim']
+    material_model_config.spatial_resolution = setup['spatial_resolution']
+    
+    if setup['body_force_type'] == 'CenterExcite':
+        material_model_config.body_force_type = mm.BodyForceType.CenterExcite
+    else:
+        raise ValueError
+
+    material_model_config.parameter_type = setup['parameter_type']
+    
+    if setup['system_matrix_parameter']: 
+        material_model_config.spatial_resolution = setup['system_matrix_parameter']
 
     material_model = mm.MaterialModel(material_model_config)
     material_model.make_grid()
