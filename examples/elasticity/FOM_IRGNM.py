@@ -54,12 +54,16 @@ def main():
 
 
     setup = {
+        'dims' : {
+            'nt': nt,                                     # Number of time steps
+            'par_dim' : 2,
+            'state_dim' : None,
+            'output_dim': None
+        },
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
-        'nt': nt,                                     # Number of time steps
         'N' : None,
-        'par_dim' : 2,
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
         'noise_level': 1e-5,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
@@ -92,14 +96,14 @@ def main():
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                            # Initial regularization parameter
+        'alpha_0': 1e-7,                                         # Initial regularization parameter
         'tol': 1e-11,                                            # Absolute convergence tolerance for optimization
         'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
-        'theta': 0.4,                                            # Lower tolerance for the direction acceptance condition
+        'theta': 0.01,                                            # Lower tolerance for the direction acceptance condition
         'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
         #####################
-        'i_max': 35,                                             # Maximum number of outer optimization iterations
+        'i_max': 70,                                             # Maximum number of outer optimization iterations
         'reg_loop_max': 25,                                      # Maximum number of regularization updates per step
         'i_max_inner': 10,                                       # Maximum number of inner iterations
         ####################

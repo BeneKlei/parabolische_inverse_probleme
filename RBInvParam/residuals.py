@@ -29,8 +29,8 @@ class ImplicitEulerResidualOperator(Operator):
             assert 'prod_V' in self.products
             self.products['prod_V'].range == V
 
-        self.delta_t = self.setup['model_parameter']['delta_t']
-        self.q_time_dep = self.setup['model_parameter']['q_time_dep']
+        self.delta_t = self.setup['delta_t']
+        self.q_time_dep = self.setup['q_time_dep']
         self.nt = self.setup['dims']['nt']
         
         assert not M.parametric
@@ -90,8 +90,8 @@ class ImplicitEulerResidualOperator(Operator):
             if len(cached_operators['q']) > 0:
                 assert ((cached_operators['q']-q).norm() <= 1e-16)[0]
 
-            if self.setup['model_parameter']['q_time_dep']:
-                assert len(cached_operators['residual_A_q']) == self.nt
+            if self.setup['q_time_dep']:
+                assert len(cached_operators['residual_A_q']) == (self.nt + 1)
             else:
                 assert len(cached_operators['residual_A_q']) == 1
         
@@ -107,7 +107,7 @@ class ImplicitEulerResidualOperator(Operator):
         assert u_old in self.V
 
         assert len(u) == len(u_old)
-        assert len(u) <= self.nt
+        assert len(u) <= (self.nt + 1)
 
         if not self.q_time_dep:
             assert len(q) == 1
@@ -163,7 +163,7 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
         self.L = L
         assert self.L in self.M.range
         assert isinstance(self.L, VectorArray)
-        assert len(self.L) in [1, self.nt]
+        assert len(self.L) in [1, self.nt + 1]
 
     def apply(self,
               u: VectorArray,
@@ -172,7 +172,7 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
               use_cached_operators: bool = False,
               cached_operators: Dict = None) -> VectorArray:
         
-        assert len(u) == len(u_old) == self.nt
+        assert len(u) == len(u_old) == (self.nt + 1)
         return self._apply(rhs = self.L,
                            u = u,
                            u_old = u_old,
@@ -209,8 +209,8 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
         #assert self.bilinear_cost_term.source == self.bilinear_cost_term.range
         #assert self.bilinear_cost_term.source == self.A.source
         assert self.bilinear_cost_term.range == self.A.range
-        assert self.linear_cost_term.range == self.A.range
-        assert len(self.linear_cost_term.as_range_array()) == self.setup['dims']['nt']
+        assert self.linear_cost_term in self.A.range
+        assert len(self.linear_cost_term) == (self.setup['dims']['nt'] + 1)
         
 
     def apply(self,
@@ -221,10 +221,11 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
               use_cached_operators: bool = False,
               cached_operators: Dict = None) -> VectorArray:
         
-        assert len(p) == len(p_old) == len(u) == self.nt
+        assert len(p) == len(p_old) == len(u) == (self.nt + 1)
         
-        rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term.as_range_array()
+        rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term
         rhs *= self.delta_t
+        rhs *= (-1) 
 
         return self._apply(rhs = rhs,
                            u = p,

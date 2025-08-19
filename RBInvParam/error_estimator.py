@@ -51,9 +51,9 @@ class StateErrorEstimator():
         self.product = product
         self.setup = setup
 
-        self.delta_t = self.setup['model_parameter']['delta_t']
+        self.delta_t = self.setup['delta_t']
         self.nt = self.setup['dims']['nt']
-        self.q_time_dep = self.setup['model_parameter']['q_time_dep']
+        self.q_time_dep = self.setup['q_time_dep']
         
         self.A_coercivity_constant_estimator = A_coercivity_constant_estimator
         #assert self.Q == self.A_coercivity_constant_estimator.Q
@@ -69,13 +69,13 @@ class StateErrorEstimator():
                          cached_operators: Dict = None) -> VectorArray:
         
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == (self.nt + 1)
         else:
             assert len(q) == 1
 
         assert q in self.Q
         assert u in self.V
-        assert len(u) == self.nt
+        assert len(u) == (self.nt + 1)
 
         u_old = self.V.zeros(count=1)
         u_old.append(u[:-1])
@@ -97,13 +97,13 @@ class StateErrorEstimator():
                        cached_operators: Dict = None) -> float:
         
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == (self.nt + 1)
         else:
             assert len(q) == 1
 
         assert q in self.Q
         assert u in self.V
-        assert len(u) == self.nt
+        assert len(u) == (self.nt + 1)
 
         alpha_q = np.min(self.A_coercivity_constant_estimator(q))
         r = self.compute_residuum(q=q, 
@@ -130,9 +130,9 @@ class AdjointErrorEstimator():
         self.product = product
         self.setup = setup
 
-        self.delta_t = self.setup['model_parameter']['delta_t']
+        self.delta_t = self.setup['delta_t']
         self.nt = self.setup['dims']['nt']
-        self.q_time_dep = self.setup['model_parameter']['q_time_dep']
+        self.q_time_dep = self.setup['q_time_dep']
 
         self.A_coercivity_constant_estimator = A_coercivity_constant_estimator
         # assert self.Q == self.A_coercivity_constant_estimator.Q
@@ -149,15 +149,15 @@ class AdjointErrorEstimator():
                          cached_operators: Dict = None) -> VectorArray:
 
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == (self.nt + 1)
         else:
             assert len(q) == 1
 
         assert q in self.Q
         assert u in self.V
         assert p in self.V
-        assert len(u) == self.nt
-        assert len(p) == self.nt
+        assert len(u) == (self.nt + 1)
+        assert len(p) == (self.nt + 1)
 
         p_old = self.V.empty()
         p_old.append(p[1:])
@@ -180,14 +180,14 @@ class AdjointErrorEstimator():
         
         
         if self.q_time_dep:
-            assert len(q) == self.nt
+            assert len(q) == (self.nt + 1)
         else:
             assert len(q) == 1
 
         assert q in self.Q
         assert u in self.V
         assert p in self.V
-        assert len(u) == self.nt
+        assert len(u) == (self.nt + 1)
         assert len(u) == len(p)
 
         raise NotImplementedError

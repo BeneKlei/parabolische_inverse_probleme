@@ -20,6 +20,8 @@ from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.discretization import construct_noise_data
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.products import BochnerProductOperator
+from RBInvParam.error_estimator import CoercivityConstantEstimator
+
 
 from RBInvParam.problems.elasticity.evaluators import ElasticitiyFOMEvaluatorA, ElasticitiyFOMEvaluatorB
 
@@ -38,18 +40,19 @@ def build_InstationaryModelIP(setup : Dict,
     material_model_config.T_initial = setup['T_initial']
     material_model_config.T_final = setup['T_final']
     material_model_config.delta_t = setup['delta_t']
-    material_model_config.nt = setup['nt']
-    material_model_config.par_dim = setup['par_dim']
+    material_model_config.nt = setup['dims']['nt']
+    material_model_config.par_dim = setup['dims']['par_dim']
 
     material_model = mm.MaterialModel(material_model_config)
     material_model.make_grid()
     material_model.setup_system()
 
-    setup['N'] = material_model.n_dofs()
+    setup['dims']['state_dim'] = material_model.n_dofs()
+    setup['dims']['output_dim'] = material_model.n_dofs()
 
-    Q_h = NumpyVectorSpace(dim = setup['par_dim'])
+    Q_h = NumpyVectorSpace(dim = setup['dims']['par_dim'])
     #Q_h = DealIIVectorSpace(dim = setup['par_dim'])
-    V_h = DealIIVectorSpace(dim = setup['N'])
+    V_h = DealIIVectorSpace(dim = setup['dims']['state_dim'])
 
     ############################### Products ###############################
 
@@ -129,7 +132,7 @@ def build_InstationaryModelIP(setup : Dict,
         ),
         delta_t=setup['delta_t'],
         space = Q_h,
-        nt = setup['nt']
+        nt = setup['dims']['nt']
     )
 
     products['bochner_prod_V'] = BochnerProductOperator(
@@ -138,7 +141,7 @@ def build_InstationaryModelIP(setup : Dict,
         ),
         delta_t=setup['delta_t'],
         space = V_h,
-        nt = setup['nt']
+        nt = setup['dims']['nt']
     )
 
     ############################### Operators ###############################
@@ -176,6 +179,7 @@ def build_InstationaryModelIP(setup : Dict,
         source = V_h,
         range = V_h,
         Q = Q_h,
+        parameter_names = ['lambda', 'mu']
     )
     
     B = ElasticitiyFOMEvaluatorB(
@@ -187,14 +191,22 @@ def build_InstationaryModelIP(setup : Dict,
     )
     ############################### Coercivity ###############################
 
-    A_coercivity_constant_estimator = None
+    assert product_names['prod_V'] == 'h1_0_semi'
+    # I AM NOT SURE THAT THIS IS CORRECT! JUST FOR TESTING
+    A_coercivity_constant_estimator_function = lambda q: 1
+
+    A_coercivity_constant_estimator = CoercivityConstantEstimator(
+        coercivity_estimator_function = A_coercivity_constant_estimator_function,
+        Q = Q_h,
+        q_time_dep = setup['q_time_dep']
+    )
 
     ############################### Regularization ###############################
 
     q_circ = setup['q_circ']
     assert type(q_circ) == np.ndarray
     q_circ = Q_h.make_array(q_circ)
-    assert len(q_circ) in [setup['nt']+1, 1]
+    assert len(q_circ) in [setup['dims']['nt']+1, 1]
 
     constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
     linear_reg_term = NumpyMatrixOperator(
@@ -208,7 +220,7 @@ def build_InstationaryModelIP(setup : Dict,
     q_exact = setup['q_exact']
     assert type(q_exact) == np.ndarray
     q_exact = Q_h.make_array(q_exact)
-    assert len(q_exact) in [setup['nt'] + 1, 1]
+    assert len(q_exact) in [setup['dims']['nt'] + 1, 1]
 
     building_blocks = {
         'initial_data' : initial_data, 
@@ -260,16 +272,7 @@ def build_InstationaryModelIP(setup : Dict,
     
     y_delta = C.apply(u_delta)
 
-    # print(np.max(y_delta.vectors[0].to_numpy()))
-    # print(np.max(y_delta.vectors[1].to_numpy()))
-    # print(np.min(y_delta.vectors[0].to_numpy()))
-    # print(np.min(y_delta.vectors[1].to_numpy()))
-    # print(np.y_delta.vectors[0].to_numpy() == y_delta.vectors[1].to_numpy())
-
-    # import sys
-    # sys.exit()
-
-    assert (len(y_delta) == setup['nt'] + 1)
+    assert (len(y_delta) == setup['dims']['nt'] + 1)
     assert (y_delta.space == C.range) 
 
     logger.debug(f'noise percentage is {percentage:3.4e}')
@@ -298,10 +301,10 @@ def build_InstationaryModelIP(setup : Dict,
     building_blocks['linear_cost_term'] = linear_cost_term
     building_blocks['bilinear_cost_term'] = bilinear_cost_term
     building_blocks['model_constants'] = None
-    # building_blocks['model_constants'] = {
-    #     'A_coercivity_constant_estimator' : A_coercivity_constant_estimator,
-    #     'C_continuity_constant' : C_continuity_constant
-    # }
+    building_blocks['model_constants'] = {
+        'A_coercivity_constant_estimator' : A_coercivity_constant_estimator,
+        'C_continuity_constant' : C_continuity_constant
+    }
 
     return InstationaryModelIP(
         **building_blocks,

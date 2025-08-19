@@ -9,6 +9,9 @@ from pymor.tools.floatcmp import float_cmp_all
 
 from RBInvParam.evaluators import EvaluatorA
 
+import pymor_dealii_bindings as pd2
+from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator
+
 class TimeStepper(ABC):
     def __init__(self, 
                 nt : int, 
@@ -156,7 +159,8 @@ class ImplicitEulerTimeStepper(TimeStepper):
                 rhs = _rhs + dt_F
             else:
                 rhs = _rhs
-                
+            
+
             U = M_dt_A_q.apply_inverse(rhs, initial_guess=U)
 
             while t - self.T_initial + (min(dt, DT) * 0.5) >= num_ret_values * DT:
@@ -233,7 +237,6 @@ class NewmanSecondOrder(TimeStepper):
         ################################### Stepping ###################################
 
         for n in range(1,self.nt+1):
-            #print(rhs.vectors)
             t += dt
             U_pre = U_cur
             M_dot_U_pre = M_dot_U_cur
@@ -262,8 +265,9 @@ class NewmanSecondOrder(TimeStepper):
             _rhs = S_zeta_minus_one.apply(U_pre)
             _rhs += dt * M_dot_U_pre
             _rhs += zeta * dt_R
-
+            
             U_cur = _lhs.apply_inverse(_rhs, initial_guess=U_pre)
+    
             # --------------------------------------------------------------
             M_dot_U_cur = M_dot_U_pre
             _U = zeta * U_cur + (1 - zeta) * U_pre

@@ -51,6 +51,7 @@ def build_projection(grid):
     nodes_to_element_projection = csr_matrix((data, (rows, cols)))
     return nodes_to_element_projection, cols, cols_switched
 
+# TODO Maybe refactor this mechanic
 def split_constant_and_parameterized_operator(
         complete_operator : LincombOperator
     ):
@@ -67,16 +68,23 @@ def split_constant_and_parameterized_operator(
         else:
             constant_operators.append(op)
             constant_coefficients.append(coef)
-    constant_operator = LincombOperator(constant_operators, constant_coefficients).assemble()
+
+    if len(constant_operators) == 0:
+        assert len(constant_coefficients) == 0
+        constant_operator = None
+    else:
+        constant_operator = LincombOperator(constant_operators, constant_coefficients).assemble()
+        matrix = constant_operator.matrix.copy()
+        if isinstance(matrix, csr_matrix):
+            matrix.eliminate_zeros()
+            
+        constant_operator = NumpyMatrixOperator(
+            matrix = matrix
+        )
+
     parameterized_operator = LincombOperator(operators, coefficients, name='true_parameterized_operator')
 
-    matrix = constant_operator.matrix.copy()
-    if isinstance(matrix, csr_matrix):
-        matrix.eliminate_zeros()
-        
-    constant_operator = NumpyMatrixOperator(
-        matrix = matrix
-    )
+    
     
     return parameterized_operator, constant_operator
 

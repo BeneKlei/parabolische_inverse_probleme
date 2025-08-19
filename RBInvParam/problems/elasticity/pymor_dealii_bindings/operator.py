@@ -33,7 +33,6 @@ class DealIIMatrixOperator(LinearComplexifiedListVectorArrayOperatorBase):
             self.solver.initialize(self.matrix)
             self._solver_initialized = True
 
-
         r = self.source.real_zero_vector()
         self.solver.vmult(r.impl, v.impl)
         return r

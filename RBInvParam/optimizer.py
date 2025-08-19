@@ -267,15 +267,15 @@ class Optimizer(BasicObject):
         i = 0
         model_unsufficent = False
         
-        if not q_0 in self.FOM.Q:
-            q_ = self.reductor.reconstruct(q_0, basis='parameter_basis')
-        else:
-            q_ = q_0.copy()
+        # if not q_0 in self.FOM.Q:
+        #     q_ = self.reductor.reconstruct(q_0, basis='parameter_basis')
+        # else:
+        #     q_ = q_0.copy()
 
-        q_ = q_.to_numpy().flatten()
-        mask_lb = q_ >= self.FOM.bounds[:,0]
-        mask_ub = q_ <= self.FOM.bounds[:,1]
-        assert np.all(mask_lb) and np.all(mask_ub)
+        # q_ = q_.to_numpy().flatten()
+        # mask_lb = q_ >= self.FOM.bounds[:,0]
+        # mask_ub = q_ <= self.FOM.bounds[:,1]
+        # assert np.all(mask_lb) and np.all(mask_ub)
 
         alpha = alpha_0
         q = q_0.copy()
@@ -739,9 +739,9 @@ class QrFOMOptimizer(Optimizer):
         self.parameter_shapshots = self.FOM.Q.empty()
         self.parameter_shapshots.append(nabla_J)
         self.parameter_shapshots.append(q)
-        self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
+        self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
 
-        if self.FOM.setup['model_parameter']['q_time_dep']:
+        if self.FOM.setup['q_time_dep']:
             self.logger.debug(f"Performing HaPOD on parameter snapshots.")
             _parameter_shapshots, _ = self._HaPOD(shapshots=self.parameter_shapshots, 
                                                   basis='parameter_basis',
@@ -805,7 +805,7 @@ class QrFOMOptimizer(Optimizer):
             self.parameter_shapshots = self.FOM.Q.empty()
             self.parameter_shapshots.append(nabla_J)
             
-            if self.FOM.setup['model_parameter']['q_time_dep']:
+            if self.FOM.q_time_dep:
                 self.logger.debug(f"Performing HaPOD on parameter snapshots.")
                 _parameter_shapshots, _ = self._HaPOD(shapshots=self.parameter_shapshots, 
                                                       basis='parameter_basis',
@@ -952,7 +952,6 @@ class QrVrROMOptimizer(Optimizer):
         assert parameter_HaPOD_tol > 0
         assert state_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
         assert state_HaPOD_tol > 0
-
 
         self.statistics['extention_stats']['snapshot_projection_error']['parameter_basis'].append(
             self.reductor.calc_projection_error(
@@ -1114,8 +1113,8 @@ class QrVrROMOptimizer(Optimizer):
         self.parameter_shapshots = self.FOM.Q.empty()
         self.parameter_shapshots.append(nabla_J)
         self.parameter_shapshots.append(q)
-        self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
-
+        self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
+        
         self.logger.debug(f"Extending Vr-snapshots")
         self.state_shapshots = self.FOM.V.empty()
         self.state_shapshots.append(u)
@@ -1157,6 +1156,7 @@ class QrVrROMOptimizer(Optimizer):
 
         convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
 
+
         while not convergence_criterium and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             self.logger.warning(f"Qr-Vr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
@@ -1169,6 +1169,19 @@ class QrVrROMOptimizer(Optimizer):
             u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=use_cached_operators)
             p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
             J_r = self.QrVrROM.objective(u_r)
+            
+
+            # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")            
+            # u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
+            # u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=use_cached_operators)
+
+
+            print(self.FOM.objective(u))
+            print(self.QrVrROM.objective(u_r))
+           
+            import sys
+            sys.exit()
+
             nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
 
             abs_est_error_J_r = self.QrVrROM.estimate_objective_error(
@@ -1210,7 +1223,7 @@ class QrVrROMOptimizer(Optimizer):
             ########################################### AGC ###########################################
 
             self.logger.warning("Calculate AGC with Armijo backtracking.")
-
+            
             q_agc, J_r_AGC, model_unsufficent, AGC_max_iter_cond, _ = self._armijo_TR_line_serach(
                 model = self.QrVrROM,
                 previous_q = q_r,
@@ -1248,6 +1261,7 @@ class QrVrROMOptimizer(Optimizer):
                 'beta' : beta_1, 
                 "kappa_arm" : kappa_arm
             }
+
             if not model_unsufficent:
                 q_r, IRGNM_statistic = self.IRGNM(model = self.QrVrROM,
                                                   q_0 = q_r,

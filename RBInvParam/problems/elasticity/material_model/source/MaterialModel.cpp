@@ -38,9 +38,9 @@ MaterialModel::MaterialModel(const MaterialModelConfig& config)
 void MaterialModel::make_grid()
 {
   //std::vector<uint32_t> resolution = {10,50,50};
-  std::vector<uint32_t> resolution = {4,30,30};
+  //std::vector<uint32_t> resolution = {4,30,30};
   //std::vector<uint32_t> resolution = {4,20,20};
-  //std::vector<uint32_t> resolution = {4,10,10};
+  std::vector<uint32_t> resolution = {4,10,10};
 
   Point<3> ori = Point<3> (-0.1, -15.0, -15.0);
 	Point<3> dest = Point<3> (0.1, 15.0, 15.0);
@@ -139,8 +139,8 @@ void MaterialModel::setup_system_matricies()
           const double sym_term = grad_i[component_j] * grad_j[component_i] +
               ((component_i == component_j) ? grad_i * grad_j : 0.0);
           
-          cell_matrices[0](i, j) += grad_i[component_i] * grad_j[component_j] * JxW;  
-          cell_matrices[1](i, j) += sym_term * JxW;
+          cell_matrices[0](i, j) += 1e-3 * grad_i[component_i] * grad_j[component_j] * JxW;  
+          cell_matrices[1](i, j) += 1e-3 * sym_term * JxW;
           
         }
       }

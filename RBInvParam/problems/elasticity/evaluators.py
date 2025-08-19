@@ -1,5 +1,7 @@
+import copy
 import numpy as np
 from types import SimpleNamespace
+from typing import List
 
 import pymor_dealii_bindings as pd2
 
@@ -7,6 +9,7 @@ import pymor_dealii_bindings as pd2
 import pymor.vectorarrays as VectorArray
 
 from pymor.vectorarrays.interface import VectorSpace
+from pymor.operators.interface import Operator
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.vectorarrays.list import ListVectorArray
 from pymor.vectorarrays.numpy import NumpyVectorArray
@@ -18,36 +21,33 @@ from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealII
 from RBInvParam.problems.elasticity.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
 
 
-
-
 class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
     def __init__(self,
                  material_model: MaterialModel,
                  source : VectorSpace,
                  range : VectorSpace,
-                 Q : VectorSpace):
+                 Q : VectorSpace,
+                 parameter_names: List[str] | None):
         
-        assert source == range
-        self.Q = Q
-        self.source = source
-        self.range = range
-        self.material_model = material_model
-        
+        super().__init__(source, range, Q, parameter_names)
 
+        self.material_model = material_model
         self.system_matrix = pd2.SparseMatrix()
         self.sparsity_pattern = self.material_model.sparsity_pattern()
     
-    def __call__(self, q: VectorArray) -> DealIIMatrixOperator:
+    def __call__(self, q: VectorArray) -> Operator:
         assert q in self.Q
         
         self.system_matrix.reinit(self.sparsity_pattern)
         self.material_model.m_q[:] = q.to_numpy()
         self.material_model.assemble_system_matrix(self.system_matrix)
+        
         return DealIIMatrixOperator(self.system_matrix)
+            
     
     def clear_rhs_boundary_dofs(self, 
-                                rhs: ListVectorArray,
-                                flip: bool = False) -> ListVectorArray:
+                                rhs: VectorArray,
+                                flip: bool = False) -> VectorArray:
         
         assert isinstance(rhs, ListVectorArray)        
         for v in rhs.vectors:
@@ -58,27 +58,29 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         else:
             return rhs
 
-    def flip_vector_array(self, vector_array: ListVectorArray) -> ListVectorArray:
+    def flip_vector_array(self, vector_array: VectorArray) -> VectorArray:
         assert isinstance(vector_array, ListVectorArray)
-        #print(np.max(vector_array.vectors[-1].to_numpy()))
-        # buf = np.array([v.to_numpy() for v in vector_array.vectors[::-1]])
-        # vector_array = vector_array.space.from_numpy(buf)
         vector_array = vector_array.space.make_array(vector_array.vectors[::-1])
         return vector_array
 
+    def get_constant_operator(self) -> Operator | None:
+        return None
+
+    def get_parameteric_operator(self) -> Operator | None:
+        raise NotImplementedError
+
+
 class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
     def __init__(self,
-                 material_model: MaterialModel,
                  source : VectorSpace,
                  range : VectorSpace,
                  Q : VectorSpace,
-                 V : VectorSpace):
+                 V : VectorSpace,
+                 material_model: MaterialModel):
         
-        self.Q = Q
+        super().__init__(source, range, Q, V)
+
         self.Q_ = DealIIVectorSpace(Q.dim)
-        self.V = V
-        self.source = source
-        self.range = range
         self.material_model = material_model
 
     def __call__(self, u: ListVectorArray) -> BU:

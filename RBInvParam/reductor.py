@@ -3,6 +3,8 @@ import numpy as np
 import logging
 import scipy
 import copy
+import pymor_dealii_bindings as pd2
+
 
 from pymor.reductors.basic import ProjectionBasedReductor
 from pymor.algorithms.projection import project, project_to_subbasis
@@ -24,6 +26,8 @@ from RBInvParam.residuals import StateResidualOperator, AdjointResidualOperator
 from RBInvParam.error_estimator import StateErrorEstimator, \
     AdjointErrorEstimator, ObjectiveErrorEstimator
 
+from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator
+from RBInvParam.problems.elasticity.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
 
 class InstationaryModelIPReductor(ProjectionBasedReductor):
     def __init__(self, 
@@ -100,8 +104,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             x.axpy(-1,projected_x)
         
         return np.sqrt(np.sum(self.products[basis].pairwise_apply2(x,x)))
-
-        
+   
     def project_vectorarray(self, 
                             x : VectorArray,
                             basis: str) -> np.ndarray:
@@ -141,32 +144,42 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     
     def _assemble_parameter_reduced_A(self) -> LincombOperator:
         parameter_basis = self._get_projection_basis('parameter_basis')
-
-        assert len(self.FOM.setup['model_parameter']['parameters']) == 1
-        parameter_name = list(self.FOM.setup['model_parameter']['parameters'].keys())[0] 
-
+                
         if not self._cached_operators['A']:
-            operators = [self.FOM.A.constant_operator]
             start = 0
+            constant_operator = self.FOM.A.get_constant_operator()
+            if constant_operator:
+                operators = [constant_operator]
+                coefficients = [1]
+            else:
+                operators = []
+                coefficients = []
         else:
-            operators = list(self._cached_operators['A'].operators)        
+            operators = list(self._cached_operators['A'].operators)
             start = len(operators) - 1
-        coefficients = [1]
-        
-
+            coefficients = [1]
+             
         for i in range(start, len(parameter_basis)):
-            q_i = parameter_basis[i].to_numpy()[0]
-            A_q = self.FOM.A._assemble_A_q(q_i)
-            A_q = NumpyMatrixOperator(A_q)
+            q_i = parameter_basis[i]
+            # TODO Refactor here
+            m = pd2.SparseMatrix()
+            m.reinit(self.FOM.A(q_i).matrix.get_sparsity_pattern())
+            m.copy_from(self.FOM.A(q_i).matrix)
+            A_q = DealIIMatrixOperator(
+                matrix = m
+            )
             operators.append(A_q)
-
         
         for i in range(len(parameter_basis)):
             coefficients.append(
-                ProjectionParameterFunctional(parameter_name, len(parameter_basis), i)
+                ProjectionParameterFunctional(
+                    'reduced_parameter', 
+                    len(parameter_basis), i
+                )
             )
         
         self._cached_operators['A'] = LincombOperator(operators, coefficients)
+        
         return self._cached_operators['A']
 
     def _build_setup(self) -> Dict:
@@ -182,40 +195,31 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             state_dim = len(self.bases['state_basis'])
         
         dims = {
-            'N': None,
             'nt': self.FOM.nt,
-            'fine_N': None,
             'state_dim': state_dim,
-            'fine_state_dim': None,
-            'diameter': None,
-            'fine_diameter': None,
             'par_dim': par_dim,
             'output_dim': self.FOM.setup['dims']['output_dim']                                                                                                                                                                     # options to preassemble affine components or not
         }
 
-
-        model_parameter = self.FOM.setup['model_parameter'].copy()
-        model_parameter['q_circ'] = self.project_vectorarray(self.FOM.q_circ, basis='parameter_basis')
-        model_parameter['q_exact'] = None
-        model_parameter['bounds'] = None
+        setup = self.FOM.setup.copy()
+        setup['dims'] = dims
+        setup['q_circ'] = self.project_vectorarray(self.FOM.q_circ, basis='parameter_basis')
+        setup['q_exact'] = None
+        setup['bounds'] = None
         
-        # TODO Check how A(q) can be calc without parameter
-        # At the moment only unique kind of parameter is supported.
-        assert len(self.FOM.setup['model_parameter']['parameters']) == 1
-        projected_parameters = Parameters(
-            {list(self.FOM.setup['model_parameter']['parameters'].keys())[0] : \
-             len(self.bases['parameter_basis'])}
-        )
-        model_parameter['parameters'] = projected_parameters
+        # # TODO Check how A(q) can be calc without parameter
+        # # At the moment only unique kind of parameter is supported.
+        # assert len(self.FOM.setup['model_parameter']['parameters']) == 1
+        # projected_parameters = Parameters(
+        #     {list(self.FOM.setup['model_parameter']['parameters'].keys())[0] : \
+        #      len(self.bases['parameter_basis'])}
+        # )
+        # model_parameter['parameters'] = projected_parameters
 
-        problem_parameter = self.FOM.setup['problem_parameter'].copy()
-        problem_parameter['N'] = None
+        # problem_parameter = self.FOM.setup['problem_parameter'].copy()
+        # problem_parameter['N'] = None
 
-        return {
-            'dims' : dims, 
-            'problem_parameter' : problem_parameter, 
-            'model_parameter' : model_parameter, 
-        }
+        return setup
 
     def project_operators(self,
                           assembled_parameter_reduced_A: LincombOperator,
@@ -229,33 +233,36 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         parameter_basis = self._get_projection_basis('parameter_basis')
 
         
-        complete_operator = project(assembled_parameter_reduced_A,
-                                    state_basis,
-                                    state_basis)        
-        unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
-            complete_operator=complete_operator
+        reduced_operator = project(assembled_parameter_reduced_A,
+                                   state_basis,
+                                   state_basis)
+        
+
+        parameteric_operator, constant_operator = split_constant_and_parameterized_operator(
+            complete_operator=reduced_operator
         )
 
         A = ROMEvaluatorA(
-            unconstant_operator = unconstant_operator,
-            constant_operator = constant_operator,
             source = V,
             range = V,
             Q = Q,
-            parameters=setup['model_parameter']['parameters']
+            parameteric_operator = parameteric_operator,
+            constant_operator = constant_operator
         )
+
         B = ROMEvaluatorB(
-            unconstant_operator = unconstant_operator, 
-            constant_operator = constant_operator,
             source = Q,
             range = V,
             Q = Q,
-            V = V
+            V = V,
+            parameteric_operator = parameteric_operator,
+            constant_operator = constant_operator
         )
 
         if state_basis:
             if isinstance(self.FOM.L, VectorArray):
                 L = V.make_array(
+                    #L.inner(self.bases['state_basis'])
                     self.FOM.L.inner(self.bases['state_basis'])
                 )
             else:
@@ -263,9 +270,14 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         else:
             L = self.FOM.L
 
+        #print(self.project_vectorarray(self.FOM.L, basis='state_basis'))
+        # print(self.FOM.L.inner(self.bases['state_basis']))
+        # print(L)
+        # import sys
+        # sys.exit()
+
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
         prod_V = project(self.FOM.products['prod_V'], state_basis, state_basis)
-
 
         products = {
             'prod_H' : project(self.FOM.products['prod_H'], state_basis, state_basis),
@@ -286,14 +298,41 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             )
         }
 
+        if len(self.bases['state_basis']) > 0:
+            projected_initial_data = {
+                key: {
+                    order: V.make_array(
+                        #self.project_vectorarray(val, basis='state_basis')
+                        val.inner(self.bases['state_basis'])
+                    )
+                    for order, val in subdict.items()
+                }
+                for key, subdict in self.FOM.initial_data.items()
+            }
+            #linear_cost_term = self.project_vectorarray(self.FOM.linear_cost_term, basis='state_basis')
+            linear_cost_term = self.FOM.linear_cost_term.inner(self.bases['state_basis'])
+            linear_cost_term = V.make_array(linear_cost_term)
+        else:
+            projected_initial_data = self.FOM.initial_data
+            linear_cost_term = self.FOM.linear_cost_term
+
+
+
+        # m = pd2.SparseMatrix()
+        # m.reinit(self.FOM.M.matrix.get_sparsity_pattern())
+        # m.copy_from(self.FOM.M.matrix)
+        # M = DealIIMatrixOperator(
+        #     matrix = m
+        # )
+
         projected_operators = {
-            'u_0' : V.make_array(self.project_vectorarray(self.FOM.u_0, basis='state_basis')),
+            'initial_data' : projected_initial_data,
             'M' : project(self.FOM.M, state_basis, state_basis),
             'A' : A,
             'L' : L,
             'B' : B, 
             'constant_cost_term' : self.FOM.constant_cost_term,
-            'linear_cost_term' : project(self.FOM.linear_cost_term, state_basis, None),
+            'linear_cost_term' : linear_cost_term,
             'bilinear_cost_term' : project(self.FOM.bilinear_cost_term, state_basis, state_basis),
             'q_circ' : Q.make_array(self.project_vectorarray(self.FOM.q_circ, basis='parameter_basis')),
             'constant_reg_term' : self.FOM.constant_reg_term,
@@ -303,6 +342,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'visualizer' : self.FOM.visualizer,            
             'setup' : setup
         }
+
         return projected_operators 
 
     def reduce(self) -> InstationaryModelIP:
@@ -364,8 +404,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             return ret
         else:
             raise ValueError
-
-        
 
     def assemble_error_estimator(self,
                                  assembled_parameter_reduced_A: LincombOperator,
@@ -517,10 +555,17 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             C_continuity_constant = self.FOM.model_constants['C_continuity_constant']
         )
 
+        # error_estimator = {
+        #     'state_error_estimator' : state_error_estimator,
+        #     'adjoint_error_estimator' : adjoint_error_estimator,
+        #     'objective_error_estimator' : objective_error_estimator,
+        #     'model_constants' : model_constants,
+        # }
+
         error_estimator = {
-            'state_error_estimator' : state_error_estimator,
-            'adjoint_error_estimator' : adjoint_error_estimator,
-            'objective_error_estimator' : objective_error_estimator,
+            'state_error_estimator' : None,
+            'adjoint_error_estimator' : None,
+            'objective_error_estimator' : None,
             'model_constants' : model_constants,
         }
 
