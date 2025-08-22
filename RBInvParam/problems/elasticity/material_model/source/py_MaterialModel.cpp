@@ -7,7 +7,7 @@
 #include <fstream>
 
 #include "MaterialModel.hpp"
-#include "SystemMatrixFactory.hpp"
+#include "MaterialMatricesFactory.hpp"
 #include "BodyForce.hpp"
 
 // -------- PYTHON BINDINGS -----------------------------------------------------------------------
@@ -46,7 +46,7 @@ PYBIND11_MODULE(material_model, m) {
         .export_values();
      
      py::enum_<SystemMatrixType>(m, "SystemMatrixType")
-        .value("ConstantLame", SystemMatrixType::ConstantLame)
+        .value("Cosserat", SystemMatrixType::Cosserat)
         .export_values();
 
      py::class_<MaterialModelConfig>(m, "MaterialModelConfig")

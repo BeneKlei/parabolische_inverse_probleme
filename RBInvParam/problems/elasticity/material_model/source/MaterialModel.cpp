@@ -80,7 +80,7 @@ void MaterialModel::setup_system()
   std::cout << "\t Assembling force list." << std::endl;
   assemble_force_list();
 
-  m_param_space_dim = m_system_matrices.matrices.size();
+  m_param_space_dim = m_system_matrices.m_matrices.size();
   std::cout << "\t #Parameter: " << m_dof_handler.n_dofs()  << std::endl;
   m_q.reinit(m_param_space_dim);
   m_state_space_dim = m_dof_handler.n_dofs();
@@ -89,6 +89,7 @@ void MaterialModel::setup_system()
 
 void MaterialModel::setup_BC_constraints()
 {
+  m_BC_constraints.clear();  
   Functions::ZeroFunction<dim> dirichlet_bc_function(m_fe.n_components()); 
   uint32_t boundary_id = 0;
 
@@ -162,7 +163,7 @@ void MaterialModel::assemble_force_list()
 
 void MaterialModel::assemble_system_matrix(SparseMatrix<Number>& system_matrix)
 {
-  m_system_matrices.sum(system_matrix, m_q);
+  m_system_matrices.assemble(system_matrix, m_q);
 }
 
 template <typename Integrand>
@@ -385,7 +386,7 @@ void MaterialModel::assemble_system_matrix_derivative(
       (system_matrix_derivative.m() == m_state_space_dim) && 
       (system_matrix_derivative.n() == m_param_space_dim)
     );
-    assert(m_system_matrices.matrices.size() == m_param_space_dim &&
+    assert(m_system_matrices.m_matrices.size() == m_param_space_dim &&
        "Mismatch between system matrices count and parameter dimension");
 
     Vector<Number> A_q_basis_u;
@@ -393,7 +394,7 @@ void MaterialModel::assemble_system_matrix_derivative(
     
     for (size_t i = 0; i < m_param_space_dim; i++) {
         A_q_basis_u.reinit(m_state_space_dim);
-        m_system_matrices.matrices[i].vmult(A_q_basis_u, state_DoFs);
+        m_system_matrices.m_matrices[i].vmult(A_q_basis_u, state_DoFs);
         for (size_t j = 0; j < m_state_space_dim; j++) {
           system_matrix_derivative.set(j,i, A_q_basis_u[j]);
         }        

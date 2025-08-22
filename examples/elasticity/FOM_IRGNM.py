@@ -56,7 +56,7 @@ def main():
     setup = {
         'spatial_resolution' : [4,10,10],
         'body_force_type' : 'CenterExcite',
-        'system_matrix_type' : 'ConstantLame',
+        'system_matrix_type' : 'Cosserat',
         'system_matrix_hyperparameter' : {
             'lambda' : 1e-3,
             'mu' : 1e-3,

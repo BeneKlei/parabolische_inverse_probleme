@@ -19,8 +19,8 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
 
-#include "SystemMatrixFactory.hpp"
-//#include "MatrixStack.hpp"
+#include "MaterialMatricesFactory.hpp"
+#include "SystemMatrices.hpp"
 #include "BodyForce.hpp"
 
 using namespace dealii;
@@ -37,7 +37,7 @@ struct MaterialModelConfig {
     double delta_t = 1.0 / 50;
     std::vector<uint32_t> spatial_resolution = {4,30,30};
     BodyForceType body_force_type = BodyForceType::CenterExcite;
-    SystemMatrixType system_matrix_type = SystemMatrixType::ConstantLame;
+    SystemMatrixType system_matrix_type = SystemMatrixType::Cosserat;
     SystemMatrixHyperparameter system_matrix_hyperparameter = {};
 };
 
@@ -98,8 +98,10 @@ private:
   SparsityPattern m_sparsity_pattern;
   SparsityPattern m_bilinear_cost_sparsity_pattern;
 
-  MaterialMatricesFactory<3, Number> m_material_matrices_factory = MaterialMatricesFactory<3, Number>();
+  MaterialMatricesFactory<dim, Number> m_material_matrices_factory = MaterialMatricesFactory<3, Number>();
+  //SystemMatrices<dim, Number> m_system_matrices = SystemMatrices<3, Number>();
   SystemMatrices<dim, Number> m_system_matrices;
+
   AffineConstraints<Number> m_BC_constraints;
   SparseILU<Number> m_solver;
 

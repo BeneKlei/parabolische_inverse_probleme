@@ -48,8 +48,8 @@ def build_InstationaryModelIP(setup : Dict,
     else:
         raise ValueError
 
-    if setup['system_matrix_type'] == 'ConstantLame':
-        material_model_config.system_matrix_type = mm.SystemMatrixType.ConstantLame
+    if setup['system_matrix_type'] == 'Cosserat':
+        material_model_config.system_matrix_type = mm.SystemMatrixType.Cosserat
     else:
         raise ValueError
     

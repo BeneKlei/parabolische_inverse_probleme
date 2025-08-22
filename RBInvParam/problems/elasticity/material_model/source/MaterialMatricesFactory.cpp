@@ -1,4 +1,4 @@
-#include "SystemMatrixFactory.hpp"
+#include "MaterialMatricesFactory.hpp"
 
 template class MaterialMatricesFactory<3, double>;
 
@@ -13,9 +13,9 @@ void MaterialMatricesFactory<dim, Number>::assemble_system_matrix(const SystemMa
 {
   switch (system_matrix_type)
   {
-  case SystemMatrixType::ConstantLame:
-    std::cout << "\t Using ConstantLame SystemMatrix" << std::endl;
-    MaterialMatricesFactory::assemble_constant_lame_system_matrix(
+  case SystemMatrixType::Cosserat:
+    std::cout << "\t Using Cosserat SystemMatrix" << std::endl;
+    MaterialMatricesFactory::assemble_cosserat_system_matrix(
         fe,
         dof_handler,
         constraints,
@@ -30,16 +30,16 @@ void MaterialMatricesFactory<dim, Number>::assemble_system_matrix(const SystemMa
 }
 
 template <int dim, typename Number>
-void MaterialMatricesFactory<dim, Number>::assemble_constant_lame_system_matrix(const FiniteElement<dim> &fe,
-                                                                                const DoFHandler<dim>   &dof_handler,
-                                                                                const AffineConstraints<Number>  &BC_constraints,
-                                                                                const SparsityPattern   &sparsity_pattern,
-                                                                                const SystemMatrixHyperparameter& lame_coeff,
-                                                                                SystemMatrices<dim, Number> &system_matrices) const
+void MaterialMatricesFactory<dim, Number>::assemble_cosserat_system_matrix(const FiniteElement<dim> &fe,
+                                                                           const DoFHandler<dim>   &dof_handler,
+                                                                           const AffineConstraints<Number>  &BC_constraints,
+                                                                           const SparsityPattern   &sparsity_pattern,
+                                                                           const SystemMatrixHyperparameter& hooke_coeff,
+                                                                           SystemMatrices<dim, Number> &system_matrices) const
 {
-  check_required_double_keys(lame_coeff, {"lambda", "mu"});
-  double lambda = std::get<double>(lame_coeff.at("lambda"));
-  double mu = std::get<double>(lame_coeff.at("mu"));
+  check_required_double_keys(hooke_coeff, {"lambda", "mu"});
+  double lambda = std::get<double>(hooke_coeff.at("lambda"));
+  double mu = std::get<double>(hooke_coeff.at("mu"));
 
   QGauss<3> quadrature_formula(2);
   FEValues<dim> fe_values(fe, quadrature_formula,
@@ -50,8 +50,11 @@ void MaterialMatricesFactory<dim, Number>::assemble_constant_lame_system_matrix(
 
   // Resize and initialize system matrices
   const unsigned int n_matrices = 2;
-  system_matrices.matrices.resize(n_matrices);
-  for (auto &matrix : system_matrices.matrices)
+  system_matrices.m_matrices.resize(n_matrices);
+  system_matrices.m_affine = false;
+  system_matrices.m_param_space_dim = n_matrices;
+  
+  for (auto &matrix : system_matrices.m_matrices)
   {
     matrix.reinit(sparsity_pattern);
     matrix = 0;
@@ -97,12 +100,12 @@ void MaterialMatricesFactory<dim, Number>::assemble_constant_lame_system_matrix(
     {
       BC_constraints.distribute_local_to_global(cell_matrices[m],
                                                   local_dof_indices,
-                                                  system_matrices.matrices[m]);
+                                                  system_matrices.m_matrices[m]);
     }
   }
 
   // Final condense to enforce constraints
-  for (auto &matrix : system_matrices.matrices)
+  for (auto &matrix : system_matrices.m_matrices)
   {
     BC_constraints.condense(matrix);
   }

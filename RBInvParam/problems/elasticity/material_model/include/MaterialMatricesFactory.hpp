@@ -6,6 +6,8 @@
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/dofs/dof_handler.h>
 
+#include "SystemMatrices.hpp"
+
 using namespace dealii;
 
 typedef std::variant<int, double, std::string> SystemMatrixHyperparameterType;
@@ -26,25 +28,7 @@ inline void check_required_double_keys(const SystemMatrixHyperparameter& params,
 
 
 enum class SystemMatrixType {
-    ConstantLame,
-};
-
-template <int dim, typename Number>
-struct SystemMatrices
-{
-  std::vector<SparseMatrix<Number>> matrices;
-  void sum(SparseMatrix<Number> &result,
-           const Vector<Number> &weights) const
-  {
-    Assert(matrices.size() == weights.size(),
-           ExcDimensionMismatch(matrices.size(), weights.size()));
-
-    // Reset result before accumulating
-    result = 0;
-
-    for (unsigned int i = 0; i < matrices.size(); ++i)
-      result.add(weights[i], matrices[i]);
-  }
+    Cosserat,
 };
 
 template <int dim, typename Number>
@@ -59,10 +43,10 @@ public:
                                 const SystemMatrixHyperparameter& system_matrix_hyperparameter,
                                 SystemMatrices<dim, Number> &system_matrices) const;
 
-    void assemble_constant_lame_system_matrix(const FiniteElement<dim> &fe,
-                                              const DoFHandler<dim>   &dof_handler,
-                                              const AffineConstraints<Number> &constraints,
-                                              const SparsityPattern   &sparsity_pattern,
-                                              const SystemMatrixHyperparameter& lame_coeff,
-                                              SystemMatrices<dim, Number> &system_matrices) const;
+    void assemble_cosserat_system_matrix(const FiniteElement<dim> &fe,
+                                         const DoFHandler<dim>   &dof_handler,
+                                         const AffineConstraints<Number> &constraints,
+                                         const SparsityPattern   &sparsity_pattern,
+                                         const SystemMatrixHyperparameter& lame_coeff,
+                                         SystemMatrices<dim, Number> &system_matrices) const;
 };
