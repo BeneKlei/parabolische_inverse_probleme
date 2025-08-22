@@ -37,7 +37,7 @@ struct MaterialModelConfig {
     double delta_t = 1.0 / 50;
     std::vector<uint32_t> spatial_resolution = {4,30,30};
     BodyForceType body_force_type = BodyForceType::CenterExcite;
-    SystemMatrixType system_matrix_type = SystemMatrixType::Cosserat;
+    SystemMatrixType system_matrix_type = SystemMatrixType::CosseratDelamination;
     SystemMatrixHyperparameter system_matrix_hyperparameter = {};
 };
 

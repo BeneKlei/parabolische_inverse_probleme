@@ -6,10 +6,13 @@ from datetime import datetime
 
 from pymor.basic import *
 
+import RBInvParam.problems.elasticity.material_model as mm
+
 from RBInvParam.optimizer import FOMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.problems.elasticity.build import build_InstationaryModelIP
+
 
 #########################################################################################''
 
@@ -54,12 +57,14 @@ def main():
 
 
     setup = {
-        'spatial_resolution' : [4,10,10],
-        'body_force_type' : 'CenterExcite',
-        'system_matrix_type' : 'Cosserat',
+        'spatial_resolution' : [4,15,2],
+        'body_force_type' : mm.BodyForceType.CenterExcite,
+        'system_matrix_type' : mm.SystemMatrixType.CosseratDelamination,
         'system_matrix_hyperparameter' : {
             'lambda' : 1e-3,
             'mu' : 1e-3,
+            'nu' : 1e-3,
+            'surface' : 'left'
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps

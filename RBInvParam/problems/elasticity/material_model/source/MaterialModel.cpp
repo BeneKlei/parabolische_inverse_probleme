@@ -41,16 +41,40 @@ MaterialModel::MaterialModel(const MaterialModelConfig& config)
 
 void MaterialModel::make_grid()
 {
-  Point<3> ori = Point<3> (-0.1, -15.0, -15.0);
-	Point<3> dest = Point<3> (0.1, 15.0, 15.0);
+    Point<3> ori  = Point<3>(-0.1, -15.0, -15.0);
+    Point<3> dest = Point<3>( 0.1,  15.0,  15.0);
 
-  GridGenerator::subdivided_hyper_rectangle(
-    m_triangulation, 
-    m_config.spatial_resolution, 
-    ori, 
-    dest
-  );  
+    GridGenerator::subdivided_hyper_rectangle(
+        m_triangulation, 
+        m_config.spatial_resolution, 
+        ori, 
+        dest
+    ); 
+
+    // Mark x = -0.1 (left) and x = +0.1 (right)
+    for (const auto &face : m_triangulation.active_face_iterators())
+    {
+        if (face->at_boundary())
+        {
+            bool is_left  = true;
+            bool is_right = true;
+
+            for (unsigned int v = 0; v < GeometryInfo<3>::vertices_per_face; ++v)
+            {
+                if (std::fabs(face->vertex(v)[0] - ori[0]) > 1e-12)
+                    is_left = false;
+                if (std::fabs(face->vertex(v)[0] - dest[0]) > 1e-12)
+                    is_right = false;
+            }
+
+            if (is_left)
+                face->set_boundary_id(1); // left x-plane
+            else if (is_right)
+                face->set_boundary_id(2); // right x-plane
+        }
+    }
 }
+
 
 void MaterialModel::setup_system()
 {
@@ -211,6 +235,7 @@ void MaterialModel::_assemble_product_matrix(SparseMatrix<Number>& matrix,
       matrix.add(local_dof_indices, cell_matrix);
 
   }
+
   if (constraints)
     constraints->get().condense(matrix);
 }

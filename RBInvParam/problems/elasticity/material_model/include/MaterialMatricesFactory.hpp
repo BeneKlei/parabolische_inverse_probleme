@@ -13,22 +13,37 @@ using namespace dealii;
 typedef std::variant<int, double, std::string> SystemMatrixHyperparameterType;
 typedef std::map<std::string, SystemMatrixHyperparameterType>  SystemMatrixHyperparameter;
 
-inline void check_required_double_keys(const SystemMatrixHyperparameter& params,
-                                       const std::initializer_list<std::string>& required_keys) {
+template <typename T>
+constexpr const char* type_name() {
+    if constexpr (std::is_same_v<T, double>) return "double";
+    else if constexpr (std::is_same_v<T, std::string>) return "string";
+    else if constexpr (std::is_same_v<T, int>) return "int";
+    else return "unknown";
+}
+
+template <class T>
+inline void check_required_keys(
+    const SystemMatrixHyperparameter& params,
+    const std::initializer_list<std::string>& required_keys
+) {
     for (const auto& key : required_keys) {
         auto it = params.find(key);
         if (it == params.end()) {
             throw std::runtime_error("Missing key: " + key);
         }
-        if (!std::holds_alternative<double>(it->second)) {
-            throw std::runtime_error("Key '" + key + "' must be a double");
+        if (!std::holds_alternative<T>(it->second)) {
+            throw std::runtime_error(
+                "Key '" + key + "' must be of type " + std::string(type_name<T>())
+            );
         }
     }
 }
 
 
+
 enum class SystemMatrixType {
-    Cosserat,
+    CosseratDelamination,
+    Cosserat
 };
 
 template <int dim, typename Number>
@@ -49,4 +64,12 @@ public:
                                          const SparsityPattern   &sparsity_pattern,
                                          const SystemMatrixHyperparameter& lame_coeff,
                                          SystemMatrices<dim, Number> &system_matrices) const;
+
+    void assemble_cosserat_delamination_system_matrix(const FiniteElement<dim> &fe,
+                                                      const DoFHandler<dim>   &dof_handler,
+                                                      const AffineConstraints<Number>  &BC_constraints,
+                                                      const SparsityPattern   &sparsity_pattern,
+                                                      const SystemMatrixHyperparameter& cosserat_delamination_coeff,
+                                                      SystemMatrices<dim, Number> &system_matrices) const;
+
 };

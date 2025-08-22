@@ -47,6 +47,7 @@ PYBIND11_MODULE(material_model, m) {
      
      py::enum_<SystemMatrixType>(m, "SystemMatrixType")
         .value("Cosserat", SystemMatrixType::Cosserat)
+        .value("CosseratDelamination", SystemMatrixType::CosseratDelamination)
         .export_values();
 
      py::class_<MaterialModelConfig>(m, "MaterialModelConfig")

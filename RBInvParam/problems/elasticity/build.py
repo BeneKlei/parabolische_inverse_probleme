@@ -43,15 +43,17 @@ def build_InstationaryModelIP(setup : Dict,
     material_model_config.delta_t = setup['delta_t']
     material_model_config.spatial_resolution = setup['spatial_resolution']
     
-    if setup['body_force_type'] == 'CenterExcite':
-        material_model_config.body_force_type = mm.BodyForceType.CenterExcite
-    else:
-        raise ValueError
+    # if setup['body_force_type'] == 'CenterExcite':
+    #     material_model_config.body_force_type = mm.BodyForceType.CenterExcite
+    # else:
+    #     raise ValueError
 
-    if setup['system_matrix_type'] == 'Cosserat':
-        material_model_config.system_matrix_type = mm.SystemMatrixType.Cosserat
-    else:
-        raise ValueError
+    # if setup['system_matrix_type'] == 'Cosserat':
+    #     material_model_config.system_matrix_type = mm.SystemMatrixType.Cosserat
+    # elif setup['system_matrix_type'] == 'Cosserat':
+    #     material_model_config.system_matrix_type = mm.SystemMatrixType.Cosserat
+    # else:
+    #     raise ValueError
     
     if setup['system_matrix_hyperparameter']: 
         material_model_config.system_matrix_hyperparameter = setup['system_matrix_hyperparameter']
