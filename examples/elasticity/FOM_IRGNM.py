@@ -37,7 +37,7 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    par_dim = 2
+    par_dim = 900
 
     T_initial = 0
     T_final = 1
@@ -45,9 +45,10 @@ def main():
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
-    #q_circ = 3*np.ones((1, par_dim))
-    q_circ = np.array([[3,3]])
-    q_exact = np.array([[5,1]])
+    q_circ = np.ones((1, par_dim))
+    q_exact = np.ones((1,par_dim))
+    q_exact[0,27] = 2
+    q_exact[0,54] = 3
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 0.001
@@ -57,18 +58,18 @@ def main():
 
 
     setup = {
-        'spatial_resolution' : [4,15,2],
+        'spatial_resolution' : [4,30,30],
         'body_force_type' : mm.BodyForceType.CenterExcite,
         'system_matrix_type' : mm.SystemMatrixType.CosseratDelamination,
         'system_matrix_hyperparameter' : {
-            'lambda' : 1e-3,
-            'mu' : 1e-3,
-            'nu' : 1e-3,
+            'lambda' : 1e1,
+            'mu' : 1e2,
+            'nu' : 1e1,
             'surface' : 'left'
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps
-            'par_dim' : 2,
+            'par_dim' : par_dim,
             'state_dim' : None,
             'output_dim': None
         },
@@ -76,7 +77,7 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-6,                          # Absolute noise magnitude added to data
+        'noise_level': 1e-5,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -107,11 +108,11 @@ def main():
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-7,                                         # Initial regularization parameter
+        'alpha_0': 1e-5,                                          # Initial regularization parameter
         'tol': 1e-11,                                            # Absolute convergence tolerance for optimization
         'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
-        'theta': 0.01,                                            # Lower tolerance for the direction acceptance condition
+        'theta': 0.1,                                           # Lower tolerance for the direction acceptance condition
         'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
         #####################
         'i_max': 250,                                             # Maximum number of outer optimization iterations
@@ -121,7 +122,7 @@ def main():
         'lin_solver_parms': {
             'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e4,                                     # Max iterations for the linear solver
-            'lin_solver_tol': 1e-12,                             # Tolerance for convergence in the linear solver
+            'lin_solver_tol': 1e-9,                          # Tolerance for convergence in the linear solver
             'inital_step_size': 1                                # Initial step size for iterative solvers (if applicable)
         },
         'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)

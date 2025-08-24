@@ -271,7 +271,7 @@ def build_InstationaryModelIP(setup : Dict,
                                                noise_level = setup['noise_level'],
                                                product=products['bochner_prod_V'],
                                                time_depend_noise=True)
-    
+
     ############################### Cost ###############################
 
     if setup['observation_operator']['name'] == 'identity':
@@ -291,7 +291,7 @@ def build_InstationaryModelIP(setup : Dict,
     assert (y_delta.space == C.range) 
 
     logger.debug(f'noise percentage is {percentage:3.4e}')
-    logger.debug(f'noise_level is {setup["noise_level"]:3.4e}')
+    logger.debug(f'noise_level is {setup["noise_level"]:3.4e}')    
 
     #--------------------------------------------------------
     constant_cost_term = y_delta.pairwise_inner(y_delta, product=products['prod_C'])

@@ -81,8 +81,6 @@ void MaterialModel::setup_system()
   m_dof_handler.clear();
   m_dof_handler.distribute_dofs(m_fe);
 
-  std::cout << "\t #DoFs: " << m_dof_handler.n_dofs()  << std::endl;
-
   m_sparsity_pattern.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
   DoFTools::make_sparsity_pattern(m_dof_handler, m_sparsity_pattern);
   m_sparsity_pattern.compress();
@@ -104,25 +102,28 @@ void MaterialModel::setup_system()
   std::cout << "\t Assembling force list." << std::endl;
   assemble_force_list();
 
-  m_param_space_dim = m_system_matrices.m_matrices.size();
-  std::cout << "\t #Parameter: " << m_dof_handler.n_dofs()  << std::endl;
+  m_param_space_dim = m_system_matrices.get_param_space_dim();
   m_q.reinit(m_param_space_dim);
   m_state_space_dim = m_dof_handler.n_dofs();
+
+  std::cout << "\t ---------------------- " << std::endl;
+  std::cout << "\t #DoFs: " << m_state_space_dim  << std::endl;
+  std::cout << "\t #Parameter: " << m_param_space_dim  << std::endl;
 
 }
 
 void MaterialModel::setup_BC_constraints()
 {
   m_BC_constraints.clear();  
-  Functions::ZeroFunction<dim> dirichlet_bc_function(m_fe.n_components()); 
-  uint32_t boundary_id = 0;
+  // Functions::ZeroFunction<dim> dirichlet_bc_function(m_fe.n_components()); 
+  // uint32_t boundary_id = 0;
 
-  VectorTools::interpolate_boundary_values(
-    m_dof_handler, 
-    boundary_id, 
-    dirichlet_bc_function, 
-    m_BC_constraints
-  );
+  // VectorTools::interpolate_boundary_values(
+  //   m_dof_handler, 
+  //   boundary_id, 
+  //   dirichlet_bc_function, 
+  //   m_BC_constraints
+  // );
 
   m_BC_constraints.close();
 }
@@ -411,15 +412,16 @@ void MaterialModel::assemble_system_matrix_derivative(
       (system_matrix_derivative.m() == m_state_space_dim) && 
       (system_matrix_derivative.n() == m_param_space_dim)
     );
-    assert(m_system_matrices.m_matrices.size() == m_param_space_dim &&
+    assert(m_system_matrices.m_param_space_dim == m_param_space_dim &&
        "Mismatch between system matrices count and parameter dimension");
 
+    unsigned int offset = m_system_matrices.m_affine ? 1 : 0;
     Vector<Number> A_q_basis_u;
     //A_q_basis_u.reinit(m_state_space_dim);
     
     for (size_t i = 0; i < m_param_space_dim; i++) {
         A_q_basis_u.reinit(m_state_space_dim);
-        m_system_matrices.m_matrices[i].vmult(A_q_basis_u, state_DoFs);
+        m_system_matrices.m_matrices[i + offset].vmult(A_q_basis_u, state_DoFs);
         for (size_t j = 0; j < m_state_space_dim; j++) {
           system_matrix_derivative.set(j,i, A_q_basis_u[j]);
         }        

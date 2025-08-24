@@ -345,7 +345,7 @@ class InstationaryModelIP(ImmutableObject):
             use_cached_operators = use_cached_operators, 
             required_cache_keys = required_cache_keys
         )
-            
+        
         iterator = self.time_stepper.iterate(initial_data = self.initial_data['state'], 
                                              q=q,
                                              rhs=self.L,
@@ -355,7 +355,6 @@ class InstationaryModelIP(ImmutableObject):
         u = self.V.empty(reserve= (self.nt + 1))
         for u_n, _ in iterator:
             u.append(u_n)
-
         return u
 
     def solve_adjoint(self, 
@@ -576,6 +575,8 @@ class InstationaryModelIP(ImmutableObject):
         if alpha > 0:
             assert q is not None
             # add regularization term if alpha >0
+            # print(out)
+            # print(alpha * self.regularization_term(q))
             return out + alpha * self.regularization_term(q)
         else:
             return out

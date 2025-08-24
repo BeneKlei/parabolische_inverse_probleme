@@ -41,7 +41,6 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         self.system_matrix.reinit(self.sparsity_pattern)
         self.material_model.m_q[:] = q.to_numpy()
         self.material_model.assemble_system_matrix(self.system_matrix)
-        
         return DealIIMatrixOperator(self.system_matrix)
             
     
