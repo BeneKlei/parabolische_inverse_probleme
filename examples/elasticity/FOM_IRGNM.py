@@ -37,7 +37,7 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    par_dim = 900
+    par_dim = 100
 
     T_initial = 0
     T_final = 1
@@ -58,7 +58,7 @@ def main():
 
 
     setup = {
-        'spatial_resolution' : [4,30,30],
+        'spatial_resolution' : [4,10,10],
         'body_force_type' : mm.BodyForceType.CenterExcite,
         'system_matrix_type' : mm.SystemMatrixType.CosseratDelamination,
         'system_matrix_hyperparameter' : {
@@ -93,7 +93,7 @@ def main():
             'bochner_prod_V': 'bochner_h1_0_semi'     # Product on V_h^K
         },
         'observation_operator': {
-            'name': 'identity',                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
         },
         'time_stepper' : {
             'name' : 'newman_second_order',

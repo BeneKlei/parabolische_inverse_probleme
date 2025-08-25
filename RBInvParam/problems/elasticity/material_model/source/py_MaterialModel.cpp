@@ -9,6 +9,7 @@
 #include "MaterialModel.hpp"
 #include "MaterialMatricesFactory.hpp"
 #include "BodyForce.hpp"
+#include "ObservationOperatorFactory.hpp"
 
 // -------- PYTHON BINDINGS -----------------------------------------------------------------------
 
@@ -34,21 +35,28 @@ PYBIND11_MODULE(material_model, m) {
           .def("sparsity_pattern", &MaterialModel::sparsity_pattern, py::return_value_policy::reference_internal)
           .def("n_dofs", &MaterialModel::n_dofs, py::return_value_policy::reference_internal)
           .def("get_force_list", &MaterialModel::get_force_list, py::return_value_policy::reference_internal)
-          .def("assemble_euclidian_matrix", &MaterialModel::assemble_euclidian_matrix, py::return_value_policy::reference_internal)
+          //.def("assemble_euclidian_matrix", &MaterialModel::assemble_euclidian_matrix, py::return_value_policy::reference_internal)
           .def("assemble_observation_operator_matrix", &MaterialModel::assemble_observation_operator_matrix, py::return_value_policy::reference_internal)
           .def("assemble_bilinear_cost_matrix", &MaterialModel::assemble_bilinear_cost_matrix, py::return_value_policy::reference_internal)
           .def("clear_rhs_boundary_dofs", &MaterialModel::clear_rhs_boundary_dofs, py::return_value_policy::reference_internal)
           .def("assemble_system_matrix_derivative", &MaterialModel::assemble_system_matrix_derivative, py::return_value_policy::reference_internal);
 
-     py::enum_<BodyForceType>(m, "BodyForceType")
-        .value("CenterExcite", BodyForceType::CenterExcite)
-        .value("Dummy", BodyForceType::Dummy)
-        .export_values();
-     
-     py::enum_<SystemMatrixType>(m, "SystemMatrixType")
-        .value("Cosserat", SystemMatrixType::Cosserat)
-        .value("CosseratDelamination", SystemMatrixType::CosseratDelamination)
-        .export_values();
+      py::enum_<BodyForceType>(m, "BodyForceType")
+         .value("CenterExcite", BodyForceType::CenterExcite)
+         .value("Dummy", BodyForceType::Dummy)
+         .export_values();
+
+      py::enum_<SystemMatrixType>(m, "SystemMatrixType")
+         .value("Cosserat", SystemMatrixType::Cosserat)
+         .value("CosseratDelamination", SystemMatrixType::CosseratDelamination)
+         .export_values();
+
+      py::enum_<ObservationOperatorType>(m, "ObservationOperatorType")
+         .value("Identity", ObservationOperatorType::Identity)
+         .value("Boundary", ObservationOperatorType::Boundary)
+         .value("SensorsR9d", ObservationOperatorType::SensorsR9d)
+         .value("SensorsR8d", ObservationOperatorType::SensorsR8d)
+         .export_values();
 
      py::class_<MaterialModelConfig>(m, "MaterialModelConfig")
           .def(py::init<>())

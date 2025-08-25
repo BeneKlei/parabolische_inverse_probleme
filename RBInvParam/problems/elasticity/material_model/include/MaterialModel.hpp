@@ -22,6 +22,7 @@
 #include "MaterialMatricesFactory.hpp"
 #include "SystemMatrices.hpp"
 #include "BodyForce.hpp"
+#include "ObservationOperatorFactory.hpp"
 
 using namespace dealii;
 
@@ -56,7 +57,10 @@ public:
   Vector<Number> m_d;
   
   void assemble_mass_matrix(SparseMatrix<Number>& mass_matrix);
-  void assemble_observation_operator_matrix(SparseMatrix<Number>& operator_matrix, std::string operator_name);
+  void assemble_observation_operator_matrix(
+    SparseMatrix<Number>& operator_matrix, 
+    ObservationOperatorType observation_operator_type
+  );
   void assemble_system_matrix(SparseMatrix<Number>& system_matrix);
   void assemble_system_matrix_derivative(
     FullMatrix<Number>& system_matrix_derivative,
@@ -70,7 +74,7 @@ public:
   void assemble_h1_0_semi_matrix(SparseMatrix<Number>& h1_0_semi_matrix);
   void assemble_h1_matrix(SparseMatrix<Number>& h1_matrix);
   void assemble_h1_0_matrix(SparseMatrix<Number>& h1_0_matrix);
-  void assemble_euclidian_matrix(SparseMatrix<Number>& operator_matrix);
+  //void assemble_euclidian_matrix(SparseMatrix<Number>& operator_matrix);
 
   
   void assemble_bilinear_cost_matrix(
@@ -99,6 +103,7 @@ private:
   SparsityPattern m_bilinear_cost_sparsity_pattern;
 
   MaterialMatricesFactory<dim, Number> m_material_matrices_factory = MaterialMatricesFactory<3, Number>();
+  ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   //SystemMatrices<dim, Number> m_system_matrices = SystemMatrices<3, Number>();
   SystemMatrices<dim, Number> m_system_matrices;
 
@@ -121,7 +126,7 @@ private:
   template <typename Integrand>
   void _assemble_product_matrix(SparseMatrix<Number>& matrix,
                                 Integrand integrand,
-                                std::optional<std::reference_wrapper<const AffineConstraints<Number>>> constraints = std::nullopt);
+                                const AffineConstraints<Number>& constraints);
 };
 
 

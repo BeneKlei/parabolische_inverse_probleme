@@ -5,19 +5,21 @@
 template class MaterialMatricesFactory<3, double>;
 
 template <int dim, typename Number>
-void MaterialMatricesFactory<dim, Number>::assemble_system_matrix(const SystemMatrixType &system_matrix_type,
-                                                                  const FiniteElement<dim> &fe,
-                                                                  const DoFHandler<dim>   &dof_handler,
-                                                                  const AffineConstraints<Number> &constraints,
-                                                                  const SparsityPattern   &sparsity_pattern,
-                                                                  const SystemMatrixHyperparameter& system_matrix_hyperparameter,
-                                                                  SystemMatrices<dim, Number> &system_matrices) const
+void MaterialMatricesFactory<dim, Number>::assemble_system(
+  const SystemMatrixType &system_matrix_type,
+  const FiniteElement<dim> &fe,
+  const DoFHandler<dim>   &dof_handler,
+  const AffineConstraints<Number> &constraints,
+  const SparsityPattern   &sparsity_pattern,
+  const SystemMatrixHyperparameter& system_matrix_hyperparameter,
+  SystemMatrices<dim, Number> &system_matrices) const
 {
   switch (system_matrix_type)
   {
   case SystemMatrixType::Cosserat:
     std::cout << "\t Using Cosserat SystemMatrix" << std::endl;
-    MaterialMatricesFactory::assemble_cosserat_system_matrix(
+    MaterialMatricesFactory::assemble_cosserat_system(
+        system_matrix_type,
         fe,
         dof_handler,
         constraints,
@@ -28,7 +30,8 @@ void MaterialMatricesFactory<dim, Number>::assemble_system_matrix(const SystemMa
     break;
   case SystemMatrixType::CosseratDelamination:
     std::cout << "\t Using CosseratDelamination SystemMatrix" << std::endl;
-    MaterialMatricesFactory::assemble_cosserat_delamination_system_matrix(
+    MaterialMatricesFactory::assemble_cosserat_delamination_system(
+        system_matrix_type,
         fe,
         dof_handler,
         constraints,
@@ -38,24 +41,26 @@ void MaterialMatricesFactory<dim, Number>::assemble_system_matrix(const SystemMa
     );
     break;
   default:
-    throw std::runtime_error("Unknown system matrix.");
+    throw std::runtime_error("Unknown system matrix type.");
   }
 }
 
 template <int dim, typename Number>
-void MaterialMatricesFactory<dim, Number>::assemble_cosserat_system_matrix(const FiniteElement<dim> &fe,
-                                                                           const DoFHandler<dim>   &dof_handler,
-                                                                           const AffineConstraints<Number>  &BC_constraints,
-                                                                           const SparsityPattern   &sparsity_pattern,
-                                                                           const SystemMatrixHyperparameter& hooke_coeff,
-                                                                           SystemMatrices<dim, Number> &system_matrices) const
+void MaterialMatricesFactory<dim, Number>::assemble_cosserat_system(
+  const SystemMatrixType &system_matrix_type,
+  const FiniteElement<dim> &fe,
+  const DoFHandler<dim>   &dof_handler,
+  const AffineConstraints<Number>  &BC_constraints,
+  const SparsityPattern   &sparsity_pattern,
+  const SystemMatrixHyperparameter& hooke_coeff,
+  SystemMatrices<dim, Number> &system_matrices) const
 {
   check_required_keys<double>(hooke_coeff, {"lambda", "mu", "nu"});
   double lambda = std::get<double>(hooke_coeff.at("lambda"));
   double mu = std::get<double>(hooke_coeff.at("mu"));
   double nu = std::get<double>(hooke_coeff.at("nu"));
 
-  QGauss<3> quadrature_formula(2);
+  QGaussLobatto<3> quadrature_formula(2);
   FEValues<dim> fe_values(fe, quadrature_formula,
                           update_gradients | update_JxW_values | update_quadrature_points | update_values); const unsigned int dofs_per_cell = fe.dofs_per_cell;
   const unsigned int n_quadrature_points = quadrature_formula.size();
@@ -127,12 +132,14 @@ void MaterialMatricesFactory<dim, Number>::assemble_cosserat_system_matrix(const
 
 
 template <int dim, typename Number>
-void MaterialMatricesFactory<dim, Number>::assemble_cosserat_delamination_system_matrix(const FiniteElement<dim> &fe,
-                                                                          const DoFHandler<dim>   &dof_handler,
-                                                                          const AffineConstraints<Number>  &BC_constraints,
-                                                                          const SparsityPattern   &sparsity_pattern,
-                                                                          const SystemMatrixHyperparameter& cosserat_delamination_coeff,
-                                                                          SystemMatrices<dim, Number> &system_matrices) const
+void MaterialMatricesFactory<dim, Number>::assemble_cosserat_delamination_system(
+  const SystemMatrixType &system_matrix_type,
+  const FiniteElement<dim> &fe,
+  const DoFHandler<dim>   &dof_handler,
+  const AffineConstraints<Number>  &BC_constraints,
+  const SparsityPattern   &sparsity_pattern,
+  const SystemMatrixHyperparameter& cosserat_delamination_coeff,
+  SystemMatrices<dim, Number> &system_matrices) const
 {
   check_required_keys<double>(cosserat_delamination_coeff, {"lambda", "mu", "nu"});
   check_required_keys<std::string>(cosserat_delamination_coeff, {"surface"});
@@ -145,7 +152,7 @@ void MaterialMatricesFactory<dim, Number>::assemble_cosserat_delamination_system
     throw std::runtime_error("A model for delamination at surface " + surface + "is not implemented. Options are ['left'].");
   }
 
-  QGauss<3> quadrature_formula(2);
+  QGaussLobatto<3> quadrature_formula(2);
   FEValues<dim> fe_values(fe, quadrature_formula,
                           update_gradients | update_JxW_values | update_quadrature_points | update_values); const unsigned int dofs_per_cell = fe.dofs_per_cell;
   const unsigned int n_quadrature_points = quadrature_formula.size();

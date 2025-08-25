@@ -20,9 +20,8 @@
 #include <iostream>
 
 #include "MaterialModel.hpp"
-#include "utils.hpp"
 #include "BodyForce.hpp"
-
+#include "utils.hpp"
 
 MaterialModel::MaterialModel(const MaterialModelConfig& config)
   : m_config(config), 
@@ -75,7 +74,6 @@ void MaterialModel::make_grid()
     }
 }
 
-
 void MaterialModel::setup_system()
 {
   m_dof_handler.clear();
@@ -88,7 +86,7 @@ void MaterialModel::setup_system()
   std::cout << "\t Setting up BC constraints." << std::endl;
   setup_BC_constraints();
   std::cout << "\t Setting up system matrizies." << std::endl;
-  m_material_matrices_factory.assemble_system_matrix(
+  m_material_matrices_factory.assemble_system(
     m_config.system_matrix_type,
     m_fe,
     m_dof_handler,
@@ -134,7 +132,7 @@ void MaterialModel::assemble_force(Vector<Number>& result, double time)
   Assert(result.size() == m_dof_handler.n_dofs(),
          ExcDimensionMismatch(result.size(), m_dof_handler.n_dofs()));
 
-  QGauss<dim> quadrature_formula(2);
+  QGaussLobatto<dim> quadrature_formula(2);
   FEValues<dim> fe_values(m_fe, quadrature_formula,
                           update_values | update_quadrature_points | update_JxW_values);
 
@@ -194,9 +192,9 @@ void MaterialModel::assemble_system_matrix(SparseMatrix<Number>& system_matrix)
 template <typename Integrand>
 void MaterialModel::_assemble_product_matrix(SparseMatrix<Number>& matrix,
                                              Integrand integrand,
-                                             std::optional<std::reference_wrapper<const AffineConstraints<Number>>> constraints)
+                                             const AffineConstraints<Number>& constraints)
 {
-  QGauss<3> quadrature_formula(2);
+  QGaussLobatto<3> quadrature_formula(2);
   FEValues<dim> fe_values(m_fe, quadrature_formula,
                           update_values | update_gradients | update_quadrature_points | update_JxW_values);
 
@@ -230,15 +228,10 @@ void MaterialModel::_assemble_product_matrix(SparseMatrix<Number>& matrix,
         }
       }
     }
-    if (constraints)
-      constraints->get().distribute_local_to_global(cell_matrix, local_dof_indices, matrix);
-    else
-      matrix.add(local_dof_indices, cell_matrix);
-
+    constraints.distribute_local_to_global(cell_matrix, local_dof_indices, matrix);
   }
 
-  if (constraints)
-    constraints->get().condense(matrix);
+  constraints.condense(matrix);
 }
 
 //TODO Move all the product assemblies into ProductMatrixFactory or so
@@ -249,7 +242,10 @@ void MaterialModel::assemble_l2_matrix(SparseMatrix<Number>& l2_matrix)
     return fe.shape_value(i, q) * fe.shape_value(j, q);
   });
 
-  _assemble_product_matrix(l2_matrix, l2_integrand);
+  AffineConstraints<Number> empty_BC_constraints;
+  empty_BC_constraints.clear(); 
+  empty_BC_constraints.close(); 
+  _assemble_product_matrix(l2_matrix, l2_integrand, empty_BC_constraints);
 }
 
 void MaterialModel::assemble_l2_0_matrix(SparseMatrix<Number>& l2_0_matrix)
@@ -280,7 +276,11 @@ void MaterialModel::assemble_h1_semi_matrix(SparseMatrix<Number>& h1_semi_matrix
   [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
     return fe.shape_grad(i, q) * fe.shape_grad(j, q);
   });
-  _assemble_product_matrix(h1_semi_matrix, h1_semi_integrand);
+  AffineConstraints<Number> empty_BC_constraints;
+  empty_BC_constraints.clear(); 
+  empty_BC_constraints.close();
+
+  _assemble_product_matrix(h1_semi_matrix, h1_semi_integrand, empty_BC_constraints);
 }
 
 void MaterialModel::assemble_h1_0_semi_matrix(SparseMatrix<Number>& h1_0_semi_matrix)
@@ -311,7 +311,12 @@ void MaterialModel::assemble_h1_matrix(SparseMatrix<Number>& h1_matrix)
   [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
     return fe.shape_grad(i, q) * fe.shape_grad(j, q) + fe.shape_grad(i, q) * fe.shape_grad(j, q);;
   });
-  _assemble_product_matrix(h1_matrix, h1_integrand);
+
+  AffineConstraints<Number> empty_BC_constraints;
+  empty_BC_constraints.clear(); 
+  empty_BC_constraints.close();
+
+  _assemble_product_matrix(h1_matrix, h1_integrand, empty_BC_constraints);
 }
 
 void MaterialModel::assemble_h1_0_matrix(SparseMatrix<Number>& h1_0_matrix)
@@ -361,43 +366,29 @@ void MaterialModel::output_results(Vector<double>& solution) const
 
 void MaterialModel::assemble_observation_operator_matrix(
     SparseMatrix<Number>& operator_matrix, 
-    std::string operator_name)
+    ObservationOperatorType observation_operator_type)
 {
-    if (operator_name == "identity")
-        assemble_euclidian_matrix(operator_matrix);
-    else
-        throw std::runtime_error(
-            "Unknown observation operator: " + operator_name +". Supported operator: 'identity'."
-        );  
+    m_observation_operator_factory.assemble_observation(
+      observation_operator_type,
+      m_fe,
+      m_dof_handler,
+      m_BC_constraints,
+      m_sparsity_pattern,
+      operator_matrix
+  ); 
 }
 
-void MaterialModel::assemble_euclidian_matrix(SparseMatrix<Number>& matrix)
-{
-  matrix.reinit(m_sparsity_pattern);
-  matrix = 0;
-
-  const auto n_dofs = m_dof_handler.n_dofs();
-  for (types::global_dof_index i = 0; i < n_dofs; ++i)
-    matrix.set(i, i, Number(1));
-};
 
 
-void MaterialModel::assemble_bilinear_cost_matrix(
-  SparseMatrix<Number>& matrix,
-  const SparseMatrix<Number>& prod_C,
-  const SparseMatrix<Number>& C)
-{
-  SparseMatrix<Number> buf;
-  SparsityPattern buf_sp = utils::make_product_sparsity_AB(prod_C, C);
-  buf.reinit(buf_sp);
-  prod_C.mmult(buf, C, Vector<Number>(), false);
-  
-  SparsityPattern buf_sp_ = utils::make_product_sparsity_ATB(C, buf);
-  m_bilinear_cost_sparsity_pattern.copy_from(buf_sp_);
-  matrix.reinit(m_bilinear_cost_sparsity_pattern);
+// void MaterialModel::assemble_euclidian_matrix(SparseMatrix<Number>& matrix)
+// {
+//   matrix.reinit(m_sparsity_pattern);
+//   matrix = 0;
 
-  C.Tmmult(matrix, buf, Vector<Number>(), false); 
-}
+//   const auto n_dofs = m_dof_handler.n_dofs();
+//   for (types::global_dof_index i = 0; i < n_dofs; ++i)
+//     matrix.set(i, i, Number(1));
+// };
 
 void MaterialModel::clear_rhs_boundary_dofs(Vector<Number>& v) 
 {
@@ -427,7 +418,24 @@ void MaterialModel::assemble_system_matrix_derivative(
         }        
     }
 }
+void MaterialModel::assemble_bilinear_cost_matrix(
+  SparseMatrix<Number>& matrix,
+  const SparseMatrix<Number>& prod_C,
+  const SparseMatrix<Number>& C)
+{
+  SparseMatrix<Number> buf;
+  SparsityPattern buf_sp = utils::make_product_sparsity_AB(prod_C, C);
+  buf.reinit(buf_sp);
+  prod_C.mmult(buf, C, Vector<Number>(), false);
+  
+  SparsityPattern buf_sp_ = utils::make_product_sparsity_ATB(C, buf);
+  m_bilinear_cost_sparsity_pattern.copy_from(buf_sp_);
+  matrix.reinit(m_bilinear_cost_sparsity_pattern);
 
+  C.Tmmult(matrix, buf, Vector<Number>(), false); 
+}
+
+// TODO Make a body force factory
 void MaterialModel::setup_body_force() {
   switch (m_config.body_force_type)
   {

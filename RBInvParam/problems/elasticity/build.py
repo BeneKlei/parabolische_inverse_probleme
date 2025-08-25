@@ -274,16 +274,14 @@ def build_InstationaryModelIP(setup : Dict,
 
     ############################### Cost ###############################
 
-    if setup['observation_operator']['name'] == 'identity':
-        C_mat = pd2.SparseMatrix()
-        material_model.assemble_observation_operator_matrix(
-            C_mat,
-            'identity'
-        )
-        C = DealIIMatrixOperator(matrix = C_mat)
-        C_continuity_constant = 1.0
-    else:
-        raise ValueError
+    C_mat = pd2.SparseMatrix()
+    material_model.assemble_observation_operator_matrix(
+        C_mat,
+        setup['observation_operator']['type']
+    )
+    C = DealIIMatrixOperator(matrix = C_mat)
+    C_continuity_constant = 1.0
+    
     
     y_delta = C.apply(u_delta)
 

@@ -24,8 +24,8 @@ constexpr const char* type_name() {
 template <class T>
 inline void check_required_keys(
     const SystemMatrixHyperparameter& params,
-    const std::initializer_list<std::string>& required_keys
-) {
+    const std::initializer_list<std::string>& required_keys) 
+{
     for (const auto& key : required_keys) {
         auto it = params.find(key);
         if (it == params.end()) {
@@ -50,26 +50,34 @@ template <int dim, typename Number>
 class MaterialMatricesFactory
 {
 public:
-    void assemble_system_matrix(const SystemMatrixType &system_matrix_type,
-                                const FiniteElement<dim> &fe,
-                                const DoFHandler<dim>   &dof_handler,
-                                const AffineConstraints<Number> &constraints,
-                                const SparsityPattern   &sparsity_pattern,
-                                const SystemMatrixHyperparameter& system_matrix_hyperparameter,
-                                SystemMatrices<dim, Number> &system_matrices) const;
+    void assemble_system(
+        const SystemMatrixType &system_matrix_type,
+        const FiniteElement<dim> &fe,
+        const DoFHandler<dim>   &dof_handler,
+        const AffineConstraints<Number> &constraints,
+        const SparsityPattern   &sparsity_pattern,
+        const SystemMatrixHyperparameter& system_matrix_hyperparameter,
+        SystemMatrices<dim, Number> &system_matrices
+    ) const;
 
-    void assemble_cosserat_system_matrix(const FiniteElement<dim> &fe,
-                                         const DoFHandler<dim>   &dof_handler,
-                                         const AffineConstraints<Number> &constraints,
-                                         const SparsityPattern   &sparsity_pattern,
-                                         const SystemMatrixHyperparameter& lame_coeff,
-                                         SystemMatrices<dim, Number> &system_matrices) const;
+    void assemble_cosserat_system(
+        const SystemMatrixType &system_matrix_type,
+        const FiniteElement<dim> &fe,
+        const DoFHandler<dim>   &dof_handler,
+        const AffineConstraints<Number> &constraints,
+        const SparsityPattern   &sparsity_pattern,
+        const SystemMatrixHyperparameter& lame_coeff,
+        SystemMatrices<dim, Number> &system_matrices
+    ) const;
 
-    void assemble_cosserat_delamination_system_matrix(const FiniteElement<dim> &fe,
-                                                      const DoFHandler<dim>   &dof_handler,
-                                                      const AffineConstraints<Number>  &BC_constraints,
-                                                      const SparsityPattern   &sparsity_pattern,
-                                                      const SystemMatrixHyperparameter& cosserat_delamination_coeff,
-                                                      SystemMatrices<dim, Number> &system_matrices) const;
+    void assemble_cosserat_delamination_system(
+        const SystemMatrixType &system_matrix_type,
+        const FiniteElement<dim> &fe,
+        const DoFHandler<dim>   &dof_handler,
+        const AffineConstraints<Number>  &BC_constraints,
+        const SparsityPattern   &sparsity_pattern,
+        const SystemMatrixHyperparameter& cosserat_delamination_coeff,
+        SystemMatrices<dim, Number> &system_matrices
+    ) const;
 
 };

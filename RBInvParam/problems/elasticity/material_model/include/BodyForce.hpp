@@ -12,12 +12,6 @@ enum class BodyForceType {
     Dummy
 };
 
-// // Convert config string -> enum
-// inline BodyForceType parse_body_force(std::string_view name) {
-//     if (name == "center_excite") return BodyForceType::CenterExcite;
-//     throw std::runtime_error(std::string("Unknown body force: ") + std::string(name));
-// }
-
 class BodyForce : public Function<3>
 {
 public:
