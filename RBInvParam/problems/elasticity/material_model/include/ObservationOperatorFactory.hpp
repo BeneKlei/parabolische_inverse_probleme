@@ -16,6 +16,16 @@ enum class ObservationOperatorType {
     SensorsR8d,
 };
 
+
+// template <int dim, typename Number>
+// struct ObservationOperatorFactoryContext {
+//     const ObservationOperatorType &observation_operator_type,
+//     const FiniteElement<dim> &fe,
+//     const DoFHandler<dim> &dof_handler,
+//     const AffineConstraints<Number> &constraints,
+//     const SparsityPattern &sparsity_pattern,
+// };
+
 template <int dim, typename Number>
 class ObservationOperatorFactory
 {
@@ -27,7 +37,8 @@ public:
         const DoFHandler<dim> &dof_handler,
         const AffineConstraints<Number> &constraints,
         const SparsityPattern &sparsity_pattern,
-        SparseMatrix<Number>& observation_operator_matrix
+        SparseMatrix<Number>& observation_operator_matrix,
+        SparsityPattern& observation_operator_sp
     ) const;
 
     void assemble_identity_observation(
@@ -36,7 +47,8 @@ public:
         const DoFHandler<dim> &dof_handler,
         const AffineConstraints<Number> &constraints,
         const SparsityPattern &sparsity_pattern,
-        SparseMatrix<Number>& observation_operator_matrix
+        SparseMatrix<Number>& observation_operator_matrix,
+        SparsityPattern& observation_operator_sp
     ) const;
 
     void assemble_boundary_observation(
@@ -45,7 +57,8 @@ public:
         const DoFHandler<dim> &dof_handler,
         const AffineConstraints<Number> &constraints,
         const SparsityPattern &sparsity_pattern,
-        SparseMatrix<Number>& observation_operator_matrix
+        SparseMatrix<Number>& observation_operator_matrix,
+        SparsityPattern& observation_operator_sp
     ) const;
 
     void assemble_sensors_observation(
@@ -54,10 +67,13 @@ public:
         const DoFHandler<dim> &dof_handler,
         const AffineConstraints<Number> &constraints,
         const SparsityPattern &sparsity_pattern,
-        SparseMatrix<Number>& observation_operator_matrix
+        SparseMatrix<Number>& observation_operator_matrix,
+        SparsityPattern& observation_operator_sp
     ) const;
 
-    void assemble_boundary_mass_matrix(
+    // ---------------------------- utils funcs ----------------------------
+    
+    void _assemble_boundary_mass_matrix(
         const FiniteElement<dim> &fe,
         const DoFHandler<dim> &dof_handler,
         const AffineConstraints<Number> &constraints,
@@ -65,5 +81,7 @@ public:
         SparseMatrix<Number>& boundary_mass_matrix
     ) const;
 
-
+    std::vector<Point<dim>> _get_sensor_points(
+        const ObservationOperatorType &observation_operator_type
+    ) const;
 };

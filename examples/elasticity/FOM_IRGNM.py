@@ -93,6 +93,7 @@ def main():
             'bochner_prod_V': 'bochner_h1_0_semi'     # Product on V_h^K
         },
         'observation_operator': {
+            #'type': mm.ObservationOperatorType.SensorsR9d,                       # Type of observation operator (e.g., identity = full state observed)
             'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
         },
         'time_stepper' : {

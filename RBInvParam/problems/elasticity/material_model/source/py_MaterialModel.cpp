@@ -10,6 +10,7 @@
 #include "MaterialMatricesFactory.hpp"
 #include "BodyForce.hpp"
 #include "ObservationOperatorFactory.hpp"
+#include "StateProdcutFactory.hpp"
 
 // -------- PYTHON BINDINGS -----------------------------------------------------------------------
 
@@ -25,12 +26,13 @@ PYBIND11_MODULE(material_model, m) {
           .def_readwrite("m_q", &MaterialModel::m_q)
           .def_readwrite("m_d", &MaterialModel::m_d)
           .def("assemble_system_matrix", &MaterialModel::assemble_system_matrix)
-          .def("assemble_l2_matrix", &MaterialModel::assemble_l2_matrix)
-          .def("assemble_l2_0_matrix", &MaterialModel::assemble_l2_0_matrix)
-          .def("assemble_h1_semi_matrix", &MaterialModel::assemble_h1_semi_matrix)
-          .def("assemble_h1_0_semi_matrix", &MaterialModel::assemble_h1_0_semi_matrix)
-          .def("assemble_h1_matrix", &MaterialModel::assemble_h1_matrix)
-          .def("assemble_h1_0_matrix", &MaterialModel::assemble_h1_0_matrix)
+         //  .def("assemble_l2_matrix", &MaterialModel::assemble_l2_matrix)
+         //  .def("assemble_l2_0_matrix", &MaterialModel::assemble_l2_0_matrix)
+         //  .def("assemble_h1_semi_matrix", &MaterialModel::assemble_h1_semi_matrix)
+         //  .def("assemble_h1_0_semi_matrix", &MaterialModel::assemble_h1_0_semi_matrix)
+         //  .def("assemble_h1_matrix", &MaterialModel::assemble_h1_matrix)
+         //  .def("assemble_h1_0_matrix", &MaterialModel::assemble_h1_0_matrix)
+          .def("assemble_state_product", &MaterialModel::assemble_state_product)
           .def("assemble_mass_matrix", &MaterialModel::assemble_mass_matrix)
           .def("sparsity_pattern", &MaterialModel::sparsity_pattern, py::return_value_policy::reference_internal)
           .def("n_dofs", &MaterialModel::n_dofs, py::return_value_policy::reference_internal)
@@ -56,6 +58,17 @@ PYBIND11_MODULE(material_model, m) {
          .value("Boundary", ObservationOperatorType::Boundary)
          .value("SensorsR9d", ObservationOperatorType::SensorsR9d)
          .value("SensorsR8d", ObservationOperatorType::SensorsR8d)
+         .export_values();
+
+      py::enum_<StateProductType>(m, "StateProductType")
+         .value("L2", StateProductType::L2)
+         .value("L2_0", StateProductType::L2_0)
+         .value("H1_semi", StateProductType::H1_semi)
+         .value("H1_0_semi", StateProductType::H1_0_semi)
+         .value("H1", StateProductType::H1)
+         .value("H1_0", StateProductType::H1_0)
+         .value("Mass", StateProductType::Mass)
+         .value("BoundaryMass", StateProductType::BoundaryMass)
          .export_values();
 
      py::class_<MaterialModelConfig>(m, "MaterialModelConfig")

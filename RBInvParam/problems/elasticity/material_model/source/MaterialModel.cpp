@@ -50,7 +50,6 @@ void MaterialModel::make_grid()
         dest
     ); 
 
-    // Mark x = -0.1 (left) and x = +0.1 (right)
     for (const auto &face : m_triangulation.active_face_iterators())
     {
         if (face->at_boundary())
@@ -79,22 +78,28 @@ void MaterialModel::setup_system()
   m_dof_handler.clear();
   m_dof_handler.distribute_dofs(m_fe);
 
-  m_sparsity_pattern.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
-  DoFTools::make_sparsity_pattern(m_dof_handler, m_sparsity_pattern);
-  m_sparsity_pattern.compress();
+  m_system_matrix_sp.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
+  DoFTools::make_sparsity_pattern(m_dof_handler, m_system_matrix_sp);
+  m_system_matrix_sp.compress();
 
   std::cout << "\t Setting up BC constraints." << std::endl;
   setup_BC_constraints();
   std::cout << "\t Setting up system matrizies." << std::endl;
-  m_material_matrices_factory.assemble_system(
+
+  MaterialMatricesFactoryContext<3, Number> ctx {
     m_config.system_matrix_type,
     m_fe,
     m_dof_handler,
     m_BC_constraints,
-    m_sparsity_pattern,
-    m_config.system_matrix_hyperparameter,
+    m_system_matrix_sp,
+    m_config.system_matrix_hyperparameter
+  };
+
+  m_material_matrices_factory.assemble_system(
+    ctx,
     m_system_matrices
   );
+
   std::cout << "\t Defining BodyForce." << std::endl;
   setup_body_force();
   std::cout << "\t Assembling force list." << std::endl;
@@ -125,7 +130,6 @@ void MaterialModel::setup_BC_constraints()
 
   m_BC_constraints.close();
 }
-
 
 void MaterialModel::assemble_force(Vector<Number>& result, double time) 
 {
@@ -189,166 +193,144 @@ void MaterialModel::assemble_system_matrix(SparseMatrix<Number>& system_matrix)
   m_system_matrices.assemble(system_matrix, m_q);
 }
 
-template <typename Integrand>
-void MaterialModel::_assemble_product_matrix(SparseMatrix<Number>& matrix,
-                                             Integrand integrand,
-                                             const AffineConstraints<Number>& constraints)
-{
-  QGaussLobatto<3> quadrature_formula(2);
-  FEValues<dim> fe_values(m_fe, quadrature_formula,
-                          update_values | update_gradients | update_quadrature_points | update_JxW_values);
 
-  const unsigned int dofs_per_cell = m_fe.dofs_per_cell;
-  const unsigned int n_quadrature_points = quadrature_formula.size();
-  
-  FullMatrix<Number> cell_matrix(dofs_per_cell, dofs_per_cell);
-  std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+void MaterialModel::assemble_state_product(SparseMatrix<Number>& state_product_matrix, const StateProductType state_product_type) {
+  StateProductFactoryContext<3, Number> ctx {
+    state_product_type,
+    m_fe,
+    m_dof_handler,
+    m_system_matrix_sp    
+  };
 
-  matrix.reinit(m_sparsity_pattern);
-  matrix = 0;
-
-  typename DoFHandler<dim>::active_cell_iterator cell = m_dof_handler.begin_active(), endc = m_dof_handler.end();
-  for (; cell != endc; ++cell) {
-    fe_values.reinit(cell);
-    cell_matrix = 0;
-    cell->get_dof_indices(local_dof_indices);
-
-    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-      const unsigned int component_i = m_fe.system_to_component_index(i).first;
-
-      for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-        const unsigned int component_j = m_fe.system_to_component_index(j).first;
-        
-        if (component_i != component_j)
-          continue;
-
-        for (unsigned int q_point = 0; q_point < n_quadrature_points; ++q_point) {
-          cell_matrix(i, j) += integrand(i, j, q_point, fe_values) * fe_values.JxW(q_point);
-          
-        }
-      }
-    }
-    constraints.distribute_local_to_global(cell_matrix, local_dof_indices, matrix);
-  }
-
-  constraints.condense(matrix);
-}
-
-//TODO Move all the product assemblies into ProductMatrixFactory or so
-void MaterialModel::assemble_l2_matrix(SparseMatrix<Number>& l2_matrix)
-{
-  auto l2_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
-  [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
-    return fe.shape_value(i, q) * fe.shape_value(j, q);
-  });
-
-  AffineConstraints<Number> empty_BC_constraints;
-  empty_BC_constraints.clear(); 
-  empty_BC_constraints.close(); 
-  _assemble_product_matrix(l2_matrix, l2_integrand, empty_BC_constraints);
-}
-
-void MaterialModel::assemble_l2_0_matrix(SparseMatrix<Number>& l2_0_matrix)
-{
-  auto l2_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
-  [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
-    return fe.shape_value(i, q) * fe.shape_value(j, q);
-  });
-  
-  Functions::ZeroFunction<dim> zero_bc_function(m_fe.n_components()); 
-  uint32_t boundary_id = 0;
-  AffineConstraints<Number> zero_BC_constraints;
-
-  VectorTools::interpolate_boundary_values(
-    m_dof_handler, 
-    boundary_id, 
-    zero_bc_function, 
-    zero_BC_constraints
+  m_state_product_factory.assemble_state_product(
+    ctx,
+    state_product_matrix
   );
-
-  zero_BC_constraints.close();
-  _assemble_product_matrix(l2_0_matrix, l2_integrand, zero_BC_constraints);
 }
 
-void MaterialModel::assemble_h1_semi_matrix(SparseMatrix<Number>& h1_semi_matrix)
-{
-  auto h1_semi_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
-  [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
-    return fe.shape_grad(i, q) * fe.shape_grad(j, q);
-  });
-  AffineConstraints<Number> empty_BC_constraints;
-  empty_BC_constraints.clear(); 
-  empty_BC_constraints.close();
-
-  _assemble_product_matrix(h1_semi_matrix, h1_semi_integrand, empty_BC_constraints);
-}
-
-void MaterialModel::assemble_h1_0_semi_matrix(SparseMatrix<Number>& h1_0_semi_matrix)
-{
-  auto h1_semi_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
-  [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
-    return fe.shape_grad(i, q) * fe.shape_grad(j, q);
-  });
   
-  Functions::ZeroFunction<dim> zero_bc_function(m_fe.n_components()); 
-  uint32_t boundary_id = 0;
-  AffineConstraints<Number> zero_BC_constraints;
 
-  VectorTools::interpolate_boundary_values(
-    m_dof_handler, 
-    boundary_id, 
-    zero_bc_function, 
-    zero_BC_constraints
-  );
+// //TODO Move all the product assemblies into ProductMatrixFactory or so
+// void MaterialModel::assemble_l2_matrix(SparseMatrix<Number>& l2_matrix)
+// {
+//   auto l2_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
+//   [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
+//     return fe.shape_value(i, q) * fe.shape_value(j, q);
+//   });
 
-  zero_BC_constraints.close();
-  _assemble_product_matrix(h1_0_semi_matrix, h1_semi_integrand, zero_BC_constraints);
-}
+//   AffineConstraints<Number> empty_BC_constraints;
+//   empty_BC_constraints.clear(); 
+//   empty_BC_constraints.close(); 
+//   _assemble_product_matrix(l2_matrix, l2_integrand, empty_BC_constraints);
+// }
 
-void MaterialModel::assemble_h1_matrix(SparseMatrix<Number>& h1_matrix)
-{
-  auto h1_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
-  [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
-    return fe.shape_grad(i, q) * fe.shape_grad(j, q) + fe.shape_grad(i, q) * fe.shape_grad(j, q);;
-  });
+// void MaterialModel::assemble_l2_0_matrix(SparseMatrix<Number>& l2_0_matrix)
+// {
+//   auto l2_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
+//   [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
+//     return fe.shape_value(i, q) * fe.shape_value(j, q);
+//   });
+  
+//   Functions::ZeroFunction<dim> zero_bc_function(m_fe.n_components()); 
+//   uint32_t boundary_id = 0;
+//   AffineConstraints<Number> zero_BC_constraints;
 
-  AffineConstraints<Number> empty_BC_constraints;
-  empty_BC_constraints.clear(); 
-  empty_BC_constraints.close();
+//   VectorTools::interpolate_boundary_values(
+//     m_dof_handler, 
+//     boundary_id, 
+//     zero_bc_function, 
+//     zero_BC_constraints
+//   );
 
-  _assemble_product_matrix(h1_matrix, h1_integrand, empty_BC_constraints);
-}
+//   zero_BC_constraints.close();
+//   _assemble_product_matrix(l2_0_matrix, l2_integrand, zero_BC_constraints);
+// }
 
-void MaterialModel::assemble_h1_0_matrix(SparseMatrix<Number>& h1_0_matrix)
-{
-  auto h1_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
-  [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
-    return fe.shape_grad(i, q) * fe.shape_grad(j, q) + fe.shape_grad(i, q) * fe.shape_grad(j, q);;
-  });
+// void MaterialModel::assemble_h1_semi_matrix(SparseMatrix<Number>& h1_semi_matrix)
+// {
+//   auto h1_semi_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
+//   [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
+//     return fe.shape_grad(i, q) * fe.shape_grad(j, q);
+//   });
+//   AffineConstraints<Number> empty_BC_constraints;
+//   empty_BC_constraints.clear(); 
+//   empty_BC_constraints.close();
 
-  Functions::ZeroFunction<dim> zero_bc_function(m_fe.n_components()); 
-  uint32_t boundary_id = 0;
-  AffineConstraints<Number> zero_BC_constraints;
+//   _assemble_product_matrix(h1_semi_matrix, h1_semi_integrand, empty_BC_constraints);
+// }
 
-  VectorTools::interpolate_boundary_values(
-    m_dof_handler, 
-    boundary_id, 
-    zero_bc_function, 
-    zero_BC_constraints
-  );
+// void MaterialModel::assemble_h1_0_semi_matrix(SparseMatrix<Number>& h1_0_semi_matrix)
+// {
+//   auto h1_semi_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
+//   [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
+//     return fe.shape_grad(i, q) * fe.shape_grad(j, q);
+//   });
+  
+//   Functions::ZeroFunction<dim> zero_bc_function(m_fe.n_components()); 
+//   uint32_t boundary_id = 0;
+//   AffineConstraints<Number> zero_BC_constraints;
 
-  zero_BC_constraints.close();
+//   VectorTools::interpolate_boundary_values(
+//     m_dof_handler, 
+//     boundary_id, 
+//     zero_bc_function, 
+//     zero_BC_constraints
+//   );
 
-  _assemble_product_matrix(h1_0_matrix, h1_integrand, zero_BC_constraints);
-}
+//   zero_BC_constraints.close();
+//   _assemble_product_matrix(h1_0_semi_matrix, h1_semi_integrand, zero_BC_constraints);
+// }
+
+// void MaterialModel::assemble_h1_matrix(SparseMatrix<Number>& h1_matrix)
+// {
+//   auto h1_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
+//   [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
+//     return fe.shape_grad(i, q) * fe.shape_grad(j, q) + fe.shape_grad(i, q) * fe.shape_grad(j, q);;
+//   });
+
+//   AffineConstraints<Number> empty_BC_constraints;
+//   empty_BC_constraints.clear(); 
+//   empty_BC_constraints.close();
+
+//   _assemble_product_matrix(h1_matrix, h1_integrand, empty_BC_constraints);
+// }
+
+// void MaterialModel::assemble_h1_0_matrix(SparseMatrix<Number>& h1_0_matrix)
+// {
+//   auto h1_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
+//   [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
+//     return fe.shape_grad(i, q) * fe.shape_grad(j, q) + fe.shape_grad(i, q) * fe.shape_grad(j, q);;
+//   });
+
+//   Functions::ZeroFunction<dim> zero_bc_function(m_fe.n_components()); 
+//   uint32_t boundary_id = 0;
+//   AffineConstraints<Number> zero_BC_constraints;
+
+//   VectorTools::interpolate_boundary_values(
+//     m_dof_handler, 
+//     boundary_id, 
+//     zero_bc_function, 
+//     zero_BC_constraints
+//   );
+
+//   zero_BC_constraints.close();
+
+//   _assemble_product_matrix(h1_0_matrix, h1_integrand, zero_BC_constraints);
+// }
 
 void MaterialModel::assemble_mass_matrix(SparseMatrix<Number>& mass_matrix)
 {
-  auto l2_integrand = std::function<Number(unsigned int, unsigned int, unsigned int, const FEValues<dim>&)>(
-  [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
-    return fe.shape_value(i, q) * fe.shape_value(j, q);
-  });
-  _assemble_product_matrix(mass_matrix, l2_integrand, m_BC_constraints);
+  StateProductFactoryContext<3, Number> ctx {
+    StateProductType::Mass,
+    m_fe,
+    m_dof_handler,
+    m_system_matrix_sp    
+  };
+
+  m_state_product_factory.assemble_state_product(
+    ctx,
+    mass_matrix
+  );
 }
 
 void MaterialModel::output_results(Vector<double>& solution) const
@@ -373,8 +355,9 @@ void MaterialModel::assemble_observation_operator_matrix(
       m_fe,
       m_dof_handler,
       m_BC_constraints,
-      m_sparsity_pattern,
-      operator_matrix
+      m_system_matrix_sp,
+      operator_matrix,
+      m_observation_operator_sp
   ); 
 }
 
@@ -382,7 +365,7 @@ void MaterialModel::assemble_observation_operator_matrix(
 
 // void MaterialModel::assemble_euclidian_matrix(SparseMatrix<Number>& matrix)
 // {
-//   matrix.reinit(m_sparsity_pattern);
+//   matrix.reinit(m_system_matrix_sp);
 //   matrix = 0;
 
 //   const auto n_dofs = m_dof_handler.n_dofs();
@@ -429,8 +412,8 @@ void MaterialModel::assemble_bilinear_cost_matrix(
   prod_C.mmult(buf, C, Vector<Number>(), false);
   
   SparsityPattern buf_sp_ = utils::make_product_sparsity_ATB(C, buf);
-  m_bilinear_cost_sparsity_pattern.copy_from(buf_sp_);
-  matrix.reinit(m_bilinear_cost_sparsity_pattern);
+  m_bilinear_cost_sp.copy_from(buf_sp_);
+  matrix.reinit(m_bilinear_cost_sp);
 
   C.Tmmult(matrix, buf, Vector<Number>(), false); 
 }

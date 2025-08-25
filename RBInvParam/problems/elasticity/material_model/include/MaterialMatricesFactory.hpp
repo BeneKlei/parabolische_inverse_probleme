@@ -39,11 +39,19 @@ inline void check_required_keys(
     }
 }
 
-
-
 enum class SystemMatrixType {
     CosseratDelamination,
     Cosserat
+};
+
+template <int dim, typename Number>
+struct MaterialMatricesFactoryContext {
+  const SystemMatrixType             &system_matrix_type;
+  const FiniteElement<dim>           &fe;
+  const DoFHandler<dim>              &dof_handler;
+  const AffineConstraints<Number>    &BC_constraints;
+  const SparsityPattern              &sparsity_pattern;
+  const SystemMatrixHyperparameter   &hyperparameter;
 };
 
 template <int dim, typename Number>
@@ -51,32 +59,17 @@ class MaterialMatricesFactory
 {
 public:
     void assemble_system(
-        const SystemMatrixType &system_matrix_type,
-        const FiniteElement<dim> &fe,
-        const DoFHandler<dim>   &dof_handler,
-        const AffineConstraints<Number> &constraints,
-        const SparsityPattern   &sparsity_pattern,
-        const SystemMatrixHyperparameter& system_matrix_hyperparameter,
+        const MaterialMatricesFactoryContext<dim, Number>& ctx,
         SystemMatrices<dim, Number> &system_matrices
     ) const;
 
     void assemble_cosserat_system(
-        const SystemMatrixType &system_matrix_type,
-        const FiniteElement<dim> &fe,
-        const DoFHandler<dim>   &dof_handler,
-        const AffineConstraints<Number> &constraints,
-        const SparsityPattern   &sparsity_pattern,
-        const SystemMatrixHyperparameter& lame_coeff,
+        const MaterialMatricesFactoryContext<dim, Number>& ctx,
         SystemMatrices<dim, Number> &system_matrices
     ) const;
 
     void assemble_cosserat_delamination_system(
-        const SystemMatrixType &system_matrix_type,
-        const FiniteElement<dim> &fe,
-        const DoFHandler<dim>   &dof_handler,
-        const AffineConstraints<Number>  &BC_constraints,
-        const SparsityPattern   &sparsity_pattern,
-        const SystemMatrixHyperparameter& cosserat_delamination_coeff,
+        const MaterialMatricesFactoryContext<dim, Number>& ctx,
         SystemMatrices<dim, Number> &system_matrices
     ) const;
 

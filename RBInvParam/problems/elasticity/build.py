@@ -95,12 +95,31 @@ def build_InstationaryModelIP(setup : Dict,
         'l2_0' : pd2.SparseMatrix(),
     }
 
-    material_model.assemble_h1_matrix(assembled_state_products['h1'])
-    material_model.assemble_h1_semi_matrix(assembled_state_products['h1_semi'])
-    material_model.assemble_l2_matrix(assembled_state_products['l2'])
-    material_model.assemble_h1_0_matrix(assembled_state_products['h1_0'])
-    material_model.assemble_h1_0_semi_matrix(assembled_state_products['h1_0_semi'])
-    material_model.assemble_l2_0_matrix(assembled_state_products['l2_0'])
+    assembled_parameter_products  = {
+        'euclid' : scipy.sparse.identity(Q_h.dim)
+    }
+
+    assembled_observation_space_products  = {
+        'euclid' : pd2.SparseMatrix()
+    }
+
+    material_model.assemble_state_product(assembled_state_products['h1'], mm.StateProductType.H1)
+    material_model.assemble_state_product(assembled_state_products['h1_semi'], mm.StateProductType.H1_semi)
+    material_model.assemble_state_product(assembled_state_products['l2'], mm.StateProductType.L2)
+    material_model.assemble_state_product(assembled_state_products['h1_0'], mm.StateProductType.H1_0)
+    material_model.assemble_state_product(assembled_state_products['h1_0_semi'], mm.StateProductType.H1_0_semi)
+    material_model.assemble_state_product(assembled_state_products['l2_0'], mm.StateProductType.L2_0)
+
+    print(assembled_state_products['l2'])
+    print(assembled_state_products['l2'].source)
+    import sys
+    sys.exit()
+    # material_model.assemble_h1_matrix(assembled_state_products['h1'])
+    # material_model.assemble_h1_semi_matrix(assembled_state_products['h1_semi'])
+    # material_model.assemble_l2_matrix(assembled_state_products['l2'])
+    # material_model.assemble_h1_0_matrix(assembled_state_products['h1_0'])
+    # material_model.assemble_h1_0_semi_matrix(assembled_state_products['h1_0_semi'])
+    # material_model.assemble_l2_0_matrix(assembled_state_products['l2_0'])
 
     #process products dict
     product_names = {}
@@ -113,11 +132,7 @@ def build_InstationaryModelIP(setup : Dict,
             product_name = value
         product_names[key] = product_name
 
-    assembled_parameter_products  = {
-        'euclid' : scipy.sparse.identity(Q_h.dim)
-    }
-
-    # Assume H = V = C
+    # Assume V \subset H
     assert product_names['prod_H'] in assembled_state_products.keys()
     assert product_names['prod_Q'] in assembled_parameter_products.keys()
     assert product_names['prod_V'] in assembled_state_products.keys()

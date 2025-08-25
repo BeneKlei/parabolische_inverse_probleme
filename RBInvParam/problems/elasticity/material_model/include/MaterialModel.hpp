@@ -23,6 +23,7 @@
 #include "SystemMatrices.hpp"
 #include "BodyForce.hpp"
 #include "ObservationOperatorFactory.hpp"
+#include "StateProdcutFactory.hpp"
 
 using namespace dealii;
 
@@ -67,13 +68,13 @@ public:
     const Vector<Number>& state_DoFs
   );
 
-  
-  void assemble_l2_matrix(SparseMatrix<Number>& l2_matrix);
-  void assemble_l2_0_matrix(SparseMatrix<Number>& l2_0_matrix);
-  void assemble_h1_semi_matrix(SparseMatrix<Number>& h1_semi_matrix);
-  void assemble_h1_0_semi_matrix(SparseMatrix<Number>& h1_0_semi_matrix);
-  void assemble_h1_matrix(SparseMatrix<Number>& h1_matrix);
-  void assemble_h1_0_matrix(SparseMatrix<Number>& h1_0_matrix);
+  void assemble_state_product(SparseMatrix<Number>& state_product_matrix, const StateProductType state_product_type);
+  // void assemble_l2_matrix(SparseMatrix<Number>& l2_matrix);
+  // void assemble_l2_0_matrix(SparseMatrix<Number>& l2_0_matrix);
+  // void assemble_h1_semi_matrix(SparseMatrix<Number>& h1_semi_matrix);
+  // void assemble_h1_0_semi_matrix(SparseMatrix<Number>& h1_0_semi_matrix);
+  // void assemble_h1_matrix(SparseMatrix<Number>& h1_matrix);
+  // void assemble_h1_0_matrix(SparseMatrix<Number>& h1_0_matrix);
   //void assemble_euclidian_matrix(SparseMatrix<Number>& operator_matrix);
 
   
@@ -86,7 +87,7 @@ public:
   
   void output_results(Vector<double>& solution) const;
     
-  const SparsityPattern& sparsity_pattern() const { return m_sparsity_pattern; }
+  const SparsityPattern& sparsity_pattern() const { return m_system_matrix_sp; }
   uint32_t n_dofs() const { return m_dof_handler.n_dofs(); }
   const std::vector<Vector<Number>>& get_force_list() const { return m_force_list; };
 
@@ -99,11 +100,15 @@ private:
   Triangulation<dim> m_triangulation;
   FESystem<dim> m_fe;
   DoFHandler<dim> m_dof_handler;
-  SparsityPattern m_sparsity_pattern;
-  SparsityPattern m_bilinear_cost_sparsity_pattern;
+
+  SparsityPattern m_system_matrix_sp;
+  SparsityPattern m_bilinear_cost_sp;
+  SparsityPattern m_observation_operator_sp;
+  SparsityPattern m_observation_space_product_sp;
 
   MaterialMatricesFactory<dim, Number> m_material_matrices_factory = MaterialMatricesFactory<3, Number>();
   ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
+  StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
   //SystemMatrices<dim, Number> m_system_matrices = SystemMatrices<3, Number>();
   SystemMatrices<dim, Number> m_system_matrices;
 
