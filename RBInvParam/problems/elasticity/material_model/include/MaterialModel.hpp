@@ -23,7 +23,7 @@
 #include "SystemMatrices.hpp"
 #include "BodyForce.hpp"
 #include "ObservationOperatorFactory.hpp"
-#include "StateProdcutFactory.hpp"
+#include "StateProductFactory.hpp"
 
 using namespace dealii;
 

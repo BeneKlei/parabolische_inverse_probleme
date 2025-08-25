@@ -71,10 +71,10 @@ public:
         SparseMatrix<Number>& state_product_matrix
     ) const;
 
-    // void assemble_boundary_mass_product(
-    //     const StateProductFactoryContext<dim, Number>& ctx,
-    //     SparseMatrix<Number>& state_product_matrix
-    // ) const;
+    void assemble_boundary_mass_product(
+        const StateProductFactoryContext<dim, Number>& ctx,
+        SparseMatrix<Number>& state_product_matrix
+    ) const;
 
     template <typename Integrand>
     void _assemble_product(

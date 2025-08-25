@@ -110,10 +110,6 @@ def build_InstationaryModelIP(setup : Dict,
     material_model.assemble_state_product(assembled_state_products['h1_0_semi'], mm.StateProductType.H1_0_semi)
     material_model.assemble_state_product(assembled_state_products['l2_0'], mm.StateProductType.L2_0)
 
-    print(assembled_state_products['l2'])
-    print(assembled_state_products['l2'].source)
-    import sys
-    sys.exit()
     # material_model.assemble_h1_matrix(assembled_state_products['h1'])
     # material_model.assemble_h1_semi_matrix(assembled_state_products['h1_semi'])
     # material_model.assemble_l2_matrix(assembled_state_products['l2'])

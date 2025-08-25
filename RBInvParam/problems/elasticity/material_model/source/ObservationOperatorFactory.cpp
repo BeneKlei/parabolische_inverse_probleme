@@ -10,24 +10,16 @@ template class ObservationOperatorFactory<3, double>;
 
 template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_observation(
-    const ObservationOperatorType &observation_operator_type,
-    const FiniteElement<dim> &fe,
-    const DoFHandler<dim> &dof_handler,
-    const AffineConstraints<Number> &constraints,
-    const SparsityPattern &sparsity_pattern,
+    ObservationOperatorFactoryContext<dim, Number> ctx,
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp) const
 {
-  switch (observation_operator_type)
+  switch (ctx.observation_operator_type)
   {
   case ObservationOperatorType::Identity:
     std::cout << "\t Using Identity ObservationOperator" << std::endl;
     ObservationOperatorFactory::assemble_identity_observation(
-        observation_operator_type,
-        fe,
-        dof_handler,
-        constraints,
-        sparsity_pattern,
+        ctx,
         observation_operator_matrix,
         observation_operator_sp
     );  
@@ -35,11 +27,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
   case ObservationOperatorType::Boundary:
     std::cout << "\t Using Boundary ObservationOperator" << std::endl;
     ObservationOperatorFactory::assemble_boundary_observation(
-        observation_operator_type,
-        fe,
-        dof_handler,
-        constraints,
-        sparsity_pattern,
+        ctx,
         observation_operator_matrix,
         observation_operator_sp
     );
@@ -48,11 +36,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
   case ObservationOperatorType::SensorsR9d:
     std::cout << "\t Using Sensors ObservationOperator" << std::endl;
     ObservationOperatorFactory::assemble_sensors_observation(
-        observation_operator_type,
-        fe,
-        dof_handler,
-        constraints,
-        sparsity_pattern,
+        ctx,
         observation_operator_matrix,
         observation_operator_sp
     );
@@ -64,49 +48,44 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
 
 template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_identity_observation(
-    const ObservationOperatorType &observation_operator_type,
-    const FiniteElement<dim> &fe,
-    const DoFHandler<dim> &dof_handler,
-    const AffineConstraints<Number> &constraints,
-    const SparsityPattern &sparsity_pattern,
+    ObservationOperatorFactoryContext<dim, Number> ctx,
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp) const
 {
-    observation_operator_matrix.reinit(sparsity_pattern);
+    observation_operator_matrix.reinit(ctx.sparsity_pattern);
     observation_operator_matrix = 0;
 
-    for (types::global_dof_index i = 0; i < dof_handler.n_dofs(); ++i)
+    for (types::global_dof_index i = 0; i < ctx.dof_handler.n_dofs(); ++i)
         observation_operator_matrix.set(i, i, Number(1));
     
-    observation_operator_sp = sparsity_pattern;
+    observation_operator_sp = ctx.sparsity_pattern;
 }
 
 template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_boundary_observation(
-    const ObservationOperatorType &observation_operator_type,
-    const FiniteElement<dim> &fe,
-    const DoFHandler<dim> &dof_handler,
-    const AffineConstraints<Number> &constraints,
-    const SparsityPattern &sparsity_pattern,
+    ObservationOperatorFactoryContext<dim, Number> ctx,
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp) const
 {
-    ObservationOperatorFactory<dim, Number>::_assemble_boundary_mass_matrix(
-        fe,
-        dof_handler,
-        constraints,
-        sparsity_pattern,
-        observation_operator_matrix);
-    observation_operator_sp = sparsity_pattern;
+    StateProductFactoryContext<3, Number> boundary_mass_ctx {
+        StateProductType::BoundaryMass,
+        ctx.fe,
+        ctx.dof_handler,
+        ctx.sparsity_pattern    
+    };
+
+    m_state_product_factory.assemble_state_product(
+        boundary_mass_ctx,
+        observation_operator_matrix
+    );
+
+
+    observation_operator_sp = ctx.sparsity_pattern;
 }
 
 template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
-    const ObservationOperatorType &observation_operator_type,
-    const FiniteElement<dim> &fe,
-    const DoFHandler<dim> &dof_handler,
-    const AffineConstraints<Number> &constraints,
-    const SparsityPattern &sparsity_pattern,
+    ObservationOperatorFactoryContext<dim, Number> ctx,
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp) const
 {      
@@ -115,23 +94,28 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
 
     SparseMatrix<Number> G;
     SparseMatrix<Number> boundary_mass_matrix;
-    this->_assemble_boundary_mass_matrix(
-        fe,
-        dof_handler,
-        constraints,
-        sparsity_pattern,
+
+    StateProductFactoryContext<3, Number> boundary_mass_ctx {
+        StateProductType::BoundaryMass,
+        ctx.fe,
+        ctx.dof_handler,
+        ctx.sparsity_pattern    
+    };
+
+    m_state_product_factory.assemble_state_product(
+        boundary_mass_ctx,
         boundary_mass_matrix
     );
-    const std::vector<Point<dim>> sensor_points = this->_get_sensor_points(observation_operator_type);    
-    const unsigned int L = dof_handler.n_dofs();
+    const std::vector<Point<dim>> sensor_points = this->_get_sensor_points(ctx.observation_operator_type);    
+    const unsigned int L = ctx.dof_handler.n_dofs();
     const unsigned int l = sensor_points.size();
     std::vector<std::vector<types::global_dof_index>> rows(l);
 
     // ----------------------------------------------------
 
     MappingQ1<dim> mapping;
-    std::vector<Point<dim>> support_points(dof_handler.n_dofs());
-    DoFTools::map_dofs_to_support_points(mapping, dof_handler, support_points);
+    std::vector<Point<dim>> support_points(ctx.dof_handler.n_dofs());
+    DoFTools::map_dofs_to_support_points(mapping, ctx.dof_handler, support_points);
 
     for (unsigned int si = 0; si < l; ++si)
     {
@@ -163,66 +147,6 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
     observation_operator_matrix.reinit(observation_operator_sp);
     G.mmult(observation_operator_matrix, boundary_mass_matrix);
 }
-
-
-// TODO Move this with all the other products etc. into an own factory
-template <int dim, typename Number>
-void ObservationOperatorFactory<dim, Number>::_assemble_boundary_mass_matrix(
-    const FiniteElement<dim> &fe,
-    const DoFHandler<dim> &dof_handler,
-    const AffineConstraints<Number> &constraints,
-    const SparsityPattern &sparsity_pattern,
-    SparseMatrix<Number>& boundary_mass_matrix) const
-{
-    QGaussLobatto<dim-1> face_quadrature_formula(2);
-    FEFaceValues<dim> face_fe_values(fe, face_quadrature_formula,
-                                     update_values | update_gradients | update_quadrature_points | update_JxW_values);
-
-    const unsigned int dofs_per_cell = fe.dofs_per_cell;
-    const unsigned int n_quadrature_points = face_quadrature_formula.size();
-  
-    FullMatrix<Number> boundary_cell_matrix(dofs_per_cell, dofs_per_cell);
-    std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-    boundary_mass_matrix.reinit(sparsity_pattern);
-    boundary_mass_matrix = 0;
-    
-    typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(), endc = dof_handler.end();
-    for (; cell != endc; ++cell) {
-        for (unsigned int face = 0; face < GeometryInfo<3>::faces_per_cell; face++) {
-			if (cell->face(face)->at_boundary()) 
-            {   
-                boundary_cell_matrix = 0;
-                cell->get_dof_indices(local_dof_indices);
-                face_fe_values.reinit(cell, face);
-                for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                    const unsigned int component_i = fe.system_to_component_index(i).first;
-
-                    for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-                        const unsigned int component_j = fe.system_to_component_index(j).first;
-
-                        if (component_i != component_j)
-                            continue;
-
-                        for (unsigned int q_point = 0; q_point < n_quadrature_points; ++q_point) {
-                            boundary_cell_matrix(i, j) += 
-                            face_fe_values.shape_value(i,q_point)*
-                            face_fe_values.shape_value(j,q_point)*
-                            face_fe_values.JxW(q_point);
-                        }
-                    }
-                }
-                constraints.distribute_local_to_global(
-                    boundary_cell_matrix, 
-                    local_dof_indices, 
-                    boundary_mass_matrix
-                );
-            }
-        }
-    }
-    constraints.condense(boundary_mass_matrix);
-}
-
 
 template <int dim, typename Number>
 std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_points(

@@ -1,7 +1,7 @@
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/dofs/dof_tools.h>
 
-#include "StateProdcutFactory.hpp"
+#include "StateProductFactory.hpp"
 
 template class StateProductFactory<3, double>;
 
@@ -61,13 +61,13 @@ void StateProductFactory<dim, Number>::assemble_state_product(
         state_product_matrix
     );
     break;
-  // case StateProductType::BoundaryMass:
-  //   std::cout << "\t Using BoundaryMass StateProduct" << std::endl;
-  //   StateProductFactory::assemble_boundary_mass_product(
-  //       ctx,
-  //       state_product_matrix
-  //   );
-  //   break;
+  case StateProductType::BoundaryMass:
+    std::cout << "\t Using BoundaryMass StateProduct" << std::endl;
+    StateProductFactory::assemble_boundary_mass_product(
+        ctx,
+        state_product_matrix
+    );
+    break;
 
   default:
     throw std::runtime_error("Unknown StateProduct type.");
@@ -215,13 +215,63 @@ void StateProductFactory<dim, Number>::assemble_mass_product(
   StateProductFactory::assemble_l2_product(ctx, state_product_matrix);
 }
 
-// template <int dim, typename Number>
-// void StateProductFactory<dim, Number>::assemble_boundary_mass_product(
-//   const StateProductFactoryContext<dim, Number>& ctx,
-//   SparseMatrix<Number>& state_product_matrix) const
-// {
+template <int dim, typename Number>
+void StateProductFactory<dim, Number>::assemble_boundary_mass_product(
+  const StateProductFactoryContext<dim, Number>& ctx,
+  SparseMatrix<Number>& state_product_matrix) const
+{
+  QGaussLobatto<dim-1> face_quadrature_formula(2);
+  FEFaceValues<dim> face_fe_values(ctx.fe, face_quadrature_formula,
+                                    update_values | update_gradients | update_quadrature_points | update_JxW_values);
+
+  const unsigned int dofs_per_cell = ctx.fe.dofs_per_cell;
+  const unsigned int n_quadrature_points = face_quadrature_formula.size();
+
+  AffineConstraints<Number> empty_BC_constraints;
+  empty_BC_constraints.clear(); 
+  empty_BC_constraints.close();
+
+  FullMatrix<Number> boundary_cell_matrix(dofs_per_cell, dofs_per_cell);
+  std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+  state_product_matrix.reinit(ctx.sparsity_pattern);
+  state_product_matrix = 0;
   
-// }
+  typename DoFHandler<dim>::active_cell_iterator cell = ctx.dof_handler.begin_active(), endc = ctx.dof_handler.end();
+  for (; cell != endc; ++cell) {
+    for (unsigned int face = 0; face < GeometryInfo<3>::faces_per_cell; face++) {
+      if (cell->face(face)->at_boundary()) 
+      {   
+        boundary_cell_matrix = 0;
+        cell->get_dof_indices(local_dof_indices);
+        face_fe_values.reinit(cell, face);
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+          const unsigned int component_i = ctx.fe.system_to_component_index(i).first;
+
+          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+            const unsigned int component_j = ctx.fe.system_to_component_index(j).first;
+
+            if (component_i != component_j)
+            continue;
+
+            for (unsigned int q_point = 0; q_point < n_quadrature_points; ++q_point) {
+              boundary_cell_matrix(i, j) += 
+              face_fe_values.shape_value(i,q_point)*
+              face_fe_values.shape_value(j,q_point)*
+              face_fe_values.JxW(q_point);
+            }
+          }
+        }
+        empty_BC_constraints.distribute_local_to_global(
+          boundary_cell_matrix, 
+          local_dof_indices, 
+          state_product_matrix
+        );
+      }
+    }
+  }
+  empty_BC_constraints.condense(state_product_matrix);
+}
 
 
 
