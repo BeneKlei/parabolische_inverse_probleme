@@ -17,13 +17,13 @@ import RBInvParam.problems.elasticity.material_model as mm
 from RBInvParam.problems.elasticity.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
 from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator
 from RBInvParam.utils.logger import get_default_logger
-from RBInvParam.utils.discretization import construct_noise_data
+from RBInvParam.utils.discretization import construct_noise_data, process_product_names
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.error_estimator import CoercivityConstantEstimator
 
-
 from RBInvParam.problems.elasticity.evaluators import ElasticitiyFOMEvaluatorA, ElasticitiyFOMEvaluatorB
+#from utils import * 
 
 def build_InstationaryModelIP(setup : Dict,
                               logger : logging.Logger = None) -> InstationaryModelIP:
@@ -42,34 +42,39 @@ def build_InstationaryModelIP(setup : Dict,
     material_model_config.T_final = setup['T_final']
     material_model_config.delta_t = setup['delta_t']
     material_model_config.spatial_resolution = setup['spatial_resolution']
-    
-    # if setup['body_force_type'] == 'CenterExcite':
-    #     material_model_config.body_force_type = mm.BodyForceType.CenterExcite
-    # else:
-    #     raise ValueError
+    material_model_config.body_force_type = setup['body_force_type']
 
-    # if setup['system_matrix_type'] == 'Cosserat':
-    #     material_model_config.system_matrix_type = mm.SystemMatrixType.Cosserat
-    # elif setup['system_matrix_type'] == 'Cosserat':
-    #     material_model_config.system_matrix_type = mm.SystemMatrixType.Cosserat
-    # else:
-    #     raise ValueError
-    
-    if setup['system_matrix_hyperparameter']: 
-        material_model_config.system_matrix_hyperparameter = setup['system_matrix_hyperparameter']
+    material_model_config.system_matrix_type = setup['system_matrix']['type']
+    if setup['system_matrix']['hyperparameter']: 
+        material_model_config.system_matrix_hyperparameter = setup['system_matrix']['hyperparameter']
 
     material_model = mm.MaterialModel(material_model_config)
     material_model.make_grid()
     material_model.setup_system()
 
-    setup['dims']['state_dim'] = material_model.n_dofs()
-    setup['dims']['output_dim'] = material_model.n_dofs()
+    ############################### State and Param Space ###############################
+
+    setup['dims']['par_dim'] = material_model.param_space_dim
+    setup['dims']['state_dim'] = material_model.state_space_dim
 
     Q_h = NumpyVectorSpace(dim = setup['dims']['par_dim'])
-    #Q_h = DealIIVectorSpace(dim = setup['par_dim'])
     V_h = DealIIVectorSpace(dim = setup['dims']['state_dim'])
 
-    ############################### Products ###############################
+    ############################### State and Param Products ###############################
+
+    product_names = setup['products']
+
+    _str_to_enum_map_state = {
+        'l2' : mm.StateProductType.L2, 
+        'l2_0' : mm.StateProductType.L2_0, 
+        'h1_semi' : mm.StateProductType.H1_semi, 
+        'h1_0_semi' : mm.StateProductType.H1_0_semi,
+        'h1' : mm.StateProductType.H1, 
+        'h1_0' : mm.StateProductType.H1_0, 
+    }
+
+    material_model.assemble_product_H(_str_to_enum_map_state[product_names['prod_H']])
+    material_model.assemble_product_V(_str_to_enum_map_state[product_names['prod_V']])
 
     products = {
         'prod_H' : None,
@@ -78,66 +83,15 @@ def build_InstationaryModelIP(setup : Dict,
         'prod_C' : None,
         'bochner_prod_Q' : None,
         'bochner_prod_V' : None,
-    }
-
-    # assembled_parameter_products = {
-    #     'euclid' : pd2.SparseMatrix()
-    # }
-
-    # material_model.assemble_h1_matrix(assembled_parameter_products['h1'])
-
-    assembled_state_products = {
-        'h1' : pd2.SparseMatrix(),
-        'h1_semi' : pd2.SparseMatrix(),
-        'l2' : pd2.SparseMatrix(),
-        'h1_0' : pd2.SparseMatrix(),
-        'h1_0_semi' : pd2.SparseMatrix(),
-        'l2_0' : pd2.SparseMatrix(),
+        'bochner_prod_C' : None,
     }
 
     assembled_parameter_products  = {
         'euclid' : scipy.sparse.identity(Q_h.dim)
     }
 
-    assembled_observation_space_products  = {
-        'euclid' : pd2.SparseMatrix()
-    }
-
-    material_model.assemble_state_product(assembled_state_products['h1'], mm.StateProductType.H1)
-    material_model.assemble_state_product(assembled_state_products['h1_semi'], mm.StateProductType.H1_semi)
-    material_model.assemble_state_product(assembled_state_products['l2'], mm.StateProductType.L2)
-    material_model.assemble_state_product(assembled_state_products['h1_0'], mm.StateProductType.H1_0)
-    material_model.assemble_state_product(assembled_state_products['h1_0_semi'], mm.StateProductType.H1_0_semi)
-    material_model.assemble_state_product(assembled_state_products['l2_0'], mm.StateProductType.L2_0)
-
-    # material_model.assemble_h1_matrix(assembled_state_products['h1'])
-    # material_model.assemble_h1_semi_matrix(assembled_state_products['h1_semi'])
-    # material_model.assemble_l2_matrix(assembled_state_products['l2'])
-    # material_model.assemble_h1_0_matrix(assembled_state_products['h1_0'])
-    # material_model.assemble_h1_0_semi_matrix(assembled_state_products['h1_0_semi'])
-    # material_model.assemble_l2_0_matrix(assembled_state_products['l2_0'])
-
-    #process products dict
-    product_names = {}
-    product_name = ''
-    for (key,value) in setup['products'].items():
-        buf = value.split('_')
-        if buf[0] == 'bochner':
-            product_name = '_'.join(buf[1:])
-        else:
-            product_name = value
-        product_names[key] = product_name
-
-    # Assume V \subset H
-    assert product_names['prod_H'] in assembled_state_products.keys()
-    assert product_names['prod_Q'] in assembled_parameter_products.keys()
-    assert product_names['prod_V'] in assembled_state_products.keys()
-    assert product_names['prod_C'] in assembled_state_products.keys()
-    assert product_names['bochner_prod_Q'] in assembled_parameter_products.keys()
-    assert product_names['bochner_prod_V'] in assembled_state_products.keys()
-
     products['prod_H'] = DealIIMatrixOperator(
-        matrix = assembled_state_products[product_names['prod_H']]
+        matrix = material_model.product_H
     )
 
     products['prod_Q'] = NumpyMatrixOperator(
@@ -145,16 +99,12 @@ def build_InstationaryModelIP(setup : Dict,
     )
 
     products['prod_V'] = DealIIMatrixOperator(
-        matrix = assembled_state_products[product_names['prod_V']]
-    )
-
-    products['prod_C'] = DealIIMatrixOperator(
-        matrix = assembled_state_products[product_names['prod_C']]
+        matrix = material_model.product_V
     )
 
     products['bochner_prod_Q'] = BochnerProductOperator(
         product=NumpyMatrixOperator(
-            matrix = assembled_parameter_products[product_names['bochner_prod_Q']]
+            matrix = assembled_parameter_products[product_names['prod_Q']]
         ),
         delta_t=setup['delta_t'],
         space = Q_h,
@@ -163,7 +113,7 @@ def build_InstationaryModelIP(setup : Dict,
 
     products['bochner_prod_V'] = BochnerProductOperator(
         product=DealIIMatrixOperator(
-            matrix = assembled_state_products[product_names['bochner_prod_V']]
+            matrix = material_model.product_V
         ),
         delta_t=setup['delta_t'],
         space = V_h,
@@ -192,14 +142,11 @@ def build_InstationaryModelIP(setup : Dict,
         },
     }
     
-    M = pd2.SparseMatrix()
-    material_model.assemble_mass_matrix(M)
+    material_model.assemble_mass_matrix()
     M = DealIIMatrixOperator(
-        matrix = M
+        matrix = material_model.mass_matrix
     )
-
-    L = V_h.make_array(material_model.get_force_list())
-
+    L = V_h.make_array(material_model.force_list)
     A = ElasticitiyFOMEvaluatorA(
         material_model = material_model,
         source = V_h,
@@ -207,7 +154,6 @@ def build_InstationaryModelIP(setup : Dict,
         Q = Q_h,
         parameter_names = ['lambda', 'mu']
     )
-    
     B = ElasticitiyFOMEvaluatorB(
         material_model = material_model,
         source=Q_h,
@@ -277,6 +223,7 @@ def build_InstationaryModelIP(setup : Dict,
         **building_blocks,
     )
 
+
     u_delta, percentage = construct_noise_data(model = dummy_model, 
                                                q_exact = q_exact,
                                                noise_level = setup['noise_level'],
@@ -284,16 +231,40 @@ def build_InstationaryModelIP(setup : Dict,
                                                time_depend_noise=True)
 
     ############################### Cost ###############################
-
-    C_mat = pd2.SparseMatrix()
-    material_model.assemble_observation_operator_matrix(
-        C_mat,
-        setup['observation_operator']['type']
-    )
-    C = DealIIMatrixOperator(matrix = C_mat)
+    material_model.assemble_observation_operator_matrix(setup['observation_operator']['type'])
+    C = DealIIMatrixOperator(matrix = material_model.observation_operator)
     C_continuity_constant = 1.0
+
+    # -------------------------------------------------------------------- 
+    _str_to_enum_map_observation_space = {
+        'euclid' : mm.ObservationSpaceProductType.EUCLID, 
+        'state_l2' : mm.ObservationSpaceProductType.STATE_L2, 
+        'state_l2_0' : mm.ObservationSpaceProductType.STATE_L2_0, 
+        'state_h1_semi' : mm.ObservationSpaceProductType.STATE_H1_semi, 
+        'state_h1_0_semi' : mm.ObservationSpaceProductType.STATE_H1_0_semi,
+        'state_h1' : mm.ObservationSpaceProductType.STATE_H1, 
+        'state_h1_0' : mm.ObservationSpaceProductType.STATE_H1_0, 
+    }
+
+    setup['dims']['observation_space_dim'] = material_model.observation_space_dim
+    C_h = DealIIVectorSpace(dim = setup['dims']['observation_space_dim'])
     
-    
+    material_model.assemble_product_C(_str_to_enum_map_observation_space[product_names['prod_C']])
+
+    products['prod_C'] = DealIIMatrixOperator(
+        matrix = material_model.product_V
+    )
+
+    products['bochner_prod_C'] = BochnerProductOperator(
+        product=DealIIMatrixOperator(
+            matrix = material_model.product_V
+        ),
+        delta_t=setup['delta_t'],
+        space = C_h,
+        nt = setup['dims']['nt']
+    )        
+    # --------------------------------------------------------------------
+
     y_delta = C.apply(u_delta)
 
     assert (len(y_delta) == setup['dims']['nt'] + 1)
@@ -307,16 +278,11 @@ def build_InstationaryModelIP(setup : Dict,
     #--------------------------------------------------------
     linear_cost_term = products['prod_C'].apply(y_delta)
     linear_cost_term = C.apply_adjoint(linear_cost_term)
-    #--------------------------------------------------------    
-    CTprod_CC = pd2.SparseMatrix()
-    material_model.assemble_bilinear_cost_matrix(
-        CTprod_CC,
-        products['prod_C'].matrix,
-        C.matrix
-    )
+    #--------------------------------------------------------   
+    material_model.assemble_bilinear_cost_matrix()
 
     bilinear_cost_term = DealIIMatrixOperator(
-        matrix = CTprod_CC
+        matrix = material_model.bilinear_cost_operator
     )
 
     ############################### Final ###############################

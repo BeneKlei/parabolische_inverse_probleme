@@ -32,10 +32,6 @@ MaterialModel::MaterialModel(const MaterialModelConfig& config)
   if (std::abs(computed_nt - static_cast<double>(m_config.nt)) > 1e-8) {
     throw std::runtime_error("Invalid time discretization: check T_final, T_initial, delta_t, and nt.");
   }
-  
-  m_param_space_dim = 0;
-  m_state_space_dim = 0;
-
 }
 
 void MaterialModel::make_grid()
@@ -188,13 +184,14 @@ void MaterialModel::assemble_force_list()
   }
 }
 
-void MaterialModel::assemble_system_matrix(SparseMatrix<Number>& system_matrix)
+void MaterialModel::assemble_system_matrix()
 {
-  m_system_matrices.assemble(system_matrix, m_q);
+  m_system_matrix.reinit(m_system_matrix_sp);
+  m_system_matrix = 0;
+  m_system_matrices.assemble(m_system_matrix, m_q);
 }
 
-
-void MaterialModel::assemble_state_product(SparseMatrix<Number>& state_product_matrix, const StateProductType state_product_type) {
+void MaterialModel::assemble_product_V(const StateProductType state_product_type) {
   StateProductFactoryContext<3, Number> ctx {
     state_product_type,
     m_fe,
@@ -204,12 +201,46 @@ void MaterialModel::assemble_state_product(SparseMatrix<Number>& state_product_m
 
   m_state_product_factory.assemble_state_product(
     ctx,
-    state_product_matrix
+    m_product_V
   );
 }
 
-void MaterialModel::assemble_mass_matrix(SparseMatrix<Number>& mass_matrix)
+void MaterialModel::assemble_product_H(const StateProductType state_product_type) {
+  StateProductFactoryContext<3, Number> ctx {
+    state_product_type,
+    m_fe,
+    m_dof_handler,
+    m_system_matrix_sp    
+  };
+
+  m_state_product_factory.assemble_state_product(
+    ctx,
+    m_product_H
+  );
+}
+
+void MaterialModel::assemble_product_C(const ObservationSpaceProductType obs_space_product_type) {
+  ObservationSpaceProductFactoryContext<3, Number> ctx {
+    obs_space_product_type,
+    m_fe,
+    m_dof_handler,
+    m_system_matrix_sp,
+    m_observation_space_dim     
+  };
+
+  // m_state_product_factory.assemble_state_product(
+  //   ctx,
+  //   m_product_C
+  // );  
+  //m_obs_space_product_sp.copy_from(m_system_matrix_sp);
+  m_product_C.reinit(m_system_matrix_sp);
+  m_product_C.copy_from(m_product_V);
+}
+
+void MaterialModel::assemble_mass_matrix()
 {
+  m_mass_matrix.reinit(m_system_matrix_sp);
+  m_mass_matrix = 0;
   StateProductFactoryContext<3, Number> ctx {
     StateProductType::Mass,
     m_fe,
@@ -219,26 +250,11 @@ void MaterialModel::assemble_mass_matrix(SparseMatrix<Number>& mass_matrix)
 
   m_state_product_factory.assemble_state_product(
     ctx,
-    mass_matrix
+    m_mass_matrix
   );
 }
 
-void MaterialModel::output_results(Vector<double>& solution) const
-{
-  DataOut<dim> data_out;
- 
-  data_out.attach_dof_handler(m_dof_handler);
-  data_out.add_data_vector(solution, "solution");
- 
-  data_out.build_patches();
- 
-  std::ofstream output(dim == 2 ? "solution-2d.vtk" : "solution-3d.vtk");
-  data_out.write_vtk(output);
-}
-
-void MaterialModel::assemble_observation_operator_matrix(
-    SparseMatrix<Number>& operator_matrix, 
-    ObservationOperatorType observation_operator_type)
+void MaterialModel::assemble_observation_operator_matrix(ObservationOperatorType observation_operator_type)
 {
     ObservationOperatorFactoryContext<dim, Number> ctx {
       observation_operator_type,
@@ -250,66 +266,50 @@ void MaterialModel::assemble_observation_operator_matrix(
   
     m_observation_operator_factory.assemble_observation(
       ctx,
-      operator_matrix,
+      m_observation_operator,
       m_observation_operator_sp
   ); 
+
+  m_observation_space_dim = m_observation_operator.m();
 }
-
-
-
-// void MaterialModel::assemble_euclidian_matrix(SparseMatrix<Number>& matrix)
-// {
-//   matrix.reinit(m_system_matrix_sp);
-//   matrix = 0;
-
-//   const auto n_dofs = m_dof_handler.n_dofs();
-//   for (types::global_dof_index i = 0; i < n_dofs; ++i)
-//     matrix.set(i, i, Number(1));
-// };
 
 void MaterialModel::clear_rhs_boundary_dofs(Vector<Number>& v) 
 {
   m_BC_constraints.distribute(v);
 }
 
-void MaterialModel::assemble_system_matrix_derivative(
-  FullMatrix<Number>& system_matrix_derivative,
-  const Vector<Number>& state_DoFs)
+void MaterialModel::assemble_system_matrix_derivative(const Vector<Number>& state_DoFs)
 {
-    assert(
-      (system_matrix_derivative.m() == m_state_space_dim) && 
-      (system_matrix_derivative.n() == m_param_space_dim)
-    );
+    m_system_matrix_derivative.reinit(m_state_space_dim, m_param_space_dim);
+    m_system_matrix_derivative = 0;
     assert(m_system_matrices.m_param_space_dim == m_param_space_dim &&
        "Mismatch between system matrices count and parameter dimension");
-
+    
+    // m_system_matrix_derivative = 0;
     unsigned int offset = m_system_matrices.m_affine ? 1 : 0;
     Vector<Number> A_q_basis_u;
-    //A_q_basis_u.reinit(m_state_space_dim);
     
     for (size_t i = 0; i < m_param_space_dim; i++) {
         A_q_basis_u.reinit(m_state_space_dim);
         m_system_matrices.m_matrices[i + offset].vmult(A_q_basis_u, state_DoFs);
         for (size_t j = 0; j < m_state_space_dim; j++) {
-          system_matrix_derivative.set(j,i, A_q_basis_u[j]);
+          m_system_matrix_derivative.set(j,i, A_q_basis_u[j]);
         }        
     }
 }
-void MaterialModel::assemble_bilinear_cost_matrix(
-  SparseMatrix<Number>& matrix,
-  const SparseMatrix<Number>& prod_C,
-  const SparseMatrix<Number>& C)
+
+void MaterialModel::assemble_bilinear_cost_matrix()
 {
   SparseMatrix<Number> buf;
-  SparsityPattern buf_sp = utils::make_product_sparsity_AB(prod_C, C);
+  SparsityPattern buf_sp = utils::make_product_sparsity_AB(m_product_C, m_observation_operator);
   buf.reinit(buf_sp);
-  prod_C.mmult(buf, C, Vector<Number>(), false);
+  m_product_C.mmult(buf, m_observation_operator, Vector<Number>(), false);
   
-  SparsityPattern buf_sp_ = utils::make_product_sparsity_ATB(C, buf);
-  m_bilinear_cost_sp.copy_from(buf_sp_);
-  matrix.reinit(m_bilinear_cost_sp);
+  SparsityPattern buf_sp_ = utils::make_product_sparsity_ATB(m_observation_operator, buf);
+  m_bilinear_cost_operator_sp.copy_from(buf_sp_);
+  m_bilinear_cost_operator.reinit(m_bilinear_cost_operator_sp);
 
-  C.Tmmult(matrix, buf, Vector<Number>(), false); 
+  m_observation_operator.Tmmult(m_bilinear_cost_operator, buf, Vector<Number>(), false); 
 }
 
 // TODO Make a body force factory

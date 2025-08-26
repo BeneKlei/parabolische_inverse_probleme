@@ -103,3 +103,16 @@ def interpolate_between_grids(N_fine, refinement_factor):
 
 class Struct():
     pass
+
+
+def process_product_names(products: Dict) -> Dict:
+    product_names = {}
+    product_name = ''
+    for (key,value) in products.items():
+        buf = value.split('_')
+        if buf[0] == 'bochner':
+            product_name = '_'.join(buf[1:])
+        else:
+            product_name = value
+        product_names[key] = product_name
+    return product_names

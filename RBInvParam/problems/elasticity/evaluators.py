@@ -32,15 +32,16 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         super().__init__(source, range, Q, parameter_names)
 
         self.material_model = material_model
-        self.system_matrix = pd2.SparseMatrix()
-        self.sparsity_pattern = self.material_model.sparsity_pattern()
+        self.system_matrix = None
+        #self.sparsity_pattern = self.material_model.system_matrix_sp
     
     def __call__(self, q: VectorArray) -> Operator:
         assert q in self.Q
         
-        self.system_matrix.reinit(self.sparsity_pattern)
+        #self.system_matrix.reinit(self.sparsity_pattern)
         self.material_model.m_q[:] = q.to_numpy()
-        self.material_model.assemble_system_matrix(self.system_matrix)
+        self.material_model.assemble_system_matrix()
+        self.system_matrix = self.material_model.system_matrix
         return DealIIMatrixOperator(self.system_matrix)
             
     
@@ -88,10 +89,9 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
         assert len(u) == 1
         assert isinstance(u, ListVectorArray)
 
-        B_u_mat = pd2.FullMatrix(self.V.dim, self.Q.dim)
-        self.material_model.assemble_system_matrix_derivative(B_u_mat, u.vectors[0].real_part.impl)
-        
-        B_u_op = DealIIMatrixOperator(matrix = B_u_mat)
+        #B_u_mat = pd2.FullMatrix(self.V.dim, self.Q.dim)
+        self.material_model.assemble_system_matrix_derivative(u.vectors[0].real_part.impl)
+        B_u_op = DealIIMatrixOperator(matrix = self.material_model.system_matrix_derivative)
 
         def _B_u(d: NumpyVectorArray) -> pd2.Vector:
             # TODO Move parameter space handling to C++ and use pd2.Vector

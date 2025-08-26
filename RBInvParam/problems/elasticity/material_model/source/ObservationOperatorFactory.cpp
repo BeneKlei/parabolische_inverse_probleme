@@ -17,7 +17,6 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
   switch (ctx.observation_operator_type)
   {
   case ObservationOperatorType::Identity:
-    std::cout << "\t Using Identity ObservationOperator" << std::endl;
     ObservationOperatorFactory::assemble_identity_observation(
         ctx,
         observation_operator_matrix,
@@ -25,7 +24,6 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
     );  
     break;
   case ObservationOperatorType::Boundary:
-    std::cout << "\t Using Boundary ObservationOperator" << std::endl;
     ObservationOperatorFactory::assemble_boundary_observation(
         ctx,
         observation_operator_matrix,
@@ -34,7 +32,6 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
     break;
   case ObservationOperatorType::SensorsR8d:
   case ObservationOperatorType::SensorsR9d:
-    std::cout << "\t Using Sensors ObservationOperator" << std::endl;
     ObservationOperatorFactory::assemble_sensors_observation(
         ctx,
         observation_operator_matrix,
@@ -42,28 +39,28 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
     );
     break;
   default:
-    throw std::runtime_error("Unknown system matrix type.");
+    throw std::runtime_error("Unknown ObservationOperatorType.");
   }
 }
 
 template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_identity_observation(
-    ObservationOperatorFactoryContext<dim, Number> ctx,
+    const ObservationOperatorFactoryContext<dim, Number> ctx,
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp) const
-{
-    observation_operator_matrix.reinit(ctx.sparsity_pattern);
+{   
+    observation_operator_sp.copy_from(ctx.sparsity_pattern);
+    observation_operator_matrix.reinit(observation_operator_sp);
     observation_operator_matrix = 0;
 
     for (types::global_dof_index i = 0; i < ctx.dof_handler.n_dofs(); ++i)
         observation_operator_matrix.set(i, i, Number(1));
     
-    observation_operator_sp = ctx.sparsity_pattern;
 }
 
 template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_boundary_observation(
-    ObservationOperatorFactoryContext<dim, Number> ctx,
+    const ObservationOperatorFactoryContext<dim, Number> ctx,
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp) const
 {
@@ -74,18 +71,19 @@ void ObservationOperatorFactory<dim, Number>::assemble_boundary_observation(
         ctx.sparsity_pattern    
     };
 
+    observation_operator_sp.copy_from(ctx.sparsity_pattern);
+    observation_operator_matrix.reinit(observation_operator_sp);
+
     m_state_product_factory.assemble_state_product(
         boundary_mass_ctx,
         observation_operator_matrix
     );
-
-
-    observation_operator_sp = ctx.sparsity_pattern;
+   
 }
 
 template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
-    ObservationOperatorFactoryContext<dim, Number> ctx,
+    const ObservationOperatorFactoryContext<dim, Number> ctx,
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp) const
 {      

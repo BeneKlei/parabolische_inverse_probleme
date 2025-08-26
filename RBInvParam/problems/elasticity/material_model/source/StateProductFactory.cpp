@@ -13,56 +13,48 @@ void StateProductFactory<dim, Number>::assemble_state_product(
   switch (ctx.state_product_type)
   {
   case StateProductType::L2:
-    std::cout << "\t Using L2 StateProduct" << std::endl;
     StateProductFactory::assemble_l2_product(
         ctx,
         state_product_matrix
     );
     break;
   case StateProductType::L2_0:
-    std::cout << "\t Using L2_0 StateProduct" << std::endl;
     StateProductFactory::assemble_l2_0_product(
         ctx,
         state_product_matrix
     );
     break;
   case StateProductType::H1_semi:
-    std::cout << "\t Using H1_semi StateProduct" << std::endl;
     StateProductFactory::assemble_h1_semi_product(
         ctx,
         state_product_matrix
     );
     break;
   case StateProductType::H1_0_semi:
-    std::cout << "\t Using H1_0_semi StateProduct" << std::endl;
     StateProductFactory::assemble_h1_0_semi_product(
         ctx,
         state_product_matrix
     );
     break;
   case StateProductType::H1:
-    std::cout << "\t Using H1 StateProduct" << std::endl;
     StateProductFactory::assemble_h1_product(
         ctx,
         state_product_matrix
     );
     break;
   case StateProductType::H1_0:
-    std::cout << "\t Using H1_0 StateProduct" << std::endl;
     StateProductFactory::assemble_h1_0_product(
         ctx,
         state_product_matrix
     );
     break;
   case StateProductType::Mass:
-    std::cout << "\t Using Mass StateProduct" << std::endl;
     StateProductFactory::assemble_mass_product(
         ctx,
         state_product_matrix
     );
     break;
   case StateProductType::BoundaryMass:
-    std::cout << "\t Using BoundaryMass StateProduct" << std::endl;
     StateProductFactory::assemble_boundary_mass_product(
         ctx,
         state_product_matrix

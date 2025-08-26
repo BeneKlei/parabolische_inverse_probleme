@@ -60,18 +60,30 @@ def main():
     setup = {
         'spatial_resolution' : [4,10,10],
         'body_force_type' : mm.BodyForceType.CenterExcite,
-        'system_matrix_type' : mm.SystemMatrixType.CosseratDelamination,
-        'system_matrix_hyperparameter' : {
-            'lambda' : 1e1,
-            'mu' : 1e2,
-            'nu' : 1e1,
-            'surface' : 'left'
+        'system_matrix' : {
+            'type' : mm.SystemMatrixType.CosseratDelamination,
+            'hyperparameter' : {
+                'lambda' : 1e1,
+                'mu' : 1e2,
+                'nu' : 1e1,
+                'surface' : 'left'
+            }
+        },
+        'observation_operator': {
+            'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
+            'hyperparameter' : {}
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps
-            'par_dim' : par_dim,
+            'par_dim' : None,
             'state_dim' : None,
-            'output_dim': None
+            'observation_space_dim': None
+        },
+        'products': {                                 # Inner products used in the problem
+            'prod_H': 'l2',                           # Product on H_h
+            'prod_Q': 'euclid',                       # Product on Q_h
+            'prod_V': 'h1_0_semi',                    # Product on V_h
+            'prod_C': 'state_l2',                     # Product on C_h
         },
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
@@ -84,18 +96,6 @@ def main():
         'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
         'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
-        'products': {                                 # Inner products used in the problem
-            'prod_H': 'l2',                           # Product on H_h
-            'prod_Q': 'euclid',                       # Product on Q_h
-            'prod_V': 'h1_0_semi',                    # Product on V_h
-            'prod_C': 'l2',                           # Product on C_h
-            'bochner_prod_Q': 'bochner_euclid',       # Product on Q_h^K
-            'bochner_prod_V': 'bochner_h1_0_semi'     # Product on V_h^K
-        },
-        'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR9d,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-        },
         'time_stepper' : {
             'name' : 'newman_second_order',
             'zeta' : 0.5
@@ -105,7 +105,6 @@ def main():
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
-
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized

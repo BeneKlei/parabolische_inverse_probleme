@@ -14,6 +14,7 @@
 #include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/sparse_ilu.h>
+#include <deal.II/lac/full_matrix.h>
 
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
@@ -24,6 +25,7 @@
 #include "BodyForce.hpp"
 #include "ObservationOperatorFactory.hpp"
 #include "StateProductFactory.hpp"
+#include "ObservationSpaceProductFactory.hpp"
 
 using namespace dealii;
 
@@ -54,46 +56,48 @@ public:
   void make_grid();
   void setup_system();
 
+  void assemble_mass_matrix();
+  void assemble_observation_operator_matrix(ObservationOperatorType observation_operator_type);
+  void assemble_system_matrix();
+  void assemble_system_matrix_derivative(const Vector<Number>& state_DoFs);
+
+  void assemble_product_V(const StateProductType state_product_type);
+  void assemble_product_H(const StateProductType state_product_type);
+  void assemble_product_C(const ObservationSpaceProductType obs_space_product_type);
+
+  void assemble_bilinear_cost_matrix();
+  void clear_rhs_boundary_dofs(Vector<Number>& v);      
+
+  // --------------------------------------------------
+
+  size_t m_param_space_dim = 0;
+  size_t m_state_space_dim = 0;
+  size_t m_observation_space_dim = 0;
+
+  // --------------------------------------------------
+
   Vector<Number> m_q;
-  Vector<Number> m_d;
-  
-  void assemble_mass_matrix(SparseMatrix<Number>& mass_matrix);
-  void assemble_observation_operator_matrix(
-    SparseMatrix<Number>& operator_matrix, 
-    ObservationOperatorType observation_operator_type
-  );
-  void assemble_system_matrix(SparseMatrix<Number>& system_matrix);
-  void assemble_system_matrix_derivative(
-    FullMatrix<Number>& system_matrix_derivative,
-    const Vector<Number>& state_DoFs
-  );
+  std::vector<Vector<Number>> m_force_list;
 
-  void assemble_state_product(SparseMatrix<Number>& state_product_matrix, const StateProductType state_product_type);
-  // void assemble_l2_matrix(SparseMatrix<Number>& l2_matrix);
-  // void assemble_l2_0_matrix(SparseMatrix<Number>& l2_0_matrix);
-  // void assemble_h1_semi_matrix(SparseMatrix<Number>& h1_semi_matrix);
-  // void assemble_h1_0_semi_matrix(SparseMatrix<Number>& h1_0_semi_matrix);
-  // void assemble_h1_matrix(SparseMatrix<Number>& h1_matrix);
-  // void assemble_h1_0_matrix(SparseMatrix<Number>& h1_0_matrix);
-  //void assemble_euclidian_matrix(SparseMatrix<Number>& operator_matrix);
+  // --------------------------------------------------
 
-  
-  void assemble_bilinear_cost_matrix(
-    SparseMatrix<Number>& matrix,
-    const SparseMatrix<Number>& prod_C,
-    const SparseMatrix<Number>& C
-  );
-  void clear_rhs_boundary_dofs(Vector<Number>& v);
-  
-  void output_results(Vector<double>& solution) const;
-    
-  const SparsityPattern& sparsity_pattern() const { return m_system_matrix_sp; }
-  uint32_t n_dofs() const { return m_dof_handler.n_dofs(); }
-  const std::vector<Vector<Number>>& get_force_list() const { return m_force_list; };
+  SparseMatrix<Number> m_mass_matrix;
+  SparseMatrix<Number> m_system_matrix;
+  FullMatrix<Number> m_system_matrix_derivative;
+  SparseMatrix<Number> m_observation_operator;
+  SparseMatrix<Number> m_bilinear_cost_operator;
 
-  size_t m_param_space_dim;
-  size_t m_state_space_dim;
-  
+  // --------------------------------------------------
+
+  SparseMatrix<Number> m_product_V;
+  SparseMatrix<Number> m_product_H;
+  SparseMatrix<Number> m_product_C;
+
+  // --------------------------------------------------
+  SparsityPattern m_system_matrix_sp;
+  SparsityPattern m_bilinear_cost_operator_sp;
+  SparsityPattern m_observation_operator_sp;
+  SparsityPattern m_obs_space_product_sp;
 
 private:
   const MaterialModelConfig m_config;
@@ -101,37 +105,27 @@ private:
   FESystem<dim> m_fe;
   DoFHandler<dim> m_dof_handler;
 
-  SparsityPattern m_system_matrix_sp;
-  SparsityPattern m_bilinear_cost_sp;
-  SparsityPattern m_observation_operator_sp;
-  SparsityPattern m_observation_space_product_sp;
-
   MaterialMatricesFactory<dim, Number> m_material_matrices_factory = MaterialMatricesFactory<3, Number>();
   ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
-  //SystemMatrices<dim, Number> m_system_matrices = SystemMatrices<3, Number>();
+
   SystemMatrices<dim, Number> m_system_matrices;
 
   AffineConstraints<Number> m_BC_constraints;
   SparseILU<Number> m_solver;
 
   std::unique_ptr<BodyForce> m_body_force;
-  std::vector<Vector<Number>> m_force_list;
   
-  //MatrixStack m_system_matrices;
-
-  //void setup_system_matricies();
-  void setup_adjoint_system_matricies();
   void setup_BC_constraints();
   void setup_body_force();
   
   void assemble_force_list();
   void assemble_force(Vector<Number>& result, double time);
 
-  template <typename Integrand>
-  void _assemble_product_matrix(SparseMatrix<Number>& matrix,
-                                Integrand integrand,
-                                const AffineConstraints<Number>& constraints);
+  // template <typename Integrand>
+  // void _assemble_product_matrix(SparseMatrix<Number>& matrix,
+  //                               Integrand integrand,
+  //                               const AffineConstraints<Number>& constraints);
 };
 
 

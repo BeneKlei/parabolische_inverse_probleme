@@ -28,31 +28,32 @@ struct ObservationOperatorFactoryContext {
     const SparsityPattern &sparsity_pattern;
 };
 
+
 template <int dim, typename Number>
 class ObservationOperatorFactory
 {
 public:
     // TODO Find a way to get a shorter wrapper for the interface
     void assemble_observation(
-        ObservationOperatorFactoryContext<dim, Number> ctx,
+        const ObservationOperatorFactoryContext<dim, Number> ctx,
         SparseMatrix<Number>& observation_operator_matrix,
         SparsityPattern& observation_operator_sp
     ) const;
 
     void assemble_identity_observation(
-        ObservationOperatorFactoryContext<dim, Number> ctx,
+        const ObservationOperatorFactoryContext<dim, Number> ctx,
         SparseMatrix<Number>& observation_operator_matrix,
         SparsityPattern& observation_operator_sp
     ) const;
 
     void assemble_boundary_observation(
-        ObservationOperatorFactoryContext<dim, Number> ctx,
+        const ObservationOperatorFactoryContext<dim, Number> ctx,
         SparseMatrix<Number>& observation_operator_matrix,
         SparsityPattern& observation_operator_sp
     ) const;
 
     void assemble_sensors_observation(
-        ObservationOperatorFactoryContext<dim, Number> ctx,
+        const ObservationOperatorFactoryContext<dim, Number> ctx,
         SparseMatrix<Number>& observation_operator_matrix,
         SparsityPattern& observation_operator_sp
     ) const;
