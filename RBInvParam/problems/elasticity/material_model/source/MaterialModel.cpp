@@ -228,13 +228,11 @@ void MaterialModel::assemble_product_C(const ObservationSpaceProductType obs_spa
     m_observation_space_dim     
   };
 
-  // m_state_product_factory.assemble_state_product(
-  //   ctx,
-  //   m_product_C
-  // );  
-  //m_obs_space_product_sp.copy_from(m_system_matrix_sp);
-  m_product_C.reinit(m_system_matrix_sp);
-  m_product_C.copy_from(m_product_V);
+  m_observation_space_product_factory.assemble_observation_space_product(
+    ctx,
+    m_product_C,
+    m_obs_space_product_sp
+  );  
 }
 
 void MaterialModel::assemble_mass_matrix()

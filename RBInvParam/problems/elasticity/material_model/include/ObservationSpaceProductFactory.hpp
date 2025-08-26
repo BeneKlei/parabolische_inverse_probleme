@@ -6,6 +6,8 @@
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/dofs/dof_handler.h>
 
+#include "StateProductFactory.hpp"
+
 using namespace dealii;
 
 enum class ObservationSpaceProductType {
@@ -23,7 +25,7 @@ struct ObservationSpaceProductFactoryContext {
   const ObservationSpaceProductType  &obs_space_product_type;
   const FiniteElement<dim>           &fe;
   const DoFHandler<dim>              &dof_handler;
-  const SparsityPattern              &sparsity_pattern;
+  const SparsityPattern              &state_sparsity_pattern;
   const size_t                       &observation_space_dim;
 };
 
@@ -31,8 +33,24 @@ template <int dim, typename Number>
 class ObservationSpaceProductFactory
 {
 public:
-    // void assemble_state_product(
-    //     const StateProductFactoryContext<dim, Number>& ctx,
-    //     SparseMatrix<Number>& state_product_matrix
-    // ) const;
+    void assemble_observation_space_product(
+      const ObservationSpaceProductFactoryContext<dim, Number>& ctx,
+      SparseMatrix<Number>& observation_space_product_matrix,
+      SparsityPattern& observation_space_product_sp
+    ) const;
+
+    void assemble_euclid_product(
+      const ObservationSpaceProductFactoryContext<dim, Number>& ctx,
+      SparseMatrix<Number>& observation_space_product_matrix,
+      SparsityPattern& observation_space_product_sp
+    ) const;
+
+    void assemble_state_product(
+      const ObservationSpaceProductFactoryContext<dim, Number>& ctx,
+      SparseMatrix<Number>& observation_space_product_matrix,
+      SparsityPattern& observation_space_product_sp
+    ) const;
+
+private:
+    StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
 };

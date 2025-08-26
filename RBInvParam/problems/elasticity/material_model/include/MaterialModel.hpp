@@ -27,6 +27,7 @@
 #include "StateProductFactory.hpp"
 #include "ObservationSpaceProductFactory.hpp"
 
+
 using namespace dealii;
 
 typedef double Number;
@@ -108,6 +109,7 @@ private:
   MaterialMatricesFactory<dim, Number> m_material_matrices_factory = MaterialMatricesFactory<3, Number>();
   ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
+  ObservationSpaceProductFactory<dim, Number> m_observation_space_product_factory = ObservationSpaceProductFactory<3, Number>();
 
   SystemMatrices<dim, Number> m_system_matrices;
 

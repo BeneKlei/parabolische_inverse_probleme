@@ -223,18 +223,11 @@ def build_InstationaryModelIP(setup : Dict,
         **building_blocks,
     )
 
-
-    u_delta, percentage = construct_noise_data(model = dummy_model, 
-                                               q_exact = q_exact,
-                                               noise_level = setup['noise_level'],
-                                               product=products['bochner_prod_V'],
-                                               time_depend_noise=True)
-
     ############################### Cost ###############################
     material_model.assemble_observation_operator_matrix(setup['observation_operator']['type'])
     C = DealIIMatrixOperator(matrix = material_model.observation_operator)
     C_continuity_constant = 1.0
-
+    
     # -------------------------------------------------------------------- 
     _str_to_enum_map_observation_space = {
         'euclid' : mm.ObservationSpaceProductType.EUCLID, 
@@ -252,12 +245,12 @@ def build_InstationaryModelIP(setup : Dict,
     material_model.assemble_product_C(_str_to_enum_map_observation_space[product_names['prod_C']])
 
     products['prod_C'] = DealIIMatrixOperator(
-        matrix = material_model.product_V
+        matrix = material_model.product_C
     )
 
     products['bochner_prod_C'] = BochnerProductOperator(
         product=DealIIMatrixOperator(
-            matrix = material_model.product_V
+            matrix = material_model.product_C
         ),
         delta_t=setup['delta_t'],
         space = C_h,
@@ -265,7 +258,14 @@ def build_InstationaryModelIP(setup : Dict,
     )        
     # --------------------------------------------------------------------
 
-    y_delta = C.apply(u_delta)
+    y_delta, percentage = construct_noise_data(model = dummy_model, 
+                                               q_exact = q_exact,
+                                               C = C,
+                                               noise_level = setup['noise_level'],
+                                               product=products['bochner_prod_C'],
+                                               time_depend_noise=True)
+    
+
 
     assert (len(y_delta) == setup['dims']['nt'] + 1)
     assert (y_delta.space == C.range) 

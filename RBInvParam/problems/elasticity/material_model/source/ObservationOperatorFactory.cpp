@@ -118,9 +118,10 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
     for (unsigned int si = 0; si < l; ++si)
     {
         for (unsigned int i = 0; i < support_points.size(); ++i)
-        {
-            if ( (sensor_points[si] - support_points[i]).norm_square() <= tol2 )
+        {   
+            if ((sensor_points[si] - support_points[i]).norm_square() <= tol2 ) {
                 rows[si].push_back(i);
+            }
         }
     }
     
@@ -128,21 +129,34 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
 
     DynamicSparsityPattern dsp(l, L);
     for (unsigned int i = 0; i < l; ++i)
-        for (auto dof : rows[i])
+    {
+        for (auto dof : rows[i]) 
+        {
             dsp.add(i, dof);
-
+        }
+            
+    }
+        
     SparsityPattern sp_G;
     sp_G.copy_from(dsp);
 
     G.reinit(sp_G);
     for (unsigned int i = 0; i < l; ++i)
-        for (auto dof : rows[i])
+    {   
+        for (auto dof : rows[i]) 
+        {      
             G.set(i, dof, 1.0);
-
+        }
+            
+    }
     // ----------------------------------------------------
 
     observation_operator_sp = utils::make_product_sparsity_AB(G, boundary_mass_matrix);
+    //observation_operator_sp.copy_from(sp_G);
     observation_operator_matrix.reinit(observation_operator_sp);
+    // observation_operator_matrix.copy_from(G);
+    // std::cout << G.m() << G.n() << std::endl;
+    
     G.mmult(observation_operator_matrix, boundary_mass_matrix);
 }
 

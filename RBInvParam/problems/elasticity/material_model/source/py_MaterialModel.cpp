@@ -54,8 +54,6 @@ PYBIND11_MODULE(material_model, m) {
           
           .def("clear_rhs_boundary_dofs", &MaterialModel::clear_rhs_boundary_dofs, py::return_value_policy::reference_internal);
 
-          
-
       py::enum_<BodyForceType>(m, "BodyForceType")
          .value("CenterExcite", BodyForceType::CenterExcite)
          .value("Dummy", BodyForceType::Dummy)
@@ -85,7 +83,7 @@ PYBIND11_MODULE(material_model, m) {
          .export_values();
       
       py::enum_<ObservationSpaceProductType>(m, "ObservationSpaceProductType")
-         .value("EUCLID", ObservationSpaceProductType::STATE_L2)
+         .value("EUCLID", ObservationSpaceProductType::EUCLID)
          .value("STATE_L2", ObservationSpaceProductType::STATE_L2)
          .value("STATE_L2_0", ObservationSpaceProductType::STATE_L2_0)
          .value("STATE_H1_semi", ObservationSpaceProductType::STATE_H1_semi)

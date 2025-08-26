@@ -12,25 +12,32 @@ from scipy.sparse import csr_matrix
 
 def construct_noise_data(model : InstationaryModel,
                          q_exact : np.ndarray,
+                         C: Operator,
                          noise_level : float,
                          product: Operator, 
                          time_depend_noise: bool = True) -> Tuple[VectorArray, float]:
 
     u_exact = model.solve_state(q_exact)
-    if time_depend_noise:
-        noise = model.V.random(len(u_exact))
-    else:
-        noise = model.V.random(1)
+    y_exact = C.apply(u_exact)
+    # print(np.max(u_exact.to_numpy()))
+    # print(np.max(y_exact.to_numpy()))
+    # print(u_exact.to_numpy())
+    # print(np.max(y_exact.to_numpy()))
 
-    noise_norm = np.sqrt(product.apply2(noise,noise))[0,0]
+    if time_depend_noise:
+        noise = C.range.random(len(y_exact))
+    else:
+        noise = C.range.random(1)
+
+    noise_norm = np.sqrt(product.apply2(y_exact,y_exact))[0,0]
+    #noise_norm = np.sqrt(product.apply2(noise,noise))[0,0]
     assert noise_norm > 0
     
     noise_scaling = noise_level/noise_norm * noise
-    u_noise = u_exact + noise_scaling    
+    y_noise = y_exact + noise_scaling    
     percentage = noise_level/noise_norm
 
-    u_noise = u_exact + noise_scaling
-    return u_noise, percentage
+    return y_noise, percentage
 
 def build_projection(grid):
     rows = []

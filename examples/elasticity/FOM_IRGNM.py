@@ -37,11 +37,13 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    par_dim = 100
+    y_res = 30
+    z_res = 30
+    par_dim = (y_res + 1) * (z_res + 1)
 
     T_initial = 0
-    T_final = 1
-    nt = 50
+    T_final = 4
+    nt = 16
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
@@ -58,19 +60,19 @@ def main():
 
 
     setup = {
-        'spatial_resolution' : [4,10,10],
+        'spatial_resolution' : [4,y_res,z_res],
         'body_force_type' : mm.BodyForceType.CenterExcite,
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
             'hyperparameter' : {
-                'lambda' : 1e1,
-                'mu' : 1e2,
-                'nu' : 1e1,
+                'lambda' : 12.0,
+                'mu' : 8.0,
+                'nu' : 1.0,
                 'surface' : 'left'
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsR8d,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
         'dims' : {
@@ -83,13 +85,13 @@ def main():
             'prod_H': 'l2',                           # Product on H_h
             'prod_Q': 'euclid',                       # Product on Q_h
             'prod_V': 'h1_0_semi',                    # Product on V_h
-            'prod_C': 'state_l2',                     # Product on C_h
+            'prod_C': 'euclid',                       # Product on C_h
         },
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-5,                          # Absolute noise magnitude added to data
+        'noise_level': 0.0,                             # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -105,6 +107,9 @@ def main():
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
+
+    print(FOM.compute_objective(FOM.Q.make_array(q_start)))
+    print(FOM.compute_objective(FOM.Q.make_array(q_exact)))
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
