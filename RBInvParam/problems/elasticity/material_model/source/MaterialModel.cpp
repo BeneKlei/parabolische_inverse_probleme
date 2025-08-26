@@ -156,7 +156,6 @@ void MaterialModel::assemble_force(Vector<Number>& result, double time)
     for (unsigned int i = 0; i < dofs_per_cell; ++i)
     {
       const unsigned int component_i = m_fe.system_to_component_index(i).first;
-
       for (unsigned int q_point = 0; q_point < n_quadrature_points; ++q_point)
       {
         cell_rhs(i) += fe_values.shape_value(i, q_point) *

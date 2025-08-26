@@ -62,6 +62,7 @@ PYBIND11_MODULE(material_model, m) {
       py::enum_<SystemMatrixType>(m, "SystemMatrixType")
          .value("Cosserat", SystemMatrixType::Cosserat)
          .value("CosseratDelamination", SystemMatrixType::CosseratDelamination)
+         .value("CosseratSpatial", SystemMatrixType::CosseratSpatial)
          .export_values();
 
       py::enum_<ObservationOperatorType>(m, "ObservationOperatorType")

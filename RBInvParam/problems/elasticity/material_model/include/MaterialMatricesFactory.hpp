@@ -40,6 +40,7 @@ inline void check_required_keys(
 }
 
 enum class SystemMatrixType {
+    CosseratSpatial,
     CosseratDelamination,
     Cosserat
 };
@@ -64,6 +65,11 @@ public:
     ) const;
 
     void assemble_cosserat_system(
+        const MaterialMatricesFactoryContext<dim, Number>& ctx,
+        SystemMatrices<dim, Number> &system_matrices
+    ) const;
+
+    void assemble_cosserat_spatial_system(
         const MaterialMatricesFactoryContext<dim, Number>& ctx,
         SystemMatrices<dim, Number> &system_matrices
     ) const;

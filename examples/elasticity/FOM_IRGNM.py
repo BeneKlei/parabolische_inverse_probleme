@@ -36,21 +36,24 @@ set_defaults({})
 
 #########################################################################################''
 
-def main():
-    y_res = 30
-    z_res = 30
-    par_dim = (y_res + 1) * (z_res + 1)
+# np.set_printoptions(linewidth=np.inf) 
+# np.set_printoptions(threshold=np.inf)  # force full print
 
+def main():
+    y_res = 8
+    z_res = 8
+    par_dim = (y_res + 1) * (z_res + 1) * 5 * 3
     T_initial = 0
-    T_final = 4
-    nt = 16
+    T_final = 1
+    nt = 50
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
-    q_exact[0,27] = 2
-    q_exact[0,54] = 3
+    # q_exact[0,27] = 2
+    # q_exact[0,54] = 3
+    q_circ[0,:] = 3
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 0.001
@@ -63,7 +66,7 @@ def main():
         'spatial_resolution' : [4,y_res,z_res],
         'body_force_type' : mm.BodyForceType.CenterExcite,
         'system_matrix' : {
-            'type' : mm.SystemMatrixType.CosseratDelamination,
+            'type' : mm.SystemMatrixType.CosseratSpatial,
             'hyperparameter' : {
                 'lambda' : 12.0,
                 'mu' : 8.0,
@@ -72,7 +75,7 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR8d,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsR9d,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
         'dims' : {
@@ -91,7 +94,7 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 0.0,                             # Absolute noise magnitude added to data
+        'noise_level': 1e-5,                           # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -127,7 +130,7 @@ def main():
         'lin_solver_parms': {
             'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e4,                                     # Max iterations for the linear solver
-            'lin_solver_tol': 1e-9,                          # Tolerance for convergence in the linear solver
+            'lin_solver_tol': 1e-12,                          # Tolerance for convergence in the linear solver
             'inital_step_size': 1                                # Initial step size for iterative solvers (if applicable)
         },
         'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)

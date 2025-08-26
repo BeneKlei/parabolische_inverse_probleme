@@ -266,7 +266,8 @@ class NewmanSecondOrder(TimeStepper):
             _rhs = S_zeta_minus_one.apply(U_pre)
             _rhs += dt * M_dot_U_pre
             _rhs += zeta * dt_R
-            
+
+
             U_cur = _lhs.apply_inverse(_rhs, initial_guess=U_pre)
     
             # --------------------------------------------------------------

@@ -29,8 +29,8 @@ def construct_noise_data(model : InstationaryModel,
     else:
         noise = C.range.random(1)
 
-    noise_norm = np.sqrt(product.apply2(y_exact,y_exact))[0,0]
-    #noise_norm = np.sqrt(product.apply2(noise,noise))[0,0]
+    #noise_norm = np.sqrt(product.apply2(y_exact,y_exact))[0,0]
+    noise_norm = np.sqrt(product.apply2(noise,noise))[0,0]
     assert noise_norm > 0
     
     noise_scaling = noise_level/noise_norm * noise

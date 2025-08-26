@@ -384,6 +384,7 @@ class Optimizer(BasicObject):
             print(".........................")
             # print(q)
             print(d)
+            print(np.max(np.abs(d.to_numpy())))
             print(q+d)
 
             loop_terminated = loop_terminated or (count >= reg_loop_max)

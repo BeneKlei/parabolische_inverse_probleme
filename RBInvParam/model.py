@@ -919,6 +919,8 @@ class InstationaryModelIP(ImmutableObject):
                           use_cached_operators: bool = False) -> float:
         u = self.solve_state(q=q, 
                              use_cached_operators=use_cached_operators)
+        
+        print(u.to_numpy())
 
         return self.objective(u, q, alpha)
     
