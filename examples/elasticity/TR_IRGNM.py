@@ -6,6 +6,8 @@ from datetime import datetime
 
 from pymor.basic import *
 
+import RBInvParam.problems.elasticity.material_model as mm
+
 from RBInvParam.optimizer import QrVrROMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
@@ -34,17 +36,20 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    par_dim = 2
-
+    y_res = 8
+    z_res = 8
+    par_dim = (y_res + 1) * (z_res + 1) * 5 * 3
     T_initial = 0
     T_final = 1
     nt = 50
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
-    #q_circ = 3*np.ones((1, par_dim))
-    q_circ = np.array([[3,3]])
-    q_exact = np.array([[5,1]])
+    q_circ = np.ones((1, par_dim))
+    q_exact = np.ones((1,par_dim))
+    # q_exact[0,27] = 2
+    # q_exact[0,54] = 3
+    q_circ[0,:] = 3
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 0.001
@@ -54,34 +59,44 @@ def main():
 
 
     setup = {
+        'spatial_resolution' : [4,y_res,z_res],
+        'body_force_type' : mm.BodyForceType.CenterExcite,
+        'system_matrix' : {
+            'type' : mm.SystemMatrixType.CosseratSpatial,
+            'hyperparameter' : {
+                'lambda' : 12.0,
+                'mu' : 8.0,
+                'nu' : 1.0,
+                'surface' : 'left'
+            }
+        },
+        'observation_operator': {
+            'type': mm.ObservationOperatorType.SensorsR9d,                       # Type of observation operator (e.g., identity = full state observed)
+            'hyperparameter' : {}
+        },
         'dims' : {
             'nt': nt,                                     # Number of time steps
-            'par_dim' : 2,
+            'par_dim' : None,
             'state_dim' : None,
-            'output_dim': None
+            'observation_space_dim': None
+        },
+        'products': {                                 # Inner products used in the problem
+            'prod_H': 'l2',                           # Product on H_h
+            'prod_Q': 'euclid',                       # Product on Q_h
+            'prod_V': 'h1_0_semi',                    # Product on V_h
+            'prod_C': 'euclid',                       # Product on C_h
         },
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-6,                          # Absolute noise magnitude added to data
+        'noise_level': 1e-5,                           # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
         'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
         'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
-        'products': {                                 # Inner products used in the problem
-            'prod_H': 'l2',                           # Product on H_h
-            'prod_Q': 'euclid',                       # Product on Q_h
-            'prod_V': 'h1_0_semi',                    # Product on V_h
-            'prod_C': 'l2',                           # Product on C_h
-            'bochner_prod_Q': 'bochner_euclid',       # Product on Q_h^K
-            'bochner_prod_V': 'bochner_h1_0_semi'     # Product on V_h^K
-        },
-        'observation_operator': {
-            'name': 'identity',                       # Type of observation operator (e.g., identity = full state observed)
-        },
         'time_stepper' : {
             'name' : 'newman_second_order',
             'zeta' : 0.5
@@ -128,7 +143,7 @@ def main():
             'state_HaPOD_tol': 1e-9                                  # Tolerance for state basis POD
         },
         #####################
-        'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
+        'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 2,                                    # Dump intermediate results every n optimization iterations
         #####################
         'eta0': 1e-1,                                                # Initial trust region tolerance

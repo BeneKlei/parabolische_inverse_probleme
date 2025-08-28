@@ -228,7 +228,6 @@ class NewmanSecondOrder(TimeStepper):
         else:
             A_q = self.A(q[0])
 
-        
         S_zeta = self.M + dt**2 * zeta**2 * A_q
         S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
 

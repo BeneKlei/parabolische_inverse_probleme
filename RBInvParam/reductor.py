@@ -145,19 +145,19 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     def _assemble_parameter_reduced_A(self) -> LincombOperator:
         parameter_basis = self._get_projection_basis('parameter_basis')
                 
-        if not self._cached_operators['A']:
-            start = 0
-            constant_operator = self.FOM.A.get_constant_operator()
-            if constant_operator:
-                operators = [constant_operator]
-                coefficients = [1]
-            else:
-                operators = []
-                coefficients = []
-        else:
-            operators = list(self._cached_operators['A'].operators)
-            start = len(operators) - 1
+        #if not self._cached_operators['A']:
+        start = 0
+        constant_operator = self.FOM.A.get_constant_operator()
+        if constant_operator:
+            operators = [constant_operator]
             coefficients = [1]
+        else:
+            operators = []
+            coefficients = []
+        # else:
+        #     operators = list(self._cached_operators['A'].operators)
+        #     start = len(operators) - 1
+        #     coefficients = [1]
              
         for i in range(start, len(parameter_basis)):
             q_i = parameter_basis[i]
@@ -198,7 +198,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'nt': self.FOM.nt,
             'state_dim': state_dim,
             'par_dim': par_dim,
-            'output_dim': self.FOM.setup['dims']['output_dim']                                                                                                                                                                     # options to preassemble affine components or not
+            'observation_space_dim': self.FOM.setup['dims']['observation_space_dim']                                                                                                                                                                     # options to preassemble affine components or not
         }
 
         setup = self.FOM.setup.copy()
