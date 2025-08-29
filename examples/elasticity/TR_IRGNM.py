@@ -120,7 +120,7 @@ def main():
         #####################
         'i_max': 75,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
-        'i_max_inner': 10,                                           # Max number of inner iterations
+        'i_max_inner': 2,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC
         'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
@@ -162,7 +162,7 @@ def main():
     save_dict_to_pkl(path=save_path / 'optimizer_parameter.pkl', 
                         data = optimizer_parameter,
                         use_timestamp=False)
-
+    
     optimizer = QrVrROMOptimizer(
         FOM = FOM,
         optimizer_parameter = optimizer_parameter,

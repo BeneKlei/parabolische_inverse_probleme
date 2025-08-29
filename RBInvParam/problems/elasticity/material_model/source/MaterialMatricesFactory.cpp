@@ -187,7 +187,7 @@ void MaterialMatricesFactory<dim, Number>::assemble_cosserat_spatial_system(
                 const auto &vp = GeometryInfo<dim>::unit_cell_vertex(v);
 
 
-              if (support_point.distance(vertex_point) < 1e-12)
+              if (sp.distance(vp) < 1e-12)
               {
                   k_local = i; // <-- local dof index on vertex v
                   break;

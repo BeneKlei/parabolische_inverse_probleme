@@ -145,19 +145,23 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     def _assemble_parameter_reduced_A(self) -> LincombOperator:
         parameter_basis = self._get_projection_basis('parameter_basis')
                 
-        #if not self._cached_operators['A']:
-        start = 0
-        constant_operator = self.FOM.A.get_constant_operator()
-        if constant_operator:
-            operators = [constant_operator]
-            coefficients = [1]
+        if not self._cached_operators['A']:
+            start = 0
+            if self.FOM.A.translation_operator:
+                operators = [self.FOM.A.get_translation_operator()]
+                coefficients = [1]
+            else:
+                operators = []
+                coefficients = []
         else:
-            operators = []
-            coefficients = []
-        # else:
-        #     operators = list(self._cached_operators['A'].operators)
-        #     start = len(operators) - 1
-        #     coefficients = [1]
+            operators = list(self._cached_operators['A'].operators)
+            start = len(operators)
+
+            if self.FOM.A.translation_operator:
+                coefficients = [1]
+            else:
+                coefficients = []
+
              
         for i in range(start, len(parameter_basis)):
             q_i = parameter_basis[i]
@@ -177,7 +181,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                     len(parameter_basis), i
                 )
             )
-        
+
         self._cached_operators['A'] = LincombOperator(operators, coefficients)
         
         return self._cached_operators['A']

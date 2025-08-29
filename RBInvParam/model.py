@@ -113,13 +113,16 @@ class InstationaryModelIP(ImmutableObject):
         )
 
         self.solver_options = None
-        self._cached_operators = {
-            'q' : self.Q.empty(),
-            'A_q' : [],
-            'M_dt_A_q' : [],
-            'residual_A_q' : [],
-            'B_u' : [],
-        }
+        self._cached_operators = {}
+
+        keys = []
+        keys += ['q', 'A_q']
+        keys += self.time_stepper.required_cache_keys
+        keys += ['residual_A_q', 'B_u']
+
+        self.reset_cached_operators(
+            keys = keys
+        )
         
         if not num_calls:
             self.num_calls = {
@@ -196,75 +199,58 @@ class InstationaryModelIP(ImmutableObject):
     def _cache_update_required(self,
                                q : VectorArray) -> bool:
         
-        if len(self._cached_operators['q']) == 0:
+        assert all(x is None for x in self._cached_operators['q']) or all(x is not None for x in self._cached_operators['q'])
+        if all(x is None for x in self._cached_operators['q']):
             return True
         else:
             return np.any((self._cached_operators['q']-q).norm() != 0)
     
-    def _cache_time_independed_operators(self, 
-                                       q: VectorArray,
-                                       u: VectorArray,
-                                       target: str = 'M_dt_A_q') -> None:
+    def _cache_operators(self, 
+                         target: str,
+                         time_step: int,
+                         q: VectorArray,
+                         u: VectorArray) -> None:
         
-        if target == 'A_q':
-            A_q = self.A(q[0])
-            self._cached_operators[target].append(
-                A_q.assemble()
-            )
-        elif target == 'M_dt_A_q':
-            dt = (self.T_final - self.T_initial) / self.nt
-            A_q = self.A(q[0])
-            M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
-            self._cached_operators[target].append(
-                M_dt_A_q.assemble()        
-            )
+        if target in self.time_stepper.required_cache_keys:
+            assert self._cached_operators['A_q'][time_step]
+
+            self._cached_operators[target][time_step] = \
+                self.time_stepper.cache_operator(
+                    target = target,
+                    time_step = time_step,
+                    q = q,
+                    u = u,
+                    A_q = self._cached_operators['A_q'][time_step]
+                )
+        elif target == 'A_q':
+            self._cached_operators['A_q'][time_step] = self.A(q[time_step])
         elif target == 'residual_A_q':
             if self.state_error_estimator:
                 assert self.state_error_estimator.state_residual_operator.A == self.adjoint_error_estimator.adjoint_residual_operator.A
-                self._cached_operators[target].append(
-                    self.state_error_estimator.state_residual_operator._precompute_residual_A_q(q[0])
-                )
+                self._cached_operators['residual_A_q'][time_step] = \
+                    self.state_error_estimator.state_residual_operator._precompute_residual_A_q(q[time_step])
         elif target == 'B_u':
-            self._cached_operators[target] = [self.B(u[idx]) for idx in range(len(u))]
+            self._cached_operators['B_u'][time_step] = self.B(u[time_step])
         else:
             self.logger.error(f'Target {target} is not known.')
             raise ValueError
     
     def _cache_time_depended_operators(self, 
+                                       target: str,
                                        q: VectorArray,
-                                       u: VectorArray,
-                                       target: str = 'M_dt_A_q') -> None:
-
-        
-        for n in range(self.nt):            
-            if target == 'A_q':
-                A_q = self.A(q[n])
-                self._cached_operators[target].append(
-                    A_q.assemble()
-                )
-            elif target == 'M_dt_A_q':
-                dt = (self.T_final - self.T_initial) / self.nt
-                A_q = self.A(q[n])
-                M_dt_A_q = (self.M + A_q * dt).with_(solver_options=self.solver_options)
-                self._cached_operators[target].append(
-                        M_dt_A_q.assemble()
-                )
-            elif target == 'residual_A_q':
-                if self.state_error_estimator:
-                    assert self.state_error_estimator.state_residual_operator.A == self.adjoint_error_estimator.adjoint_residual_operator.A
-                    self._cached_operators[target].append(
-                        self.state_error_estimator.state_residual_operator._precompute_residual_A_q(q[n])
-                    ) 
-            elif target == 'B_u':
-                self._cached_operators[target].append(self.B(u[n]))
-            else:
-                self.logger.error(f'Target {target} is not known.')
-                raise ValueError
+                                       u: VectorArray) -> None:  
+        for time_step in range(self.nt+1):
+            self._cache_operators(
+                target = target,
+                time_step = time_step,
+                q = q,
+                u = u
+            )
       
     def cache_operators(self, 
+                        target: str,
                         q: VectorArray,
-                        u: VectorArray = None,
-                        target: str = 'M_dt_A_q') -> None:
+                        u: VectorArray = None) -> None:
         
         assert target in self._cached_operators.keys()
         assert q in self.Q
@@ -279,36 +265,39 @@ class InstationaryModelIP(ImmutableObject):
         self._cached_operators['q'] = q.copy()
         
 
-        if self.setup['q_time_dep']:            
+        if self.q_time_dep or (target == 'B_u'):
             self._cache_time_depended_operators(
                 q = q,
                 u = u,
                 target = target
             )
         else:
-            self._cache_time_independed_operators(
+            self._cache_operators(
+                target = target,
+                time_step = 0,
                 q = q,
-                u = u,
-                target = target
+                u = u
             )
             
-    def delete_cached_operators(self) -> None:
+    def reset_cached_operators(self,
+                               keys: List[str] = None) -> None:
         self.logger.debug('Deleting cache')
 
-        del self._cached_operators['q'][:]
-        del self._cached_operators['A_q'][:]
-        del self._cached_operators['M_dt_A_q'][:]
-        del self._cached_operators['residual_A_q'][:]
-        del self._cached_operators['B_u'][:]
-        
+        if not keys:
+            keys = self._cached_operators.keys()
 
-        self._cached_operators = {
-            'q' : self.Q.empty(),
-            'A_q' : [],
-            'M_dt_A_q' : [],
-            'residual_A_q' : [],
-            'B_u' : []
-        }
+        for key in keys:
+            if key in self._cached_operators.keys():
+                del self._cached_operators[key][:]
+            
+            if key == 'q':
+                self._cached_operators['q'] = self.Q.empty()
+                continue
+            
+            if self.q_time_dep or (key == 'B_u'):
+                self._cached_operators[key] = [None] * (self.nt + 1)
+            else:
+                self._cached_operators[key] = [None]
     
     def update_cache(self,
                      q: VectorArray,
@@ -318,13 +307,14 @@ class InstationaryModelIP(ImmutableObject):
         
         if use_cached_operators:
             if self._cache_update_required(q):
-                self.delete_cached_operators()
+                self.reset_cached_operators()
             
             for key in required_cache_keys:
-                if len(self._cached_operators[key]) == 0:
+                lst = self._cached_operators[key]
+                assert all(x is None for x in lst) or all(x is not None for x in lst)
+                if all(x is None for x in self._cached_operators[key]):
                     self.cache_operators(q=q, u=u, target=key)
         
-
 #%% solve methods
     def solve_state(self, 
                     q: VectorArray,
@@ -339,13 +329,14 @@ class InstationaryModelIP(ImmutableObject):
 
         self.num_calls['solve_state'] += 1
 
-        required_cache_keys = self.time_stepper.required_cache_keys.copy()
+        required_cache_keys = ['A_q'] 
+        required_cache_keys += self.time_stepper.required_cache_keys.copy()
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 
             required_cache_keys = required_cache_keys
         )
-        
+
         iterator = self.time_stepper.iterate(initial_data = self.initial_data['state'], 
                                              q=q,
                                              rhs=self.L,
@@ -376,7 +367,8 @@ class InstationaryModelIP(ImmutableObject):
 
         self.num_calls['solve_adjoint'] += 1
 
-        required_cache_keys = self.time_stepper.required_cache_keys.copy()
+        required_cache_keys = ['A_q'] 
+        required_cache_keys += self.time_stepper.required_cache_keys.copy()
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 
@@ -436,7 +428,8 @@ class InstationaryModelIP(ImmutableObject):
 
         self.num_calls['solve_linearized_state'] += 1
         
-        required_cache_keys = self.time_stepper.required_cache_keys.copy()
+        required_cache_keys = ['A_q']
+        required_cache_keys += self.time_stepper.required_cache_keys.copy()
         required_cache_keys += ['B_u']
         self.update_cache(
             q = q, 
@@ -504,7 +497,8 @@ class InstationaryModelIP(ImmutableObject):
 
         self.num_calls['solve_linearized_adjoint'] += 1
 
-        required_cache_keys = self.time_stepper.required_cache_keys.copy()        
+        required_cache_keys = ['A_q']
+        required_cache_keys += self.time_stepper.required_cache_keys.copy()        
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 
@@ -685,7 +679,8 @@ class InstationaryModelIP(ImmutableObject):
         assert u in self.V
         assert lin_p in self.V
 
-        required_cache_keys = ['B_u']
+        required_cache_keys = ['A_q']
+        required_cache_keys += ['B_u']
         self.update_cache(
             q = q, 
             u = u,
@@ -808,7 +803,8 @@ class InstationaryModelIP(ImmutableObject):
         assert q in self.Q
         assert u in self.V
 
-        required_cache_keys = ['residual_A_q']
+        required_cache_keys = ['A_q']
+        required_cache_keys += ['residual_A_q']
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 
@@ -838,7 +834,8 @@ class InstationaryModelIP(ImmutableObject):
         assert u in self.V
         assert p in self.V
 
-        required_cache_keys = ['residual_A_q']
+        required_cache_keys = ['A_q']
+        required_cache_keys += ['residual_A_q']
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 
@@ -862,7 +859,8 @@ class InstationaryModelIP(ImmutableObject):
                                  p: VectorArray,
                                  use_cached_operators: bool = False) -> float:
 
-        required_cache_keys = ['residual_A_q']
+        required_cache_keys = ['A_q']
+        required_cache_keys += ['residual_A_q']
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 

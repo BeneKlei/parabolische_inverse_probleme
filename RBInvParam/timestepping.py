@@ -21,8 +21,7 @@ class TimeStepper(ABC):
                 V: VectorSpace,
                 T_initial: float,
                 T_final: float,
-                q_time_dep: Dict,
-                required_cache_keys: List[str] = []):
+                q_time_dep: Dict):
     
         self.nt = nt
         self.M = M 
@@ -32,7 +31,7 @@ class TimeStepper(ABC):
         self.T_initial = T_initial
         self.T_final = T_final
         self.q_time_dep = q_time_dep
-        self.required_cache_keys = required_cache_keys
+        self.required_cache_keys : List[str] = []
 
         assert isinstance(self.M, Operator)
         assert isinstance(self.A, EvaluatorA)
@@ -49,6 +48,13 @@ class TimeStepper(ABC):
                 rhs : Union[VectorArray, List[VectorArray]],
                 use_cached_operators: bool = False,
                 cached_operators: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
+        pass
+    
+    @abstractmethod
+    def cache_operator(self,
+                       target: str,
+                       q : VectorArray,
+                       u : VectorArray) -> Operator:
         pass
 
     def _check_cache(self,
@@ -172,6 +178,27 @@ class NewmanSecondOrder(TimeStepper):
         super().__init__(**kwargs)
         assert 0 <= zeta <= 1 
         self.zeta = zeta
+        self.required_cache_keys = ['S_zeta', 'S_zeta_minus_one']
+    
+    def cache_operator(self,
+                       target: str,
+                       time_step: int,
+                       q : VectorArray,
+                       u : VectorArray,
+                       A_q: Operator) -> Operator:
+        
+        if self.q_time_dep:
+            assert time_step == 0
+
+        zeta = self.zeta 
+        dt = (self.T_final - self.T_initial) / self.nt
+
+        if target == 'S_zeta':
+            return self.M + dt**2 * zeta**2 * A_q
+        elif target == 'S_zeta_minus_one':
+            return self.M + dt**2 * zeta * (zeta - 1) * A_q
+        else:
+            raise ValueError
 
     def iterate(self,                               
                 initial_data : dict, 
@@ -202,7 +229,7 @@ class NewmanSecondOrder(TimeStepper):
                q = q,
                cached_operators = cached_operators
             )
-        
+                
         num_values = self.nt + 1
         dt = (self.T_final - self.T_initial) / self.nt
         DT = (self.T_final - self.T_initial) / (num_values - 1)
@@ -225,11 +252,12 @@ class NewmanSecondOrder(TimeStepper):
 
         if use_cached_operators:
             A_q = cached_operators['A_q'][0]
+            S_zeta = cached_operators['S_zeta'][0]
+            S_zeta_minus_one = cached_operators['S_zeta_minus_one'][0]
         else:
             A_q = self.A(q[0])
-
-        S_zeta = self.M + dt**2 * zeta**2 * A_q
-        S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
+            S_zeta = self.M + dt**2 * zeta**2 * A_q
+            S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
 
         if not rhs_time_dep:
             dt_R = dt * rhs
@@ -248,11 +276,12 @@ class NewmanSecondOrder(TimeStepper):
                 # Otherwise the values set above are never updated
                 if use_cached_operators:
                     A_q = cached_operators['A_q'][n]
+                    S_zeta = cached_operators['S_zeta'][n]
+                    S_zeta_minus_one = cached_operators['S_zeta_minus_one'][n]
                 else:
                     A_q = self.A(q[n])
-
-                S_zeta = self.M + dt**2 * zeta**2 * A_q
-                S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
+                    S_zeta = self.M + dt**2 * zeta**2 * A_q
+                    S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
 
             if rhs_time_dep:
                 rhs_cur = rhs[n]
@@ -298,8 +327,7 @@ def get_time_stepper(
             V = V,
             T_initial= T_initial,
             T_final= T_final,
-            q_time_dep=q_time_dep,
-            required_cache_keys = ['M_dt_A_q'] 
+            q_time_dep=q_time_dep
         )
 
     elif time_stepper['name'] == 'newman_second_order':
@@ -312,7 +340,6 @@ def get_time_stepper(
             T_initial= T_initial,
             T_final= T_final,
             q_time_dep=q_time_dep,
-            required_cache_keys = ['A_q'],
             zeta=time_stepper['zeta']
             
         )

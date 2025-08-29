@@ -529,7 +529,6 @@ class Optimizer(BasicObject):
         else:
             raise ValueError
         
-
     def dump_stats(self, 
                    data: Dict,
                    save_path: Union[str, Path] = None):

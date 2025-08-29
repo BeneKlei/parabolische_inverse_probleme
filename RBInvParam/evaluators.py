@@ -16,13 +16,15 @@ class EvaluatorA(ABC):
                 source : VectorSpace,
                 range : VectorSpace,
                 Q : VectorSpace,
-                parameter_names: List[str] | None):
+                parameter_names: List[str] | None,
+                translation_operator: bool = False):
     
         assert source == range
         self.Q = Q
         self.source = source
         self.range = range
         self.parameter_names = parameter_names
+        self.translation_operator = translation_operator
 
     @abstractmethod
     def __call__(self, q: VectorArray) -> Operator:
@@ -32,7 +34,7 @@ class EvaluatorA(ABC):
         return self.parameter_names
     
     @abstractmethod
-    def get_constant_operator(self) -> Operator | None:
+    def get_translation_operator(self) -> Operator | None:
         pass
 
     @abstractmethod
@@ -135,7 +137,7 @@ class ROMEvaluatorA(EvaluatorA):
         else:
             return self.parameteric_operator.assemble(q_as_par)
 
-    def get_constant_operator(self) -> Operator | None:
+    def get_translation_operator(self) -> Operator | None:
         return self.constant_operator
 
     def get_parameteric_operator(self) -> Operator:

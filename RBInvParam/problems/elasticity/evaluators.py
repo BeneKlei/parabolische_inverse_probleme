@@ -63,7 +63,7 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         vector_array = vector_array.space.make_array(vector_array.vectors[::-1])
         return vector_array
 
-    def get_constant_operator(self) -> Operator | None:
+    def get_translation_operator(self) -> Operator | None:
         return None
 
     def get_parameteric_operator(self) -> Operator | None:
