@@ -1331,6 +1331,9 @@ class QrVrROMOptimizer(Optimizer):
                     else:
                         rho = np.inf
 
+                    print("rho = ")
+                    print(rho)
+
                     if rho > beta_2:
                         eta = 1/ beta_3 * eta
 

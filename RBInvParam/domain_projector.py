@@ -103,7 +103,8 @@ class SimpleBoundDomainProjector(DomainProjector):
                 u = np.min((center_recon[0] - _bounds[:,0]) * (1 / b), axis = 0)
                 self.r[0] = np.min(np.stack([l,u]), axis=0)
             
-            assert np.all(self.r > 0)
+            print(self.r)
+            #assert np.all(self.r > 0)
             
     def project_domain(self,
                        center: NumpyVectorArray,

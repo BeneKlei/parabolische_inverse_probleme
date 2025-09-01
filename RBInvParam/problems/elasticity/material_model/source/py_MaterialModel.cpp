@@ -52,7 +52,9 @@ PYBIND11_MODULE(material_model, m) {
           .def_readonly("force_list", &MaterialModel::m_force_list)
           .def_readonly("system_matrix_sp", &MaterialModel::m_system_matrix_sp)
           
-          .def("clear_rhs_boundary_dofs", &MaterialModel::clear_rhs_boundary_dofs, py::return_value_policy::reference_internal);
+          .def("clear_rhs_boundary_dofs", &MaterialModel::clear_rhs_boundary_dofs, py::return_value_policy::reference_internal)
+          .def("save_state", &MaterialModel::save_state, py::return_value_policy::reference_internal)
+          .def("save_time_series", &MaterialModel::save_time_series, py::return_value_policy::reference_internal);
 
       py::enum_<BodyForceType>(m, "BodyForceType")
          .value("CenterExcite", BodyForceType::CenterExcite)

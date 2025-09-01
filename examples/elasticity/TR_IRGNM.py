@@ -36,12 +36,18 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    y_res = 8
-    z_res = 8
-    par_dim = (y_res + 1) * (z_res + 1) * 5 * 3
+    y_res = 30
+    z_res = 30
+    # y_res = 8
+    # z_res = 8
+    #par_dim = (y_res + 1) * (z_res + 1) * 5 * 3
+    par_dim = 3
     T_initial = 0
-    T_final = 1
-    nt = 50
+    T_final = 10
+    nt = 100
+
+    # T_final = 1
+    # nt = 20
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
@@ -62,16 +68,16 @@ def main():
         'spatial_resolution' : [4,y_res,z_res],
         'body_force_type' : mm.BodyForceType.CenterExcite,
         'system_matrix' : {
-            'type' : mm.SystemMatrixType.CosseratSpatial,
+            'type' : mm.SystemMatrixType.Cosserat,
             'hyperparameter' : {
-                'lambda' : 12.0,
-                'mu' : 8.0,
-                'nu' : 1.0,
+                'lambda' : 1.0,
+                'mu' : 1.0,
+                'nu' : 1e-3,
                 'surface' : 'left'
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR9d,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
         'dims' : {
@@ -90,7 +96,7 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-5,                           # Absolute noise magnitude added to data
+        'noise_level': 1e-3,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -110,7 +116,7 @@ def main():
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-7,                                             # Initial regularization parameter (data fidelity vs. regularization)
+        'alpha_0': 1e-3,                                             # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         'tau': 3.5,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
@@ -120,14 +126,14 @@ def main():
         #####################
         'i_max': 75,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
-        'i_max_inner': 2,                                           # Max number of inner iterations
+        'i_max_inner': 25,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC
         'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
-            'max_iter': 1e4,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 1e-10,                                 # Convergence tolerance for the linear solver
+            'max_iter': 250,                                         # Maximum iterations for the linear solver
+            'lin_solver_tol': 1e-5,                                 # Convergence tolerance for the linear solver
             'inital_step_size': 1                                    # Initial step size for iterative linear solver
         },
         # 'lin_solver_parms': {
@@ -138,9 +144,9 @@ def main():
         # },
         'enrichment': {
             'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
-            'parameter_HaPOD_tol': 1e-9,                             # Tolerance for parameter basis POD
-            'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-            'state_HaPOD_tol': 1e-9                                  # Tolerance for state basis POD
+            'parameter_HaPOD_tol': 1e-16,                             # Tolerance for parameter basis POD
+            'state_strategy': 'full_HaPOD',                      # Enrichment strategy for state basis
+            'state_HaPOD_tol': 1e-3                                  # Tolerance for state basis POD
         },
         #####################
         'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
@@ -162,7 +168,7 @@ def main():
     save_dict_to_pkl(path=save_path / 'optimizer_parameter.pkl', 
                         data = optimizer_parameter,
                         use_timestamp=False)
-    
+
     optimizer = QrVrROMOptimizer(
         FOM = FOM,
         optimizer_parameter = optimizer_parameter,

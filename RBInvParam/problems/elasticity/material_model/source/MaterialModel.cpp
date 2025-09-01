@@ -14,6 +14,7 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/solver_cg.h>
 
+#include <deal.II/base/data_out_base.h>
 #include <deal.II/base/function.h>
 
 #include <fstream>
@@ -320,4 +321,76 @@ void MaterialModel::setup_body_force() {
   default:
     throw std::runtime_error("Unknown body force.");
   }
+}
+
+void MaterialModel::save_state(const Vector<Number>& v, 
+                               const std::string save_path)
+{
+    std::filesystem::path _save_path = std::filesystem::path(save_path);
+    DataOut<3> data_out;
+	  std::vector<std::string> solution_names;
+
+	  solution_names.push_back("x");
+	  solution_names.push_back("y");
+	  solution_names.push_back("z");
+
+	  std::vector<DataComponentInterpretation::DataComponentInterpretation> dci(3);
+	  for (unsigned int i=0;i<3;i++)
+	    dci[i] = DataComponentInterpretation::component_is_part_of_vector;
+    
+    data_out.attach_dof_handler(m_dof_handler);
+    data_out.add_data_vector(v, solution_names, DataOut<3>::type_dof_data ,dci);
+    data_out.add_data_vector(v, solution_names);
+    data_out.build_patches();
+
+	  std::ofstream output(_save_path);
+	  data_out.write_vtk(output);
+	  output.close();
+}
+
+void MaterialModel::save_time_series(const std::vector<Vector<double>> &v,
+                                     const std::string &name,
+                                     const std::string &save_path,
+                                     const std::vector<double> &times)
+{
+    // ensure output directory exists
+    std::filesystem::path dir = std::filesystem::path(save_path) / name;
+    if (!std::filesystem::exists(dir))
+        std::filesystem::create_directories(dir);
+
+    DataOut<3> data_out;
+
+    std::vector<std::string> solution_names = {"x", "y", "z"};
+    std::vector<DataComponentInterpretation::DataComponentInterpretation> dci(3);
+	  for (unsigned int i=0;i<3;i++)
+	    dci[i] = DataComponentInterpretation::component_is_part_of_vector;
+
+    // Open .pvd file to collect all timesteps
+    const std::string pvd_filename = (dir / (name + ".pvd")).string();
+    std::ofstream pvd(pvd_filename);
+    pvd << "<?xml version=\"1.0\"?>\n";
+    pvd << "<VTKFile type=\"Collection\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
+    pvd << "  <Collection>\n";
+
+
+    for (unsigned int t = 0; t < v.size(); ++t)
+    {
+        data_out.attach_dof_handler(m_dof_handler);
+        data_out.add_data_vector(v[t], solution_names, DataOut<3>::type_dof_data ,dci);
+        data_out.build_patches();
+
+        // write .vtu file for this timestep
+        const std::string vtu_filename = name + "_" + std::to_string(t) + ".vtu";
+        std::ofstream vtu_file((dir / vtu_filename).string());
+        data_out.write_vtu(vtu_file);
+
+        // add entry to .pvd
+        pvd << "    <DataSet timestep=\"" << times[t]
+            << "\" group=\"\" part=\"0\" file=\"" << vtu_filename << "\"/>\n";
+
+        data_out.clear();
+    }
+
+    pvd << "  </Collection>\n";
+    pvd << "</VTKFile>\n";
 }

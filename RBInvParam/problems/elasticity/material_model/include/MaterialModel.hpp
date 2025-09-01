@@ -20,6 +20,8 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
 
+#include <filesystem>
+
 #include "MaterialMatricesFactory.hpp"
 #include "SystemMatrices.hpp"
 #include "BodyForce.hpp"
@@ -61,13 +63,22 @@ public:
   void assemble_observation_operator_matrix(ObservationOperatorType observation_operator_type);
   void assemble_system_matrix();
   void assemble_system_matrix_derivative(const Vector<Number>& state_DoFs);
+  void assemble_bilinear_cost_matrix();
 
+  // --------------------------------------------------
+  
   void assemble_product_V(const StateProductType state_product_type);
   void assemble_product_H(const StateProductType state_product_type);
   void assemble_product_C(const ObservationSpaceProductType obs_space_product_type);
 
-  void assemble_bilinear_cost_matrix();
-  void clear_rhs_boundary_dofs(Vector<Number>& v);      
+  // --------------------------------------------------
+
+  void clear_rhs_boundary_dofs(Vector<Number>& v);  
+  void save_state(const Vector<Number>& v, const std::string save_path);
+  void save_time_series(const std::vector<Vector<Number>> &v,
+                        const std::string &name,
+                        const std::string &save_path,
+                        const std::vector<double> &times);
 
   // --------------------------------------------------
 
@@ -123,11 +134,6 @@ private:
   
   void assemble_force_list();
   void assemble_force(Vector<Number>& result, double time);
-
-  // template <typename Integrand>
-  // void _assemble_product_matrix(SparseMatrix<Number>& matrix,
-  //                               Integrand integrand,
-  //                               const AffineConstraints<Number>& constraints);
 };
 
 

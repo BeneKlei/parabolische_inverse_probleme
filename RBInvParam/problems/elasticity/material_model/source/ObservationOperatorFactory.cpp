@@ -87,7 +87,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp) const
 {      
-    const Number tol  = 1e0;
+    const Number tol  = 5 * 1e0;
     const Number tol2 = tol * tol;
 
     SparseMatrix<Number> G;
@@ -151,11 +151,8 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
     }
     // ----------------------------------------------------
 
-    observation_operator_sp = utils::make_product_sparsity_AB(G, boundary_mass_matrix);
-    //observation_operator_sp.copy_from(sp_G);
+    observation_operator_sp.copy_from(utils::make_product_sparsity_AB(G, boundary_mass_matrix));
     observation_operator_matrix.reinit(observation_operator_sp);
-    // observation_operator_matrix.copy_from(G);
-    // std::cout << G.m() << G.n() << std::endl;
     
     G.mmult(observation_operator_matrix, boundary_mass_matrix);
 }

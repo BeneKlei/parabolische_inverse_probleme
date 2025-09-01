@@ -192,6 +192,8 @@ class NewmanSecondOrder(TimeStepper):
 
         zeta = self.zeta 
         dt = (self.T_final - self.T_initial) / self.nt
+        #rho = 2.7 * 1e3
+        #rho = 1
 
         if target == 'S_zeta':
             return self.M + dt**2 * zeta**2 * A_q

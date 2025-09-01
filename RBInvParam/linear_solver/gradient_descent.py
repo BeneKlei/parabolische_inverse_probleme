@@ -13,6 +13,7 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 
 
 MACHINE_EPS = 1e-16
+CONV_TOL = 1e-6
 
 def armijo_condition(
     previous_J : float,
@@ -235,7 +236,8 @@ def gradient_descent_linearized_problem(
             
         
         
-        if (i % 5 == 0):
+        #if (i % 5 == 0):
+        if (i % 1 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {terminaton_lhs:3.4e}.")
             
 
@@ -247,7 +249,7 @@ def gradient_descent_linearized_problem(
 
         #stagnation check
         if i > 5:
-            if abs(buffer_J[0] - buffer_J[1]) < MACHINE_EPS and abs(buffer_J[1] - buffer_J[2]) < MACHINE_EPS:
+            if abs(buffer_J[0] - buffer_J[1]) < CONV_TOL and abs(buffer_J[1] - buffer_J[2]) < CONV_TOL:
                 logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
                 break
 

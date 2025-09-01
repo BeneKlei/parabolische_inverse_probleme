@@ -40,12 +40,18 @@ set_defaults({})
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    y_res = 8
-    z_res = 8
-    par_dim = (y_res + 1) * (z_res + 1) * 5 * 3
+    y_res = 30
+    z_res = 30
+    # y_res = 8
+    # z_res = 8
+    #par_dim = (y_res + 1) * (z_res + 1) * 5 * 3
+    par_dim = 3
     T_initial = 0
-    T_final = 1
-    nt = 50
+    T_final = 10
+    nt = 100
+
+    # T_final = 1
+    # nt = 20
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
@@ -66,16 +72,16 @@ def main():
         'spatial_resolution' : [4,y_res,z_res],
         'body_force_type' : mm.BodyForceType.CenterExcite,
         'system_matrix' : {
-            'type' : mm.SystemMatrixType.CosseratSpatial,
+            'type' : mm.SystemMatrixType.Cosserat,
             'hyperparameter' : {
-                'lambda' : 12.0,
-                'mu' : 8.0,
-                'nu' : 1.0,
+                'lambda' : 1.0,
+                'mu' : 1.0,
+                'nu' : 1e-3,
                 'surface' : 'left'
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR9d,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
         'dims' : {
@@ -94,7 +100,7 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-5,                           # Absolute noise magnitude added to data
+        'noise_level': 1e-3,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -111,13 +117,34 @@ def main():
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
-    print(FOM.compute_objective(FOM.Q.make_array(q_start)))
-    print(FOM.compute_objective(FOM.Q.make_array(q_exact)))
+    u = FOM.solve_state(FOM.Q.make_array(q_exact))
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in u.vectors],
+        str('u_exact'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
+
+    # u = FOM.solve_state(FOM.Q.make_array(q_start))
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in u.vectors],
+    #     str('u_start'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
+
+    # FOM.A.material_model.save_state(
+    #     u.vectors[-1].real_part.impl,
+    #     str(save_path / 'test')
+    # )
+
+    # import sys
+    # sys.exit()
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                          # Initial regularization parameter
-        'tol': 1e-11,                                            # Absolute convergence tolerance for optimization
+        'alpha_0': 1e-3,                                          # Initial regularization parameter
+        'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
         'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
         'theta': 0.1,                                           # Lower tolerance for the direction acceptance condition
@@ -129,8 +156,8 @@ def main():
         ####################
         'lin_solver_parms': {
             'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
-            'max_iter': 1e4,                                     # Max iterations for the linear solver
-            'lin_solver_tol': 1e-12,                          # Tolerance for convergence in the linear solver
+            'max_iter': 250,                                     # Max iterations for the linear solver
+            'lin_solver_tol': 1e-5,                          # Tolerance for convergence in the linear solver
             'inital_step_size': 1                                # Initial step size for iterative solvers (if applicable)
         },
         'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
