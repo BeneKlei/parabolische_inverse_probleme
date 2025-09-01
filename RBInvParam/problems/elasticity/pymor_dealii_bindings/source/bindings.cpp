@@ -134,7 +134,7 @@ void bind_sparse_matrix(pybind11::module& module) {
 
     // We have made one addition, though: since we suppress output from the
     // linear solvers, we have to print the number of iterations by hand.
-    std::cout << "   " << solver_control.last_step() << " CG iterations needed to obtain convergence." << std::endl;
+    // std::cout << "   " << solver_control.last_step() << " CG iterations needed to obtain convergence." << std::endl;
   };
 
   py::class_<Matrix>(module, "SparseMatrix")

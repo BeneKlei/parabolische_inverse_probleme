@@ -22,9 +22,11 @@ from RBInvParam.evaluators import ROMEvaluatorA, ROMEvaluatorB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.utils.logger import get_default_logger
-from RBInvParam.residuals import StateResidualOperator, AdjointResidualOperator
-from RBInvParam.error_estimator import StateErrorEstimator, \
-    AdjointErrorEstimator, ObjectiveErrorEstimator
+from RBInvParam.error_estimators.state_error_estimators import create_state_error_estimator
+from RBInvParam.error_estimators.adjoint_error_estimators import create_adjoint_error_estimator
+from RBInvParam.error_estimators.objective_error_estimators import create_objective_error_estimator
+from RBInvParam.error_estimators.residuals import StateResidualOperator, AdjointResidualOperator
+
 
 from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator
 from RBInvParam.problems.elasticity.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
@@ -32,6 +34,7 @@ from RBInvParam.problems.elasticity.pymor_dealii_bindings.vectorarray import Dea
 class InstationaryModelIPReductor(ProjectionBasedReductor):
     def __init__(self, 
                  FOM: InstationaryModelIP, 
+                 error_estimator_types: Dict,
                  check_orthonormality: bool =False, 
                  check_tol: float = 1e-3,
                  residual_image_basis_mode: str = 'none',
@@ -72,6 +75,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         assert residual_image_basis_mode in ['none']
         self.residual_image_basis_mode = residual_image_basis_mode 
+        self.error_estimator_types = error_estimator_types
         self.logger.debug(f"Using residual image basis mode: '{residual_image_basis_mode}'.")
     
     def delete_cached_operators(self) -> None:
@@ -145,23 +149,26 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     def _assemble_parameter_reduced_A(self) -> LincombOperator:
         parameter_basis = self._get_projection_basis('parameter_basis')
                 
-        if not self._cached_operators['A']:
-            start = 0
-            if self.FOM.A.translation_operator:
-                operators = [self.FOM.A.get_translation_operator()]
-                coefficients = [1]
-            else:
-                operators = []
-                coefficients = []
-        else:
-            operators = list(self._cached_operators['A'].operators)
-            start = len(operators)
+        # if not self._cached_operators['A']:
+        #     start = 0
+        #     if self.FOM.A.translation_operator:
+        #         operators = [self.FOM.A.get_translation_operator()]
+        #         coefficients = [1]
+        #     else:
+        #         operators = []
+        #         coefficients = []
+        # else:
+            # operators = list(self._cached_operators['A'].operators)
+            # start = len(operators)
 
-            if self.FOM.A.translation_operator:
-                coefficients = [1]
-            else:
-                coefficients = []
+            # if self.FOM.A.translation_operator:
+            #     coefficients = [1]
+            # else:
+            #     coefficients = []
 
+        operators = []
+        start = 0
+        coefficients = []
              
         for i in range(start, len(parameter_basis)):
             q_i = parameter_basis[i]
@@ -537,7 +544,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                 'C_continuity_constant' : self.FOM.model_constants['C_continuity_constant']
         }
 
-        state_error_estimator = StateErrorEstimator(
+        state_error_estimator = create_state_error_estimator(
+            estimator_type = self.error_estimator_types['state'],
             state_residual_operator = state_residual_operator,
             A_coercivity_constant_estimator = A_coercivity_constant_estimator,
             Q = Q,
@@ -545,7 +553,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             product = product,
             setup = setup
         )
-        adjoint_error_estimator = AdjointErrorEstimator(
+        adjoint_error_estimator = create_adjoint_error_estimator(
+            estimator_type = self.error_estimator_types['adjoint'],
             adjoint_residual_operator = adjoint_residual_operator,
             A_coercivity_constant_estimator = A_coercivity_constant_estimator,
             Q = Q,
@@ -554,23 +563,18 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             setup = setup
         )
 
-        objective_error_estimator = ObjectiveErrorEstimator(
+        objective_error_estimator = create_objective_error_estimator(
+            estimator_type = self.error_estimator_types['objective'],
             A_coercivity_constant_estimator = A_coercivity_constant_estimator,
             C_continuity_constant = self.FOM.model_constants['C_continuity_constant']
         )
 
-        # error_estimator = {
-        #     'state_error_estimator' : state_error_estimator,
-        #     'adjoint_error_estimator' : adjoint_error_estimator,
-        #     'objective_error_estimator' : objective_error_estimator,
-        #     'model_constants' : model_constants,
-        # }
-
         error_estimator = {
-            'state_error_estimator' : None,
-            'adjoint_error_estimator' : None,
-            'objective_error_estimator' : None,
+            'state_error_estimator' : state_error_estimator,
+            'adjoint_error_estimator' : adjoint_error_estimator,
+            'objective_error_estimator' : objective_error_estimator,
             'model_constants' : model_constants,
         }
+
 
         return error_estimator

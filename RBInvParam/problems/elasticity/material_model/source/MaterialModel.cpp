@@ -189,6 +189,19 @@ void MaterialModel::assemble_system_matrix()
   m_system_matrix.reinit(m_system_matrix_sp);
   m_system_matrix = 0;
   m_system_matrices.assemble(m_system_matrix, m_q);
+  // // Reinitialize system matrix with sparsity pattern
+  // m_system_matrix.reinit(m_system_matrix_sp);
+
+  // // Zero out all entries
+  // m_system_matrix = 0;
+
+  // // Fill the diagonal with 1.0 → identity matrix
+  // for (unsigned int i = 0; i < m_system_matrix.m(); ++i)
+  //   if (m_system_matrix_sp.exists(i, i)) // check if diagonal entry exists in sparsity pattern
+  //     m_system_matrix.set(i, i, 1.0);
+
+  // // Compress the matrix to finalize assembly
+  // m_system_matrix.compress(VectorOperation::insert);
 }
 
 void MaterialModel::assemble_product_V(const StateProductType state_product_type) {

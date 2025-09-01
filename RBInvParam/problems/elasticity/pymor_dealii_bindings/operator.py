@@ -23,18 +23,27 @@ class DealIIMatrixOperator(LinearComplexifiedListVectorArrayOperatorBase):
         self.matrix.vmult(r.impl, u.impl)
         return r
 
+    # def _real_apply_inverse_one_vector(
+    #     self, v, mu=None, initial_guess=None, least_squares=False, prepare_data=None
+    # ):
+    #     if least_squares:
+    #         raise NotImplementedError
+
+    #     if not self._solver_initialized:
+    #         self.solver.initialize(self.matrix)
+    #         self._solver_initialized = True
+
+    #     r = self.source.real_zero_vector()
+    #     self.solver.vmult(r.impl, v.impl)
+    #     return r
+    
     def _real_apply_inverse_one_vector(
         self, v, mu=None, initial_guess=None, least_squares=False, prepare_data=None
     ):
         if least_squares:
             raise NotImplementedError
-
-        if not self._solver_initialized:
-            self.solver.initialize(self.matrix)
-            self._solver_initialized = True
-
         r = self.source.real_zero_vector()
-        self.solver.vmult(r.impl, v.impl)
+        self.matrix.cg_solve(r.impl, v.impl)
         return r
 
     def _real_apply_adjoint_one_vector(self, v, mu=None, prepare_data=None):

@@ -8,12 +8,14 @@ from pymor.vectorarrays.interface import VectorArray, VectorSpace
 from pymor.vectorarrays.numpy import NumpyVectorArray, VectorSpace
 from pymor.operators.interface import Operator
 from pymor.core.base import ImmutableObject
-from pymor.operators.constructions import ZeroOperator
 
-from RBInvParam.evaluators import FOMEvaluatorA, EvaluatorA, EvaluatorB
+from RBInvParam.evaluators import EvaluatorA, EvaluatorB
 from RBInvParam.timestepping import get_time_stepper
-from RBInvParam.error_estimator import StateErrorEstimator, AdjointErrorEstimator, \
-    ObjectiveErrorEstimator, CoercivityConstantEstimator
+
+from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimator
+from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimator
+from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimator, CoercivityConstantEstimator
+
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.products import BochnerProductOperator
 #from RBInvParam.reductor import InstationaryModelIPReductor
@@ -857,8 +859,11 @@ class InstationaryModelIP(ImmutableObject):
                                  q: VectorArray,
                                  u: VectorArray,
                                  p: VectorArray,
-                                 use_cached_operators: bool = False) -> float:
+                                 use_cached_operators: bool = False) -> float | None:
 
+        if not self.objective_error_estimator:
+            return None
+        
         required_cache_keys = ['A_q']
         required_cache_keys += ['residual_A_q']
         self.update_cache(
@@ -867,33 +872,30 @@ class InstationaryModelIP(ImmutableObject):
             required_cache_keys = required_cache_keys
         )
 
-        if self.objective_error_estimator:
-            estimated_state_error = self.estimate_state_error(
-                q = q,
-                u = u,
-                use_cached_operators=use_cached_operators
-            )            
-            adjoint_residuum = self.adjoint_error_estimator.compute_residuum(
-                q = q,
-                u = u,
-                p = p,
-                use_cached_operators=use_cached_operators,
-                cached_operators=self._cached_operators
+        estimated_state_error = self.estimate_state_error(
+            q = q,
+            u = u,
+            use_cached_operators=use_cached_operators
+        )            
+        adjoint_residuum = self.adjoint_error_estimator.compute_residuum(
+            q = q,
+            u = u,
+            p = p,
+            use_cached_operators=use_cached_operators,
+            cached_operators=self._cached_operators
+        )
+        adjoint_residuum = np.sqrt(self.adjoint_error_estimator.delta_t * \
+            np.sum(adjoint_residuum.norm2(
+                product=self.adjoint_error_estimator.product
             )
-
-            adjoint_residuum = np.sqrt(self.adjoint_error_estimator.delta_t * \
-                np.sum(adjoint_residuum.norm2(
-                    product=self.adjoint_error_estimator.product
-                )
-            ))
-            e = self.objective_error_estimator.estimate_error(
-                q = q,
-                estimated_state_error = estimated_state_error,
-                adjoint_residuum = adjoint_residuum
-            )
-            return e
-        else:
-            return 0.0
+        ))
+        e = self.objective_error_estimator.estimate_error(
+            q = q,
+            estimated_state_error = estimated_state_error,
+            adjoint_residuum = adjoint_residuum
+        )
+        return e 
+        
     
     def estimate_gradient_error(self) -> float:
         raise NotImplementedError
@@ -918,8 +920,6 @@ class InstationaryModelIP(ImmutableObject):
         u = self.solve_state(q=q, 
                              use_cached_operators=use_cached_operators)
         
-        print(u.to_numpy())
-
         return self.objective(u, q, alpha)
     
     def compute_gradient(self,

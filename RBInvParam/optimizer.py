@@ -134,11 +134,16 @@ class Optimizer(BasicObject):
 
         armijo_condition = lhs >= rhs
         if current_J > 0:
-            J_rel_error = model.estimate_objective_error(
-                q=current_q,
+            abs_est_error_J_r = self.estimate_objective_error(
+                model = model,
+                q = current_q,
                 u = u,
                 p = p,
-                use_cached_operators=use_cached_operators) / current_J
+                use_cached_operators=use_cached_operators
+            )
+
+
+            J_rel_error = abs_est_error_J_r / current_J
         else:
             J_rel_error = np.inf
         
@@ -178,12 +183,15 @@ class Optimizer(BasicObject):
 
             armijo_condition = lhs >= rhs
 
-            if current_J > 0:                
-                J_rel_error = model.estimate_objective_error(
-                    q=current_q,
+            if current_J > 0:
+                abs_est_error_J_r = self.estimate_objective_error(
+                    model = model,
+                    q = current_q,
                     u = u,
                     p = p,
-                    use_cached_operators=use_cached_operators) / current_J
+                    use_cached_operators=use_cached_operators
+                )                
+                J_rel_error = abs_est_error_J_r / current_J
             else:
                 J_rel_error = np.inf
 
@@ -207,6 +215,45 @@ class Optimizer(BasicObject):
 
         return (current_q, current_J, model_unsufficent, TR_max_iter_cond, step_size)
     
+    def estimate_objective_error(self,
+                                 model: InstationaryModelIP,
+                                 q : VectorArray,
+                                 u : VectorArray,
+                                 p : VectorArray,
+                                 use_cached_operators: bool = True) -> float:
+
+        if id(model) == id(self.FOM):
+            return 0.0
+        
+        if not model.objective_error_estimator:
+            #print("Here")
+            J = self.FOM.compute_objective(
+                q = self.reductor.reconstruct(q, basis='parameter_basis')
+            )
+            J_r = model.compute_objective(
+                q = q
+            )
+            print("Here")
+            print(J)
+            print(J_r)
+            print(self.FOM.compute_gradient(
+                q = self.reductor.reconstruct(q, basis='parameter_basis')
+            ))
+            print(model.compute_gradient(
+                q = q
+            ))
+
+
+            print(np.abs(J - J_r))
+            return np.abs(J - J_r)
+        
+        return self.model.estimate_objective_error(
+            q = q,
+            u = u,
+            p = p,
+            use_cached_operators=use_cached_operators
+        )
+
     def IRGNM(self,
               model: InstationaryModelIP,
               q_0: VectorArray,
@@ -550,8 +597,7 @@ class Optimizer(BasicObject):
             statistics['reduced_bases']['state_basis'] = dealii_vector_space_to_numpy(statistics['reduced_bases']['state_basis'])
                 
         return statistics
-        
-    
+          
 class FOMOptimizer(Optimizer):
     def __init__(self, 
                  optimizer_parameter: Dict, 
@@ -846,6 +892,7 @@ class QrVrROMOptimizer(Optimizer):
 
         self.reductor = InstationaryModelIPReductor(
             FOM,
+            optimizer_parameter['error_estimator_types']
         )
         self.QrVrROM = None
 
@@ -911,7 +958,7 @@ class QrVrROMOptimizer(Optimizer):
         assert product.source == product.range == snapshots.space
 
         snapshots, _, _ = \
-        inc_vectorarray_hapod(steps=len(snapshots)/2, 
+        inc_vectorarray_hapod(steps=len(snapshots) / 2,
                               U=snapshots, 
                               eps=HaPOD_tol,
                               omega=0.1,                
@@ -1028,6 +1075,18 @@ class QrVrROMOptimizer(Optimizer):
             else:
                 raise ValueError
             
+        # print(self.reductor.calc_projection_error(
+        #         x = self.parameter_shapshots.copy(),
+        #         basis = 'parameter_basis',
+        #         normalize = False
+        #     ))
+        
+        # print(self.reductor.calc_projection_error(
+        #     x = self.state_shapshots.copy(),
+        #     basis = 'state_basis',
+        #     normalize = False
+        # ))
+            
         self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
         self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
@@ -1138,12 +1197,17 @@ class QrVrROMOptimizer(Optimizer):
         p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
         J_r = self.QrVrROM.objective(u_r)
 
-        abs_est_error_J_r = self.QrVrROM.estimate_objective_error(
-                q=q_r,
-                u = u_r,
-                p = p_r,
-                use_cached_operators=use_cached_operators)
-        
+        # import sys
+        # sys.exit()
+
+        abs_est_error_J_r = self.estimate_objective_error(
+            model=self.QrVrROM,
+            q = q_r,
+            u = u_r,
+            p = p_r,
+            use_cached_operators=use_cached_operators
+        )
+
         if J_r > 0:
             rel_est_error_J_r = abs_est_error_J_r / J_r
         else:
@@ -1159,7 +1223,8 @@ class QrVrROMOptimizer(Optimizer):
         self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
         self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
 
-        convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
+        #convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
+        convergence_criterium = False
 
 
         while not convergence_criterium and i<i_max:
@@ -1168,6 +1233,21 @@ class QrVrROMOptimizer(Optimizer):
             self.logger.info(f'Start Qr-Vr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in u.vectors],
+                str('u_start'),
+                str(self.save_path / str(i)),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+
+            u_ = self.reductor.reconstruct(u_r, basis='state_basis')
+            
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in u_.vectors],
+                str('u_r_start'),
+                str(self.save_path / str(i)),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
             q_r = self.QrVrROM.Q.make_array(q_r)
 
@@ -1176,9 +1256,57 @@ class QrVrROMOptimizer(Optimizer):
             J_r = self.QrVrROM.objective(u_r)
             
             nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
+            
+            # u_ = self.FOM.solve_state(q)
+            # #u_r_ = self.reductor.reconstruct(self.QrVrROM.solve_state(q_r), basis='state_basis').to_numpy()
+            # print("ööööööööööööööööööööö")
+            # u_r = self.QrVrROM.solve_state(q_r)
+            # u_r_ = self.reductor.project_vectorarray(u_, basis='state_basis')
+            # u__ = self.reductor.reconstruct(self.QrVrROM.V.make_array(u_r_), basis='state_basis')
+            # print(u_r)
+            # print(u_r_)
 
-            abs_est_error_J_r = self.QrVrROM.estimate_objective_error(
-                q=q_r,
+            # print(u_r.to_numpy() / np.linalg.norm(u_r.to_numpy()))
+            # print(u_r_ / np.linalg.norm(u_r_))
+
+            # print(np.max(np.abs(u_.to_numpy()-u__.to_numpy())) <= 1e-14)
+            # print(np.max(np.abs(u_r.to_numpy() / np.linalg.norm(u_r.to_numpy()) - u_r_ / np.linalg.norm(u_r_))) <= 1e-14)
+            # print(np.abs(u_r.to_numpy() / np.linalg.norm(u_r.to_numpy()) - u_r_ / np.linalg.norm(u_r_))) <= 1e-14)
+            # #print(u_)
+
+            # # L = self.FOM.L.to_numpy()
+            # # L_r = self.FOM.V.make_array(
+            # #         #L.inner(self.bases['state_basis'])
+            # #         self.FOM.L.inner(self.reductor.bases['state_basis'])
+            # #         #self.reductor.bases['state_basis'].inner(self.FOM.L)
+            # #     )
+            # # L_ = self.reductor.reconstruct(L_r, basis='state_basis').to_numpy()
+            
+            # #L_ = self.reductor.reconstruct(self.QrVrROM.L, basis='state_basis').to_numpy()
+            # #print(np.max(np.abs(L - L_)))
+
+            # # print(u_)
+            # # print(u_r_)
+            # # print(np.max(np.abs(u_ - u_r_)))
+            # import sys
+            # sys.exit()
+
+            # print("----------------------------------------")
+
+            # print(p.to_numpy())
+            # print(self.reductor.reconstruct(p_r, basis='state_basis').to_numpy())
+
+            # print("###########################################")
+
+            # print(J)
+            # print(J_r)
+            
+            # print(nabla_J)
+            # print(self.reductor.reconstruct(nabla_J_r, basis='parameter_basis'))
+
+            abs_est_error_J_r = self.estimate_objective_error(
+                model = self.QrVrROM,
+                q = q_r,
                 u = u_r,
                 p = p_r,
                 use_cached_operators=use_cached_operators)
@@ -1286,11 +1414,13 @@ class QrVrROMOptimizer(Optimizer):
                 p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
                 J_r = self.QrVrROM.objective(u_r)
 
-                abs_est_error_J_r = self.QrVrROM.estimate_objective_error(
-                        q=q_r,
-                        u = u_r,
-                        p = p_r,
-                        use_cached_operators=use_cached_operators)
+                abs_est_error_J_r = self.estimate_objective_error(
+                    model = self.QrVrROM,
+                    q=q_r,
+                    u = u_r,
+                    p = p_r,
+                    use_cached_operators=use_cached_operators
+                )
                 
                 if J_r > 0:
                     rel_est_error_J_r = abs_est_error_J_r / J_r

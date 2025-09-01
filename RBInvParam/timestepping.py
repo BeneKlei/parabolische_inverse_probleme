@@ -260,7 +260,7 @@ class NewmanSecondOrder(TimeStepper):
             A_q = self.A(q[0])
             S_zeta = self.M + dt**2 * zeta**2 * A_q
             S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
-
+        
         if not rhs_time_dep:
             dt_R = dt * rhs
 
@@ -298,7 +298,10 @@ class NewmanSecondOrder(TimeStepper):
             _rhs += zeta * dt_R
 
 
-            U_cur = _lhs.apply_inverse(_rhs, initial_guess=U_pre)
+            U_cur = _lhs.apply_inverse(_rhs)
+
+            assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
+            #print(np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())))
     
             # --------------------------------------------------------------
             M_dot_U_cur = M_dot_U_pre
@@ -306,6 +309,7 @@ class NewmanSecondOrder(TimeStepper):
             M_dot_U_cur += (-1) * dt * A_q.apply(_U)
             M_dot_U_cur += dt_R
             # --------------------------------------------------------------
+
             yield U_cur, t
 
 

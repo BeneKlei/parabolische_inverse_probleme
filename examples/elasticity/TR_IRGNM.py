@@ -13,6 +13,10 @@ from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.problems.elasticity.build import build_InstationaryModelIP
 
+from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimatorType
+from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimatorType
+from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
+
 #########################################################################################
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -44,6 +48,8 @@ def main():
     par_dim = 3
     T_initial = 0
     T_final = 10
+    #T_final = 5.0
+    #T_final = 2.0
     nt = 100
 
     # T_final = 1
@@ -145,11 +151,16 @@ def main():
         'enrichment': {
             'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
             'parameter_HaPOD_tol': 1e-16,                             # Tolerance for parameter basis POD
-            'state_strategy': 'full_HaPOD',                      # Enrichment strategy for state basis
+            'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
             'state_HaPOD_tol': 1e-3                                  # Tolerance for state basis POD
         },
+        'error_estimator_types' : {
+            'state' : StateErrorEstimatorType.NONE,
+            'adjoint' : AdjointErrorEstimatorType.NONE,
+            'objective' : ObjectiveErrorEstimatorType.NONE,
+        },
         #####################
-        'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
+        'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 2,                                    # Dump intermediate results every n optimization iterations
         #####################
         'eta0': 1e-1,                                                # Initial trust region tolerance

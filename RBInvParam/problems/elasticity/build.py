@@ -20,7 +20,7 @@ from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.discretization import construct_noise_data, process_product_names
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.products import BochnerProductOperator
-from RBInvParam.error_estimator import CoercivityConstantEstimator
+from RBInvParam.error_estimators.objective_error_estimators import CoercivityConstantEstimator
 
 from RBInvParam.problems.elasticity.evaluators import ElasticitiyFOMEvaluatorA, ElasticitiyFOMEvaluatorB
 #from utils import * 
