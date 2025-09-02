@@ -195,6 +195,15 @@ void MaterialModel::assemble_system_matrix()
   m_system_matrices.assemble(m_system_matrix, m_q);
 }
 
+void MaterialModel::assemble_parameteric_matrix()
+{
+  this->assemble_system_matrix();
+  if (m_has_translation_operator)
+  {
+    m_system_matrix.add(-1.0, m_system_matrices.m_matrices[0]);
+  }
+}
+
 void MaterialModel::assemble_product_V(const StateProductType state_product_type) {
   StateProductFactoryContext<3, Number> ctx {
     state_product_type,

@@ -40,14 +40,16 @@ set_defaults({})
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    y_res = 14
-    z_res = 14
+    y_res = 30
+    z_res = 30
     # y_res = 8
     # z_res = 8
-    par_dim = (y_res + 1) * (z_res + 1)
+    par_dim = (y_res + 1) * (z_res + 1) 
+    #* 5 * 3
+    #par_dim = 3
     T_initial = 0
     T_final = 10.0
-    nt = 50
+    nt = 100
 
     # T_final = 1
     # nt = 20
@@ -56,15 +58,15 @@ def main():
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
-    # q_exact[0,27] = 2
-    # q_exact[0,54] = 3
+
+    q_exact[0,600] = 20
+    q_exact[0,300] = 30
+    q_exact[0,700] = 40
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 0.001
     bounds[:,1] = 1e20
-    # bounds[:,0] = -1e10
-    # bounds[:,1] = 1e10
 
 
     setup = {
@@ -111,31 +113,38 @@ def main():
         }
     }
 
+
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
-    q_start[0,27] = 20
-    q_start[0,54] = 30
 
-    u = FOM.solve_state(FOM.Q.make_array(q_exact))
+    u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
     FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in u.vectors],
+        [v.real_part.impl for v in u_exact.vectors],
         str('u_exact'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
     )
 
-    u = FOM.solve_state(FOM.Q.make_array(q_start))
+    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
     FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in u.vectors],
+        [v.real_part.impl for v in u_start.vectors],
         str('u_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
+
+    diff = u_start - u_exact
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in diff.vectors],
+        str('diff'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
     )
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-3,                                          # Initial regularization parameter
+        'alpha_0': 1e-5,                                          # Initial regularization parameter
         'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
         'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
@@ -182,20 +191,6 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-    # logger.debug("Differnce to q_exact:")
-    # logger.debug("L^inf") 
-    # delta_q = q_est - q_exact
-    # logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
-    
-    # if q_time_dep:
-    #     norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]
-    #     norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))[0,0]
-    # else:
-    #     norm_delta_q = np.sqrt(FOM.products['prod_Q'].apply2(delta_q, delta_q))[0,0]
-    #     norm_q_exact = np.sqrt(FOM.products['prod_Q'].apply2(q_exact, q_exact))[0,0]
-    
-    # logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
-    # logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
 if __name__ == '__main__':
     main()

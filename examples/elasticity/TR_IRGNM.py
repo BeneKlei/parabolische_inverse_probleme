@@ -40,16 +40,24 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    y_res = 14
-    z_res = 14
+    y_res = 30
+    z_res = 30
+
+    # y_res = 20
+    # z_res = 20
+    
     # y_res = 8
     # z_res = 8
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
     #par_dim = 3
     T_initial = 0
-    T_final = 1.0
-    nt = 50
+    #T_final = 10.0
+    T_final = 6.0
+    nt = 60
+
+    # T_final = 10.0
+    # nt = 100
 
     # T_final = 1
     # nt = 20
@@ -58,15 +66,17 @@ def main():
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
-    # q_exact[0,27] = 2
-    # q_exact[0,54] = 3
+
+    #q_exact[0,200] = 40
+
+    q_exact[0,600] = 20
+    q_exact[0,300] = 30
+    q_exact[0,700] = 40
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 0.001
     bounds[:,1] = 1e20
-    # bounds[:,0] = -1e10
-    # bounds[:,1] = 1e10
 
 
     setup = {
@@ -82,7 +92,7 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsR9d,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
         'dims' : {
@@ -95,13 +105,14 @@ def main():
             'prod_H': 'l2',                           # Product on H_h
             'prod_Q': 'euclid',                       # Product on Q_h
             'prod_V': 'h1_0_semi',                    # Product on V_h
+            #'prod_V': 'l2',
             'prod_C': 'euclid',                       # Product on C_h
         },
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 0.0,                          # Absolute noise magnitude added to data
+        'noise_level': 1e-5,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -117,66 +128,34 @@ def main():
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
-    q_start[0,:] = 3.0
-    #q_start[0,54] = 4
 
-    # u = FOM.solve_state(FOM.Q.make_array(q_exact))
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in u.vectors],
-    #     str('u_exact'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in u_exact.vectors],
+        str('u_exact'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
-    # p = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u=u)
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in p.vectors],
-    #     str('p_exact'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in u_start.vectors],
+        str('u_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
-
-    # u = FOM.solve_state(FOM.Q.make_array(q_start))
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in u.vectors],
-    #     str('u_start'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
-    # # import sys
-    # # sys.exit()
-
-    # u_exact = FOM.solve_state(FOM.Q.make_array(q_exact)).to_numpy()
-    # u_start = FOM.solve_state(FOM.Q.make_array(q_start)).to_numpy()
-    # print(np.max(np.abs(u_exact-u_start)))
-    # # print(u.to_numpy())
-    # # print(np.max(FOM.solve_adjoint(FOM.Q.make_array(q_exact), u=u).to_numpy()))
-    # # print(FOM.compute_gradient_norm(FOM.compute_gradient(FOM.Q.make_array(q_exact))))
-    # # print(FOM.compute_gradient_norm(FOM.compute_gradient(FOM.Q.make_array(q_start))))
-    # import sys
-    # sys.exit()
-
-    # u = FOM.solve_state(FOM.Q.make_array(q_exact))
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in u.vectors],
-    #     str('u_exact'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
-
-    # u = FOM.solve_state(FOM.Q.make_array(q_start))
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in u.vectors],
-    #     str('u_start'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
-
+    diff = u_start - u_exact
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in diff.vectors],
+        str('diff'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
+        'alpha_0': 1e-8,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         'tau': 3.5,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
@@ -206,7 +185,7 @@ def main():
             'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
             'parameter_HaPOD_tol': 1e-16,                             # Tolerance for parameter basis POD
             'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-            'state_HaPOD_tol': 1e-16                                  # Tolerance for state basis POD
+            'state_HaPOD_tol': 1e-9                                 # Tolerance for state basis POD
         },
         'error_estimator_types' : {
             'state' : StateErrorEstimatorType.NONE,
@@ -242,6 +221,13 @@ def main():
     )
     q_est = optimizer.solve()
     print(q_est)
+    u = FOM.solve_state(q_est)
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in u.vectors],
+        str('u_est'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
 if __name__ == '__main__':
     main()

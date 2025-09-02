@@ -39,6 +39,7 @@ PYBIND11_MODULE(material_model, m) {
           .def("assemble_product_C", &MaterialModel::assemble_product_C)
 
           .def("assemble_system_matrix", &MaterialModel::assemble_system_matrix)
+          .def("assemble_parameteric_matrix", &MaterialModel::assemble_parameteric_matrix)
           .def("assemble_mass_matrix", &MaterialModel::assemble_mass_matrix)          
           .def("assemble_observation_operator_matrix", &MaterialModel::assemble_observation_operator_matrix, py::return_value_policy::reference_internal)
           .def("assemble_bilinear_cost_matrix", &MaterialModel::assemble_bilinear_cost_matrix, py::return_value_policy::reference_internal)

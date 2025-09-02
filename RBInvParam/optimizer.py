@@ -984,12 +984,12 @@ class QrVrROMOptimizer(Optimizer):
         assert product.source == product.range == snapshots.space
 
         snapshots, _, _ = \
-        inc_vectorarray_hapod(steps=len(snapshots) / 2,
+        inc_vectorarray_hapod(steps=len(snapshots)/2, 
                               U=snapshots, 
                               eps=HaPOD_tol,
                               omega=0.1,                
                               product=product)
-        
+                
         try:
             self.reductor.extend_basis(
                 U = snapshots,
@@ -1032,20 +1032,20 @@ class QrVrROMOptimizer(Optimizer):
         assert state_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
         assert state_HaPOD_tol > 0
 
-        self.statistics['extention_stats']['snapshot_projection_error']['parameter_basis'].append(
-            self.reductor.calc_projection_error(
-                x = self.parameter_shapshots.copy(),
-                basis = 'parameter_basis',
-                normalize = False
-            )
-        )
-        self.statistics['extention_stats']['snapshot_projection_error']['state_basis'].append(
-            self.reductor.calc_projection_error(
-                x = self.state_shapshots.copy(),
-                basis = 'state_basis',
-                normalize = False
-            )
-        )
+        # self.statistics['extention_stats']['snapshot_projection_error']['parameter_basis'].append(
+        #     self.reductor.calc_projection_error(
+        #         x = self.parameter_shapshots.copy(),
+        #         basis = 'parameter_basis',
+        #         normalize = False
+        #     )
+        # )
+        # self.statistics['extention_stats']['snapshot_projection_error']['state_basis'].append(
+        #     self.reductor.calc_projection_error(
+        #         x = self.state_shapshots.copy(),
+        #         basis = 'state_basis',
+        #         normalize = False
+        #     )
+        # )
 
         if basis in ['parameter_basis', 'both']:
             self.logger.debug(f"Extending parameter basis, using {parameter_strategy}, with tol = {parameter_HaPOD_tol}.")
@@ -1163,7 +1163,8 @@ class QrVrROMOptimizer(Optimizer):
         assert norm_nabla_J > 0
 
         inital_agc_armijo_step_size = 0.5 / norm_nabla_J
-        inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1])
+        #inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1])
+        inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1e-2])
         eta = eta0
                     
         self.logger.debug("Running Qr-Vr-IRGNM:")
@@ -1219,19 +1220,6 @@ class QrVrROMOptimizer(Optimizer):
         q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
         q_r = self.QrVrROM.Q.make_array(q_r)
 
-        from pymor.algorithms.projection import project
-        state_basis = self.reductor._get_projection_basis(basis='state_basis')
-        # print(state_basis)
-        # print(self.FOM.A(q).source)
-        q = self.FOM.Q.zeros(1)
-        print(project(self.FOM.A(q), state_basis, state_basis).matrix)
-        q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
-        q_r = self.QrVrROM.Q.make_array(q_r)
-        print(self.QrVrROM.A(q_r).assemble().matrix)
-        
-        import sys
-        sys.exit()
-
         u_r = self.QrVrROM.solve_state(q_r)
         p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
         J_r = self.QrVrROM.objective(u_r)
@@ -1260,37 +1248,6 @@ class QrVrROMOptimizer(Optimizer):
         self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
 
         convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
-        #convergence_criterium = False
-
-        # d = -nabla_J
-        # print(d)
-        # print(self.FOM.compute_objective(q))
-        # for x in [0,1e-14,1e-7,1]:
-        #     print("-----")
-        #     print(x)
-        #     print(self.FOM.compute_objective(q + x * d))
-        #     print(self.FOM.compute_objective(q + x * d) <= self.FOM.compute_objective(q))
-
-        # import sys
-        # sys.exit()
-
-
-        # q_agc, J_r_AGC, model_unsufficent, AGC_max_iter_cond, _ = self._armijo_TR_line_serach(
-        #         model = self.FOM,
-        #         previous_q = q,
-        #         previous_J = J,
-        #         search_direction = -nabla_J,
-        #         max_iter = agc_armijo_max_iter,
-        #         inital_step_size = inital_agc_armijo_step_size,
-        #         eta = eta,
-        #         beta = beta_1,
-        #         kappa_arm = kappa_arm,
-        #         use_cached_operators=use_cached_operators,
-        #         projector=None
-        #     )
-        # import sys
-        # sys.exit()
-
 
         while not convergence_criterium and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
@@ -1321,35 +1278,7 @@ class QrVrROMOptimizer(Optimizer):
             J_r = self.QrVrROM.objective(u_r)
             
             nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
-
-            # print(u.to_numpy())
-            # print(self.reductor.reconstruct(u_r, basis='state_basis').to_numpy())
-
-            # print(p.to_numpy())
-            # print(self.reductor.reconstruct(p_r, basis='state_basis').to_numpy())
             
-            # print("ABCDEEF")
-            # # print(np.max(np.abs(u.to_numpy() - self.reductor.reconstruct(u_r, basis='state_basis').to_numpy())))
-            # # print(np.max(np.abs(p.to_numpy() - self.reductor.reconstruct(p_r, basis='state_basis').to_numpy())))
-            # # print(p.to_numpy()[0])
-            # # print(p_r.to_numpy()[0])
-
-            # print("123")
-            # nabla_J = self.FOM.compute_gradient(q)
-            # print("456")
-            #nabla_J_r = self.QrVrROM.compute_gradient(q_r)
-            # print(self.QrVrROM.compute_gradient(q_r))
-            # print(self.QrVrROM.compute_linearized_gradient(q_r,d, alpha=0))
-            # import sys
-            # sys.exit()
-            # print(u.to_numpy())
-            # print(p.to_numpy())
-            # print("----")
-            # print(self.reductor.reconstruct(self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators),basis='parameter_basis'))
-            # print(self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators))
-            # import sys
-            # sys.exit()
-
             abs_est_error_J_r = self.estimate_objective_error(
                 model = self.QrVrROM,
                 q = q_r,
@@ -1376,7 +1305,23 @@ class QrVrROMOptimizer(Optimizer):
                     state_strategy = enrichment['state_strategy'],
                     state_HaPOD_tol=MACHINE_EPS
                 )
-                assert rel_est_error_J_r <= eta
+
+                u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=use_cached_operators)
+                p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
+                J_r = self.QrVrROM.objective(u_r)
+                abs_est_error_J_r = self.estimate_objective_error(
+                    model = self.QrVrROM,
+                    q = q_r,
+                    u = u_r,
+                    p = p_r,
+                    use_cached_operators=use_cached_operators)
+                
+                if J_r > 0:
+                    rel_est_error_J_r = abs_est_error_J_r / J_r
+                else:
+                    rel_est_error_J_r = np.inf
+
+            assert rel_est_error_J_r <= eta
 
             IRGNM_statistic = None
             projector = SimpleBoundDomainProjector(

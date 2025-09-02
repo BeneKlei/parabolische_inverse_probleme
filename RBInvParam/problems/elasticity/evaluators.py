@@ -74,7 +74,10 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
             return None
 
     def get_parameteric_operator(self, q: VectorArray) -> Operator:
-
+        self.material_model.m_q[:] = q.to_numpy()
+        self.material_model.assemble_parameteric_matrix()
+        self.system_matrix = self.material_model.system_matrix
+        return DealIIMatrixOperator(self.system_matrix)
 
 
 class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):

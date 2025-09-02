@@ -149,36 +149,51 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     def _assemble_parameter_reduced_A(self) -> LincombOperator:
         parameter_basis = self._get_projection_basis('parameter_basis')
         
-        if not self._cached_operators['A']:
-            start = 0
-            translation_operator = self.FOM.A.get_translation_operator()
-            if translation_operator:
-                m = pd2.SparseMatrix()
-                m.reinit(translation_operator.matrix.get_sparsity_pattern())
-                m.copy_from(translation_operator.matrix)
-                translation_operator = DealIIMatrixOperator(
-                    matrix = m
-                )
-                operators = [translation_operator]
-                coefficients = [1]
-            else:
-                operators = []
-                coefficients = []
+        start = 0
+        translation_operator = self.FOM.A.get_translation_operator()
+        if translation_operator:
+            m = pd2.SparseMatrix()
+            m.reinit(translation_operator.matrix.get_sparsity_pattern())
+            m.copy_from(translation_operator.matrix)
+            translation_operator = DealIIMatrixOperator(
+                matrix = m
+            )
+            operators = [translation_operator]
+            coefficients = [1]
         else:
-            operators = list(self._cached_operators['A'].operators)
-            start = len(operators)
+            operators = []
+            coefficients = []
+        # if not self._cached_operators['A']:
+        #     start = 0
+        #     translation_operator = self.FOM.A.get_translation_operator()
+        #     if translation_operator:
+        #         m = pd2.SparseMatrix()
+        #         m.reinit(translation_operator.matrix.get_sparsity_pattern())
+        #         m.copy_from(translation_operator.matrix)
+        #         translation_operator = DealIIMatrixOperator(
+        #             matrix = m
+        #         )
+        #         operators = [translation_operator]
+        #         coefficients = [1]
+        #     else:
+        #         operators = []
+        #         coefficients = []
+        # else:
+        #     operators = list(self._cached_operators['A'].operators)
+        #     start = len(operators)
 
-            if self.FOM.A.translation_operator:
-                coefficients = [1]
-            else:
-                coefficients = []
+        #     if self.FOM.A.translation_operator:
+        #         coefficients = [1]
+        #     else:
+        #         coefficients = []
 
         for i in range(start, len(parameter_basis)):
             q_i = parameter_basis[i]
             # TODO Refactor here
             m = pd2.SparseMatrix()
-            m.reinit(self.FOM.A(q_i).matrix.get_sparsity_pattern())
-            m.copy_from(self.FOM.A(q_i).matrix)
+            A_q = self.FOM.A.get_parameteric_operator(q_i)
+            m.reinit(A_q.matrix.get_sparsity_pattern())
+            m.copy_from(A_q.matrix)
             A_q = DealIIMatrixOperator(
                 matrix = m
             )

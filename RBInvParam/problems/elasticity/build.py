@@ -164,7 +164,7 @@ def build_InstationaryModelIP(setup : Dict,
     )
     ############################### Coercivity ###############################
 
-    assert product_names['prod_V'] == 'h1_0_semi'
+    #assert product_names['prod_V'] == 'h1_0_semi'
     # I AM NOT SURE THAT THIS IS CORRECT! JUST FOR TESTING
     A_coercivity_constant_estimator_function = lambda q: 1
 

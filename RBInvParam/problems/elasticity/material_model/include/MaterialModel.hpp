@@ -62,6 +62,7 @@ public:
   void assemble_mass_matrix();
   void assemble_observation_operator_matrix(ObservationOperatorType observation_operator_type);
   void assemble_system_matrix();
+  void assemble_parameteric_matrix();
   void assemble_system_matrix_derivative(const Vector<Number>& state_DoFs, size_t parameter_basis_idx);
   void assemble_bilinear_cost_matrix();
 
