@@ -1,3 +1,4 @@
+
 from abc import ABC, abstractmethod
 from typing import Union, List, Dict, Generator, Tuple
 import numpy as np
@@ -260,6 +261,10 @@ class NewmanSecondOrder(TimeStepper):
             A_q = self.A(q[0])
             S_zeta = self.M + dt**2 * zeta**2 * A_q
             S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
+
+        A_q = A_q.assemble()
+        S_zeta = S_zeta.assemble()
+        S_zeta_minus_one = S_zeta_minus_one.assemble()
         
         if not rhs_time_dep:
             dt_R = dt * rhs
@@ -272,7 +277,7 @@ class NewmanSecondOrder(TimeStepper):
             M_dot_U_pre = M_dot_U_cur
 
             if rhs_time_dep:
-               rhs_pre = rhs_cur
+                rhs_pre = rhs_cur
             
             if self.q_time_dep:
                 # Otherwise the values set above are never updated
@@ -300,8 +305,9 @@ class NewmanSecondOrder(TimeStepper):
 
             U_cur = _lhs.apply_inverse(_rhs)
 
-            assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
             #print(np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())))
+            assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
+            
     
             # --------------------------------------------------------------
             M_dot_U_cur = M_dot_U_pre

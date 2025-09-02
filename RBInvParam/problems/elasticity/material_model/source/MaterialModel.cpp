@@ -96,6 +96,10 @@ void MaterialModel::setup_system()
     ctx,
     m_system_matrices
   );
+  m_has_translation_operator = m_system_matrices.m_affine;
+  
+  m_system_matrix_derivatives.resize(m_config.nt + 1);
+
 
   std::cout << "\t Defining BodyForce." << std::endl;
   setup_body_force();
@@ -189,19 +193,6 @@ void MaterialModel::assemble_system_matrix()
   m_system_matrix.reinit(m_system_matrix_sp);
   m_system_matrix = 0;
   m_system_matrices.assemble(m_system_matrix, m_q);
-  // // Reinitialize system matrix with sparsity pattern
-  // m_system_matrix.reinit(m_system_matrix_sp);
-
-  // // Zero out all entries
-  // m_system_matrix = 0;
-
-  // // Fill the diagonal with 1.0 → identity matrix
-  // for (unsigned int i = 0; i < m_system_matrix.m(); ++i)
-  //   if (m_system_matrix_sp.exists(i, i)) // check if diagonal entry exists in sparsity pattern
-  //     m_system_matrix.set(i, i, 1.0);
-
-  // // Compress the matrix to finalize assembly
-  // m_system_matrix.compress(VectorOperation::insert);
 }
 
 void MaterialModel::assemble_product_V(const StateProductType state_product_type) {
@@ -289,10 +280,10 @@ void MaterialModel::clear_rhs_boundary_dofs(Vector<Number>& v)
   m_BC_constraints.distribute(v);
 }
 
-void MaterialModel::assemble_system_matrix_derivative(const Vector<Number>& state_DoFs)
-{
-    m_system_matrix_derivative.reinit(m_state_space_dim, m_param_space_dim);
-    m_system_matrix_derivative = 0;
+void MaterialModel::assemble_system_matrix_derivative(const Vector<Number>& state_DoFs, size_t parameter_basis_idx)
+{    
+    m_system_matrix_derivatives[parameter_basis_idx].reinit(m_state_space_dim, m_param_space_dim);
+    m_system_matrix_derivatives[parameter_basis_idx] = 0;
     assert(m_system_matrices.m_param_space_dim == m_param_space_dim &&
        "Mismatch between system matrices count and parameter dimension");
     
@@ -304,7 +295,7 @@ void MaterialModel::assemble_system_matrix_derivative(const Vector<Number>& stat
         A_q_basis_u.reinit(m_state_space_dim);
         m_system_matrices.m_matrices[i + offset].vmult(A_q_basis_u, state_DoFs);
         for (size_t j = 0; j < m_state_space_dim; j++) {
-          m_system_matrix_derivative.set(j,i, A_q_basis_u[j]);
+          m_system_matrix_derivatives[parameter_basis_idx].set(j,i, A_q_basis_u[j]);
         }        
     }
 }

@@ -14,8 +14,9 @@ class DealIIMatrixOperator(LinearComplexifiedListVectorArrayOperatorBase):
     def __init__(self, matrix, name=None):
         self.source = DealIIVectorSpace(matrix.n())
         self.range = DealIIVectorSpace(matrix.m())
-        self.solver = pd2.SparseILU()
-        self._solver_initialized = False
+        #self.solver = pd2.SparseILU()
+        # self._solver = None
+        # self._solver_initialized = False
         self.__auto_init(locals())
 
     def _real_apply_one_vector(self, u, mu=None, prepare_data=None):
@@ -45,6 +46,20 @@ class DealIIMatrixOperator(LinearComplexifiedListVectorArrayOperatorBase):
         r = self.source.real_zero_vector()
         self.matrix.cg_solve(r.impl, v.impl)
         return r
+
+    # def _real_apply_inverse_one_vector(
+    #     self, v, mu=None, initial_guess=None, least_squares=False, prepare_data=None
+    # ):
+    #     if least_squares:
+    #         raise NotImplementedError
+
+    #     if not self._solver_initialized:
+    #         self._solver = pd2.CGSolver(self.matrix)
+    #         self._solver_initialized = True
+
+    #     r = self.source.real_zero_vector()
+    #     self._solver.solve(r.impl, v.impl)
+    #     return r
 
     def _real_apply_adjoint_one_vector(self, v, mu=None, prepare_data=None):
         r = self.source.real_zero_vector()

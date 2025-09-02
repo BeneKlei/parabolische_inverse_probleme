@@ -62,7 +62,7 @@ public:
   void assemble_mass_matrix();
   void assemble_observation_operator_matrix(ObservationOperatorType observation_operator_type);
   void assemble_system_matrix();
-  void assemble_system_matrix_derivative(const Vector<Number>& state_DoFs);
+  void assemble_system_matrix_derivative(const Vector<Number>& state_DoFs, size_t parameter_basis_idx);
   void assemble_bilinear_cost_matrix();
 
   // --------------------------------------------------
@@ -85,6 +85,7 @@ public:
   size_t m_param_space_dim = 0;
   size_t m_state_space_dim = 0;
   size_t m_observation_space_dim = 0;
+  bool m_has_translation_operator = false;
 
   // --------------------------------------------------
 
@@ -95,7 +96,8 @@ public:
 
   SparseMatrix<Number> m_mass_matrix;
   SparseMatrix<Number> m_system_matrix;
-  FullMatrix<Number> m_system_matrix_derivative;
+  // TODO Make them sparse!!
+  std::vector<FullMatrix<Number>> m_system_matrix_derivatives;
   SparseMatrix<Number> m_observation_operator;
   SparseMatrix<Number> m_bilinear_cost_operator;
 

@@ -40,17 +40,16 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    y_res = 14
+    z_res = 14
     # y_res = 8
     # z_res = 8
-    #par_dim = (y_res + 1) * (z_res + 1) * 5 * 3
-    par_dim = 3
+    par_dim = (y_res + 1) * (z_res + 1) 
+    #* 5 * 3
+    #par_dim = 3
     T_initial = 0
-    T_final = 10
-    #T_final = 5.0
-    #T_final = 2.0
-    nt = 100
+    T_final = 1.0
+    nt = 50
 
     # T_final = 1
     # nt = 20
@@ -61,7 +60,7 @@ def main():
     q_exact = np.ones((1,par_dim))
     # q_exact[0,27] = 2
     # q_exact[0,54] = 3
-    q_circ[0,:] = 3
+    q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 0.001
@@ -74,7 +73,7 @@ def main():
         'spatial_resolution' : [4,y_res,z_res],
         'body_force_type' : mm.BodyForceType.CenterExcite,
         'system_matrix' : {
-            'type' : mm.SystemMatrixType.Cosserat,
+            'type' : mm.SystemMatrixType.CosseratDelamination,
             'hyperparameter' : {
                 'lambda' : 1.0,
                 'mu' : 1.0,
@@ -102,7 +101,7 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-3,                          # Absolute noise magnitude added to data
+        'noise_level': 0.0,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -118,28 +117,83 @@ def main():
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
+    q_start[0,:] = 3.0
+    #q_start[0,54] = 4
+
+    # u = FOM.solve_state(FOM.Q.make_array(q_exact))
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in u.vectors],
+    #     str('u_exact'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
+
+    # p = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u=u)
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in p.vectors],
+    #     str('p_exact'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
+
+
+    # u = FOM.solve_state(FOM.Q.make_array(q_start))
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in u.vectors],
+    #     str('u_start'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
+    # # import sys
+    # # sys.exit()
+
+    # u_exact = FOM.solve_state(FOM.Q.make_array(q_exact)).to_numpy()
+    # u_start = FOM.solve_state(FOM.Q.make_array(q_start)).to_numpy()
+    # print(np.max(np.abs(u_exact-u_start)))
+    # # print(u.to_numpy())
+    # # print(np.max(FOM.solve_adjoint(FOM.Q.make_array(q_exact), u=u).to_numpy()))
+    # # print(FOM.compute_gradient_norm(FOM.compute_gradient(FOM.Q.make_array(q_exact))))
+    # # print(FOM.compute_gradient_norm(FOM.compute_gradient(FOM.Q.make_array(q_start))))
+    # import sys
+    # sys.exit()
+
+    # u = FOM.solve_state(FOM.Q.make_array(q_exact))
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in u.vectors],
+    #     str('u_exact'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
+
+    # u = FOM.solve_state(FOM.Q.make_array(q_start))
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in u.vectors],
+    #     str('u_start'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-3,                                             # Initial regularization parameter (data fidelity vs. regularization)
+        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         'tau': 3.5,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
-        'theta': 0.4,                                                # Lower bound for step acceptance condition
+        'theta': 0.4,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
         'i_max': 75,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
-        'i_max_inner': 25,                                           # Max number of inner iterations
+        'i_max_inner': 10,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC
-        'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region 
+        'TR_armijo_max_iter': 25,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
-            'max_iter': 250,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 1e-5,                                 # Convergence tolerance for the linear solver
+            'max_iter': 1e4,                                         # Maximum iterations for the linear solver
+            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'inital_step_size': 1                                    # Initial step size for iterative linear solver
         },
         # 'lin_solver_parms': {
@@ -152,7 +206,7 @@ def main():
             'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
             'parameter_HaPOD_tol': 1e-16,                             # Tolerance for parameter basis POD
             'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-            'state_HaPOD_tol': 1e-3                                  # Tolerance for state basis POD
+            'state_HaPOD_tol': 1e-16                                  # Tolerance for state basis POD
         },
         'error_estimator_types' : {
             'state' : StateErrorEstimatorType.NONE,
@@ -188,20 +242,6 @@ def main():
     )
     q_est = optimizer.solve()
     print(q_est)
-    # logger.debug("Differnce to q_exact:")
-    # logger.debug("L^inf") 
-    # delta_q = q_est - q_exact
-    # logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
-    
-    # if q_time_dep:
-    #     norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]
-    #     norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))[0,0]
-    # else:
-    #     norm_delta_q = np.sqrt(FOM.products['prod_Q'].apply2(delta_q, delta_q))[0,0]
-    #     norm_q_exact = np.sqrt(FOM.products['prod_Q'].apply2(q_exact, q_exact))[0,0]
-    
-    # logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
-    # logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
 
 if __name__ == '__main__':
     main()

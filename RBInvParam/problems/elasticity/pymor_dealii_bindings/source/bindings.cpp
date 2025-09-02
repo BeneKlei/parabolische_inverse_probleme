@@ -134,7 +134,7 @@ void bind_sparse_matrix(pybind11::module& module) {
 
     // We have made one addition, though: since we suppress output from the
     // linear solvers, we have to print the number of iterations by hand.
-    // std::cout << "   " << solver_control.last_step() << " CG iterations needed to obtain convergence." << std::endl;
+    //std::cout << "   " << solver_control.last_step() << " CG iterations needed to obtain convergence." << std::endl;
   };
 
   py::class_<Matrix>(module, "SparseMatrix")
@@ -171,6 +171,8 @@ void bind_sparse_matrix(pybind11::module& module) {
       .def("cg_solve", cg_solve);
 }
 
+
+
 template <typename Number>
 void bind_full_matrix(py::module &module)
 {
@@ -199,6 +201,7 @@ void bind_full_matrix(py::module &module)
           py::arg("dst"), 
           py::arg("src"), 
           py::arg("adding") = false);
+
       // .def("vmult",
       //     (void(Matrix::*)(Vector&, const Vector&, bool) const) & Matrix::template vmult<Number>
       // )
@@ -286,13 +289,58 @@ void bind_sparsity_pattern(pybind11::module& module) {
     .def("max_entries_per_row", &dealii::SparsityPattern::max_entries_per_row);
 }
 
+// template <typename Number>
+// void bind_cgsolver(pybind11::module& module) {
+//   using Matrix = dealii::SparseMatrix<Number>;
+//   using Vector = dealii::Vector<Number>;
+
+//   class CGSolverWrapper
+//   {
+//   public:
+//     CGSolverWrapper(Matrix &A,
+//                     const double tol = 1e-12,
+//                     const unsigned int max_steps = 20000,
+//                     const double ssor_omega = 1.2)
+//         : matrix(A),
+//           solver_control(max_steps, tol),
+//           solver(solver_control)
+//     {
+//       preconditioner.initialize(matrix, ssor_omega);
+//     }
+
+//     void solve(Vector &solution, const Vector &rhs)
+//     {
+//       solver.solve(matrix, solution, rhs, preconditioner);
+//       std::cout << "   " << solver_control.last_step()
+//                 << " CG iterations needed to obtain convergence."
+//                 << std::endl;
+//     }
+
+//   private:
+//     Matrix &matrix;
+//     dealii::SolverControl solver_control;
+//     dealii::SolverCG<> solver;
+//     dealii::PreconditionSSOR<> preconditioner;
+//   };
+
+//   py::class_<CGSolverWrapper>(module, "CGSolver")
+//     .def(py::init<Matrix &, double, unsigned int, double>(),
+//           py::arg("matrix"),
+//           py::arg("tol") = 1e-12,
+//           py::arg("max_steps") = 20000,
+//           py::arg("ssor_omega") = 1.2)
+//     .def("solve", &CGSolverWrapper::solve);
+
+// }
+
 PYBIND11_MODULE(pymor_dealii_bindings, m) {
   m.doc() = "Python bindings for deal.II";
   bind_sparsity_pattern(m);
   bind_vector<double>(m);
   bind_full_matrix<double>(m);
   bind_sparse_matrix<double>(m);
-  bind_ILU_solver<double>(m);
+  //bind_ILU_solver<double>(m);
+  //bind_cgsolver<double>(m);
 
   // auto utils = m.def_submodule("utils");
   // utils.def("make_product_sparsity_AB", &make_product_sparsity_AB);

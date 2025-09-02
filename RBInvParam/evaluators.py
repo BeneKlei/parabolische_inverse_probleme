@@ -106,24 +106,24 @@ class ROMEvaluatorA(EvaluatorA):
                  range : VectorSpace,
                  Q : VectorSpace,                 
                  parameteric_operator: Operator,
-                 constant_operator : Operator | None):
+                 translation_operator : Operator | None):
 
         assert parameteric_operator.parametric
         assert parameteric_operator.source == source
         assert parameteric_operator.range == range
 
-        if constant_operator:
-            assert not constant_operator.parametric
+        if translation_operator:
+            assert not translation_operator.parametric
             assert parameteric_operator.source == source
             assert parameteric_operator.range == range
         
         self.parameters = parameteric_operator.parameters
         self.parameteric_operator = parameteric_operator
-        self.constant_operator = constant_operator
+        self.translation_operator = translation_operator
 
         parameter_names = ['reduced_parameter']
         assert parameter_names
-        super().__init__(source, range, Q, parameter_names)
+        super().__init__(source, range, Q, parameter_names, translation_operator)
 
     def __call__(self, q: VectorArray) -> NumpyMatrixOperator:
         assert q in self.Q
@@ -132,13 +132,13 @@ class ROMEvaluatorA(EvaluatorA):
 
         q_as_par = self.parameters.parse(q.to_numpy()[0])
 
-        if self.constant_operator:
-            return self.parameteric_operator.assemble(q_as_par) + self.constant_operator
+        if self.translation_operator:
+            return self.parameteric_operator.assemble(q_as_par) + self.translation_operator
         else:
             return self.parameteric_operator.assemble(q_as_par)
 
     def get_translation_operator(self) -> Operator | None:
-        return self.constant_operator
+        return self.translation_operator
 
     def get_parameteric_operator(self) -> Operator:
         return self.parameteric_operator
@@ -166,27 +166,27 @@ class ROMEvaluatorB(EvaluatorB):
                  Q : VectorSpace,
                  V : VectorSpace,
                  parameteric_operator: Operator,
-                 constant_operator : Operator | None):
+                 translation_operator : Operator | None):
 
         assert parameteric_operator.parametric
         assert parameteric_operator.source == V
         assert parameteric_operator.range == V
 
-        if constant_operator:
-            assert not constant_operator.parametric
+        if translation_operator:
+            assert not translation_operator.parametric
             assert parameteric_operator.source == V
             assert parameteric_operator.range == V
         
         self.parameters = parameteric_operator.parameters
         self.parameteric_operator = parameteric_operator
-        self.constant_operator = constant_operator
+        self.translation_operator = translation_operator
     
         super().__init__(source = source,
                          range = range,
                          Q = Q,
                          V = V)
 
-    def __call__(self, u: VectorArray) -> BU:
+    def __call__(self, u: VectorArray, parameter_basis_idx: int) -> BU:
         assert u in self.V
         assert len(u) == 1
         if not self.parameteric_operator:

@@ -16,8 +16,10 @@ void SystemMatrices<dim, Number>::assemble(SparseMatrix<Number> &result, const V
     if (m_affine)
         result.add(1.0, m_matrices[0]);
 
-    for (unsigned int i = 0; i < parameters.size(); ++i)
+    for (unsigned int i = 0; i < parameters.size(); ++i) {
         result.add(parameters[i], m_matrices[i + offset]);
+    }
+        
 }
 
 

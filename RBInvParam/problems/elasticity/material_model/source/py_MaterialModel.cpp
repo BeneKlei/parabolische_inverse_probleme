@@ -28,6 +28,7 @@ PYBIND11_MODULE(material_model, m) {
           .def_readonly("param_space_dim", &MaterialModel::m_param_space_dim)
           .def_readonly("state_space_dim", &MaterialModel::m_state_space_dim)
           .def_readonly("observation_space_dim", &MaterialModel::m_observation_space_dim)
+          .def_readonly("m_has_translation_operator", &MaterialModel::m_has_translation_operator)
 
           .def_readonly("product_V", &MaterialModel::m_product_V)
           .def_readonly("product_H", &MaterialModel::m_product_H)
@@ -46,7 +47,7 @@ PYBIND11_MODULE(material_model, m) {
           .def_readwrite("m_q", &MaterialModel::m_q)
           .def_readonly("mass_matrix", &MaterialModel::m_mass_matrix)
           .def_readonly("system_matrix", &MaterialModel::m_system_matrix)
-          .def_readonly("system_matrix_derivative", &MaterialModel::m_system_matrix_derivative)
+          .def_readonly("system_matrix_derivatives", &MaterialModel::m_system_matrix_derivatives)
           .def_readonly("observation_operator", &MaterialModel::m_observation_operator)
           .def_readonly("bilinear_cost_operator", &MaterialModel::m_bilinear_cost_operator)
           .def_readonly("force_list", &MaterialModel::m_force_list)

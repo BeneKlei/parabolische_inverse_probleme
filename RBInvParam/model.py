@@ -232,7 +232,7 @@ class InstationaryModelIP(ImmutableObject):
                 self._cached_operators['residual_A_q'][time_step] = \
                     self.state_error_estimator.state_residual_operator._precompute_residual_A_q(q[time_step])
         elif target == 'B_u':
-            self._cached_operators['B_u'][time_step] = self.B(u[time_step])
+            self._cached_operators['B_u'][time_step] = self.B(u[time_step], time_step)
         else:
             self.logger.error(f'Target {target} is not known.')
             raise ValueError
@@ -377,7 +377,7 @@ class InstationaryModelIP(ImmutableObject):
             required_cache_keys = required_cache_keys)
 
         rhs = self.bilinear_cost_term.apply(u) - self.linear_cost_term
-        rhs =  self.A.clear_rhs_boundary_dofs(
+        rhs = self.A.clear_rhs_boundary_dofs(
             rhs = rhs,
             flip = True
         )
@@ -398,6 +398,8 @@ class InstationaryModelIP(ImmutableObject):
             # rhs = np.flip(rhs.to_numpy(), axis=0)
             # rhs = self.V.make_array(rhs)
         
+
+
         rhs = (-1) * rhs
         iterator = self.time_stepper.iterate(initial_data = self.initial_data['adjoint'], 
                                              q=q,
@@ -443,7 +445,7 @@ class InstationaryModelIP(ImmutableObject):
         if use_cached_operators:
             B_u = self._cached_operators['B_u']
         else:
-            B_u = [self.B(u[idx]) for idx in range(len(u))]
+            B_u = [self.B(u[idx], idx) for idx in range(len(u))]
 
         if self.q_time_dep:
             rhs = self.V.make_array([B_u[idx].B_u(d[idx]) for idx in range(len(u))])
@@ -601,7 +603,7 @@ class InstationaryModelIP(ImmutableObject):
         if use_cached_operators:
             B_u = self._cached_operators['B_u']
         else:
-            B_u = [self.B(u[idx]) for idx in range(len(u))]
+            B_u = [self.B(u[idx], idx) for idx in range(len(u))]
 
         self.num_calls['gradient'] += 1
         grad = self.Q.empty(reserve=(self.nt + 1))
@@ -693,7 +695,7 @@ class InstationaryModelIP(ImmutableObject):
         if use_cached_operators:
             B_u = self._cached_operators['B_u']
         else:
-            B_u = [self.B(u[idx]) for idx in range(len(u))]
+            B_u = [self.B(u[idx], idx) for idx in range(len(u))]
 
         self.num_calls['linearized_gradient'] += 1
         grad = self.Q.empty(reserve=(self.nt + 1))
@@ -704,12 +706,15 @@ class InstationaryModelIP(ImmutableObject):
             buf = self.Q.make_array(B_u[idx].B_u_ad(lin_p[idx]))
             grad.append(buf)
 
+            # print(idx)
+            # print(grad[idx])
+
         if not self.q_time_dep:
             grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
 
         if self.riesz_rep_grad:
             grad = self.products['prod_Q'].apply_inverse(grad) 
-
+        
         if alpha > 0:
             out = grad + alpha * self.linarized_gradient_regularization_term(q,d)
         else:

@@ -40,15 +40,14 @@ set_defaults({})
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    y_res = 30
-    z_res = 30
+    y_res = 14
+    z_res = 14
     # y_res = 8
     # z_res = 8
-    #par_dim = (y_res + 1) * (z_res + 1) * 5 * 3
-    par_dim = 3
+    par_dim = (y_res + 1) * (z_res + 1)
     T_initial = 0
-    T_final = 10
-    nt = 100
+    T_final = 10.0
+    nt = 50
 
     # T_final = 1
     # nt = 20
@@ -59,7 +58,7 @@ def main():
     q_exact = np.ones((1,par_dim))
     # q_exact[0,27] = 2
     # q_exact[0,54] = 3
-    q_circ[0,:] = 3
+    q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 0.001
@@ -72,16 +71,15 @@ def main():
         'spatial_resolution' : [4,y_res,z_res],
         'body_force_type' : mm.BodyForceType.CenterExcite,
         'system_matrix' : {
-            'type' : mm.SystemMatrixType.Cosserat,
+            'type' : mm.SystemMatrixType.CosseratDelamination,
             'hyperparameter' : {
                 'lambda' : 1.0,
                 'mu' : 1.0,
                 'nu' : 1e-3,
-                'surface' : 'left'
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsR9d,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
         'dims' : {
@@ -116,6 +114,8 @@ def main():
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
+    q_start[0,27] = 20
+    q_start[0,54] = 30
 
     u = FOM.solve_state(FOM.Q.make_array(q_exact))
     FOM.A.material_model.save_time_series(
@@ -125,21 +125,13 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-    # u = FOM.solve_state(FOM.Q.make_array(q_start))
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in u.vectors],
-    #     str('u_start'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
-
-    # FOM.A.material_model.save_state(
-    #     u.vectors[-1].real_part.impl,
-    #     str(save_path / 'test')
-    # )
-
-    # import sys
-    # sys.exit()
+    u = FOM.solve_state(FOM.Q.make_array(q_start))
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in u.vectors],
+        str('u_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
@@ -147,7 +139,7 @@ def main():
         'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
         'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
-        'theta': 0.1,                                           # Lower tolerance for the direction acceptance condition
+        'theta': 0.4,                                         # Lower tolerance for the direction acceptance condition
         'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
         #####################
         'i_max': 250,                                             # Maximum number of outer optimization iterations
@@ -157,7 +149,7 @@ def main():
         'lin_solver_parms': {
             'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                     # Max iterations for the linear solver
-            'lin_solver_tol': 1e-5,                          # Tolerance for convergence in the linear solver
+            'lin_solver_tol': 1e-12,                          # Tolerance for convergence in the linear solver
             'inital_step_size': 1                                # Initial step size for iterative solvers (if applicable)
         },
         'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
@@ -182,7 +174,13 @@ def main():
         save_path=save_path
     )
     q_est = optimizer.solve()
-    print(q_est)
+    u = FOM.solve_state(q_est)
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in u.vectors],
+        str('u_est'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
     # logger.debug("Differnce to q_exact:")
     # logger.debug("L^inf") 

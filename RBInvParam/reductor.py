@@ -148,28 +148,31 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     
     def _assemble_parameter_reduced_A(self) -> LincombOperator:
         parameter_basis = self._get_projection_basis('parameter_basis')
-                
-        # if not self._cached_operators['A']:
-        #     start = 0
-        #     if self.FOM.A.translation_operator:
-        #         operators = [self.FOM.A.get_translation_operator()]
-        #         coefficients = [1]
-        #     else:
-        #         operators = []
-        #         coefficients = []
-        # else:
-            # operators = list(self._cached_operators['A'].operators)
-            # start = len(operators)
+        
+        if not self._cached_operators['A']:
+            start = 0
+            translation_operator = self.FOM.A.get_translation_operator()
+            if translation_operator:
+                m = pd2.SparseMatrix()
+                m.reinit(translation_operator.matrix.get_sparsity_pattern())
+                m.copy_from(translation_operator.matrix)
+                translation_operator = DealIIMatrixOperator(
+                    matrix = m
+                )
+                operators = [translation_operator]
+                coefficients = [1]
+            else:
+                operators = []
+                coefficients = []
+        else:
+            operators = list(self._cached_operators['A'].operators)
+            start = len(operators)
 
-            # if self.FOM.A.translation_operator:
-            #     coefficients = [1]
-            # else:
-            #     coefficients = []
+            if self.FOM.A.translation_operator:
+                coefficients = [1]
+            else:
+                coefficients = []
 
-        operators = []
-        start = 0
-        coefficients = []
-             
         for i in range(start, len(parameter_basis)):
             q_i = parameter_basis[i]
             # TODO Refactor here
@@ -249,7 +252,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                                    state_basis)
         
 
-        parameteric_operator, constant_operator = split_constant_and_parameterized_operator(
+        parameteric_operator, translation_operator = split_constant_and_parameterized_operator(
             complete_operator=reduced_operator
         )
 
@@ -258,7 +261,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             range = V,
             Q = Q,
             parameteric_operator = parameteric_operator,
-            constant_operator = constant_operator
+            translation_operator = translation_operator
         )
 
         B = ROMEvaluatorB(
@@ -267,7 +270,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             Q = Q,
             V = V,
             parameteric_operator = parameteric_operator,
-            constant_operator = constant_operator
+            translation_operator = translation_operator
         )
 
         if state_basis:

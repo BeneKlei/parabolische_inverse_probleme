@@ -64,10 +64,17 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         return vector_array
 
     def get_translation_operator(self) -> Operator | None:
-        return None
+        if self.material_model.m_has_translation_operator:
+            q = np.zeros((self.material_model.param_space_dim))
+            self.material_model.m_q[:] = q
+            self.material_model.assemble_system_matrix()
+            self.system_matrix = self.material_model.system_matrix
+            return DealIIMatrixOperator(self.system_matrix)
+        else:
+            return None
 
-    def get_parameteric_operator(self) -> Operator | None:
-        raise NotImplementedError
+    def get_parameteric_operator(self, q: VectorArray) -> Operator:
+
 
 
 class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
@@ -83,15 +90,19 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
         self.Q_ = DealIIVectorSpace(Q.dim)
         self.material_model = material_model
 
-    def __call__(self, u: ListVectorArray) -> BU:
+    def __call__(self, 
+                 u: ListVectorArray,
+                 parameter_basis_idx: int) -> BU:
         assert u in self.V
         # TODO Check how this function can be vectorized
         assert len(u) == 1
         assert isinstance(u, ListVectorArray)
-
-        #B_u_mat = pd2.FullMatrix(self.V.dim, self.Q.dim)
-        self.material_model.assemble_system_matrix_derivative(u.vectors[0].real_part.impl)
-        B_u_op = DealIIMatrixOperator(matrix = self.material_model.system_matrix_derivative)
+        
+        #parameter_basis_idx = 0
+        self.material_model.assemble_system_matrix_derivative(u.vectors[0].real_part.impl, parameter_basis_idx)
+        B_u_op = DealIIMatrixOperator(
+            matrix = self.material_model.system_matrix_derivatives[parameter_basis_idx]
+        )
 
         def _B_u(d: NumpyVectorArray) -> pd2.Vector:
             # TODO Move parameter space handling to C++ and use pd2.Vector

@@ -13,7 +13,7 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 
 
 MACHINE_EPS = 1e-16
-CONV_TOL = 1e-6
+CONV_TOL = 1e-16
 
 def armijo_condition(
     previous_J : float,
@@ -107,6 +107,9 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     step_size = step_size[0,0]
     
     current_iterate = previous_iterate - step_size * search_direction
+
+    # print("SD:")
+    # print(search_direction)
     
 
     if projector: 
@@ -176,9 +179,10 @@ def gradient_descent_linearized_problem(
         buffer_nabla_J.append(grad.copy())
 
         # print("-------------------------")
-        # print(q)
+        # # print(q)
         # print(previous_d)
         # print(grad)
+        # print(model.compute_gradient(q))
 
         if projector:            
             terminaton_lhs = projector.project_domain(
@@ -237,7 +241,7 @@ def gradient_descent_linearized_problem(
         
         
         #if (i % 5 == 0):
-        if (i % 1 == 0):
+        if (i % 10 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {terminaton_lhs:3.4e}.")
             
 

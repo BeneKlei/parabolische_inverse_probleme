@@ -141,8 +141,6 @@ class Optimizer(BasicObject):
                 p = p,
                 use_cached_operators=use_cached_operators
             )
-
-
             J_rel_error = abs_est_error_J_r / current_J
         else:
             J_rel_error = np.inf
@@ -169,6 +167,12 @@ class Optimizer(BasicObject):
             norm_d = model.compute_gradient_norm(previous_q - current_q)
             lhs = previous_J - current_J
             rhs = kappa_arm / step_size * norm_d**2
+
+            # print("A")
+            # print(previous_J)
+            # print(current_J)
+            # print(lhs)
+            # print(rhs)
             
             if abs(lhs) <= MACHINE_EPS:
                 lhs = 0
@@ -226,26 +230,26 @@ class Optimizer(BasicObject):
             return 0.0
         
         if not model.objective_error_estimator:
-            #print("Here")
+            print("Here")
             J = self.FOM.compute_objective(
                 q = self.reductor.reconstruct(q, basis='parameter_basis')
             )
             J_r = model.compute_objective(
                 q = q
             )
-            print("Here")
-            print(J)
-            print(J_r)
-            print(self.FOM.compute_gradient(
-                q = self.reductor.reconstruct(q, basis='parameter_basis')
-            ))
-            print(model.compute_gradient(
-                q = q
-            ))
-
-
+            # nabla_J = self.FOM.compute_gradient(
+            #     q = self.reductor.reconstruct(q, basis='parameter_basis')
+            # )
+            # nabla_J_r = self.reductor.reconstruct(model.compute_gradient(
+            #     q = q
+            # ), basis='parameter_basis')
+            # print(J)
+            # print(J_r)
+            # print(nabla_J)
+            # print(nabla_J_r)
             print(np.abs(J - J_r))
             return np.abs(J - J_r)
+            
         
         return self.model.estimate_objective_error(
             q = q,
@@ -429,9 +433,9 @@ class Optimizer(BasicObject):
                     self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
 
             print(".........................")
-            # print(q)
+            print(q)
             print(d)
-            print(np.max(np.abs(d.to_numpy())))
+            #print(np.max(np.abs(d.to_numpy())))
             print(q+d)
 
             loop_terminated = loop_terminated or (count >= reg_loop_max)
@@ -449,6 +453,27 @@ class Optimizer(BasicObject):
                 
             ########################################### Armijo ###########################################
             if use_TR:
+                
+                # print("B")
+                # print(J)
+                # print(d)
+                # print(model.compute_gradient(q))
+                # d_ = model.Q.zeros(1)
+                # # print(model.compute_linearized_gradient(q, d_, alpha=0))
+                # # print(model.compute_linearized_gradient(q, d, alpha=0))
+
+                # print(model.compute_objective(q))
+                # print(model.compute_linearized_objective(q,d_, alpha=0))
+                # for x in [1,1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 0]:
+                #     print(x)
+                #     print(model.compute_objective(q+x*d))
+                #     print(model.compute_objective(q+x*-d))
+                #     print(model.compute_linearized_objective(q,x*d, alpha=0))
+                #     print(model.compute_linearized_objective(q,x*-d, alpha=0))
+                
+                # import sys
+                # sys.exit()
+
                 self.logger.info(f"Enforcing TR condition.")
                 q_TR, _, model_unsufficent, TR_max_iter_cond, step_size = self._armijo_TR_line_serach(
                     model = model,
@@ -461,6 +486,7 @@ class Optimizer(BasicObject):
                 )
 
                 TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 1])
+                #TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 0.1])
 
                 if TR_max_iter_cond:
                     break
@@ -1193,12 +1219,22 @@ class QrVrROMOptimizer(Optimizer):
         q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
         q_r = self.QrVrROM.Q.make_array(q_r)
 
+        from pymor.algorithms.projection import project
+        state_basis = self.reductor._get_projection_basis(basis='state_basis')
+        # print(state_basis)
+        # print(self.FOM.A(q).source)
+        q = self.FOM.Q.zeros(1)
+        print(project(self.FOM.A(q), state_basis, state_basis).matrix)
+        q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
+        q_r = self.QrVrROM.Q.make_array(q_r)
+        print(self.QrVrROM.A(q_r).assemble().matrix)
+        
+        import sys
+        sys.exit()
+
         u_r = self.QrVrROM.solve_state(q_r)
         p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
         J_r = self.QrVrROM.objective(u_r)
-
-        # import sys
-        # sys.exit()
 
         abs_est_error_J_r = self.estimate_objective_error(
             model=self.QrVrROM,
@@ -1223,8 +1259,37 @@ class QrVrROMOptimizer(Optimizer):
         self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
         self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
 
-        #convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
-        convergence_criterium = False
+        convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
+        #convergence_criterium = False
+
+        # d = -nabla_J
+        # print(d)
+        # print(self.FOM.compute_objective(q))
+        # for x in [0,1e-14,1e-7,1]:
+        #     print("-----")
+        #     print(x)
+        #     print(self.FOM.compute_objective(q + x * d))
+        #     print(self.FOM.compute_objective(q + x * d) <= self.FOM.compute_objective(q))
+
+        # import sys
+        # sys.exit()
+
+
+        # q_agc, J_r_AGC, model_unsufficent, AGC_max_iter_cond, _ = self._armijo_TR_line_serach(
+        #         model = self.FOM,
+        #         previous_q = q,
+        #         previous_J = J,
+        #         search_direction = -nabla_J,
+        #         max_iter = agc_armijo_max_iter,
+        #         inital_step_size = inital_agc_armijo_step_size,
+        #         eta = eta,
+        #         beta = beta_1,
+        #         kappa_arm = kappa_arm,
+        #         use_cached_operators=use_cached_operators,
+        #         projector=None
+        #     )
+        # import sys
+        # sys.exit()
 
 
         while not convergence_criterium and i<i_max:
@@ -1233,21 +1298,21 @@ class QrVrROMOptimizer(Optimizer):
             self.logger.info(f'Start Qr-Vr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in u.vectors],
-                str('u_start'),
-                str(self.save_path / str(i)),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in u.vectors],
+            #     str('u_start'),
+            #     str(self.save_path / str(i)),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
-            u_ = self.reductor.reconstruct(u_r, basis='state_basis')
+            # u_ = self.reductor.reconstruct(u_r, basis='state_basis')
             
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in u_.vectors],
-                str('u_r_start'),
-                str(self.save_path / str(i)),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in u_.vectors],
+            #     str('u_r_start'),
+            #     str(self.save_path / str(i)),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
             q_r = self.QrVrROM.Q.make_array(q_r)
 
@@ -1256,53 +1321,34 @@ class QrVrROMOptimizer(Optimizer):
             J_r = self.QrVrROM.objective(u_r)
             
             nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
-            
-            # u_ = self.FOM.solve_state(q)
-            # #u_r_ = self.reductor.reconstruct(self.QrVrROM.solve_state(q_r), basis='state_basis').to_numpy()
-            # print("ööööööööööööööööööööö")
-            # u_r = self.QrVrROM.solve_state(q_r)
-            # u_r_ = self.reductor.project_vectorarray(u_, basis='state_basis')
-            # u__ = self.reductor.reconstruct(self.QrVrROM.V.make_array(u_r_), basis='state_basis')
-            # print(u_r)
-            # print(u_r_)
 
-            # print(u_r.to_numpy() / np.linalg.norm(u_r.to_numpy()))
-            # print(u_r_ / np.linalg.norm(u_r_))
-
-            # print(np.max(np.abs(u_.to_numpy()-u__.to_numpy())) <= 1e-14)
-            # print(np.max(np.abs(u_r.to_numpy() / np.linalg.norm(u_r.to_numpy()) - u_r_ / np.linalg.norm(u_r_))) <= 1e-14)
-            # print(np.abs(u_r.to_numpy() / np.linalg.norm(u_r.to_numpy()) - u_r_ / np.linalg.norm(u_r_))) <= 1e-14)
-            # #print(u_)
-
-            # # L = self.FOM.L.to_numpy()
-            # # L_r = self.FOM.V.make_array(
-            # #         #L.inner(self.bases['state_basis'])
-            # #         self.FOM.L.inner(self.reductor.bases['state_basis'])
-            # #         #self.reductor.bases['state_basis'].inner(self.FOM.L)
-            # #     )
-            # # L_ = self.reductor.reconstruct(L_r, basis='state_basis').to_numpy()
-            
-            # #L_ = self.reductor.reconstruct(self.QrVrROM.L, basis='state_basis').to_numpy()
-            # #print(np.max(np.abs(L - L_)))
-
-            # # print(u_)
-            # # print(u_r_)
-            # # print(np.max(np.abs(u_ - u_r_)))
-            # import sys
-            # sys.exit()
-
-            # print("----------------------------------------")
+            # print(u.to_numpy())
+            # print(self.reductor.reconstruct(u_r, basis='state_basis').to_numpy())
 
             # print(p.to_numpy())
             # print(self.reductor.reconstruct(p_r, basis='state_basis').to_numpy())
-
-            # print("###########################################")
-
-            # print(J)
-            # print(J_r)
             
-            # print(nabla_J)
-            # print(self.reductor.reconstruct(nabla_J_r, basis='parameter_basis'))
+            # print("ABCDEEF")
+            # # print(np.max(np.abs(u.to_numpy() - self.reductor.reconstruct(u_r, basis='state_basis').to_numpy())))
+            # # print(np.max(np.abs(p.to_numpy() - self.reductor.reconstruct(p_r, basis='state_basis').to_numpy())))
+            # # print(p.to_numpy()[0])
+            # # print(p_r.to_numpy()[0])
+
+            # print("123")
+            # nabla_J = self.FOM.compute_gradient(q)
+            # print("456")
+            #nabla_J_r = self.QrVrROM.compute_gradient(q_r)
+            # print(self.QrVrROM.compute_gradient(q_r))
+            # print(self.QrVrROM.compute_linearized_gradient(q_r,d, alpha=0))
+            # import sys
+            # sys.exit()
+            # print(u.to_numpy())
+            # print(p.to_numpy())
+            # print("----")
+            # print(self.reductor.reconstruct(self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators),basis='parameter_basis'))
+            # print(self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators))
+            # import sys
+            # sys.exit()
 
             abs_est_error_J_r = self.estimate_objective_error(
                 model = self.QrVrROM,
@@ -1337,7 +1383,7 @@ class QrVrROMOptimizer(Optimizer):
                 model = self.QrVrROM,
                 bounds = self.FOM.bounds,
                 reductor = self.reductor,
-                use_sufficient_condition = True,
+                use_sufficient_condition = False,
                 logger = self.logger
             )
 
@@ -1358,6 +1404,10 @@ class QrVrROMOptimizer(Optimizer):
                 use_cached_operators=use_cached_operators,
                 projector=projector
             )
+
+
+            # import sys
+            # sys.exit()
 
             if J_r_AGC >= J:
                 self._logger.warning(f"J_r_AGC = {J_r_AGC:3.4e} is greater or equal than J = {J:3.4e}.")
@@ -1382,6 +1432,7 @@ class QrVrROMOptimizer(Optimizer):
                 'beta' : beta_1, 
                 "kappa_arm" : kappa_arm
             }
+            #projector = None
 
             if not model_unsufficent:
                 q_r, IRGNM_statistic = self.IRGNM(model = self.QrVrROM,
