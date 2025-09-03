@@ -48,8 +48,8 @@ def main():
     #* 5 * 3
     #par_dim = 3
     T_initial = 0
-    T_final = 10.0
-    nt = 100
+    T_final = 6.0
+    nt = 60
 
     # T_final = 1
     # nt = 20
@@ -100,7 +100,7 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-3,                          # Absolute noise magnitude added to data
+        'noise_level': 0.0,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -144,7 +144,7 @@ def main():
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                          # Initial regularization parameter
+        'alpha_0': 1e-9,                                          # Initial regularization parameter
         'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
         'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
@@ -190,6 +190,15 @@ def main():
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
     )
+
+    diff = u - u_exact
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in diff.vectors],
+        str('diff_est'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
+
 
 
 if __name__ == '__main__':

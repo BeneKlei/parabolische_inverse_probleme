@@ -45,16 +45,17 @@ def main():
 
     # y_res = 20
     # z_res = 20
-    
+
     # y_res = 8
     # z_res = 8
+
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
     #par_dim = 3
     T_initial = 0
     #T_final = 10.0
-    T_final = 6.0
-    nt = 60
+    T_final = 4.0
+    nt = 40
 
     # T_final = 10.0
     # nt = 100
@@ -67,7 +68,7 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
 
-    #q_exact[0,200] = 40
+    #q_exact[0,40] = 40
 
     q_exact[0,600] = 20
     q_exact[0,300] = 30
@@ -75,7 +76,7 @@ def main():
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
-    bounds[:,0] = 0.001
+    bounds[:,0] = 1e-20
     bounds[:,1] = 1e20
 
 
@@ -85,14 +86,15 @@ def main():
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
             'hyperparameter' : {
-                'lambda' : 1.0,
-                'mu' : 1.0,
+                'lambda' : 1e1,
+                'mu' : 1e1,
                 'nu' : 1e-3,
                 'surface' : 'left'
             }
         },
         'observation_operator': {
             'type': mm.ObservationOperatorType.SensorsR9d,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
         'dims' : {
@@ -137,10 +139,26 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
+    p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in p_exact.vectors],
+        str('p_exact'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
+
     u_start = FOM.solve_state(FOM.Q.make_array(q_start))
     FOM.A.material_model.save_time_series(
         [v.real_part.impl for v in u_start.vectors],
         str('u_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
+
+    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_start)
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in p_start.vectors],
+        str('p_start'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
     )
@@ -155,7 +173,7 @@ def main():
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-8,                                              # Initial regularization parameter (data fidelity vs. regularization)
+        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         'tau': 3.5,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
@@ -165,13 +183,13 @@ def main():
         #####################
         'i_max': 75,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
-        'i_max_inner': 10,                                           # Max number of inner iterations
+        'i_max_inner': 5,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC
         'TR_armijo_max_iter': 25,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
-            'max_iter': 1e4,                                         # Maximum iterations for the linear solver
+            'max_iter': 1e3,                                         # Maximum iterations for the linear solver
             'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'inital_step_size': 1                                    # Initial step size for iterative linear solver
         },
@@ -185,7 +203,7 @@ def main():
             'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
             'parameter_HaPOD_tol': 1e-16,                             # Tolerance for parameter basis POD
             'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-            'state_HaPOD_tol': 1e-9                                 # Tolerance for state basis POD
+            'state_HaPOD_tol': 1e-6                                 # Tolerance for state basis POD
         },
         'error_estimator_types' : {
             'state' : StateErrorEstimatorType.NONE,
@@ -193,10 +211,10 @@ def main():
             'objective' : ObjectiveErrorEstimatorType.NONE,
         },
         #####################
-        'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
+        'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 2,                                    # Dump intermediate results every n optimization iterations
         #####################
-        'eta0': 1e-1,                                                # Initial trust region tolerance
+        'eta0': 5 * 1e-2,                                                # Initial trust region tolerance
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.95,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 
@@ -228,6 +246,16 @@ def main():
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
     )
+
+    diff = u - u_exact
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in diff.vectors],
+        str('diff_est'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
+
+
 
 if __name__ == '__main__':
     main()

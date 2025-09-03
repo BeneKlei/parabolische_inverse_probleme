@@ -1205,16 +1205,52 @@ class QrVrROMOptimizer(Optimizer):
         self.parameter_shapshots.append(nabla_J)
         self.parameter_shapshots.append(q)
         self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
+
+        
+        cols = [0,5,10,15,20,25,30]
+        rows = [0,5,10,15,20,25,30]
+        # cols = [0,2,4,6,8]
+        # rows = [0,2,4,6,8]
+        for i in range(1,len(cols)):
+            for j in range(1,len(rows)):
+                additional_q = np.zeros((31,31))
+                #additional_q = np.zeros((9,9))
+                additional_q[cols[i-1]:cols[i], rows[j-1]:rows[j]] = 1
+                self.parameter_shapshots.append(
+                    self.FOM.Q.make_array(additional_q.flatten())
+                )
+
+
         
         self.logger.debug(f"Extending Vr-snapshots")
         self.state_shapshots = self.FOM.V.empty()
         self.state_shapshots.append(u)
-        self.state_shapshots.append(p)
+        #self.state_shapshots.append(p)
 
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             basis='both',
             **enrichment
         )
+
+        self.state_shapshots = self.FOM.V.empty()
+        #self.state_shapshots.append(u)
+        self.state_shapshots.append(p)
+
+        self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+            basis='state_basis',
+            state_strategy='snapshot_HaPOD',
+            state_HaPOD_tol=1e-3
+        )
+
+        state_basis = self.reductor._get_projection_basis(basis='state_basis')
+        for i in range(len(state_basis)):
+            self.FOM.A.material_model.save_state(
+                state_basis[i].vectors[0].real_part.impl,
+                str(self.save_path / ('basis_' + str(i) + '.vtk'))
+            )
+        
+        # import sys
+        # sys.exit()
         
 
         q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
@@ -1291,6 +1327,10 @@ class QrVrROMOptimizer(Optimizer):
             else:
                 rel_est_error_J_r = np.inf
 
+            print(rel_est_error_J_r)
+            print(abs_est_error_J_r)
+            print(J_r)
+
             if rel_est_error_J_r > eta:
                 assert enrichment['parameter_strategy'] in ['snapshot_HaPOD', 'projected_error_HaPOD']
                 assert enrichment['state_strategy'] in ['snapshot_HaPOD', 'projected_error_HaPOD']
@@ -1328,7 +1368,8 @@ class QrVrROMOptimizer(Optimizer):
                 model = self.QrVrROM,
                 bounds = self.FOM.bounds,
                 reductor = self.reductor,
-                use_sufficient_condition = False,
+                use_sufficient_condition = True,
+                #use_sufficient_condition = False,
                 logger = self.logger
             )
 
@@ -1533,12 +1574,23 @@ class QrVrROMOptimizer(Optimizer):
                     self.logger.debug(f"Extending Vr-snapshots")
                     self.state_shapshots = self.FOM.V.empty()
                     self.state_shapshots.append(u)
-                    self.state_shapshots.append(p)
+                    #self.state_shapshots.append(p)
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         basis='both',
                         **enrichment
                     )
+
+                    self.state_shapshots = self.FOM.V.empty()
+                    #self.state_shapshots.append(u)
+                    self.state_shapshots.append(p)
+
+                    self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                        basis='state_basis',
+                        state_strategy='snapshot_HaPOD',
+                        state_HaPOD_tol=1e-3
+                    )
+
 
                     q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
                     q_r = self.QrVrROM.Q.make_array(q_r)
