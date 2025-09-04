@@ -149,43 +149,31 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     def _assemble_parameter_reduced_A(self) -> LincombOperator:
         parameter_basis = self._get_projection_basis('parameter_basis')
         
-        start = 0
-        translation_operator = self.FOM.A.get_translation_operator()
-        if translation_operator:
-            m = pd2.SparseMatrix()
-            m.reinit(translation_operator.matrix.get_sparsity_pattern())
-            m.copy_from(translation_operator.matrix)
-            translation_operator = DealIIMatrixOperator(
-                matrix = m
-            )
-            operators = [translation_operator]
-            coefficients = [1]
-        else:
-            operators = []
-            coefficients = []
-        # if not self._cached_operators['A']:
-        #     start = 0
-        #     translation_operator = self.FOM.A.get_translation_operator()
-        #     if translation_operator:
-        #         m = pd2.SparseMatrix()
-        #         m.reinit(translation_operator.matrix.get_sparsity_pattern())
-        #         m.copy_from(translation_operator.matrix)
-        #         translation_operator = DealIIMatrixOperator(
-        #             matrix = m
-        #         )
-        #         operators = [translation_operator]
-        #         coefficients = [1]
-        #     else:
-        #         operators = []
-        #         coefficients = []
-        # else:
-        #     operators = list(self._cached_operators['A'].operators)
-        #     start = len(operators)
 
-        #     if self.FOM.A.translation_operator:
-        #         coefficients = [1]
-        #     else:
-        #         coefficients = []
+        if not self._cached_operators['A']:
+            start = 0
+            translation_operator = self.FOM.A.get_translation_operator()
+            if translation_operator:
+                m = pd2.SparseMatrix()
+                m.reinit(translation_operator.matrix.get_sparsity_pattern())
+                m.copy_from(translation_operator.matrix)
+                translation_operator = DealIIMatrixOperator(
+                    matrix = m
+                )
+                operators = [translation_operator]
+                coefficients = [1]
+            else:
+                operators = []
+                coefficients = []
+        else:
+            operators = list(self._cached_operators['A'].operators)
+
+            if self.FOM.A.get_translation_operator():
+                coefficients = [1]
+                start = len(operators)-1
+            else:
+                coefficients = []
+                start = len(operators)
 
         for i in range(start, len(parameter_basis)):
             q_i = parameter_basis[i]
@@ -206,7 +194,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                     len(parameter_basis), i
                 )
             )
-
+        
         self._cached_operators['A'] = LincombOperator(operators, coefficients)
         
         return self._cached_operators['A']
@@ -298,12 +286,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                 L = project(self.FOM.L, state_basis, None)
         else:
             L = self.FOM.L
-
-        #print(self.project_vectorarray(self.FOM.L, basis='state_basis'))
-        # print(self.FOM.L.inner(self.bases['state_basis']))
-        # print(L)
-        # import sys
-        # sys.exit()
 
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
         prod_V = project(self.FOM.products['prod_V'], state_basis, state_basis)

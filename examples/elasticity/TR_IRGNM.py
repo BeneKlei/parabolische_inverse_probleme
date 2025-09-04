@@ -40,11 +40,11 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    # y_res = 30
+    # z_res = 30
 
-    # y_res = 20
-    # z_res = 20
+    y_res = 20
+    z_res = 20
 
     # y_res = 8
     # z_res = 8
@@ -54,8 +54,8 @@ def main():
     #par_dim = 3
     T_initial = 0
     #T_final = 10.0
-    T_final = 4.0
-    nt = 40
+    T_final = 5.0
+    nt = 50
 
     # T_final = 10.0
     # nt = 100
@@ -68,11 +68,11 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
 
-    #q_exact[0,40] = 40
+    q_exact[0,40] = 40
 
-    q_exact[0,600] = 20
+    # q_exact[0,600] = 20
     q_exact[0,300] = 30
-    q_exact[0,700] = 40
+    # q_exact[0,700] = 40
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -173,7 +173,8 @@ def main():
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
+        'alpha_0': 1e-14,                                              # Initial regularization parameter (data fidelity vs. regularization)        
+        #'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         'tau': 3.5,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
@@ -183,14 +184,14 @@ def main():
         #####################
         'i_max': 75,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
-        'i_max_inner': 5,                                           # Max number of inner iterations
+        'i_max_inner': 10,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC
-        'TR_armijo_max_iter': 25,                                     # Max iterations Armijo condition to enforce the trust-region 
+        'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
             'inital_step_size': 1                                    # Initial step size for iterative linear solver
         },
         # 'lin_solver_parms': {
@@ -203,7 +204,7 @@ def main():
             'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
             'parameter_HaPOD_tol': 1e-16,                             # Tolerance for parameter basis POD
             'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-            'state_HaPOD_tol': 1e-6                                 # Tolerance for state basis POD
+            'state_HaPOD_tol': 1e-9                            # Tolerance for state basis POD
         },
         'error_estimator_types' : {
             'state' : StateErrorEstimatorType.NONE,

@@ -475,6 +475,7 @@ class Optimizer(BasicObject):
                 # sys.exit()
 
                 self.logger.info(f"Enforcing TR condition.")
+                print(TR_backtracking_params['inital_step_size'])
                 q_TR, _, model_unsufficent, TR_max_iter_cond, step_size = self._armijo_TR_line_serach(
                     model = model,
                     previous_q = q,
@@ -487,6 +488,7 @@ class Optimizer(BasicObject):
 
                 TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 1])
                 #TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 0.1])
+                print(TR_backtracking_params['inital_step_size'])
 
                 if TR_max_iter_cond:
                     break
@@ -1154,10 +1156,10 @@ class QrVrROMOptimizer(Optimizer):
         delta = noise_level
 
         q = self.FOM.Q.make_array(q_0)
-        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)        
-        p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+        u = self.FOM.solve_state(q, use_cached_operators=False)        
+        p = self.FOM.solve_adjoint(q, u, use_cached_operators=False)
         J = self.FOM.objective(u)
-        nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
+        nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=False)
 
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
         assert norm_nabla_J > 0
@@ -1207,15 +1209,17 @@ class QrVrROMOptimizer(Optimizer):
         self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
 
         
-        cols = [0,5,10,15,20,25,30]
-        rows = [0,5,10,15,20,25,30]
+        # cols = [0,5,10,15,20,25,30]
+        # rows = [0,5,10,15,20,25,30]
+        cols = [0,5,10,15,20]
+        rows = [0,5,10,15,20]
         # cols = [0,2,4,6,8]
         # rows = [0,2,4,6,8]
-        for i in range(1,len(cols)):
-            for j in range(1,len(rows)):
-                additional_q = np.zeros((31,31))
-                #additional_q = np.zeros((9,9))
-                additional_q[cols[i-1]:cols[i], rows[j-1]:rows[j]] = 1
+        for i_ in range(1,len(cols)):
+            for j_ in range(1,len(rows)):
+                #additional_q = np.zeros((31,31))
+                additional_q = np.zeros((21,21))
+                additional_q[cols[i_-1]:cols[i_], rows[j_-1]:rows[j_]] = 1
                 self.parameter_shapshots.append(
                     self.FOM.Q.make_array(additional_q.flatten())
                 )
@@ -1239,14 +1243,14 @@ class QrVrROMOptimizer(Optimizer):
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             basis='state_basis',
             state_strategy='snapshot_HaPOD',
-            state_HaPOD_tol=1e-3
+            state_HaPOD_tol=1e-6
         )
 
         state_basis = self.reductor._get_projection_basis(basis='state_basis')
-        for i in range(len(state_basis)):
+        for base_idx in range(len(state_basis)):
             self.FOM.A.material_model.save_state(
-                state_basis[i].vectors[0].real_part.impl,
-                str(self.save_path / ('basis_' + str(i) + '.vtk'))
+                state_basis[base_idx].vectors[0].real_part.impl,
+                str(self.save_path / ('basis_' + str(base_idx) + '.vtk'))
             )
         
         # import sys
@@ -1588,7 +1592,7 @@ class QrVrROMOptimizer(Optimizer):
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         basis='state_basis',
                         state_strategy='snapshot_HaPOD',
-                        state_HaPOD_tol=1e-3
+                        state_HaPOD_tol=1e-6
                     )
 
 
