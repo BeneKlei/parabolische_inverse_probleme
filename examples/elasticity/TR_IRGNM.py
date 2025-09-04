@@ -54,7 +54,10 @@ def main():
     #par_dim = 3
     T_initial = 0
     #T_final = 10.0
-    T_final = 5.0
+    # T_final = 5.0
+    # nt = 50
+
+    T_final = 2.0
     nt = 50
 
     # T_final = 10.0
@@ -86,8 +89,8 @@ def main():
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
             'hyperparameter' : {
-                'lambda' : 1e1,
-                'mu' : 1e1,
+                'lambda' : 1e2,
+                'mu' : 1e2,
                 'nu' : 1e-3,
                 'surface' : 'left'
             }
@@ -172,9 +175,8 @@ def main():
     )
 
     optimizer_parameter = {
-        'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-14,                                              # Initial regularization parameter (data fidelity vs. regularization)        
-        #'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
+        'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
+        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         'tau': 3.5,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
@@ -184,7 +186,7 @@ def main():
         #####################
         'i_max': 75,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
-        'i_max_inner': 10,                                           # Max number of inner iterations
+        'i_max_inner': 5,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC
         'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
@@ -203,8 +205,8 @@ def main():
         'enrichment': {
             'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
             'parameter_HaPOD_tol': 1e-16,                             # Tolerance for parameter basis POD
-            'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-            'state_HaPOD_tol': 1e-9                            # Tolerance for state basis POD
+            'state_strategy': 'last_n_vectors',                      # Enrichment strategy for state basis
+            'state_HaPOD_tol': 1e-16                            # Tolerance for state basis POD
         },
         'error_estimator_types' : {
             'state' : StateErrorEstimatorType.NONE,

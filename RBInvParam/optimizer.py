@@ -109,7 +109,7 @@ class Optimizer(BasicObject):
 
         self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
         step_size = inital_step_size
-        search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
+        #search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
 
         if projector:
             projector.pre_compute(center=previous_q)
@@ -201,6 +201,13 @@ class Optimizer(BasicObject):
 
             TR_condition = J_rel_error <= eta
             condition = armijo_condition & TR_condition
+
+            print("############")
+            print(lhs)
+            print(armijo_condition)
+            print(TR_condition)
+            # print(step_size)
+
             
             i += 1
         if (J_rel_error > beta * eta):
@@ -486,15 +493,19 @@ class Optimizer(BasicObject):
                     projector=projector
                 )
 
-                TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 1])
+                #TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 1])
                 #TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 0.1])
                 print(TR_backtracking_params['inital_step_size'])
 
                 if TR_max_iter_cond:
                     break
                 
+                print("|q-q_TR|")
+                print(model.compute_gradient_norm(q - q_TR))
                 q = q_TR
             else:
+                print("|d|")
+                print(model.compute_gradient_norm(d))
                 q += d
 
             ########################################### Final ###########################################
@@ -1011,15 +1022,47 @@ class QrVrROMOptimizer(Optimizer):
         assert HaPOD_tol > 0
         assert product.source == product.range == snapshots.space
 
-        self.reductor.bases[basis].append(snapshots)
-        _snapshots, _, _ = \
+        snapshots, _, _ = \
         inc_vectorarray_hapod(steps=len(snapshots)/2, 
                               U=snapshots, 
                               eps=HaPOD_tol,
                               omega=0.1,                
                               product=product)
 
-        self.reductor.bases[basis] = _snapshots
+        self.reductor.bases[basis] = snapshots
+    
+    def _extend_basis_last_n_vectors(self,
+                                     snapshots: VectorArray,
+                                     basis: str,
+                                     product: Operator,
+                                     HaPOD_tol: float = 1e-16) -> None:
+        
+        assert isinstance(snapshots, VectorArray) 
+        assert basis in ['parameter_basis','state_basis']
+        assert HaPOD_tol > 0
+        assert product.source == product.range == snapshots.space
+
+        #self.reductor.bases[basis].append(snapshots)
+        snapshots, _, _ = \
+        inc_vectorarray_hapod(steps=len(snapshots)/2, 
+                              U=snapshots, 
+                              eps=HaPOD_tol,
+                              omega=0.1,                
+                              product=product)
+
+        n = 200
+        idx = max([n - len(snapshots), 0])
+        x = self.FOM.V.empty()
+        x.append(self.reductor.bases[basis][-idx:])
+        self.reductor.bases[basis] = x
+
+        try:
+            self.reductor.extend_basis(
+                U = snapshots,
+                basis = basis
+            )
+        except ExtensionError:
+            self._logger.warning(f"No new vectors were added to {basis}, with tol = {HaPOD_tol}.")
 
     def extend_bases_and_rebuild_QrVrROM(self,
                                          basis: str,
@@ -1029,25 +1072,25 @@ class QrVrROMOptimizer(Optimizer):
                                          state_HaPOD_tol: float = 1e-16) -> InstationaryModelIP:
 
         assert basis in ['parameter_basis', 'state_basis', 'both']
-        assert parameter_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
+        #assert parameter_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
         assert parameter_HaPOD_tol > 0
-        assert state_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
+        #assert state_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
         assert state_HaPOD_tol > 0
 
-        # self.statistics['extention_stats']['snapshot_projection_error']['parameter_basis'].append(
-        #     self.reductor.calc_projection_error(
-        #         x = self.parameter_shapshots.copy(),
-        #         basis = 'parameter_basis',
-        #         normalize = False
-        #     )
-        # )
-        # self.statistics['extention_stats']['snapshot_projection_error']['state_basis'].append(
-        #     self.reductor.calc_projection_error(
-        #         x = self.state_shapshots.copy(),
-        #         basis = 'state_basis',
-        #         normalize = False
-        #     )
-        # )
+        self.statistics['extention_stats']['snapshot_projection_error']['parameter_basis'].append(
+            self.reductor.calc_projection_error(
+                x = self.parameter_shapshots.copy(),
+                basis = 'parameter_basis',
+                normalize = False
+            )
+        )
+        self.statistics['extention_stats']['snapshot_projection_error']['state_basis'].append(
+            self.reductor.calc_projection_error(
+                x = self.state_shapshots.copy(),
+                basis = 'state_basis',
+                normalize = False
+            )
+        )
 
         if basis in ['parameter_basis', 'both']:
             self.logger.debug(f"Extending parameter basis, using {parameter_strategy}, with tol = {parameter_HaPOD_tol}.")
@@ -1099,7 +1142,13 @@ class QrVrROMOptimizer(Optimizer):
                     product=self.FOM.products['prod_V'],
                     HaPOD_tol = state_HaPOD_tol
                 )
-                self.reductor.delete_cached_operators()
+            elif state_strategy == 'last_n_vectors':
+                self._extend_basis_last_n_vectors(
+                    snapshots = self.state_shapshots,
+                    basis='state_basis',
+                    product=self.FOM.products['prod_V'],
+                    HaPOD_tol = state_HaPOD_tol
+                )
             else:
                 raise ValueError
             
@@ -1209,8 +1258,8 @@ class QrVrROMOptimizer(Optimizer):
         self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
 
         
-        # cols = [0,5,10,15,20,25,30]
-        # rows = [0,5,10,15,20,25,30]
+        # cols = [0,5,10,13,15,18,20,25,30]
+        # rows = [0,5,10,13,15,18,20,25,30]
         cols = [0,5,10,15,20]
         rows = [0,5,10,15,20]
         # cols = [0,2,4,6,8]
@@ -1219,6 +1268,7 @@ class QrVrROMOptimizer(Optimizer):
             for j_ in range(1,len(rows)):
                 #additional_q = np.zeros((31,31))
                 additional_q = np.zeros((21,21))
+                #additional_q = np.zeros((9,9))
                 additional_q[cols[i_-1]:cols[i_], rows[j_-1]:rows[j_]] = 1
                 self.parameter_shapshots.append(
                     self.FOM.Q.make_array(additional_q.flatten())
@@ -1229,22 +1279,22 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"Extending Vr-snapshots")
         self.state_shapshots = self.FOM.V.empty()
         self.state_shapshots.append(u)
-        #self.state_shapshots.append(p)
+        self.state_shapshots.append(p)
 
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             basis='both',
             **enrichment
         )
 
-        self.state_shapshots = self.FOM.V.empty()
-        #self.state_shapshots.append(u)
-        self.state_shapshots.append(p)
+        # self.state_shapshots = self.FOM.V.empty()
+        # #self.state_shapshots.append(u)
+        # self.state_shapshots.append(p)
 
-        self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
-            basis='state_basis',
-            state_strategy='snapshot_HaPOD',
-            state_HaPOD_tol=1e-6
-        )
+        # self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+        #     basis='state_basis',
+        #     state_strategy='snapshot_HaPOD',
+        #     state_HaPOD_tol=1e-2
+        # )
 
         state_basis = self.reductor._get_projection_basis(basis='state_basis')
         for base_idx in range(len(state_basis)):
@@ -1399,7 +1449,7 @@ class QrVrROMOptimizer(Optimizer):
             # import sys
             # sys.exit()
 
-            if J_r_AGC >= J:
+            if J_r_AGC >= (J + 1e-14):
                 self._logger.warning(f"J_r_AGC = {J_r_AGC:3.4e} is greater or equal than J = {J:3.4e}.")
                 self._logger.warning(f"Extending reduced spaces with all snapshots and recomputing AGC.")
 
@@ -1578,22 +1628,22 @@ class QrVrROMOptimizer(Optimizer):
                     self.logger.debug(f"Extending Vr-snapshots")
                     self.state_shapshots = self.FOM.V.empty()
                     self.state_shapshots.append(u)
-                    #self.state_shapshots.append(p)
+                    self.state_shapshots.append(p)
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         basis='both',
                         **enrichment
                     )
 
-                    self.state_shapshots = self.FOM.V.empty()
-                    #self.state_shapshots.append(u)
-                    self.state_shapshots.append(p)
+                    #self.state_shapshots = self.FOM.V.empty()
+                    # #self.state_shapshots.append(u)
+                    # self.state_shapshots.append(p)
 
-                    self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
-                        basis='state_basis',
-                        state_strategy='snapshot_HaPOD',
-                        state_HaPOD_tol=1e-6
-                    )
+                    # self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                    #     basis='state_basis',
+                    #     state_strategy='snapshot_HaPOD',
+                    #     state_HaPOD_tol=1e-2
+                    # )
 
 
                     q_r = self.reductor.project_vectorarray(q, 'parameter_basis')

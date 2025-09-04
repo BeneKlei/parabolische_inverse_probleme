@@ -40,16 +40,16 @@ set_defaults({})
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    y_res = 30
-    z_res = 30
-    # y_res = 8
-    # z_res = 8
+    # y_res = 30
+    # z_res = 30
+    y_res = 20
+    z_res = 20
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
     #par_dim = 3
     T_initial = 0
-    T_final = 6.0
-    nt = 60
+    T_final = 2.0
+    nt = 50
 
     # T_final = 1
     # nt = 20
@@ -59,9 +59,10 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
 
-    q_exact[0,600] = 20
+    q_exact[0,40] = 40
+    #q_exact[0,600] = 20
     q_exact[0,300] = 30
-    q_exact[0,700] = 40
+    #q_exact[0,700] = 40
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -75,8 +76,8 @@ def main():
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
             'hyperparameter' : {
-                'lambda' : 1.0,
-                'mu' : 1.0,
+                'lambda' : 1e2,
+                'mu' : 1e2,
                 'nu' : 1e-3,
             }
         },
@@ -100,7 +101,7 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 0.0,                          # Absolute noise magnitude added to data
+        'noise_level': 1e-5,                          # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -144,7 +145,7 @@ def main():
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-9,                                          # Initial regularization parameter
+        'alpha_0': 1e-5,                                          # Initial regularization parameter
         'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
         'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
@@ -158,7 +159,7 @@ def main():
         'lin_solver_parms': {
             'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                     # Max iterations for the linear solver
-            'lin_solver_tol': 1e-12,                          # Tolerance for convergence in the linear solver
+            'lin_solver_tol': 1e-8,                          # Tolerance for convergence in the linear solver
             'inital_step_size': 1                                # Initial step size for iterative solvers (if applicable)
         },
         'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
