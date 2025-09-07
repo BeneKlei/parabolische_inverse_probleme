@@ -8,6 +8,7 @@ services:
       - ./:/home/dealii/workdir
     working_dir: /home/dealii/workdir
     user: "dealii:dealii"
+    ports:
+      - "8888:8888"
     command: tail -f /dev/null
-
-
+    

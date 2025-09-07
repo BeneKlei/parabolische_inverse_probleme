@@ -40,15 +40,15 @@ set_defaults({})
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    # y_res = 30
-    # z_res = 30
-    y_res = 20
-    z_res = 20
+    y_res = 30
+    z_res = 30
+    # y_res = 20
+    # z_res = 20
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
     #par_dim = 3
     T_initial = 0
-    T_final = 2.0
+    T_final = 5.0
     nt = 50
 
     # T_final = 1
@@ -59,9 +59,8 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
 
-    q_exact[0,40] = 40
-    #q_exact[0,600] = 20
-    q_exact[0,300] = 30
+    q_exact[0,200] = 2
+    q_exact[0,300] = 3
     #q_exact[0,700] = 40
     q_circ[0,:] = 1.0
 
@@ -82,7 +81,7 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR9d,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
         'dims' : {
@@ -101,13 +100,14 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-5,                          # Absolute noise magnitude added to data
+        'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
         'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
         'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
+        'save_path' : save_path,
         'time_stepper' : {
             'name' : 'newman_second_order',
             'zeta' : 0.5
@@ -163,7 +163,7 @@ def main():
             'inital_step_size': 1                                # Initial step size for iterative solvers (if applicable)
         },
         'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
-        'dump_every_nth_loop': 2,                                # Dump intermediate results every n optimization iterations
+        'dump_every_nth_loop': 1,                                # Dump intermediate results every n optimization iterations
     }
 
 

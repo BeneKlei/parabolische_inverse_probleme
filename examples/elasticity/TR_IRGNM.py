@@ -40,11 +40,11 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    # y_res = 30
-    # z_res = 30
+    y_res = 30
+    z_res = 30
 
-    y_res = 20
-    z_res = 20
+    # y_res = 20
+    # z_res = 20
 
     # y_res = 8
     # z_res = 8
@@ -57,7 +57,7 @@ def main():
     # T_final = 5.0
     # nt = 50
 
-    T_final = 2.0
+    T_final = 5.0
     nt = 50
 
     # T_final = 10.0
@@ -68,15 +68,15 @@ def main():
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
-    q_circ = np.ones((1, par_dim))
-    q_exact = np.ones((1,par_dim))
+    q_circ = np.ones((1, par_dim)) * 1
+    q_exact = np.ones((1,par_dim)) * 1
 
-    q_exact[0,40] = 40
+    #q_exact[0,40] = 4e2
 
-    # q_exact[0,600] = 20
-    q_exact[0,300] = 30
-    # q_exact[0,700] = 40
-    q_circ[0,:] = 1.0
+    q_exact[0,200] = 2
+    q_exact[0,300] = 3
+    #q_exact[0,700] = 40
+    q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 1e-20
@@ -96,7 +96,9 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR9d,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
@@ -117,13 +119,15 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 1e-5,                          # Absolute noise magnitude added to data
+        #'noise_level': 5 * 1e-4,                      # Absolute noise magnitude added to data
+        'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
         'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
         'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
+        'save_path' : save_path,
         'time_stepper' : {
             'name' : 'newman_second_order',
             'zeta' : 0.5
@@ -178,7 +182,7 @@ def main():
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        'tau': 3.5,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.05,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.4,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
@@ -186,7 +190,7 @@ def main():
         #####################
         'i_max': 75,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
-        'i_max_inner': 5,                                           # Max number of inner iterations
+        'i_max_inner': 30,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC
         'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
@@ -205,8 +209,10 @@ def main():
         'enrichment': {
             'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
             'parameter_HaPOD_tol': 1e-16,                             # Tolerance for parameter basis POD
-            'state_strategy': 'last_n_vectors',                      # Enrichment strategy for state basis
-            'state_HaPOD_tol': 1e-16                            # Tolerance for state basis POD
+            'parameter_normalize': False,
+            'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
+            'state_HaPOD_tol': 1e-6,
+            'state_normalize': True                            # Tolerance for state basis POD
         },
         'error_estimator_types' : {
             'state' : StateErrorEstimatorType.NONE,
@@ -215,9 +221,9 @@ def main():
         },
         #####################
         'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
-        'dump_every_nth_loop': 2,                                    # Dump intermediate results every n optimization iterations
+        'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
-        'eta0': 5 * 1e-2,                                                # Initial trust region tolerance
+        'eta0': 1e-2,                                                # Initial trust region tolerance
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.95,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 

@@ -134,7 +134,7 @@ class Optimizer(BasicObject):
 
         armijo_condition = lhs >= rhs
         if current_J > 0:
-            abs_est_error_J_r = self.estimate_objective_error(
+            abs_est_error_J_r, _ = self.estimate_objective_error(
                 model = model,
                 q = current_q,
                 u = u,
@@ -188,7 +188,7 @@ class Optimizer(BasicObject):
             armijo_condition = lhs >= rhs
 
             if current_J > 0:
-                abs_est_error_J_r = self.estimate_objective_error(
+                abs_est_error_J_r, _ = self.estimate_objective_error(
                     model = model,
                     q = current_q,
                     u = u,
@@ -231,10 +231,10 @@ class Optimizer(BasicObject):
                                  q : VectorArray,
                                  u : VectorArray,
                                  p : VectorArray,
-                                 use_cached_operators: bool = True) -> float:
+                                 use_cached_operators: bool = True) -> Tuple[float,float]:
 
         if id(model) == id(self.FOM):
-            return 0.0
+            return 0.0, 0.0
         
         if not model.objective_error_estimator:
             print("Here")
@@ -244,18 +244,43 @@ class Optimizer(BasicObject):
             J_r = model.compute_objective(
                 q = q
             )
+
             # nabla_J = self.FOM.compute_gradient(
             #     q = self.reductor.reconstruct(q, basis='parameter_basis')
             # )
             # nabla_J_r = self.reductor.reconstruct(model.compute_gradient(
             #     q = q
             # ), basis='parameter_basis')
-            # print(J)
-            # print(J_r)
-            # print(nabla_J)
-            # print(nabla_J_r)
-            print(np.abs(J - J_r))
-            return np.abs(J - J_r)
+
+            # u = self.FOM.solve_state(q=self.reductor.reconstruct(q, basis='parameter_basis'), 
+            #                  use_cached_operators=use_cached_operators)
+            # p = self.FOM.solve_adjoint(q=self.reductor.reconstruct(q, basis='parameter_basis'), 
+            #                     u=u, 
+            #                     use_cached_operators=use_cached_operators)
+            
+            # u_r = model.solve_state(q=q, 
+            #                  use_cached_operators=use_cached_operators)
+            # p_r = self.reductor.reconstruct(model.solve_adjoint(q=q, 
+            #                     u=u_r, 
+            #                     use_cached_operators=use_cached_operators), basis='state_basis')
+            
+            # print(np.sqrt(self.FOM.products['bochner_prod_V'].apply2(p_r-p,p_r-p))[0,0] / np.sqrt(self.FOM.products['bochner_prod_V'].apply2(p,p))[0,0])
+            
+
+            # # print(J)
+            # # print(J_r)
+            # # print(nabla_J)
+            # # print(nabla_J_r)
+            # print(np.abs(J - J_r) / np.abs(J))
+            # print("------")
+            # print((nabla_J - nabla_J_r).to_numpy())
+            # print(nabla_J.to_numpy())
+
+            # # print((nabla_J - nabla_J_r).to_numpy() / nabla_J.to_numpy())
+            # print(self.FOM.compute_gradient_norm(nabla_J - nabla_J_r) / self.FOM.compute_gradient_norm(nabla_J))
+            
+            return np.abs(J - J_r), np.nan
+            #self.FOM.compute_gradient_norm(nabla_J - nabla_J_r)
             
         
         return self.model.estimate_objective_error(
@@ -460,27 +485,6 @@ class Optimizer(BasicObject):
                 
             ########################################### Armijo ###########################################
             if use_TR:
-                
-                # print("B")
-                # print(J)
-                # print(d)
-                # print(model.compute_gradient(q))
-                # d_ = model.Q.zeros(1)
-                # # print(model.compute_linearized_gradient(q, d_, alpha=0))
-                # # print(model.compute_linearized_gradient(q, d, alpha=0))
-
-                # print(model.compute_objective(q))
-                # print(model.compute_linearized_objective(q,d_, alpha=0))
-                # for x in [1,1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 0]:
-                #     print(x)
-                #     print(model.compute_objective(q+x*d))
-                #     print(model.compute_objective(q+x*-d))
-                #     print(model.compute_linearized_objective(q,x*d, alpha=0))
-                #     print(model.compute_linearized_objective(q,x*-d, alpha=0))
-                
-                # import sys
-                # sys.exit()
-
                 self.logger.info(f"Enforcing TR condition.")
                 print(TR_backtracking_params['inital_step_size'])
                 q_TR, _, model_unsufficent, TR_max_iter_cond, step_size = self._armijo_TR_line_serach(
@@ -492,10 +496,6 @@ class Optimizer(BasicObject):
                     use_cached_operators=use_cached_operators,
                     projector=projector
                 )
-
-                #TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 1])
-                #TR_backtracking_params['inital_step_size'] = np.min([step_size * 2, 0.1])
-                print(TR_backtracking_params['inital_step_size'])
 
                 if TR_max_iter_cond:
                     break
@@ -946,6 +946,8 @@ class QrVrROMOptimizer(Optimizer):
             "J_r" : [],
             "abs_est_error_J_r" : [],
             "rel_est_error_J_r" : [],
+            "abs_est_error_nabla_J_r" : [],
+            "rel_est_error_nabla_J_r" : [],
             "total_runtime" : [],
             "stagnation_flag" : False,
             "optimizer_parameter" : self.optimizer_parameter.copy(),
@@ -953,6 +955,7 @@ class QrVrROMOptimizer(Optimizer):
             "dim_Q_r" : [],
             "dim_V_r" : [],
             "counts" : [],
+            "inner_loop_statistics" : [],
             "reduced_bases" : None,
             "extention_stats" : {
                 "snapshot_projection_error" : {
@@ -996,13 +999,12 @@ class QrVrROMOptimizer(Optimizer):
         assert HaPOD_tol > 0
         assert product.source == product.range == snapshots.space
 
-        snapshots, _, _ = \
+        snapshots, svals, _ = \
         inc_vectorarray_hapod(steps=len(snapshots)/2, 
                               U=snapshots, 
                               eps=HaPOD_tol,
                               omega=0.1,                
                               product=product)
-                
         try:
             self.reductor.extend_basis(
                 U = snapshots,
@@ -1050,7 +1052,7 @@ class QrVrROMOptimizer(Optimizer):
                               omega=0.1,                
                               product=product)
 
-        n = 200
+        n = 400
         idx = max([n - len(snapshots), 0])
         x = self.FOM.V.empty()
         x.append(self.reductor.bases[basis][-idx:])
@@ -1068,8 +1070,10 @@ class QrVrROMOptimizer(Optimizer):
                                          basis: str,
                                          parameter_strategy: str = 'snapshot_HaPOD',
                                          parameter_HaPOD_tol: float = 1e-16,
+                                         parameter_normalize: bool = False,
                                          state_strategy: str = 'snapshot_HaPOD',
-                                         state_HaPOD_tol: float = 1e-16) -> InstationaryModelIP:
+                                         state_HaPOD_tol: float = 1e-16,
+                                         state_normalize: bool = False) -> InstationaryModelIP:
 
         assert basis in ['parameter_basis', 'state_basis', 'both']
         #assert parameter_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
@@ -1091,6 +1095,11 @@ class QrVrROMOptimizer(Optimizer):
                 normalize = False
             )
         )
+
+        if parameter_normalize:
+            norms = self.parameter_shapshots.norm(self.FOM.products['prod_Q'])
+            self.parameter_shapshots.scal(1/norms)
+
 
         if basis in ['parameter_basis', 'both']:
             self.logger.debug(f"Extending parameter basis, using {parameter_strategy}, with tol = {parameter_HaPOD_tol}.")
@@ -1118,6 +1127,11 @@ class QrVrROMOptimizer(Optimizer):
                 self.reductor.delete_cached_operators()
             else:
                 raise ValueError
+
+        if state_normalize:
+            norms = self.state_shapshots.norm(self.FOM.products['prod_V'])
+            norms[norms <= 1e-16] = 1
+            self.state_shapshots.scal(1/norms)
 
         if basis in ['state_basis', 'both']:
             self.logger.debug(f"Extending state basis, using {state_strategy}, with tol = {state_HaPOD_tol}.")
@@ -1258,16 +1272,21 @@ class QrVrROMOptimizer(Optimizer):
         self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
 
         
-        # cols = [0,5,10,13,15,18,20,25,30]
-        # rows = [0,5,10,13,15,18,20,25,30]
-        cols = [0,5,10,15,20]
-        rows = [0,5,10,15,20]
+        cols = [0,10,15,20,25,30]
+        rows = [0,10,15,20,25,30]
+        # cols = [0,5,10,15,20]
+        # rows = [0,5,10,15,20]
+
+        # cols = [0,2,5,7,10,12,15,17,20]
+        # rows = [0,2,5,7,10,12,15,17,20]
+        # cols = list(np.arange(20))
+        # rows = list(np.arange(20))
         # cols = [0,2,4,6,8]
         # rows = [0,2,4,6,8]
         for i_ in range(1,len(cols)):
             for j_ in range(1,len(rows)):
-                #additional_q = np.zeros((31,31))
-                additional_q = np.zeros((21,21))
+                additional_q = np.zeros((31,31))
+                #additional_q = np.zeros((21,21))
                 #additional_q = np.zeros((9,9))
                 additional_q[cols[i_-1]:cols[i_], rows[j_-1]:rows[j_]] = 1
                 self.parameter_shapshots.append(
@@ -1281,19 +1300,115 @@ class QrVrROMOptimizer(Optimizer):
         self.state_shapshots.append(u)
         self.state_shapshots.append(p)
 
+        # lin_u = self.FOM.solve_linearized_state(q,u=u,d=nabla_J)
+        # lin_p = self.FOM.solve_linearized_adjoint(q,u=u,lin_u=lin_u)
+
+        # self.state_shapshots.append(lin_u)
+        # self.state_shapshots.append(lin_p)
+
+        # p_x = p.copy(deep=True)
+        # p_y = p.copy(deep=True)
+        # p_z = p.copy(deep=True)
+
+        # for v in p_x.vectors:
+        #     self.FOM.A.material_model.get_component_dofs(v.real_part.impl, 0)
+        # self.state_shapshots.append(self.FOM.V.make_array(p_x.vectors))
+        # for v in p_y.vectors:
+        #     self.FOM.A.material_model.get_component_dofs(v.real_part.impl, 1)
+        # self.state_shapshots.append(self.FOM.V.make_array(p_y.vectors))
+        # for v in p_z.vectors:
+        #     self.FOM.A.material_model.get_component_dofs(v.real_part.impl, 2)
+        # self.state_shapshots.append(self.FOM.V.make_array(p_z.vectors))
+        
+        # print(self.state_shapshots)
+
+        
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             basis='both',
             **enrichment
         )
 
+        # self.FOM.A.material_model.save_time_series(
+        #     [v.real_part.impl for v in u.vectors],
+        #     str('u_final' + str(i)),
+        #     str(self.save_path),
+        #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+        # )
+
+        # self.FOM.A.material_model.save_time_series(
+        #     [v.real_part.impl for v in p.vectors],
+        #     str('p_final' + str(i)),
+        #     str(self.save_path),
+        #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+        # )
+
+        # q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
+        # q_r = q_r + 0.5 * np.ones(18)
+        # q_r = self.QrVrROM.Q.make_array(q_r)
+        # u_r = self.QrVrROM.solve_state(q_r)
+        # p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
+
+        # u_r_final = self.reductor.reconstruct(u_r, basis='state_basis')
+        # self.FOM.A.material_model.save_time_series(
+        #     [v.real_part.impl for v in u_r_final.vectors],
+        #     str('u_r_final' + str(i)),
+        #     str(self.save_path),
+        #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+        # )
+
+        # p_r_final = self.reductor.reconstruct(p_r, basis='state_basis')
+        # self.FOM.A.material_model.save_time_series(
+        #     [v.real_part.impl for v in p_r_final.vectors],
+        #     str('p_r_final' + str(i)),
+        #     str(self.save_path),
+        #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+        # )
+
+
+        # self.FOM.A.material_model.save_time_series(
+        #     [v.real_part.impl for v in u.vectors],
+        #     str('u_final' + str(i)),
+        #     str(self.save_path),
+        #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+        # )
+
+        # self.FOM.A.material_model.save_time_series(
+        #     [v.real_part.impl for v in p.vectors],
+        #     str('p_final' + str(i)),
+        #     str(self.save_path),
+        #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+        # )
+
+        # diff_u_r_final = u_r_final - u
+        # self.FOM.A.material_model.save_time_series(
+        #     [v.real_part.impl for v in diff_u_r_final.vectors],
+        #     str('diff_u_r_final' + str(i)),
+        #     str(self.save_path),
+        #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+        # )
+
+        # diff_p_r_final = p_r_final - p
+        # self.FOM.A.material_model.save_time_series(
+        #     [v.real_part.impl for v in diff_p_r_final.vectors],
+        #     str('diff_p_r_final' + str(i)),
+        #     str(self.save_path),
+        #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+        # )
+
+        # import sys
+        # sys.exit()
+
         # self.state_shapshots = self.FOM.V.empty()
         # #self.state_shapshots.append(u)
+        # self.state_shapshots.append(p)
+
+        #self.state_shapshots.append(u)
         # self.state_shapshots.append(p)
 
         # self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
         #     basis='state_basis',
         #     state_strategy='snapshot_HaPOD',
-        #     state_HaPOD_tol=1e-2
+        #     state_HaPOD_tol=1e-3
         # )
 
         state_basis = self.reductor._get_projection_basis(basis='state_basis')
@@ -1313,8 +1428,10 @@ class QrVrROMOptimizer(Optimizer):
         u_r = self.QrVrROM.solve_state(q_r)
         p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
         J_r = self.QrVrROM.objective(u_r)
+        nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
+        norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
 
-        abs_est_error_J_r = self.estimate_objective_error(
+        abs_est_error_J_r, abs_est_error_nabla_J_r = self.estimate_objective_error(
             model=self.QrVrROM,
             q = q_r,
             u = u_r,
@@ -1327,6 +1444,11 @@ class QrVrROMOptimizer(Optimizer):
         else:
             rel_est_error_J_r = np.inf
 
+        if norm_nabla_J_r > 0:
+            rel_est_error_nabla_J_r = abs_est_error_nabla_J_r / norm_nabla_J_r
+        else:
+            rel_est_error_nabla_J_r = np.inf
+
         self.statistics["q"].append(q)
         self.statistics["alpha"].append(alpha)
         self.statistics["J"].append(J)
@@ -1334,6 +1456,8 @@ class QrVrROMOptimizer(Optimizer):
         self.statistics["J_r"].append(J_r)
         self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
         self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
+        self.statistics['abs_est_error_nabla_J_r'].append(abs_est_error_nabla_J_r)
+        self.statistics['rel_est_error_nabla_J_r'].append(rel_est_error_nabla_J_r)
         self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
         self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
 
@@ -1369,7 +1493,7 @@ class QrVrROMOptimizer(Optimizer):
             
             nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
             
-            abs_est_error_J_r = self.estimate_objective_error(
+            abs_est_error_J_r, abs_est_error_nabla_J_r = self.estimate_objective_error(
                 model = self.QrVrROM,
                 q = q_r,
                 u = u_r,
@@ -1403,7 +1527,7 @@ class QrVrROMOptimizer(Optimizer):
                 u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=use_cached_operators)
                 p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
                 J_r = self.QrVrROM.objective(u_r)
-                abs_est_error_J_r = self.estimate_objective_error(
+                abs_est_error_J_r, _ = self.estimate_objective_error(
                     model = self.QrVrROM,
                     q = q_r,
                     u = u_r,
@@ -1449,7 +1573,7 @@ class QrVrROMOptimizer(Optimizer):
             # import sys
             # sys.exit()
 
-            if J_r_AGC >= (J + 1e-14):
+            if J_r_AGC >= (J + 1e-13):
                 self._logger.warning(f"J_r_AGC = {J_r_AGC:3.4e} is greater or equal than J = {J:3.4e}.")
                 self._logger.warning(f"Extending reduced spaces with all snapshots and recomputing AGC.")
 
@@ -1504,8 +1628,10 @@ class QrVrROMOptimizer(Optimizer):
                 u_r = self.QrVrROM.solve_state(q_r)
                 p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
                 J_r = self.QrVrROM.objective(u_r)
+                nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
+                norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
 
-                abs_est_error_J_r = self.estimate_objective_error(
+                abs_est_error_J_r, abs_est_error_nabla_J_r = self.estimate_objective_error(
                     model = self.QrVrROM,
                     q=q_r,
                     u = u_r,
@@ -1517,6 +1643,11 @@ class QrVrROMOptimizer(Optimizer):
                     rel_est_error_J_r = abs_est_error_J_r / J_r
                 else:
                     rel_est_error_J_r = np.inf
+
+                if norm_nabla_J_r > 0:
+                    rel_est_error_nabla_J_r = abs_est_error_nabla_J_r / norm_nabla_J_r
+                else:
+                    rel_est_error_nabla_J_r = np.inf
                 
                 if abs_est_error_J_r <= MACHINE_EPS:
                     abs_est_error_J_r = 0.0
@@ -1621,6 +1752,72 @@ class QrVrROMOptimizer(Optimizer):
                         pass
                     
                 if not convergence_criterium:
+
+                    # self.FOM.A.material_model.save_time_series(
+                    #     [v.real_part.impl for v in u.vectors],
+                    #     str('u_final' + str(i)),
+                    #     str(self.save_path),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
+
+                    # self.FOM.A.material_model.save_time_series(
+                    #     [v.real_part.impl for v in p.vectors],
+                    #     str('p_final' + str(i)),
+                    #     str(self.save_path),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
+                    
+                    # u_r = self.QrVrROM.solve_state(q_r)
+                    # p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
+
+                    # u_r_final = self.reductor.reconstruct(u_r, basis='state_basis')
+                    # self.FOM.A.material_model.save_time_series(
+                    #     [v.real_part.impl for v in u_r_final.vectors],
+                    #     str('u_r_final' + str(i)),
+                    #     str(self.save_path),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
+
+                    # p_r_final = self.reductor.reconstruct(p_r, basis='state_basis')
+                    # self.FOM.A.material_model.save_time_series(
+                    #     [v.real_part.impl for v in p_r_final.vectors],
+                    #     str('p_r_final' + str(i)),
+                    #     str(self.save_path),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
+
+
+                    # self.FOM.A.material_model.save_time_series(
+                    #     [v.real_part.impl for v in u.vectors],
+                    #     str('u_final' + str(i)),
+                    #     str(self.save_path),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
+
+                    # self.FOM.A.material_model.save_time_series(
+                    #     [v.real_part.impl for v in p.vectors],
+                    #     str('p_final' + str(i)),
+                    #     str(self.save_path),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
+                    
+                    # diff_u_r_final = u_r_final - u
+                    # self.FOM.A.material_model.save_time_series(
+                    #     [v.real_part.impl for v in diff_u_r_final.vectors],
+                    #     str('diff_u_r_final' + str(i)),
+                    #     str(self.save_path),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
+
+                    # diff_p_r_final = p_r_final - p
+                    # self.FOM.A.material_model.save_time_series(
+                    #     [v.real_part.impl for v in diff_p_r_final.vectors],
+                    #     str('diff_p_r_final' + str(i)),
+                    #     str(self.save_path),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
+
+
                     self.logger.debug(f"Extending Qr-snapshots")
                     self.parameter_shapshots = self.FOM.Q.empty()
                     self.parameter_shapshots.append(nabla_J)
@@ -1630,19 +1827,41 @@ class QrVrROMOptimizer(Optimizer):
                     self.state_shapshots.append(u)
                     self.state_shapshots.append(p)
 
+                    # lin_u = self.FOM.solve_linearized_state(q,u=u,d=nabla_J)
+                    # lin_p = self.FOM.solve_linearized_adjoint(q,u=u,lin_u=lin_u)
+
+                    # self.state_shapshots.append(lin_u)
+                    # self.state_shapshots.append(lin_p)
+
+
+                    # p_x = p.copy(deep=True)
+                    # p_y = p.copy(deep=True)
+                    # p_z = p.copy(deep=True)
+
+                    # for v in p_x.vectors:
+                    #     self.FOM.A.material_model.get_component_dofs(v.real_part.impl, 0)
+                    # self.state_shapshots.append(self.FOM.V.make_array(p_x.vectors))
+                    # for v in p_y.vectors:
+                    #     self.FOM.A.material_model.get_component_dofs(v.real_part.impl, 1)
+                    # self.state_shapshots.append(self.FOM.V.make_array(p_y.vectors))
+                    # for v in p_z.vectors:
+                    #     self.FOM.A.material_model.get_component_dofs(v.real_part.impl, 2)
+                    # self.state_shapshots.append(self.FOM.V.make_array(p_z.vectors))
+
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         basis='both',
                         **enrichment
                     )
 
-                    #self.state_shapshots = self.FOM.V.empty()
+
+                    # self.state_shapshots = self.FOM.V.empty()
                     # #self.state_shapshots.append(u)
                     # self.state_shapshots.append(p)
 
                     # self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                     #     basis='state_basis',
                     #     state_strategy='snapshot_HaPOD',
-                    #     state_HaPOD_tol=1e-2
+                    #     state_HaPOD_tol=1e-3
                     # )
 
 
@@ -1656,9 +1875,12 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics["J_r"].append(J_r)
                 self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
                 self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
+                self.statistics['abs_est_error_nabla_J_r'].append(abs_est_error_nabla_J_r)
+                self.statistics['rel_est_error_nabla_J_r'].append(rel_est_error_nabla_J_r)
                 self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
                 self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
                 self.statistics["counts"].append(IRGNM_statistic['counts'])
+                self.statistics["inner_loop_statistics"].append(IRGNM_statistic)
             
             if convergence_criterium:
                 break
@@ -1671,12 +1893,12 @@ class QrVrROMOptimizer(Optimizer):
                     break
             
             self.statistics["FOM_num_calls"] = self.FOM.num_calls
+            self.statistics["total_runtime"].append(timer() - start_time)    
             if (i % dump_every_nth_loop == 0) or (i == 1):
                 self.dump_stats(data=self.statistics,
                                 save_path = self.save_path / f'TR_IRGNM_{i}.pkl')
 
             i += 1    
-            self.statistics["total_runtime"].append(timer() - start_time)    
 
         self.statistics["total_runtime"].append(timer() - start_time)
         self.statistics["FOM_num_calls"] = self.FOM.num_calls

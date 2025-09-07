@@ -74,6 +74,7 @@ public:
 
   // --------------------------------------------------
 
+  void get_component_dofs(Vector<Number>& state_DoFs, size_t component_idx);  
   void clear_rhs_boundary_dofs(Vector<Number>& v);  
   void save_state(const Vector<Number>& v, const std::string save_path);
   void save_time_series(const std::vector<Vector<Number>> &v,

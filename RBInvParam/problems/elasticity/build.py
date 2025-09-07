@@ -267,6 +267,20 @@ def build_InstationaryModelIP(setup : Dict,
                                                time_depend_noise=True)
     
 
+    dummy_model.A.material_model.save_time_series(
+        [v.real_part.impl for v in y_delta.vectors],
+        str('y_delta'),
+        str(setup['save_path']),
+        np.linspace(dummy_model.T_initial, dummy_model.T_final, dummy_model.nt+1)
+    )
+
+    # diff_y = y_delta - dummy_model.solve_state(q_exact)
+    # dummy_model.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in diff_y.vectors],
+    #     str('diff_y'),
+    #     str(setup['save_path']),
+    #     np.linspace(dummy_model.T_initial, dummy_model.T_final, dummy_model.nt+1)
+    # )
 
     assert (len(y_delta) == setup['dims']['nt'] + 1)
     assert (y_delta.space == C.range) 

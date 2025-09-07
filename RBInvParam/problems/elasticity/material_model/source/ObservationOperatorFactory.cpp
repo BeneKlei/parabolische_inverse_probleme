@@ -32,6 +32,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
     break;
   case ObservationOperatorType::SensorsR8d:
   case ObservationOperatorType::SensorsR9d:
+  case ObservationOperatorType::SensorsR28d:
     ObservationOperatorFactory::assemble_sensors_observation(
         ctx,
         observation_operator_matrix,
@@ -87,7 +88,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp) const
 {      
-    const Number tol  = 5 * 1e0;
+    const Number tol  = 1e-3;
     const Number tol2 = tol * tol;
 
     SparseMatrix<Number> G;
@@ -191,6 +192,19 @@ std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_poi
             sensor_points[i + 35] = Point<3>(-0.1, 14.0, -14.0 + i*4.0);
             sensor_points[i + 42] = Point<3>(-0.1, 14.0 - i*4.0, 14.0);
             sensor_points[i + 49] = Point<3>(-0.1, -14.0, 14.0 - i*4.0);
+        }
+        break;
+    case ObservationOperatorType::SensorsR28d:
+        sensor_points.resize(8 * 28);
+        for (unsigned int i = 0; i < 28; i++) {
+            sensor_points[i + (0 * 28)] = Point<3>(0.1, -14.0 + i*1.0, -14.0);
+            sensor_points[i + (1 * 28)] = Point<3>(0.1, 14.0, -14.0 + i*1.0);
+            sensor_points[i + (2 * 28)] = Point<3>(0.1, 14.0 - i*1.0, 14.0);
+            sensor_points[i + (3 * 28)] = Point<3>(0.1, -14.0, 14.0 - i*1.0);
+            sensor_points[i + (4 * 28)] = Point<3>(-0.1, -14.0 + i*1.0, -14.0);
+            sensor_points[i + (5 * 28)] = Point<3>(-0.1, 14.0, -14.0 + i*1.0);
+            sensor_points[i + (6 * 28)] = Point<3>(-0.1, 14.0 - i*1.0, 14.0);
+            sensor_points[i + (7 * 28)] = Point<3>(-0.1, -14.0, 14.0 - i*1.0);
         }
         break;
     default:

@@ -20,9 +20,7 @@ def construct_noise_data(model : InstationaryModel,
     u_exact = model.solve_state(q_exact)
     y_exact = C.apply(u_exact)
     # print(np.max(u_exact.to_numpy()))
-    # print(np.max(y_exact.to_numpy()))
-    # print(u_exact.to_numpy())
-    # print(np.max(y_exact.to_numpy()))
+    print(np.max(y_exact.to_numpy()))
 
     if time_depend_noise:
         noise = C.range.random(len(y_exact))
@@ -35,7 +33,11 @@ def construct_noise_data(model : InstationaryModel,
     
     noise_scaling = noise_level/noise_norm * noise
     y_noise = y_exact + noise_scaling    
-    percentage = noise_level/noise_norm
+    print(np.max(y_exact.to_numpy()))
+    print(np.max(y_noise.to_numpy()))
+    print(np.max(noise_scaling.to_numpy()))
+    print(np.max(np.abs(y_noise.to_numpy()-y_exact.to_numpy() )))
+    percentage = np.nan
 
     return y_noise, percentage
 

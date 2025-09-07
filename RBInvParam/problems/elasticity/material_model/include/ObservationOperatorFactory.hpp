@@ -16,6 +16,7 @@ enum class ObservationOperatorType {
     Boundary,
     SensorsR9d,
     SensorsR8d,
+    SensorsR28d,
 };
 
 

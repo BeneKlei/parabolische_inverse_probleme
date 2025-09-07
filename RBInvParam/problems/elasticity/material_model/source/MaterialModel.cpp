@@ -132,6 +132,20 @@ void MaterialModel::setup_BC_constraints()
   m_BC_constraints.close();
 }
 
+void MaterialModel::get_component_dofs(Vector<Number>& state_DoFs, size_t component_idx)
+{
+  const FEValuesExtractors::Scalar comp(component_idx);
+  const ComponentMask mask = m_fe.component_mask(comp);
+
+  // Get all global DoF indices belonging to this component
+  const IndexSet comp_dofs = DoFTools::extract_dofs(m_dof_handler, mask);
+
+  // Zero out all other entries
+  for (unsigned int i = 0; i < state_DoFs.size(); ++i)
+    if (!comp_dofs.is_element(i))
+      state_DoFs[i] = Number(0);
+}
+
 void MaterialModel::assemble_force(Vector<Number>& result, double time) 
 {
   Assert(result.size() == m_dof_handler.n_dofs(),
