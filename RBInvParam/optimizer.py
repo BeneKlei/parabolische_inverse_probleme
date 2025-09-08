@@ -467,7 +467,6 @@ class Optimizer(BasicObject):
             print(".........................")
             print(q)
             print(d)
-            #print(np.max(np.abs(d.to_numpy())))
             print(q+d)
 
             loop_terminated = loop_terminated or (count >= reg_loop_max)
@@ -1166,18 +1165,9 @@ class QrVrROMOptimizer(Optimizer):
             else:
                 raise ValueError
             
-        # print(self.reductor.calc_projection_error(
-        #         x = self.parameter_shapshots.copy(),
-        #         basis = 'parameter_basis',
-        #         normalize = False
-        #     ))
+        self.reductor.dims_history['state_basis'].append(self.reductor.get_bases_dim('parameter_basis'))
+        self.reductor.dims_history['parameter_basis'].append(self.reductor.get_bases_dim('state_basis'))
         
-        # print(self.reductor.calc_projection_error(
-        #     x = self.state_shapshots.copy(),
-        #     basis = 'state_basis',
-        #     normalize = False
-        # ))
-            
         self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
         self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
 
@@ -1225,7 +1215,7 @@ class QrVrROMOptimizer(Optimizer):
         nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=False)
 
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
-        assert norm_nabla_J > 0
+        #assert norm_nabla_J > 0
 
         inital_agc_armijo_step_size = 0.5 / norm_nabla_J
         #inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1])
@@ -1283,15 +1273,15 @@ class QrVrROMOptimizer(Optimizer):
         # rows = list(np.arange(20))
         # cols = [0,2,4,6,8]
         # rows = [0,2,4,6,8]
-        for i_ in range(1,len(cols)):
-            for j_ in range(1,len(rows)):
-                additional_q = np.zeros((31,31))
-                #additional_q = np.zeros((21,21))
-                #additional_q = np.zeros((9,9))
-                additional_q[cols[i_-1]:cols[i_], rows[j_-1]:rows[j_]] = 1
-                self.parameter_shapshots.append(
-                    self.FOM.Q.make_array(additional_q.flatten())
-                )
+        # for i_ in range(1,len(cols)):
+        #     for j_ in range(1,len(rows)):
+        #         additional_q = np.zeros((31,31))
+        #         #additional_q = np.zeros((21,21))
+        #         #additional_q = np.zeros((9,9))
+        #         additional_q[cols[i_-1]:cols[i_], rows[j_-1]:rows[j_]] = 1
+        #         self.parameter_shapshots.append(
+        #             self.FOM.Q.make_array(additional_q.flatten())
+        #         )
 
 
         
@@ -1547,7 +1537,6 @@ class QrVrROMOptimizer(Optimizer):
                 bounds = self.FOM.bounds,
                 reductor = self.reductor,
                 use_sufficient_condition = True,
-                #use_sufficient_condition = False,
                 logger = self.logger
             )
 

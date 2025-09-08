@@ -81,7 +81,7 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
         'dims' : {
@@ -147,7 +147,7 @@ def main():
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
         'alpha_0': 1e-5,                                          # Initial regularization parameter
         'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
-        'tau': 3.5,                                              # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.50,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
         'theta': 0.4,                                         # Lower tolerance for the direction acceptance condition
         'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
@@ -159,8 +159,8 @@ def main():
         'lin_solver_parms': {
             'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                     # Max iterations for the linear solver
-            'lin_solver_tol': 1e-8,                          # Tolerance for convergence in the linear solver
-            'inital_step_size': 1                                # Initial step size for iterative solvers (if applicable)
+            'lin_solver_tol': 1e-12,                          # Tolerance for convergence in the linear solver
+            'inital_step_size': 1.0                                # Initial step size for iterative solvers (if applicable)
         },
         'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
         'dump_every_nth_loop': 1,                                # Dump intermediate results every n optimization iterations

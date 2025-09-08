@@ -166,8 +166,6 @@ def gradient_descent_linearized_problem(
     logger.info(f"Initial objective = {current_J:3.4e}.")
 
     for i in range(int(max_iter)):
-        from timeit import default_timer as timer
-        start = timer()
         previous_d = current_d.copy()
         previous_J = current_J.copy()
 
@@ -177,12 +175,6 @@ def gradient_descent_linearized_problem(
                                                  use_cached_operators=use_cached_operators)
         buffer_nabla_J.pop(0)
         buffer_nabla_J.append(grad.copy())
-
-        # print("-------------------------")
-        # # print(q)
-        # print(previous_d)
-        # print(grad)
-        # print(model.compute_gradient(q))
 
         if projector:            
             terminaton_lhs = projector.project_domain(
@@ -221,7 +213,6 @@ def gradient_descent_linearized_problem(
                 inital_step_size = inital_step_size,
                 projector = projector,
                 q=q)       
-
         else:
             current_d, current_J = barzilai_borwein_line_serach(
                 previous_iterate =  buffer_d[-1],

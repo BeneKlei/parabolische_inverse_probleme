@@ -40,11 +40,11 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    # y_res = 30
+    # z_res = 30
 
-    # y_res = 20
-    # z_res = 20
+    y_res = 20
+    z_res = 20
 
     # y_res = 8
     # z_res = 8
@@ -63,8 +63,6 @@ def main():
     # T_final = 10.0
     # nt = 100
 
-    # T_final = 1
-    # nt = 20
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
@@ -96,9 +94,9 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },

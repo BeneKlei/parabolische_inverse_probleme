@@ -5,6 +5,7 @@ import scipy
 import copy
 import pymor_dealii_bindings as pd2
 
+from concurrent.futures import ProcessPoolExecutor
 
 from pymor.reductors.basic import ProjectionBasedReductor
 from pymor.algorithms.projection import project, project_to_subbasis
@@ -63,7 +64,13 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         }
 
         self._cached_operators = {
-            'A' : None
+            'A' : None,
+            'A_r' : None
+        }
+
+        self.dims_history = {
+            'state_basis' : [0],
+            'parameter_basis' : [0]
         }
 
         self.FOM = FOM
@@ -237,26 +244,141 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         # problem_parameter['N'] = None
 
         return setup
+    
+    # def _project_A(self,
+    #                parameter_reduced_A: LincombOperator) -> LincombOperator:
 
+    #     assert isinstance(parameter_reduced_A, LincombOperator)
+
+    #     dim_Q_old = self.dims_history['parameter_basis'][-1]
+    #     dim_Q_new = self.get_bases_dim('parameter_basis')
+    
+    #     dim_V_old = self.dims_history['state_basis'][-1]
+    #     dim_V_new = self.get_bases_dim('state_basis')
+
+    #     state_basis = self._get_projection_basis('state_basis')
+        
+    #     old_basis = state_basis[:dim_V_old]
+    #     added_vectors = state_basis[dim_V_old:]
+
+        
+    #     if not self._cached_operators['A_r']:
+    #         return project(parameter_reduced_A, state_basis,state_basis)
+        
+    #     operators = []
+    #     coefficients = parameter_reduced_A.coefficients
+        
+        
+    #     for i, operator in enumerate(operators):
+    #         if i < dim_Q_old:
+    #             assert operator.matrix.shape == (dim_V_old,dim_V_old)
+
+    #             VTAV = operator.matrix
+    #             AW = operator.apply(added_vectors)
+    #             VTAW = old_basis.inner(AW)
+    #             WTAW = added_vectors.inner(AW)
+                
+    #             matrix = np.block([
+    #                 [VTAV,              VTAW.to_numpy()],
+    #                 [VTAW.to_numpy().T, WTAW.to_numpy()]
+    #             ])
+
+    #             assert matrix.shape == (dim_V_new,dim_V_new)
+
+
+    #             operators.append(NumpyMatrixOperator(
+    #                 matrix = matrix,
+    #                 source = operator.source,
+    #                 range = operator.range,
+    #             ))
+    #         else:
+    #             assert operator.matrix.shape == (self.FOM.V.dim, self.FOM.V.dim)
+    #             operators.append(project(operator, state_basis, state_basis))
+
+
+    #     self._cached_operators['A_r'] = LincombOperator(
+    #         operators = operators,
+    #         coefficients=coefficients
+    #     )
+        
+    #     return self._cached_operators['A_r']
+
+    def _project_A(self, parameter_reduced_A: LincombOperator) -> LincombOperator:
+        assert isinstance(parameter_reduced_A, LincombOperator)
+
+        dim_Q_old = self.dims_history['parameter_basis'][-1]
+        dim_Q_new = self.get_bases_dim('parameter_basis')
+
+        dim_V_old = self.dims_history['state_basis'][-1]
+        dim_V_new = self.get_bases_dim('state_basis')
+
+        state_basis = self._get_projection_basis('state_basis')
+        
+        old_basis = state_basis[:dim_V_old]
+        added_vectors = state_basis[dim_V_old:]
+
+        if not self._cached_operators['A_r']:
+            return project(parameter_reduced_A, state_basis, state_basis)
+        
+        coefficients = parameter_reduced_A.coefficients
+        base_operators = parameter_reduced_A.operators
+
+        def process_operator(i_operator):
+            i, operator = i_operator
+            if i < dim_Q_old:
+                assert operator.matrix.shape == (dim_V_old, dim_V_old)
+
+                VTAV = operator.matrix
+                AW = operator.apply(added_vectors)
+                VTAW = old_basis.inner(AW)
+                WTAW = added_vectors.inner(AW)
+
+                matrix = np.block([
+                    [VTAV,              VTAW.to_numpy()],
+                    [VTAW.to_numpy().T, WTAW.to_numpy()]
+                ])
+
+                assert matrix.shape == (dim_V_new, dim_V_new)
+
+                return NumpyMatrixOperator(
+                    matrix=matrix,
+                    source=operator.source,
+                    range=operator.range,
+                )
+            else:
+                assert operator.matrix.shape == (self.FOM.V.dim, self.FOM.V.dim)
+                return project(operator, state_basis, state_basis)
+
+        with ProcessPoolExecutor() as executor:
+            operators = list(executor.map(process_operator, enumerate(base_operators)))
+
+        self._cached_operators['A_r'] = LincombOperator(
+            operators=operators,
+            coefficients=coefficients
+        )
+        return self._cached_operators['A_r']
+    
     def project_operators(self,
-                          assembled_parameter_reduced_A: LincombOperator,
+                          parameter_reduced_A: LincombOperator,
                           Q : VectorSpace,
                           V : VectorSpace,
                           setup: Dict) -> Dict:
         
-        assert isinstance(assembled_parameter_reduced_A, LincombOperator)
+        assert isinstance(parameter_reduced_A, LincombOperator)
     
         state_basis = self._get_projection_basis('state_basis')
         parameter_basis = self._get_projection_basis('parameter_basis')
 
-        
-        reduced_operator = project(assembled_parameter_reduced_A,
-                                   state_basis,
-                                   state_basis)
-        
+        #A_r = self._project_A(parameter_reduced_A = parameter_reduced_A)
+        A_r = self._project_A(parameter_reduced_A = parameter_reduced_A)
+
+        # A_r = project(parameter_reduced_A,
+        #               state_basis,
+        #               state_basis)
+
 
         parameteric_operator, translation_operator = split_constant_and_parameterized_operator(
-            complete_operator=reduced_operator
+            complete_operator=A_r
         )
 
         A = ROMEvaluatorA(
@@ -373,7 +495,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         else:
             V = self.FOM.V
 
-        assembled_parameter_reduced_A = self._assemble_parameter_reduced_A()
+        parameter_reduced_A = self._assemble_parameter_reduced_A()
 
         model_params = {
             'Q' : Q,
@@ -382,11 +504,11 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         }
 
         projected_operators = self.project_operators(
-            assembled_parameter_reduced_A,
+            parameter_reduced_A,
             **model_params
         )
         error_estimators = self.assemble_error_estimator(
-            assembled_parameter_reduced_A,
+            parameter_reduced_A,
             **model_params
         )
         model_params.update(projected_operators)
@@ -417,12 +539,12 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             raise ValueError
 
     def assemble_error_estimator(self,
-                                 assembled_parameter_reduced_A: LincombOperator,
+                                 A_r: LincombOperator,
                                  Q : VectorSpace,
                                  V : VectorSpace,
                                  setup: Dict) -> Dict:
 
-        assert isinstance(assembled_parameter_reduced_A, LincombOperator)
+        assert isinstance(A_r, LincombOperator)
         state_residual_config = self._estimate_residual_image_basis(
             basis = 'state_residual_image_basis',
             mode = self.residual_image_basis_mode
@@ -454,7 +576,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             state_basis = self._get_projection_basis('state_basis')
 
             unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
-                complete_operator=project(op = assembled_parameter_reduced_A, 
+                complete_operator=project(op = A_r, 
                                         range_basis = residual_image_basis, 
                                         source_basis = state_basis)
             )
