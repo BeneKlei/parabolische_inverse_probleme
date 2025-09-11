@@ -146,10 +146,6 @@ class Optimizer(BasicObject):
         condition = armijo_condition & TR_condition
         i += 1
 
-        # print(lhs)
-        # print(rhs)
-        # print(step_size)
-
         while (not condition) and (i < max_iter):
             step_size = 0.5 * step_size
             
@@ -907,6 +903,7 @@ class QrVrROMOptimizer(Optimizer):
                               omega=0.1,                
                               product=product)
         
+
         try:
             self.reductor.extend_basis(
                 U = snapshots,
