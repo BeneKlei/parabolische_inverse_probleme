@@ -863,6 +863,46 @@ class QrVrROMOptimizer(Optimizer):
             }
         }
 
+
+    def _append_snapshot_set(self, 
+                             snapshots: VectorArray,
+                             basis: str,
+                             enrichment: Dict) -> None:
+        
+        assert isinstance(snapshots, VectorArray) 
+        assert basis in ['parameter_basis','state_basis']
+
+        if  basis == 'parameter_basis':
+            if not enrichment[basis]['transformation']:
+                self.parameter_shapshots.append(snapshots)
+                return
+            
+            if enrichment[basis]['transformation']['sample_every_n_th']:
+                n = enrichment[basis]['transformation']['sample_every_n_th']
+                _snapshots = snapshots.copy()
+                assert len(_snapshots) % n == 0
+                assert n == 0 or self.FOM.setup['model_parameter']['q_time_dep']
+
+                _snapshots = _snapshots[::n]
+                self.parameter_shapshots.append(_snapshots)
+                return
+            
+
+        if  basis == 'state_basis':
+            if not enrichment[basis]['transformation']:
+                self.state_shapshots.append(_snapshots)
+                return
+
+            if enrichment[basis]['transformation']['sample_every_n_th']:
+                n = enrichment[basis]['transformation']['sample_every_n_th']
+                _snapshots = snapshots.copy()
+                assert len(_snapshots) % n == 0
+
+                _snapshots = _snapshots[::n]
+                self.parameter_shapshots.append(_snapshots)
+                return
+
+
     def _extend_basis_projected_error_HaPOD(self,
                                             snapshots: VectorArray,
                                             basis: str,
@@ -936,17 +976,18 @@ class QrVrROMOptimizer(Optimizer):
 
     def extend_bases_and_rebuild_QrVrROM(self,
                                          basis: str,
-                                         parameter_strategy: str = 'snapshot_HaPOD',
-                                         parameter_HaPOD_tol: float = 1e-16,
-                                         state_strategy: str = 'snapshot_HaPOD',
-                                         state_HaPOD_tol: float = 1e-16) -> InstationaryModelIP:
+                                         enrichment : Dict) -> InstationaryModelIP:
+        
+        parameter_strategy = enrichment['parameter_basis']['strategy']
+        parameter_HaPOD_tol = enrichment['parameter_basis']['HaPOD_tol']
+        state_strategy = enrichment['state_basis']['strategy']
+        state_HaPOD_tol = enrichment['state_basis']['HaPOD_tol']
 
         assert basis in ['parameter_basis', 'state_basis', 'both']
         assert parameter_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
         assert parameter_HaPOD_tol > 0
         assert state_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
         assert state_HaPOD_tol > 0
-
 
         self.statistics['extention_stats']['snapshot_projection_error']['parameter_basis'].append(
             self.reductor.calc_projection_error(
@@ -1106,7 +1147,16 @@ class QrVrROMOptimizer(Optimizer):
 
         self.logger.debug(f"Extending Qr-snapshots")
         self.parameter_shapshots = self.FOM.Q.empty()
-        self.parameter_shapshots.append(nabla_J)
+        
+        self._append_snapshot_set(
+            nabla_J,
+            basis = 'parameter_basis',
+            enrichment = enrichment
+        )
+
+        #self.parameter_shapshots.append(nabla_J)
+
+
         self.parameter_shapshots.append(q)
         self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
 
@@ -1117,7 +1167,7 @@ class QrVrROMOptimizer(Optimizer):
 
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             basis='both',
-            **enrichment
+            enrichment=enrichment
         )
         
 
@@ -1183,12 +1233,13 @@ class QrVrROMOptimizer(Optimizer):
                 self._logger.warning(f"q^(i) is not in the trust region.")
                 self._logger.warning(f"Extending reduced spaces with all snapshots.")
 
+                _enrichment = enrichment.copy()
+                _enrichment['parameter_basis']['HaPOD_tol'] = MACHINE_EPS
+                _enrichment['state_basis']['HaPOD_tol'] = MACHINE_EPS
+
                 self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                     basis='both',
-                    parameter_strategy = enrichment['parameter_strategy'],
-                    parameter_HaPOD_tol=MACHINE_EPS,
-                    state_strategy = enrichment['state_strategy'],
-                    state_HaPOD_tol=MACHINE_EPS
+                    enrichment = _enrichment
                 )
                 assert rel_est_error_J_r <= eta
 
@@ -1223,12 +1274,13 @@ class QrVrROMOptimizer(Optimizer):
                 self._logger.warning(f"J_r_AGC = {J_r_AGC:3.4e} is greater or equal than J = {J:3.4e}.")
                 self._logger.warning(f"Extending reduced spaces with all snapshots and recomputing AGC.")
 
+                _enrichment = enrichment.copy()
+                _enrichment['parameter_basis']['HaPOD_tol'] = MACHINE_EPS
+                _enrichment['state_basis']['HaPOD_tol'] = MACHINE_EPS
+
                 self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                     basis='both',
-                    parameter_strategy = enrichment['parameter_strategy'],
-                    parameter_HaPOD_tol=MACHINE_EPS,
-                    state_strategy = enrichment['state_strategy'],
-                    state_HaPOD_tol=MACHINE_EPS
+                    enrichment = _enrichment
                 )
                 continue
 
@@ -1395,7 +1447,7 @@ class QrVrROMOptimizer(Optimizer):
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         basis='both',
-                        **enrichment
+                        enrichment=enrichment
                     )
 
                     q_r = self.reductor.project_vectorarray(q, 'parameter_basis')

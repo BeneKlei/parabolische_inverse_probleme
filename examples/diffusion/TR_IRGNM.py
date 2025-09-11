@@ -145,10 +145,14 @@ def main():
         #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
         # },
         'enrichment': {
-            'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
-            'parameter_HaPOD_tol': 1e-12,                            # Tolerance for parameter basis POD
-            'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-            'state_HaPOD_tol': 1e-9                                  # Tolerance for state basis POD
+            'parameter_basis' : {
+                'strategy': 'snapshot_HaPOD',                  
+                'HaPOD_tol': 1e-12,
+            },
+            'state_basis' : {
+                'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
+                'HaPOD_tol': 1e-9                                  # Tolerance for state basis POD
+            }
         },
         #####################
         'use_cached_operators': True,                                # Reuse previously assembled operators to save computation

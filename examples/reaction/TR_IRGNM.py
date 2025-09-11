@@ -47,8 +47,8 @@ def main():
     nt = 50
     #nt = 100
     delta_t = (T_final - T_initial) / nt
-    #q_time_dep = False
-    q_time_dep = True
+    q_time_dep = False
+    #q_time_dep = True
 
     noise_level = 1e-5
 
@@ -81,7 +81,8 @@ def main():
             'parameter_location': 'reaction',             # Location in PDE where parameter acts (e.g., in reaction term)
             'boundary_conditions': 'dirichlet',           # Type of boundary conditions applied (fixed value)
             'exact_parameter': 'Kirchner',                # Shape or distribution of true parameter (used for testing)
-            'time_factor': 'sinus',                       # Time dependence type of source or parameter (e.g., sinusoidal)
+            #'time_factor': 'sinus',
+            'time_factor': 'constant',                       # Time dependence type of source or parameter (e.g., sinusoidal)
             'T_final': T_final,                           # Final simulation time
         },
         'model_parameter': {
@@ -152,10 +153,18 @@ def main():
         #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
         # },
         'enrichment': {
-            'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
-            'parameter_HaPOD_tol': 1e-12,                            # Tolerance for parameter basis POD
-            'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-            'state_HaPOD_tol': 1e-9                                  # Tolerance for state basis POD
+            'parameter_basis' : {
+                'strategy': 'snapshot_HaPOD',                  
+                'HaPOD_tol': 1e-12,
+                'transformation' : {
+                    'sample_every_n_th' : 1
+                }
+            },
+            'state_basis' : {
+                'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
+                'HaPOD_tol': 1e-9,
+                'sample_every_n_th' : 5
+            }
         },
         #####################
         'use_cached_operators': True,                                # Reuse previously assembled operators to save computation
