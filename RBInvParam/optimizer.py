@@ -965,6 +965,51 @@ class QrVrROMOptimizer(Optimizer):
             }
         }
 
+    def _append_snapshot_set(self, 
+                             snapshots: VectorArray,
+                             basis: str,
+                             enrichment: Dict) -> None:
+        
+        assert isinstance(snapshots, VectorArray) 
+        assert basis in ['parameter_basis','state_basis']
+
+        if  basis == 'parameter_basis':
+            if not enrichment[basis]['transformation']:
+                self.parameter_shapshots.append(snapshots)
+                return
+            
+            if enrichment[basis]['transformation']['sample_every_n_th']:
+                n = enrichment[basis]['transformation']['sample_every_n_th']
+                _snapshots = snapshots.copy()
+                assert len(_snapshots) % n == 0
+                assert n == 1 or self.FOM.setup['model_parameter']['q_time_dep']
+
+                _snapshots = _snapshots[::n]
+                self.parameter_shapshots.append(_snapshots)
+                
+            if enrichment[basis]['transformation']['normalize']:
+                norms = self.parameter_shapshots.norm(self.FOM.products['prod_Q'])
+                self.parameter_shapshots.scal(1/norms)
+            
+
+        if basis == 'state_basis':
+            if not enrichment[basis]['transformation']:
+                self.state_shapshots.append(_snapshots)
+                return
+
+            if enrichment[basis]['transformation']['sample_every_n_th']:
+                n = enrichment[basis]['transformation']['sample_every_n_th']
+                _snapshots = snapshots.copy()
+                assert ((len(_snapshots))-1) % n == 0
+
+                _snapshots = _snapshots[::n]
+                self.state_shapshots.append(_snapshots)
+            
+            if enrichment[basis]['transformation']['normalize']:
+                norms = self.state_shapshots.norm(self.FOM.products['prod_Q'])
+                self.state_shapshots.scal(1/norms)
+                
+
     def _extend_basis_projected_error_HaPOD(self,
                                             snapshots: VectorArray,
                                             basis: str,
@@ -1064,15 +1109,15 @@ class QrVrROMOptimizer(Optimizer):
             )
         except ExtensionError:
             self._logger.warning(f"No new vectors were added to {basis}, with tol = {HaPOD_tol}.")
-
+    
     def extend_bases_and_rebuild_QrVrROM(self,
                                          basis: str,
-                                         parameter_strategy: str = 'snapshot_HaPOD',
-                                         parameter_HaPOD_tol: float = 1e-16,
-                                         parameter_normalize: bool = False,
-                                         state_strategy: str = 'snapshot_HaPOD',
-                                         state_HaPOD_tol: float = 1e-16,
-                                         state_normalize: bool = False) -> InstationaryModelIP:
+                                         enrichment : Dict) -> InstationaryModelIP:
+        
+        parameter_strategy = enrichment['parameter_basis']['strategy']
+        parameter_HaPOD_tol = enrichment['parameter_basis']['HaPOD_tol']
+        state_strategy = enrichment['state_basis']['strategy']
+        state_HaPOD_tol = enrichment['state_basis']['HaPOD_tol']
 
         assert basis in ['parameter_basis', 'state_basis', 'both']
         #assert parameter_strategy in ['snapshot_HaPOD', 'projected_error_HaPOD', 'full_HaPOD']
@@ -1095,9 +1140,9 @@ class QrVrROMOptimizer(Optimizer):
             )
         )
 
-        if parameter_normalize:
-            norms = self.parameter_shapshots.norm(self.FOM.products['prod_Q'])
-            self.parameter_shapshots.scal(1/norms)
+        # if parameter_normalize:
+        #     norms = self.parameter_shapshots.norm(self.FOM.products['prod_Q'])
+        #     self.parameter_shapshots.scal(1/norms)
 
 
         if basis in ['parameter_basis', 'both']:
@@ -1127,10 +1172,10 @@ class QrVrROMOptimizer(Optimizer):
             else:
                 raise ValueError
 
-        if state_normalize:
-            norms = self.state_shapshots.norm(self.FOM.products['prod_V'])
-            norms[norms <= 1e-16] = 1
-            self.state_shapshots.scal(1/norms)
+        # if state_normalize:
+        #     norms = self.state_shapshots.norm(self.FOM.products['prod_V'])
+        #     norms[norms <= 1e-16] = 1
+        #     self.state_shapshots.scal(1/norms)
 
         if basis in ['state_basis', 'both']:
             self.logger.debug(f"Extending state basis, using {state_strategy}, with tol = {state_HaPOD_tol}.")
@@ -1257,10 +1302,24 @@ class QrVrROMOptimizer(Optimizer):
 
         self.logger.debug(f"Extending Qr-snapshots")
         self.parameter_shapshots = self.FOM.Q.empty()
-        self.parameter_shapshots.append(nabla_J)
-        self.parameter_shapshots.append(q)
-        self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
+        
+        self._append_snapshot_set(
+            nabla_J,
+            basis = 'parameter_basis',
+            enrichment = enrichment
+        )
 
+        self._append_snapshot_set(
+            q,
+            basis = 'parameter_basis',
+            enrichment = enrichment
+        )
+
+        self._append_snapshot_set(
+            self.FOM.Q.make_array(self.FOM.setup['q_circ']),
+            basis = 'parameter_basis',
+            enrichment = enrichment
+        )
         
         cols = [0,10,15,20,25,30]
         rows = [0,10,15,20,25,30]
@@ -1287,8 +1346,23 @@ class QrVrROMOptimizer(Optimizer):
         
         self.logger.debug(f"Extending Vr-snapshots")
         self.state_shapshots = self.FOM.V.empty()
-        self.state_shapshots.append(u)
-        self.state_shapshots.append(p)
+
+        self._append_snapshot_set(
+            u,
+            basis = 'state_basis',
+            enrichment = enrichment
+        )
+
+        self._append_snapshot_set(
+            p,
+            basis = 'state_basis',
+            enrichment = enrichment
+        )
+
+        self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+            basis='both',
+            enrichment=enrichment
+        )
 
         # lin_u = self.FOM.solve_linearized_state(q,u=u,d=nabla_J)
         # lin_p = self.FOM.solve_linearized_adjoint(q,u=u,lin_u=lin_u)
@@ -1809,12 +1883,31 @@ class QrVrROMOptimizer(Optimizer):
 
                     self.logger.debug(f"Extending Qr-snapshots")
                     self.parameter_shapshots = self.FOM.Q.empty()
-                    self.parameter_shapshots.append(nabla_J)
+                    self._append_snapshot_set(
+                        nabla_J,
+                        basis = 'parameter_basis',
+                        enrichment = enrichment
+                    )
 
                     self.logger.debug(f"Extending Vr-snapshots")
                     self.state_shapshots = self.FOM.V.empty()
-                    self.state_shapshots.append(u)
-                    self.state_shapshots.append(p)
+
+                    self._append_snapshot_set(
+                        u,
+                        basis = 'state_basis',
+                        enrichment = enrichment
+                    )
+
+                    self._append_snapshot_set(
+                        p,
+                        basis = 'state_basis',
+                        enrichment = enrichment
+                    )
+
+                    self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                        basis='both',
+                        enrichment=enrichment
+                    )
 
                     # lin_u = self.FOM.solve_linearized_state(q,u=u,d=nabla_J)
                     # lin_p = self.FOM.solve_linearized_adjoint(q,u=u,lin_u=lin_u)

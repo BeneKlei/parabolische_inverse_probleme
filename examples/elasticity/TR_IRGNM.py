@@ -206,12 +206,22 @@ def main():
         #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
         # },
         'enrichment': {
-            'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
-            'parameter_HaPOD_tol': 1e-16,                             # Tolerance for parameter basis POD
-            'parameter_normalize': False,
-            'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-            'state_HaPOD_tol': 1e-6,
-            'state_normalize': True                            # Tolerance for state basis POD
+            'parameter_basis' : {
+                'strategy': 'snapshot_HaPOD',                  
+                'HaPOD_tol': 1e-12,
+                'transformation' : {
+                    'sample_every_n_th' : 1,
+                    'normalize': False,
+                }
+            },
+            'state_basis' : {
+                'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
+                'HaPOD_tol': 1e-9,
+                'transformation' : {
+                    'sample_every_n_th' : 5,
+                    'normalize': True
+                }
+            }
         },
         'error_estimator_types' : {
             'state' : StateErrorEstimatorType.NONE,
