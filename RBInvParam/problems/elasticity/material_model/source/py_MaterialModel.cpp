@@ -33,6 +33,8 @@ PYBIND11_MODULE(material_model, m) {
           .def_readonly("product_V", &MaterialModel::m_product_V)
           .def_readonly("product_H", &MaterialModel::m_product_H)
           .def_readonly("product_C", &MaterialModel::m_product_C)
+          .def_readonly("product_L2", &MaterialModel::m_product_L2)
+          .def_readonly("product_H1", &MaterialModel::m_product_H1)
 
           .def("assemble_product_V", &MaterialModel::assemble_product_V)
           .def("assemble_product_H", &MaterialModel::assemble_product_H)

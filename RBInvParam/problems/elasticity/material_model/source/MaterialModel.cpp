@@ -83,6 +83,8 @@ void MaterialModel::setup_system()
   setup_BC_constraints();
   std::cout << "\t Setting up system matrizies." << std::endl;
 
+  // --------------------------------------------------
+
   MaterialMatricesFactoryContext<3, Number> ctx {
     m_config.system_matrix_type,
     m_fe,
@@ -97,9 +99,36 @@ void MaterialModel::setup_system()
     m_system_matrices
   );
   m_has_translation_operator = m_system_matrices.m_affine;
-  
+
   m_system_matrix_derivatives.resize(m_config.nt + 1);
 
+  // --------------------------------------------------
+
+  StateProductFactoryContext<3, Number> ctx_product_L2 {
+    StateProductType::L2,
+    m_fe,
+    m_dof_handler,
+    m_system_matrix_sp    
+  };
+
+  m_state_product_factory.assemble_state_product(
+    ctx_product_L2,
+    m_product_L2
+  );
+
+  StateProductFactoryContext<3, Number> ctx_product_H1 {
+    StateProductType::H1,
+    m_fe,
+    m_dof_handler,
+    m_system_matrix_sp    
+  };
+
+  m_state_product_factory.assemble_state_product(
+    ctx_product_H1,
+    m_product_H1
+  );
+
+  // --------------------------------------------------
 
   std::cout << "\t Defining BodyForce." << std::endl;
   setup_body_force();

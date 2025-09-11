@@ -40,11 +40,11 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    # y_res = 30
-    # z_res = 30
+    y_res = 30
+    z_res = 30
 
-    y_res = 20
-    z_res = 20
+    # y_res = 20
+    # z_res = 20
 
     # y_res = 8
     # z_res = 8
@@ -94,9 +94,9 @@ def main():
             }
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
@@ -160,7 +160,7 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_start)
+    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
     FOM.A.material_model.save_time_series(
         [v.real_part.impl for v in p_start.vectors],
         str('p_start'),
@@ -176,17 +176,18 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
+
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        'tau': 1.05,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.4,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
-        'i_max': 75,                                                 # Max number of outer optimization iterations
+        'i_max': 250,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
         'i_max_inner': 30,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC

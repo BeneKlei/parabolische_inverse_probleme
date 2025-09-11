@@ -90,6 +90,14 @@ def build_InstationaryModelIP(setup : Dict,
         'euclid' : scipy.sparse.identity(Q_h.dim)
     }
 
+    products['L2'] = DealIIMatrixOperator(
+        matrix = material_model.product_L2
+    )
+
+    products['H1'] = DealIIMatrixOperator(
+        matrix = material_model.product_H1
+    )
+
     products['prod_H'] = DealIIMatrixOperator(
         matrix = material_model.product_H
     )

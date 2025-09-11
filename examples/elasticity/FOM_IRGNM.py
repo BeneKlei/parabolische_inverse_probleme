@@ -159,8 +159,8 @@ def main():
         'lin_solver_parms': {
             'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                     # Max iterations for the linear solver
-            'lin_solver_tol': 1e-12,                          # Tolerance for convergence in the linear solver
-            'inital_step_size': 1.0                                # Initial step size for iterative solvers (if applicable)
+            'lin_solver_tol': 1e-8,                          # Tolerance for convergence in the linear solver
+            'inital_step_size': 0.1                                # Initial step size for iterative solvers (if applicable)
         },
         'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
         'dump_every_nth_loop': 1,                                # Dump intermediate results every n optimization iterations

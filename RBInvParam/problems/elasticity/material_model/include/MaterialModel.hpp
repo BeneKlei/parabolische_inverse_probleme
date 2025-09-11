@@ -109,6 +109,9 @@ public:
   SparseMatrix<Number> m_product_H;
   SparseMatrix<Number> m_product_C;
 
+  SparseMatrix<Number> m_product_L2;
+  SparseMatrix<Number> m_product_H1;
+
   // --------------------------------------------------
   SparsityPattern m_system_matrix_sp;
   SparsityPattern m_bilinear_cost_operator_sp;
