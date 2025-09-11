@@ -881,7 +881,7 @@ class QrVrROMOptimizer(Optimizer):
                 n = enrichment[basis]['transformation']['sample_every_n_th']
                 _snapshots = snapshots.copy()
                 assert len(_snapshots) % n == 0
-                assert n == 0 or self.FOM.setup['model_parameter']['q_time_dep']
+                assert n == 1 or self.FOM.setup['model_parameter']['q_time_dep']
 
                 _snapshots = _snapshots[::n]
                 self.parameter_shapshots.append(_snapshots)
@@ -899,7 +899,7 @@ class QrVrROMOptimizer(Optimizer):
                 assert len(_snapshots) % n == 0
 
                 _snapshots = _snapshots[::n]
-                self.parameter_shapshots.append(_snapshots)
+                self.state_shapshots.append(_snapshots)
                 return
 
 
@@ -1154,16 +1154,32 @@ class QrVrROMOptimizer(Optimizer):
             enrichment = enrichment
         )
 
-        #self.parameter_shapshots.append(nabla_J)
+        self._append_snapshot_set(
+            q,
+            basis = 'parameter_basis',
+            enrichment = enrichment
+        )
 
-
-        self.parameter_shapshots.append(q)
-        self.parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']))
+        self._append_snapshot_set(
+            self.FOM.Q.make_array(self.FOM.setup['model_parameter']['q_circ']),
+            basis = 'parameter_basis',
+            enrichment = enrichment
+        )
 
         self.logger.debug(f"Extending Vr-snapshots")
         self.state_shapshots = self.FOM.V.empty()
-        self.state_shapshots.append(u)
-        self.state_shapshots.append(p)
+
+        self._append_snapshot_set(
+            u,
+            basis = 'state_basis',
+            enrichment = enrichment
+        )
+
+        self._append_snapshot_set(
+            p,
+            basis = 'state_basis',
+            enrichment = enrichment
+        )
 
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             basis='both',
@@ -1438,12 +1454,27 @@ class QrVrROMOptimizer(Optimizer):
                 if not convergence_criterium:
                     self.logger.debug(f"Extending Qr-snapshots")
                     self.parameter_shapshots = self.FOM.Q.empty()
-                    self.parameter_shapshots.append(nabla_J)
+                    
+                    self._append_snapshot_set(
+                        nabla_J,
+                        basis = 'parameter_basis',
+                        enrichment = enrichment
+                    )
 
                     self.logger.debug(f"Extending Vr-snapshots")
                     self.state_shapshots = self.FOM.V.empty()
-                    self.state_shapshots.append(u)
-                    self.state_shapshots.append(p)
+                    
+                    self._append_snapshot_set(
+                        u,
+                        basis = 'state_basis',
+                        enrichment = enrichment
+                    )
+
+                    self._append_snapshot_set(
+                        p,
+                        basis = 'state_basis',
+                        enrichment = enrichment
+                    )
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         basis='both',

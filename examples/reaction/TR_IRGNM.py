@@ -34,9 +34,9 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    #N = 300
+    N = 300
     #N = 100
-    N = 30
+    #N = 30
     par_dim = (N+1)**2
     fine_N = 2 * N
 
@@ -163,7 +163,9 @@ def main():
             'state_basis' : {
                 'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
                 'HaPOD_tol': 1e-9,
-                'sample_every_n_th' : 5
+                'transformation' : {
+                    'sample_every_n_th' : 5
+                }
             }
         },
         #####################
