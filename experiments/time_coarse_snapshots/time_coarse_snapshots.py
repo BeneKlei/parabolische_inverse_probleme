@@ -172,6 +172,12 @@ TR_optimizer_parameter = {
     'agc_armijo_max_iter' : 100,
     'TR_armijo_max_iter' : 10,
     #####################
+    'lin_solver_parms': {
+        'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
+        'max_iter': 1e4,                                         # Maximum iterations for the linear solver
+        'lin_solver_tol': 1e-10,                                 # Convergence tolerance for the linear solver
+        'inital_step_size': 1                                    # Initial step size for iterative linear solver
+    },
     'enrichment': {
         'parameter_basis' : {
             'strategy': 'snapshot_HaPOD',                  
