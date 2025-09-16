@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+import copy
 
 from abc import abstractmethod
 from typing import Dict, Union, Tuple
@@ -980,7 +981,7 @@ class QrVrROMOptimizer(Optimizer):
             
             if enrichment[basis]['transformation']['sample_every_n_th']:
                 n = enrichment[basis]['transformation']['sample_every_n_th']
-                _snapshots = snapshots.copy()
+                _snapshots = copy.deepcopy(snapshots)
                 assert len(_snapshots) % n == 0
                 assert n == 1 or self.FOM.setup['model_parameter']['q_time_dep']
 
@@ -999,14 +1000,15 @@ class QrVrROMOptimizer(Optimizer):
 
             if enrichment[basis]['transformation']['sample_every_n_th']:
                 n = enrichment[basis]['transformation']['sample_every_n_th']
-                _snapshots = snapshots.copy()
+                _snapshots = copy.deepcopy(snapshots)
                 assert ((len(_snapshots))-1) % n == 0
 
                 _snapshots = _snapshots[::n]
                 self.state_shapshots.append(_snapshots)
             
             if enrichment[basis]['transformation']['normalize']:
-                norms = self.state_shapshots.norm(self.FOM.products['prod_Q'])
+                norms = self.state_shapshots.norm(self.FOM.products['prod_V'])
+                norms[norms <= 1e-16] = 1
                 self.state_shapshots.scal(1/norms)
                 
 
@@ -1387,10 +1389,10 @@ class QrVrROMOptimizer(Optimizer):
         # print(self.state_shapshots)
 
         
-        self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
-            basis='both',
-            **enrichment
-        )
+        # self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+        #     basis='both',
+        #     enrichment=enrichment
+        # )
 
         # self.FOM.A.material_model.save_time_series(
         #     [v.real_part.impl for v in u.vectors],
@@ -1574,23 +1576,48 @@ class QrVrROMOptimizer(Optimizer):
             print(J_r)
 
             if rel_est_error_J_r > eta:
-                assert enrichment['parameter_strategy'] in ['snapshot_HaPOD', 'projected_error_HaPOD']
-                assert enrichment['state_strategy'] in ['snapshot_HaPOD', 'projected_error_HaPOD']
+                assert enrichment['parameter_basis']['strategy'] in ['snapshot_HaPOD', 'projected_error_HaPOD']
+                assert enrichment['state_basis']['strategy'] in ['snapshot_HaPOD', 'projected_error_HaPOD']
 
                 self._logger.warning(f"q^(i) is not in the trust region.")
                 self._logger.warning(f"Extending reduced spaces with all snapshots.")
 
-                self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
-                    basis='both',
-                    parameter_strategy = enrichment['parameter_strategy'],
-                    parameter_HaPOD_tol=MACHINE_EPS,
-                    state_strategy = enrichment['state_strategy'],
-                    state_HaPOD_tol=MACHINE_EPS
+                _enrichment = copy.deepcopy(enrichment)
+                _enrichment['parameter_basis']['HaPOD_tol'] = MACHINE_EPS
+                _enrichment['parameter_basis']['transformation']['sample_every_n_th'] = 1
+                _enrichment['state_basis']['HaPOD_tol'] = MACHINE_EPS
+                _enrichment['state_basis']['transformation']['sample_every_n_th'] = 1
+
+                self.parameter_shapshots = self.FOM.Q.empty()
+                self._append_snapshot_set(nabla_J,
+                    basis = 'parameter_basis',
+                    enrichment = _enrichment
                 )
 
-                u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=use_cached_operators)
-                p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
+                self.state_shapshots = self.FOM.V.empty()
+                self._append_snapshot_set(u,
+                    basis = 'state_basis',
+                    enrichment = _enrichment
+                )
+                self._append_snapshot_set(
+                    p,
+                    basis = 'state_basis',
+                    enrichment = _enrichment
+                )
+
+                self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                    basis='both',
+                    enrichment = _enrichment
+                )
+
+                q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
+                q_r = self.QrVrROM.Q.make_array(q_r)
+                u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=False)
+                p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=False)
                 J_r = self.QrVrROM.objective(u_r)
+                nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
+                norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
+
                 abs_est_error_J_r, _ = self.estimate_objective_error(
                     model = self.QrVrROM,
                     q = q_r,
@@ -1603,7 +1630,7 @@ class QrVrROMOptimizer(Optimizer):
                 else:
                     rel_est_error_J_r = np.inf
 
-            assert rel_est_error_J_r <= eta
+            assert (rel_est_error_J_r - 1e-16) <= eta 
 
             IRGNM_statistic = None
             projector = SimpleBoundDomainProjector(
@@ -1640,12 +1667,33 @@ class QrVrROMOptimizer(Optimizer):
                 self._logger.warning(f"J_r_AGC = {J_r_AGC:3.4e} is greater or equal than J = {J:3.4e}.")
                 self._logger.warning(f"Extending reduced spaces with all snapshots and recomputing AGC.")
 
+                
+                _enrichment = copy.deepcopy(enrichment)
+                _enrichment['parameter_basis']['HaPOD_tol'] = MACHINE_EPS
+                _enrichment['parameter_basis']['transformation']['sample_every_n_th'] = 1
+                _enrichment['state_basis']['HaPOD_tol'] = MACHINE_EPS
+                _enrichment['state_basis']['transformation']['sample_every_n_th'] = 1
+
+                self.parameter_shapshots = self.FOM.Q.empty()
+                self._append_snapshot_set(nabla_J,
+                    basis = 'parameter_basis',
+                    enrichment = _enrichment
+                )
+
+                self.state_shapshots = self.FOM.V.empty()
+                self._append_snapshot_set(u,
+                    basis = 'state_basis',
+                    enrichment = _enrichment
+                )
+                self._append_snapshot_set(
+                    p,
+                    basis = 'state_basis',
+                    enrichment = _enrichment
+                )
+
                 self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                     basis='both',
-                    parameter_strategy = enrichment['parameter_strategy'],
-                    parameter_HaPOD_tol=MACHINE_EPS,
-                    state_strategy = enrichment['state_strategy'],
-                    state_HaPOD_tol=MACHINE_EPS
+                    enrichment = _enrichment
                 )
                 continue
 
@@ -1904,6 +1952,8 @@ class QrVrROMOptimizer(Optimizer):
                         enrichment = enrichment
                     )
 
+                    print(enrichment)
+
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         basis='both',
                         enrichment=enrichment
@@ -1930,10 +1980,10 @@ class QrVrROMOptimizer(Optimizer):
                     #     self.FOM.A.material_model.get_component_dofs(v.real_part.impl, 2)
                     # self.state_shapshots.append(self.FOM.V.make_array(p_z.vectors))
 
-                    self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
-                        basis='both',
-                        **enrichment
-                    )
+                    # self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                    #     basis='both',
+                    #     **enrichment
+                    # )
 
 
                     # self.state_shapshots = self.FOM.V.empty()

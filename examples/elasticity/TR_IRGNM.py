@@ -208,7 +208,7 @@ def main():
         'enrichment': {
             'parameter_basis' : {
                 'strategy': 'snapshot_HaPOD',                  
-                'HaPOD_tol': 1e-12,
+                'HaPOD_tol': 1e-16,
                 'transformation' : {
                     'sample_every_n_th' : 1,
                     'normalize': False,
@@ -216,7 +216,7 @@ def main():
             },
             'state_basis' : {
                 'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-                'HaPOD_tol': 1e-9,
+                'HaPOD_tol': 1e-6,
                 'transformation' : {
                     'sample_every_n_th' : 5,
                     'normalize': True
