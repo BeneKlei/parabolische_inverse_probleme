@@ -48,7 +48,8 @@ class TimeStepper(ABC):
                 q : Union[VectorArray, List[VectorArray]], 
                 rhs : Union[VectorArray, List[VectorArray]],
                 use_cached_operators: bool = False,
-                cached_operators: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
+                cached_operators: Dict = None,
+                config: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
         pass
     
     @abstractmethod
@@ -208,7 +209,8 @@ class NewmanSecondOrder(TimeStepper):
                 q : Union[VectorArray, List[VectorArray]], 
                 rhs : VectorArray,
                 use_cached_operators: bool = False,
-                cached_operators: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
+                cached_operators: Dict = None,
+                config: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
         
         ################################### Prepare ###################################
 
@@ -222,6 +224,10 @@ class NewmanSecondOrder(TimeStepper):
 
         assert isinstance(q, (VectorArray, np.ndarray))
         assert q in self.Q
+
+        implicit_euler_rhs = False
+        if config and config['implicit_euler_rhs']:
+            implicit_euler_rhs = config['implicit_euler_rhs']
 
         for key in ['zeroth_order', 'first_order']:
             self._check_initial_data(initial_data, key)
@@ -290,10 +296,15 @@ class NewmanSecondOrder(TimeStepper):
                     S_zeta = self.M + dt**2 * zeta**2 * A_q
                     S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
 
-            if rhs_time_dep:
+            if rhs_time_dep:#
                 rhs_cur = rhs[n]
-                dt_R = zeta * rhs_cur
-                dt_R += (1.0 - zeta) * rhs_pre
+
+                if implicit_euler_rhs:
+                    dt_R = rhs_cur
+                else:
+                    dt_R = zeta * rhs_cur
+                    dt_R += (1.0 - zeta) * rhs_pre
+                
                 dt_R *= dt
 
             # --------------------------------------------------------------

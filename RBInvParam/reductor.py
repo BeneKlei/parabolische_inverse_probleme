@@ -1,11 +1,13 @@
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple, Union, List
 import numpy as np
 import logging
 import scipy
 import copy
-import pymor_dealii_bindings as pd2
+import os, threading, time
 
-from concurrent.futures import ProcessPoolExecutor
+import pymor_dealii_bindings as pd2
+        
+from concurrent.futures import ThreadPoolExecutor  # use threads, not processes
 
 from pymor.reductors.basic import ProjectionBasedReductor
 from pymor.algorithms.projection import project, project_to_subbasis
@@ -85,14 +87,19 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         self.error_estimator_types = error_estimator_types
         self.logger.debug(f"Using residual image basis mode: '{residual_image_basis_mode}'.")
     
-    def delete_cached_operators(self) -> None:
+    def delete_cached_operators(self,
+                                targets: List[str] | str = 'all') -> None:
         self.logger.debug('Deleting cache')
+        assert isinstance(targets, List) or targets == 'all'
+    
+        if targets == 'all':
+            targets = self._cached_operators.keys()
 
-        del self._cached_operators['A']
-        
-        self._cached_operators = {
-            'A' : None,
-        }
+        assert set(targets).issubset(set(self._cached_operators.keys()))
+
+        for target in targets:
+            del self._cached_operators[target]
+            self._cached_operators[target] = None
     
     def calc_projection_error(self,
                               x: VectorArray,
@@ -306,11 +313,11 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     def _project_A(self, parameter_reduced_A: LincombOperator) -> LincombOperator:
         assert isinstance(parameter_reduced_A, LincombOperator)
 
-        dim_Q_old = self.dims_history['parameter_basis'][-1]
-        dim_Q_new = self.get_bases_dim('parameter_basis')
+        dim_Q_old = self.dims_history['parameter_basis'][-2]
+        dim_Q_new = self.dims_history['parameter_basis'][-1]
 
-        dim_V_old = self.dims_history['state_basis'][-1]
-        dim_V_new = self.get_bases_dim('state_basis')
+        dim_V_old = self.dims_history['state_basis'][-2]
+        dim_V_new = self.dims_history['state_basis'][-1]
 
         state_basis = self._get_projection_basis('state_basis')
         
@@ -318,39 +325,56 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         added_vectors = state_basis[dim_V_old:]
 
         if not self._cached_operators['A_r']:
-            return project(parameter_reduced_A, state_basis, state_basis)
+            self._cached_operators['A_r'] = project(parameter_reduced_A, state_basis, state_basis)
+            return self._cached_operators['A_r']
         
         coefficients = parameter_reduced_A.coefficients
         base_operators = parameter_reduced_A.operators
 
         def process_operator(i_operator):
             i, operator = i_operator
-            if i < dim_Q_old:
-                assert operator.matrix.shape == (dim_V_old, dim_V_old)
 
-                VTAV = operator.matrix
+            pid = os.getpid()
+            tid = threading.get_ident()
+            t0 = time.perf_counter()
+            print(f"[START] i={i} pid={pid} tid={tid} t={t0:.3f}")
+            
+            if i < dim_Q_old:
+                #VTAV = operator.matrix
+                VTAV = self._cached_operators['A_r'].operators[i].matrix
+                assert VTAV.shape == (dim_V_old, dim_V_old)
                 AW = operator.apply(added_vectors)
                 VTAW = old_basis.inner(AW)
                 WTAW = added_vectors.inner(AW)
 
                 matrix = np.block([
-                    [VTAV,              VTAW.to_numpy()],
-                    [VTAW.to_numpy().T, WTAW.to_numpy()]
+                    [VTAV,   VTAW],
+                    [VTAW.T, WTAW]
                 ])
 
                 assert matrix.shape == (dim_V_new, dim_V_new)
 
+                t1 = time.perf_counter()
+                print(f"[DONE ] i={i} pid={pid} tid={tid} dt={t1 - t0:.3f}")
+
                 return NumpyMatrixOperator(
                     matrix=matrix,
-                    source=operator.source,
-                    range=operator.range,
+                    # source=operator.source,
+                    # range=operator.range,
                 )
             else:
-                assert operator.matrix.shape == (self.FOM.V.dim, self.FOM.V.dim)
+                #assert operator.matrix.shape == (self.FOM.V.dim, self.FOM.V.dim)
+                t1 = time.perf_counter()
+                print(f"[DONE ] i={i} pid={pid} tid={tid} dt={t1 - t0:.3f}")
                 return project(operator, state_basis, state_basis)
-
-        with ProcessPoolExecutor() as executor:
+            
+        with ThreadPoolExecutor() as executor:
             operators = list(executor.map(process_operator, enumerate(base_operators)))
+
+        # operators = []
+        # for i, operator in enumerate(base_operators):
+        #     operators.append(process_operator((i,operator)))
+
 
         self._cached_operators['A_r'] = LincombOperator(
             operators=operators,
@@ -369,9 +393,9 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         state_basis = self._get_projection_basis('state_basis')
         parameter_basis = self._get_projection_basis('parameter_basis')
 
-        #A_r = self._project_A(parameter_reduced_A = parameter_reduced_A)
+        print("1")
         A_r = self._project_A(parameter_reduced_A = parameter_reduced_A)
-
+        print("2")
         # A_r = project(parameter_reduced_A,
         #               state_basis,
         #               state_basis)
@@ -380,6 +404,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         parameteric_operator, translation_operator = split_constant_and_parameterized_operator(
             complete_operator=A_r
         )
+        print("3")
 
         A = ROMEvaluatorA(
             source = V,
@@ -409,6 +434,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         else:
             L = self.FOM.L
 
+        print("4")
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
         prod_V = project(self.FOM.products['prod_V'], state_basis, state_basis)
 
@@ -449,6 +475,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             projected_initial_data = self.FOM.initial_data
             linear_cost_term = self.FOM.linear_cost_term
 
+        print("5")
 
 
         # m = pd2.SparseMatrix()

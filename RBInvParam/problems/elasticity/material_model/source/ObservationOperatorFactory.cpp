@@ -89,6 +89,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
     SparsityPattern& observation_operator_sp) const
 {      
     const Number tol  = 1e-3;
+    //const Number tol  = 1e0;
     const Number tol2 = tol * tol;
 
     SparseMatrix<Number> G;

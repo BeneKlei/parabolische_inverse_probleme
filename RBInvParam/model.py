@@ -405,9 +405,12 @@ class InstationaryModelIP(ImmutableObject):
                                              q=q,
                                              rhs=rhs,
                                              use_cached_operators=use_cached_operators,
-                                             cached_operators=self._cached_operators)
+                                             cached_operators=self._cached_operators,
+                                             config={
+                                                 'implicit_euler_rhs' : True
+                                             })
         
-        p = self.V.empty(reserve= (self.nt + 1))
+        p = self.V.empty(reserve = (self.nt + 1))
         for p_n, _ in iterator:
             p.append(p_n)
 
@@ -539,7 +542,10 @@ class InstationaryModelIP(ImmutableObject):
                                             q=q,
                                             rhs=rhs,
                                             use_cached_operators=use_cached_operators,
-                                            cached_operators=self._cached_operators)
+                                            cached_operators=self._cached_operators,
+                                            config={
+                                                 'implicit_euler_rhs' : True
+                                             })
         
         lin_p = self.V.empty(reserve= (self.nt + 1))
         for lin_p_n, _ in iterator:

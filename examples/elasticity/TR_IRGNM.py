@@ -57,6 +57,9 @@ def main():
     # T_final = 5.0
     # nt = 50
 
+    # T_final = 5.0
+    # nt = 50
+
     T_final = 5.0
     nt = 50
 
@@ -87,8 +90,10 @@ def main():
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
             'hyperparameter' : {
-                'lambda' : 1e2,
-                'mu' : 1e2,
+                # 'lambda' : 1e2,
+                # 'mu' : 1e2,
+                'lambda' : 1e1,
+                'mu' : 1e1,
                 'nu' : 1e-3,
                 'surface' : 'left'
             }
@@ -117,8 +122,8 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        #'noise_level': 5 * 1e-4,                      # Absolute noise magnitude added to data
         'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
+        #'noise_level': 0.0,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -180,8 +185,10 @@ def main():
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
+        #'alpha_0': 1e-14,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
+        #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.4,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
@@ -197,6 +204,7 @@ def main():
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
             'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'inital_step_size': 1                                    # Initial step size for iterative linear solver
         },
         # 'lin_solver_parms': {
@@ -215,10 +223,11 @@ def main():
                 }
             },
             'state_basis' : {
-                'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
+                #'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
+                'strategy': 'full_HaPOD',                      # Enrichment strategy for state basis
                 'HaPOD_tol': 1e-6,
                 'transformation' : {
-                    'sample_every_n_th' : 5,
+                    'sample_every_n_th' : 2,
                     'normalize': True
                 }
             }
@@ -232,9 +241,10 @@ def main():
         'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
+        #'eta0': 1e-2,                                                # Initial trust region tolerance
         'eta0': 1e-2,                                                # Initial trust region tolerance
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
-        'beta_1': 0.95,                                              # Trust region edge tolerance.
+        'beta_1': 0.90,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 
         'beta_3': 0.5                                                # Shrinking/Enlarging factor for the trust region.
     }
