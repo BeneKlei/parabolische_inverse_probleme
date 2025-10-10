@@ -251,64 +251,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         # problem_parameter['N'] = None
 
         return setup
-    
-    # def _project_A(self,
-    #                parameter_reduced_A: LincombOperator) -> LincombOperator:
-
-    #     assert isinstance(parameter_reduced_A, LincombOperator)
-
-    #     dim_Q_old = self.dims_history['parameter_basis'][-1]
-    #     dim_Q_new = self.get_bases_dim('parameter_basis')
-    
-    #     dim_V_old = self.dims_history['state_basis'][-1]
-    #     dim_V_new = self.get_bases_dim('state_basis')
-
-    #     state_basis = self._get_projection_basis('state_basis')
-        
-    #     old_basis = state_basis[:dim_V_old]
-    #     added_vectors = state_basis[dim_V_old:]
-
-        
-    #     if not self._cached_operators['A_r']:
-    #         return project(parameter_reduced_A, state_basis,state_basis)
-        
-    #     operators = []
-    #     coefficients = parameter_reduced_A.coefficients
-        
-        
-    #     for i, operator in enumerate(operators):
-    #         if i < dim_Q_old:
-    #             assert operator.matrix.shape == (dim_V_old,dim_V_old)
-
-    #             VTAV = operator.matrix
-    #             AW = operator.apply(added_vectors)
-    #             VTAW = old_basis.inner(AW)
-    #             WTAW = added_vectors.inner(AW)
-                
-    #             matrix = np.block([
-    #                 [VTAV,              VTAW.to_numpy()],
-    #                 [VTAW.to_numpy().T, WTAW.to_numpy()]
-    #             ])
-
-    #             assert matrix.shape == (dim_V_new,dim_V_new)
-
-
-    #             operators.append(NumpyMatrixOperator(
-    #                 matrix = matrix,
-    #                 source = operator.source,
-    #                 range = operator.range,
-    #             ))
-    #         else:
-    #             assert operator.matrix.shape == (self.FOM.V.dim, self.FOM.V.dim)
-    #             operators.append(project(operator, state_basis, state_basis))
-
-
-    #     self._cached_operators['A_r'] = LincombOperator(
-    #         operators = operators,
-    #         coefficients=coefficients
-    #     )
-        
-    #     return self._cached_operators['A_r']
 
     def _project_A(self, parameter_reduced_A: LincombOperator) -> LincombOperator:
         assert isinstance(parameter_reduced_A, LincombOperator)
@@ -359,8 +301,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
                 return NumpyMatrixOperator(
                     matrix=matrix,
-                    # source=operator.source,
-                    # range=operator.range,
                 )
             else:
                 #assert operator.matrix.shape == (self.FOM.V.dim, self.FOM.V.dim)
@@ -393,18 +333,11 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         state_basis = self._get_projection_basis('state_basis')
         parameter_basis = self._get_projection_basis('parameter_basis')
 
-        print("1")
         A_r = self._project_A(parameter_reduced_A = parameter_reduced_A)
-        print("2")
-        # A_r = project(parameter_reduced_A,
-        #               state_basis,
-        #               state_basis)
-
 
         parameteric_operator, translation_operator = split_constant_and_parameterized_operator(
             complete_operator=A_r
         )
-        print("3")
 
         A = ROMEvaluatorA(
             source = V,
@@ -521,7 +454,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             V = NumpyVectorSpace(dim = len(state_basis))
         else:
             V = self.FOM.V
-
+        
         parameter_reduced_A = self._assemble_parameter_reduced_A()
 
         model_params = {

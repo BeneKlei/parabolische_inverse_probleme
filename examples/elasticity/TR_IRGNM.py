@@ -43,12 +43,6 @@ def main():
     y_res = 30
     z_res = 30
 
-    # y_res = 20
-    # z_res = 20
-
-    # y_res = 8
-    # z_res = 8
-
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
     #par_dim = 3
@@ -76,7 +70,8 @@ def main():
 
     q_exact[0,200] = 2
     q_exact[0,300] = 3
-    #q_exact[0,700] = 40
+
+    #q_exact[0,50] = 2
     q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
@@ -203,8 +198,8 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
-            #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'inital_step_size': 1                                    # Initial step size for iterative linear solver
         },
         # 'lin_solver_parms': {
@@ -223,11 +218,10 @@ def main():
                 }
             },
             'state_basis' : {
-                #'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-                'strategy': 'full_HaPOD',                      # Enrichment strategy for state basis
+                'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
                 'HaPOD_tol': 1e-6,
                 'transformation' : {
-                    'sample_every_n_th' : 2,
+                    'sample_every_n_th' : 1,
                     'normalize': True
                 }
             }
@@ -241,7 +235,7 @@ def main():
         'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
-        #'eta0': 1e-2,                                                # Initial trust region tolerance
+        #'eta0': 1e-1,                                                # Initial trust region tolerance
         'eta0': 1e-2,                                                # Initial trust region tolerance
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.90,                                              # Trust region edge tolerance.
