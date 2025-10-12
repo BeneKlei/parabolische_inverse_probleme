@@ -43,6 +43,9 @@ def main():
     y_res = 30
     z_res = 30
 
+    # y_res = 8
+    # z_res = 8
+
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
     #par_dim = 3
@@ -66,10 +69,14 @@ def main():
     q_circ = np.ones((1, par_dim)) * 1
     q_exact = np.ones((1,par_dim)) * 1
 
-    #q_exact[0,40] = 4e2
 
     q_exact[0,200] = 2
     q_exact[0,300] = 3
+
+    #q_exact[0,:] = 3    
+
+    # q_exact[0,450] = 2
+    # q_exact[0,470] = 3
 
     #q_exact[0,50] = 2
     q_circ[0,:] = 1
@@ -85,8 +92,6 @@ def main():
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
             'hyperparameter' : {
-                # 'lambda' : 1e2,
-                # 'mu' : 1e2,
                 'lambda' : 1e1,
                 'mu' : 1e1,
                 'nu' : 1e-3,
@@ -94,9 +99,9 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
@@ -186,20 +191,22 @@ def main():
         'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.4,
+        #'Theta': 1.00,                                               # Upper bound for step acceptance condition
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
-        'i_max_inner': 30,                                           # Max number of inner iterations
+        'i_max_inner': 15,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC
         'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
+        #'TR_armijo_max_iter': 2,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-            #'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
-            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 1e-6,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
             'inital_step_size': 1                                    # Initial step size for iterative linear solver
         },
         # 'lin_solver_parms': {
@@ -211,14 +218,16 @@ def main():
         'enrichment': {
             'parameter_basis' : {
                 'strategy': 'snapshot_HaPOD',                  
-                'HaPOD_tol': 1e-16,
+                'HaPOD_tol': 1e-3,
                 'transformation' : {
                     'sample_every_n_th' : 1,
-                    'normalize': False,
-                }
+                    'normalize': True,
+                },
+                'include_GN_hessian' : False
             },
             'state_basis' : {
-                'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
+                #'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
+                'strategy': 'full_HaPOD',                      # Enrichment strategy for state basi                
                 'HaPOD_tol': 1e-6,
                 'transformation' : {
                     'sample_every_n_th' : 1,
@@ -235,7 +244,7 @@ def main():
         'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
-        #'eta0': 1e-1,                                                # Initial trust region tolerance
+        #'eta0': 5 * 1e-1,                                                # Initial trust region tolerance
         'eta0': 1e-2,                                                # Initial trust region tolerance
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.90,                                              # Trust region edge tolerance.

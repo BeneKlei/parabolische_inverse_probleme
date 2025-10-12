@@ -146,10 +146,17 @@ class Optimizer(BasicObject):
         else:
             J_rel_error = np.inf
         
+        print("--------")
+        print(J_rel_error)
         
         TR_condition = J_rel_error <= eta
         condition = armijo_condition & TR_condition
         i += 1
+
+        print("############")
+        print(lhs)
+        print(armijo_condition)
+        print(TR_condition)
         
         while (not condition) and (i < max_iter):
             step_size = 0.5 * step_size
@@ -259,11 +266,10 @@ class Optimizer(BasicObject):
             #                     u=u, 
             #                     use_cached_operators=use_cached_operators)
             
-            # u_r = model.solve_state(q=q, 
-            #                  use_cached_operators=use_cached_operators)
-            # p_r = self.reductor.reconstruct(model.solve_adjoint(q=q, 
-            #                     u=u_r, 
-            #                     use_cached_operators=use_cached_operators), basis='state_basis')
+            # u_r = model.solve_state(q=q, use_cached_operators=use_cached_operators)
+            # p_r = model.solve_adjoint(q=q, 
+            #                           u=u_r, 
+            #                           use_cached_operators=use_cached_operators)
             
             # print(np.sqrt(self.FOM.products['bochner_prod_V'].apply2(p_r-p,p_r-p))[0,0] / np.sqrt(self.FOM.products['bochner_prod_V'].apply2(p,p))[0,0])
             
@@ -280,6 +286,13 @@ class Optimizer(BasicObject):
             # # print((nabla_J - nabla_J_r).to_numpy() / nabla_J.to_numpy())
             # print(self.FOM.compute_gradient_norm(nabla_J - nabla_J_r) / self.FOM.compute_gradient_norm(nabla_J))
             
+            #print(u - u_r)
+
+            # print(r"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+            # np.set_printoptions(threshold=np.inf)
+            # print(u_r[-1])
+            # print(p_r[0])
+
             return np.abs(J - J_r), np.nan
             #self.FOM.compute_gradient_norm(nabla_J - nabla_J_r)
             
@@ -465,10 +478,10 @@ class Optimizer(BasicObject):
                 else:
                     self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
 
-            print(".........................")
-            print(q)
-            print(d)
-            print(q+d)
+            # print(".........................")
+            # print(q)
+            # print(d)
+            # print(q+d)
 
             loop_terminated = loop_terminated or (count >= reg_loop_max)
 
@@ -486,7 +499,6 @@ class Optimizer(BasicObject):
             ########################################### Armijo ###########################################
             if use_TR:
                 self.logger.info(f"Enforcing TR condition.")
-                print(TR_backtracking_params['inital_step_size'])
                 q_TR, _, model_unsufficent, TR_max_iter_cond, step_size = self._armijo_TR_line_serach(
                     model = model,
                     previous_q = q,
@@ -500,12 +512,12 @@ class Optimizer(BasicObject):
                 if TR_max_iter_cond:
                     break
                 
-                print("|q-q_TR|")
-                print(model.compute_gradient_norm(q - q_TR))
+                # print("|q-q_TR|")
+                # print(model.compute_gradient_norm(q - q_TR))
                 q = q_TR
             else:
-                print("|d|")
-                print(model.compute_gradient_norm(d))
+                # print("|d|")
+                # print(model.compute_gradient_norm(d))
                 q += d
 
             ########################################### Final ###########################################
@@ -985,7 +997,7 @@ class QrVrROMOptimizer(Optimizer):
         }
 
     def _append_snapshot_set(self, 
-                             snapshots: List[VectorArray],
+                             snapshots: VectorArray,
                              basis: str,
                              enrichment: Dict) -> None:
  
@@ -1011,6 +1023,7 @@ class QrVrROMOptimizer(Optimizer):
                     
                 if enrichment[basis]['transformation']['normalize']:
                     norms = self.parameter_shapshots.norm(self.FOM.products['prod_Q'])
+                    norms[norms <= 1e-16] = 1
                     self.parameter_shapshots.scal(1/norms)
                 
 
@@ -1104,12 +1117,22 @@ class QrVrROMOptimizer(Optimizer):
         assert HaPOD_tol > 0
         assert product.source == product.range == snapshots.space
 
-        snapshots, _, _ = \
-        inc_vectorarray_hapod(steps=len(snapshots)/2, 
-                              U=snapshots, 
+        # print(len(snapshots))
+        # self.reductor.bases['state_basis'].append(snapshots)
+        # print(len(self.reductor.bases['state_basis']))
+
+        snapshots, svals, _ = \
+        inc_vectorarray_hapod(steps=len(self.reductor.bases['state_basis'])/2, 
+                              U=self.reductor.bases['state_basis'], 
                               eps=HaPOD_tol,
                               omega=0.1,                
                               product=product)
+
+        print(len(self.reductor.bases['state_basis']))
+
+        if basis == 'state_basis':
+            print("AA")
+            print(svals)
 
         self.reductor.bases[basis] = snapshots
     
@@ -1263,6 +1286,7 @@ class QrVrROMOptimizer(Optimizer):
                     HaPOD_tol = state_HaPOD_tol
                 )
                 self.reductor.delete_cached_operators(targets=['A_r'])
+
             elif state_strategy == 'last_n_vectors':
                 self._extend_basis_last_n_vectors(
                     snapshots = self.state_shapshots,
@@ -1270,6 +1294,8 @@ class QrVrROMOptimizer(Optimizer):
                     product=self.FOM.products['prod_V'],
                     HaPOD_tol = state_HaPOD_tol
                 )
+                self.reductor.delete_cached_operators(targets=['A_r'])
+
             elif state_strategy == 'HaPOD_on_basis':
                 self._extend_basis_HaPOD_on_basis(
                     snapshots = self.state_shapshots,
@@ -1278,8 +1304,19 @@ class QrVrROMOptimizer(Optimizer):
                     HaPOD_tol = state_HaPOD_tol
                 )
                 self.reductor.delete_cached_operators(targets=['A_r'])
+
             else:
                 raise ValueError
+        
+        print("##########################################")
+        snapshots = self.reductor.bases['state_basis']
+        snapshots, svals, _ = \
+        inc_vectorarray_hapod(steps=len(snapshots)/2, 
+                              U=snapshots, 
+                              eps=1e-16,
+                              omega=0.1,                
+                              product=self.FOM.products['prod_V'])
+        print(svals)
         
         self.statistics["outer_loop_runtime"]['extend_state_basis_runtime'][-1] += (timer() - extend_state_basis_start_time)
             
@@ -1388,34 +1425,57 @@ class QrVrROMOptimizer(Optimizer):
 
         self.logger.debug(f"Extending Qr-snapshots")
         self.parameter_shapshots = self.FOM.Q.empty()
+
+        _parameter_shapshots = self.FOM.Q.empty()
+        _parameter_shapshots.append(nabla_J)
+        _parameter_shapshots.append(q)
+        _parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
+
+        if enrichment['parameter_basis']['include_GN_hessian']:
+            GN_hessian = self.FOM.Q.make_array(np.outer(nabla_J.to_numpy()[0], nabla_J.to_numpy()[0]))
+            _parameter_shapshots.append(GN_hessian)
+
+            print(GN_hessian)
+            print(len(_parameter_shapshots))
+        
+
+        B_u = [self.FOM.B(u[idx], idx) for idx in range(len(u))]
+        for idx in range(0, self.FOM.nt + 1):
+            _parameter_shapshots.append(self.FOM.Q.make_array(B_u[idx].B_u_ad(p[idx])))
+
+        # import matplotlib.pyplot as plt
+        # # First image
+        # plt.figure()
+        # plt.imshow(nabla_J.to_numpy()[0].reshape(31, 31), cmap='viridis')
+        # plt.colorbar(label='Value')  # add colorbar on the right
+        # plt.title('nabla_J[0]')
+        # plt.tight_layout()
+        # plt.savefig(self.save_path / 'nabla_J_0.png')
+        # plt.close()
+
+        # # Second image
+        # for i in [0,500,-1]:
+        #     plt.figure()
+        #     plt.imshow(GN_hessian.to_numpy()[i].reshape(31,31), cmap='viridis')
+        #     plt.colorbar(label='Value')  # add colorbar on the right
+        #     plt.title('GN_hessian[0]')
+        #     plt.tight_layout()
+        #     plt.savefig(self.save_path / f'GN_hessian_{i}.png')
+        #     plt.close()
+
+        # import sys
+        # sys.exit()
+
+
+        #_parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_exact']))
+
+
         self._append_snapshot_set(
-            [nabla_J, q, self.FOM.Q.make_array(self.FOM.setup['q_circ'])],
+            _parameter_shapshots,
             basis='parameter_basis',
             enrichment=enrichment
         )
-
-        # cols = [0,10,15,20,25,30]
-        # rows = [0,10,15,20,25,30]
-        # # cols = [0,5,10,15,20]
-        # # rows = [0,5,10,15,20]
-
-        # # cols = [0,2,5,7,10,12,15,17,20]
-        # # rows = [0,2,5,7,10,12,15,17,20]
-        # # cols = list(np.arange(20))
-        # # rows = list(np.arange(20))
-        # # cols = [0,2,4,6,8]
-        # # rows = [0,2,4,6,8]
-        # for i_ in range(1,len(cols)):
-        #     for j_ in range(1,len(rows)):
-        #         additional_q = np.zeros((31,31))
-        #         #additional_q = np.zeros((21,21))
-        #         #additional_q = np.zeros((9,9))
-        #         additional_q[cols[i_-1]:cols[i_], rows[j_-1]:rows[j_]] = 1
-        #         self.parameter_shapshots.append(
-        #             self.FOM.Q.make_array(additional_q.flatten())
-        #         )
-        
-                    
+                  
         self.logger.debug(f"Extending Vr-snapshots")
         self.state_shapshots = self.FOM.V.empty()
         self._append_snapshot_set(
@@ -1428,15 +1488,6 @@ class QrVrROMOptimizer(Optimizer):
             basis='both',
             enrichment=enrichment
         )
-
-        # state_basis = self.reductor._get_projection_basis(basis='state_basis')
-        # for base_idx in range(len(state_basis)):
-        #     self.FOM.A.material_model.save_state(
-        #         state_basis[base_idx].vectors[0].real_part.impl,
-        #         str(self.save_path / ('basis_' + str(base_idx) + '.vtk'))
-        #    )
-        
-        
 
         q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
         q_r = self.QrVrROM.Q.make_array(q_r)
@@ -1745,7 +1796,7 @@ class QrVrROMOptimizer(Optimizer):
                     norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
                     self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
 
-                    delta_J = self.statistics["J"][-1] -J
+                    delta_J = self.statistics["J"][-1] - J
                     delta_J_r = self.statistics["J_r"][-1]-J_r
 
                     if delta_J_r > 0:
@@ -1769,21 +1820,28 @@ class QrVrROMOptimizer(Optimizer):
                     self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
                 else:
                     solve_snapshot_FOM_start_time = timer()
-                    q = self.reductor.reconstruct(q_r, basis='parameter_basis')
-                    u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-                    p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
-                    J = self.FOM.objective(u)
-                    nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
-                    norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
+                    q_ = self.reductor.reconstruct(q_r, basis='parameter_basis')
+                    u_ = self.FOM.solve_state(q_, use_cached_operators=use_cached_operators)
+                    p_ = self.FOM.solve_adjoint(q_, u_, use_cached_operators=use_cached_operators)
+                    J_ = self.FOM.objective(u_)
+                    nabla_J_ = self.FOM.gradient(u_, p_, q, use_cached_operators=use_cached_operators)
+                    norm_nabla_J_ = self.FOM.compute_gradient_norm(nabla_J_)
                     self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
                     
-                    EASDC = J <= J_r_AGC
+                    EASDC = J_ <= J_r_AGC
                     self.logger.info(f"    J = {J:3.4e}; EASDC = {EASDC}.")
                     
                     if EASDC:
                         self.logger.info(f"    Accept q.")
                         rejected = False
 
+                        q = q_
+                        u = u_
+                        p = p_
+                        J = J_
+                        nabla_J = nabla_J_
+                        norm_nabla_J = norm_nabla_J_
+                        
                         delta_J = self.statistics["J"][-1] - J
                         delta_J_r = self.statistics["J_r"][-1] - J_r
 
@@ -1834,81 +1892,30 @@ class QrVrROMOptimizer(Optimizer):
                 if IRGNM_statistic is not None:
                     try:
                         alpha = IRGNM_statistic["alpha"][1]
+                        #alpha = IRGNM_statistic["alpha"][-1]
                     except IndexError:
                         pass
                     
                 if not convergence_criterium:
-
-                    # self.FOM.A.material_model.save_time_series(
-                    #     [v.real_part.impl for v in u.vectors],
-                    #     str('u_final' + str(i)),
-                    #     str(self.save_path),
-                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-                    # )
-
-                    # self.FOM.A.material_model.save_time_series(
-                    #     [v.real_part.impl for v in p.vectors],
-                    #     str('p_final' + str(i)),
-                    #     str(self.save_path),
-                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-                    # )
-                    
-                    # u_r = self.QrVrROM.solve_state(q_r)
-                    # p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
-
-                    # u_r_final = self.reductor.reconstruct(u_r, basis='state_basis')
-                    # self.FOM.A.material_model.save_time_series(
-                    #     [v.real_part.impl for v in u_r_final.vectors],
-                    #     str('u_r_final' + str(i)),
-                    #     str(self.save_path),
-                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-                    # )
-
-                    # p_r_final = self.reductor.reconstruct(p_r, basis='state_basis')
-                    # self.FOM.A.material_model.save_time_series(
-                    #     [v.real_part.impl for v in p_r_final.vectors],
-                    #     str('p_r_final' + str(i)),
-                    #     str(self.save_path),
-                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-                    # )
-
-
-                    # self.FOM.A.material_model.save_time_series(
-                    #     [v.real_part.impl for v in u.vectors],
-                    #     str('u_final' + str(i)),
-                    #     str(self.save_path),
-                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-                    # )
-
-                    # self.FOM.A.material_model.save_time_series(
-                    #     [v.real_part.impl for v in p.vectors],
-                    #     str('p_final' + str(i)),
-                    #     str(self.save_path),
-                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-                    # )
-                    
-                    # diff_u_r_final = u_r_final - u
-                    # self.FOM.A.material_model.save_time_series(
-                    #     [v.real_part.impl for v in diff_u_r_final.vectors],
-                    #     str('diff_u_r_final' + str(i)),
-                    #     str(self.save_path),
-                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-                    # )
-
-                    # diff_p_r_final = p_r_final - p
-                    # self.FOM.A.material_model.save_time_series(
-                    #     [v.real_part.impl for v in diff_p_r_final.vectors],
-                    #     str('diff_p_r_final' + str(i)),
-                    #     str(self.save_path),
-                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-                    # )
-
-
                     self.logger.debug(f"Extending Qr-snapshots")
                     self.parameter_shapshots = self.FOM.Q.empty()
+
+                    _parameter_shapshots = self.FOM.Q.empty()
+                    _parameter_shapshots.append(nabla_J)
+                    
+                    if enrichment['parameter_basis']['include_GN_hessian']:
+                        GN_hessian = self.FOM.Q.make_array(np.outer(nabla_J.to_numpy()[0], nabla_J.to_numpy()[0]))
+                        _parameter_shapshots.append(GN_hessian)
+
+                    B_u = [self.FOM.B(u[idx], idx) for idx in range(len(u))]
+                    for idx in range(0, self.FOM.nt + 1):
+                        _parameter_shapshots.append(self.FOM.Q.make_array(B_u[idx].B_u_ad(p[idx])))
+
+
+                    #_parameter_shapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_exact']))
+
                     self._append_snapshot_set(
-                        [nabla_J],
-                        #[nabla_J, q],
+                        _parameter_shapshots,
                         basis='parameter_basis',
                         enrichment=enrichment
                     )
@@ -1926,73 +1933,24 @@ class QrVrROMOptimizer(Optimizer):
                         enrichment=enrichment
                     )
 
-                    # snapshots = self.reductor.bases['state_basis']
-                    # snapshots, svals, _ = \
-                    # inc_vectorarray_hapod(steps=len(snapshots)/2, 
-                    #                     U=snapshots, 
-                    #                     eps=1e-16,
-                    #                     omega=0.1,                
-                    #                     product=self.FOM.products['prod_V'])
-                    
-                    # print(svals)
-                    # print(len(svals))
-
-                    # lin_u = self.FOM.solve_linearized_state(q,u=u,d=nabla_J)
-                    # lin_p = self.FOM.solve_linearized_adjoint(q,u=u,lin_u=lin_u)
-
-                    # self.state_shapshots.append(lin_u)
-                    # self.state_shapshots.append(lin_p)
-
-
-                    # p_x = p.copy(deep=True)
-                    # p_y = p.copy(deep=True)
-                    # p_z = p.copy(deep=True)
-
-                    # for v in p_x.vectors:
-                    #     self.FOM.A.material_model.get_component_dofs(v.real_part.impl, 0)
-                    # self.state_shapshots.append(self.FOM.V.make_array(p_x.vectors))
-                    # for v in p_y.vectors:
-                    #     self.FOM.A.material_model.get_component_dofs(v.real_part.impl, 1)
-                    # self.state_shapshots.append(self.FOM.V.make_array(p_y.vectors))
-                    # for v in p_z.vectors:
-                    #     self.FOM.A.material_model.get_component_dofs(v.real_part.impl, 2)
-                    # self.state_shapshots.append(self.FOM.V.make_array(p_z.vectors))
-
-                    # self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
-                    #     basis='both',
-                    #     **enrichment
-                    # )
-
-
-                    # self.state_shapshots = self.FOM.V.empty()
-                    # #self.state_shapshots.append(u)
-                    # self.state_shapshots.append(p)
-
-                    # self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
-                    #     basis='state_basis',
-                    #     state_strategy='snapshot_HaPOD',
-                    #     state_HaPOD_tol=1e-3
-                    # )
-
-
                     q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
                     q_r = self.QrVrROM.Q.make_array(q_r)
 
-            self.statistics["q"].append(q)
-            self.statistics["alpha"].append(alpha)
-            self.statistics["J"].append(J)
-            self.statistics["norm_nabla_J"].append(norm_nabla_J)
-            self.statistics["J_r"].append(J_r)
-            self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
-            self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
-            self.statistics['abs_est_error_nabla_J_r'].append(abs_est_error_nabla_J_r)
-            self.statistics['rel_est_error_nabla_J_r'].append(rel_est_error_nabla_J_r)
-            self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
-            self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
-            self.statistics["counts"].append(IRGNM_statistic['counts'])
-            self.statistics["inner_loop_statistics"].append(IRGNM_statistic)
-            self.statistics["total_runtime"].append(timer() - start_time)    
-            self.statistics["outer_loop_runtime"]['total_runtime'].append(timer() - outer_loop_start_time)
+                self.statistics["q"].append(q)
+                self.statistics["alpha"].append(alpha)
+                self.statistics["J"].append(J)
+                self.statistics["norm_nabla_J"].append(norm_nabla_J)
+                self.statistics["J_r"].append(J_r)
+                self.statistics['abs_est_error_J_r'].append(abs_est_error_J_r)
+                self.statistics['rel_est_error_J_r'].append(rel_est_error_J_r)
+                self.statistics['abs_est_error_nabla_J_r'].append(abs_est_error_nabla_J_r)
+                self.statistics['rel_est_error_nabla_J_r'].append(rel_est_error_nabla_J_r)
+                self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
+                self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
+                self.statistics["counts"].append(IRGNM_statistic['counts'])
+                self.statistics["inner_loop_statistics"].append(IRGNM_statistic)
+                self.statistics["total_runtime"].append(timer() - start_time)    
+                self.statistics["outer_loop_runtime"]['total_runtime'].append(timer() - outer_loop_start_time)
 
             if (i % dump_every_nth_loop == 0) or (i == 1):
                 self.dump_stats(data=self.statistics,
