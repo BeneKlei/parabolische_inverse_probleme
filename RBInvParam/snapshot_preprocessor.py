@@ -32,8 +32,10 @@ class SnapshotPreprocessor(BasicObject):
         assert HaPOD_tol > 0
         assert product.source == product.range == snapshots.space
 
+
         return \
-        inc_vectorarray_hapod(steps=len(snapshots)/2, 
+        inc_vectorarray_hapod(#steps=len(snapshots)/2, 
+                              steps=1e4, 
                               U=snapshots, 
                               eps=HaPOD_tol,
                               omega=0.1,                
@@ -59,7 +61,7 @@ class SnapshotPreprocessor(BasicObject):
             snapshots.scal(1/norms)
 
         if config['HaPOD']:
-            self._logger.debug(f"    Apply 'HaPOD'")
+            self._logger.debug(f"    Apply 'HaPOD' for tolerance {config['HaPOD']['HaPOD_tol']}")
 
             snapshots, svals, snap_count  = self._HaPOD(
                 snapshots = snapshots,

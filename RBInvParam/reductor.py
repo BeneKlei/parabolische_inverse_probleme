@@ -105,8 +105,9 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         assert set(targets).issubset(set(self._cached_operators.keys()))
 
         for target in targets:
-            del self._cached_operators[target]
+            #del self._cached_operators[target]
             self._cached_operators[target] = None
+        
     
     def calc_projection_error(self,
                               x: VectorArray,
@@ -170,7 +171,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     def _assemble_parameter_reduced_A(self) -> LincombOperator:
         parameter_basis = self._get_projection_basis('parameter_basis')
         
-
         if not self._cached_operators['A']:
             start = 0
             translation_operator = self.FOM.A.get_translation_operator()

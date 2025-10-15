@@ -241,25 +241,25 @@ def main():
         'enrichment': {
             'parameter_basis' : {
                 'sample_every_n_th' : None,
-                'normalize' : True,
+                'normalize' : False,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-1,    
+                    'HaPOD_tol': 1e-16,    
                 },
                 'overwrite' : False
             },
             'state_basis' : {
                 'sample_every_n_th' : None,
-                'normalize' : True,
+                'normalize' : False,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-6,    
+                    'HaPOD_tol': 1e-16,    
                 },
-                'overwrite' : False
+                'overwrite' : True
             },
             'adjoint_basis' : {
                 'sample_every_n_th' : None,
                 'normalize' : False,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-6,    
+                    'HaPOD_tol': 1e-16,    
                 },
                 'overwrite' : False
             }
