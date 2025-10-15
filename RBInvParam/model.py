@@ -455,23 +455,6 @@ class InstationaryModelIP(ImmutableObject):
         else:   
             rhs = self.V.make_array([B_u[idx].B_u(d[0]) for idx in range(len(u))])
             
-        # TODO Check if this is efficent and / or how its efficeny can be improved
-        # if isinstance(self.A, FOMEvaluatorA):
-        #     if self.q_time_dep:
-        #         rhs = self.V.make_array([B_u[idx].B_u(d[idx]) for idx in range(len(u))])
-        #     else:    
-        #         rhs = self.V.make_array([B_u[idx].B_u(d[0]) for idx in range(len(u))])
-        # else:
-        #     raise NotImplementedError
-            # if self.q_time_dep:
-            #     rhs = self.V.make_array(np.array([
-            #         B_u[idx].B_u(d[idx]).to_numpy()[0] for idx in range(len(u))
-            #     ]))
-            # else:            
-            #     rhs = self.V.make_array(np.array([
-            #         B_u[idx].B_u(d[0]).to_numpy()[0] for idx in range(len(u))
-            #     ]))
-
         rhs = (-1) * rhs    
         iterator = self.time_stepper.iterate(initial_data = self.initial_data['lin_state'], 
                                              q=q,

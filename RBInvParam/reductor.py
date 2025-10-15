@@ -41,6 +41,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                  check_orthonormality: bool =False, 
                  check_tol: float = 1e-3,
                  residual_image_basis_mode: str = 'none',
+                 NCD: bool = False,
                  logger: logging.Logger = None):
         
         assert isinstance(FOM, InstationaryModelIP)
@@ -56,26 +57,32 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         self.logger.debug(f"Setting up {self.__class__.__name__}")
 
         bases = {
+            'parameter_basis' : FOM.Q.empty(),
             'state_basis' : FOM.V.empty(),
-            'parameter_basis' : FOM.Q.empty()
+            'adjoint_basis' : FOM.V.empty(),
         }
 
         products = {
+            'parameter_basis' : FOM.products['prod_Q'],
             'state_basis' : FOM.products['prod_V'],
-            'parameter_basis' : FOM.products['prod_Q']
+            'adjoint_basis' : FOM.products['prod_V'],
         }
 
         self._cached_operators = {
             'A' : None,
-            'A_r' : None
+            'A_r_state' : None,
+            'A_r_adjoint' : None
         }
 
         self.dims_history = {
+            'parameter_basis' : [0],
             'state_basis' : [0],
-            'parameter_basis' : [0]
+            'adjoint_basis' : [0],
+            
         }
 
         self.FOM = FOM
+        self.NCD = NCD
         super().__init__(FOM, 
                          bases, 
                          products,
@@ -266,9 +273,9 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         old_basis = state_basis[:dim_V_old]
         added_vectors = state_basis[dim_V_old:]
 
-        if not self._cached_operators['A_r']:
-            self._cached_operators['A_r'] = project(parameter_reduced_A, state_basis, state_basis)
-            return self._cached_operators['A_r']
+        if not self._cached_operators['A_r_state']:
+            self._cached_operators['A_r_state'] = project(parameter_reduced_A, state_basis, state_basis)
+            return self._cached_operators['A_r_state']
         
         coefficients = parameter_reduced_A.coefficients
         base_operators = parameter_reduced_A.operators
@@ -283,7 +290,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             
             if i < dim_Q_old:
                 #VTAV = operator.matrix
-                VTAV = self._cached_operators['A_r'].operators[i].matrix
+                VTAV = self._cached_operators['A_r_state'].operators[i].matrix
                 assert VTAV.shape == (dim_V_old, dim_V_old)
                 AW = operator.apply(added_vectors)
                 VTAW = old_basis.inner(AW)
@@ -316,11 +323,11 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         #     operators.append(process_operator((i,operator)))
 
 
-        self._cached_operators['A_r'] = LincombOperator(
+        self._cached_operators['A_r_state'] = LincombOperator(
             operators=operators,
             coefficients=coefficients
         )
-        return self._cached_operators['A_r']
+        return self._cached_operators['A_r_state']
     
     def project_operators(self,
                           parameter_reduced_A: LincombOperator,
@@ -367,7 +374,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         else:
             L = self.FOM.L
 
-        print("4")
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
         prod_V = project(self.FOM.products['prod_V'], state_basis, state_basis)
 
@@ -401,15 +407,11 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                 }
                 for key, subdict in self.FOM.initial_data.items()
             }
-            #linear_cost_term = self.project_vectorarray(self.FOM.linear_cost_term, basis='state_basis')
             linear_cost_term = self.FOM.linear_cost_term.inner(self.bases['state_basis'])
             linear_cost_term = V.make_array(linear_cost_term)
         else:
             projected_initial_data = self.FOM.initial_data
             linear_cost_term = self.FOM.linear_cost_term
-
-        print("5")
-
 
         # m = pd2.SparseMatrix()
         # m.reinit(self.FOM.M.matrix.get_sparsity_pattern())

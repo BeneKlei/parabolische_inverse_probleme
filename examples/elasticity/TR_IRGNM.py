@@ -40,11 +40,11 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    # y_res = 30
+    # z_res = 30
 
-    # y_res = 8
-    # z_res = 8
+    y_res = 8
+    z_res = 8
 
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
@@ -70,15 +70,15 @@ def main():
     q_exact = np.ones((1,par_dim)) * 1
 
 
-    q_exact[0,200] = 2
-    q_exact[0,300] = 3
+    # q_exact[0,200] = 2
+    # q_exact[0,300] = 3
 
     #q_exact[0,:] = 3    
 
     # q_exact[0,450] = 2
     # q_exact[0,470] = 3
 
-    #q_exact[0,50] = 2
+    q_exact[0,50] = 2
     q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
@@ -101,7 +101,7 @@ def main():
         'observation_operator': {
             #'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
@@ -194,10 +194,12 @@ def main():
         #'Theta': 1.00,                                               # Upper bound for step acceptance condition
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
+        'NCD' : False,
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
-        'i_max_inner': 15,                                           # Max number of inner iterations
+        #'i_max_inner': 15,                                           # Max number of inner iterations
+        'i_max_inner': 30,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC
         'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
         #'TR_armijo_max_iter': 2,                                     # Max iterations Armijo condition to enforce the trust-region 
@@ -215,24 +217,51 @@ def main():
         #     'atol': 1e-12,                                         # Absolute convergence tolerance
         #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
         # },
+        # 'enrichment': {
+        #     'parameter_basis' : {
+        #         'strategy': 'snapshot_HaPOD',                  
+        #         'HaPOD_tol': 1e-3,
+        #         'transformation' : {
+        #             'sample_every_n_th' : 1,
+        #             'normalize': True,
+        #         },
+        #         'include_GN_hessian' : False
+        #     },
+        #     'state_basis' : {
+        #         #'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
+        #         'strategy': 'full_HaPOD',                      # Enrichment strategy for state basi                
+        #         'HaPOD_tol': 1e-6,
+        #         'transformation' : {
+        #             'sample_every_n_th' : 1,
+        #             'normalize': True
+        #         }
+        #     }
+        # },
+
         'enrichment': {
             'parameter_basis' : {
-                'strategy': 'snapshot_HaPOD',                  
-                'HaPOD_tol': 1e-3,
-                'transformation' : {
-                    'sample_every_n_th' : 1,
-                    'normalize': True,
+                'sample_every_n_th' : None,
+                'normalize' : True,
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-1,    
                 },
-                'include_GN_hessian' : False
+                'overwrite' : False
             },
             'state_basis' : {
-                #'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-                'strategy': 'full_HaPOD',                      # Enrichment strategy for state basi                
-                'HaPOD_tol': 1e-6,
-                'transformation' : {
-                    'sample_every_n_th' : 1,
-                    'normalize': True
-                }
+                'sample_every_n_th' : None,
+                'normalize' : True,
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-6,    
+                },
+                'overwrite' : False
+            },
+            'adjoint_basis' : {
+                'sample_every_n_th' : None,
+                'normalize' : False,
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-6,    
+                },
+                'overwrite' : False
             }
         },
         'error_estimator_types' : {
