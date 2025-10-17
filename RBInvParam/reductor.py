@@ -172,6 +172,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         parameter_basis = self._get_projection_basis('parameter_basis')
         
         if not self._cached_operators['A']:
+            print("Called 1")
             start = 0
             translation_operator = self.FOM.A.get_translation_operator()
             if translation_operator:
@@ -274,7 +275,9 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         added_vectors = state_basis[dim_V_old:]
 
         if not self._cached_operators['A_r_state']:
-            self._cached_operators['A_r_state'] = project(parameter_reduced_A, state_basis, state_basis)
+            print("Called 2")
+            self._cached_operators['A_r_state'] = project(parameter_reduced_A, state_basis, state_basis)    
+
             return self._cached_operators['A_r_state']
         
         coefficients = parameter_reduced_A.coefficients
@@ -373,6 +376,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                 L = project(self.FOM.L, state_basis, None)
         else:
             L = self.FOM.L
+
 
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
         prod_V = project(self.FOM.products['prod_V'], state_basis, state_basis)

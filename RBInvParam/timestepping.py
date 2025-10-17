@@ -213,7 +213,6 @@ class NewmanSecondOrder(TimeStepper):
                 config: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
         
         ################################### Prepare ###################################
-
         assert isinstance(rhs, VectorArray)
         assert len(rhs) in (self.nt + 1, 1)
 

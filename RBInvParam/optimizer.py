@@ -262,36 +262,30 @@ class Optimizer(BasicObject):
             #     q = q
             # ), basis='parameter_basis')
 
-            u = self.FOM.solve_state(q=self.reductor.reconstruct(q, basis='parameter_basis'), 
-                             use_cached_operators=use_cached_operators)
-            # p = self.FOM.solve_adjoint(q=self.reductor.reconstruct(q, basis='parameter_basis'), 
-            #                     u=u, 
-            #                     use_cached_operators=use_cached_operators)
+            # u = self.FOM.solve_state(q=self.reductor.reconstruct(q, basis='parameter_basis'), 
+            #                  use_cached_operators=use_cached_operators)
+            # # p = self.FOM.solve_adjoint(q=self.reductor.reconstruct(q, basis='parameter_basis'), 
+            # #                     u=u, 
+            # #                     use_cached_operators=use_cached_operators)
             
-            u_r = self.reductor.reconstruct(
-                model.solve_state(q=q, use_cached_operators=use_cached_operators),
-                basis='state_basis'
-            )
-            # p_r = model.solve_adjoint(q=q, 
-            #                           u=u_r, 
-            #                           use_cached_operators=use_cached_operators)
+            # u_r = self.reductor.reconstruct(
+            #     model.solve_state(q=q, use_cached_operators=use_cached_operators),
+            #     basis='state_basis'
+            # )
+            # # p_r = model.solve_adjoint(q=q, 
+            # #                           u=u_r, 
+            # #                           use_cached_operators=use_cached_operators)
             
-            # print(np.sqrt(self.FOM.products['bochner_prod_V'].apply2(p_r-p,p_r-p))[0,0] / np.sqrt(self.FOM.products['bochner_prod_V'].apply2(p,p))[0,0])
+            # # print(np.sqrt(self.FOM.products['bochner_prod_V'].apply2(p_r-p,p_r-p))[0,0] / np.sqrt(self.FOM.products['bochner_prod_V'].apply2(p,p))[0,0])
                         
-            self.I += 1
-            diff = u - u_r
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in diff.vectors],
-                str(f'diff_u_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
-            #print(u - u_r)
-
-            # print(r"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-            # np.set_printoptions(threshold=np.inf)
-            # print(u_r[-1])
-            # print(p_r[0])
+            # self.I += 1
+            # diff = u - u_r
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in diff.vectors],
+            #     str(f'diff_u_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
             return np.abs(J - J_r), np.nan
             #self.FOM.compute_gradient_norm(nabla_J - nabla_J_r)
@@ -1021,37 +1015,28 @@ class QrVrROMOptimizer(Optimizer):
             self.logger.debug(f"Extending '{basis}'")
             snapshots = self.snapshots[basis]
 
+            # self.statistics['extention_stats']['snapshot_projection_error'][basis].append(
+            #     self.reductor.calc_projection_error(
+            #         x = snapshots,
+            #         basis = basis,
+            #         normalize = False
+            #     )
+            # )
 
-            self.statistics['extention_stats']['snapshot_projection_error'][basis].append(
-                self.reductor.calc_projection_error(
-                    x = snapshots,
-                    basis = basis,
-                    normalize = False
-                )
-            )
-
-            if basis == 'parameter_basis':
-                product = self.FOM.products['prod_Q']
-            else:
-                product = self.FOM.products['prod_V']
-
-            snapshots = self.snapshot_preprocessor.preprocess(
-                snapshots = snapshots,
-                product = product,
-                config = enrichment[basis]
-            )
-
-            if enrichment[basis]['overwrite']:            
-                # from pymor.core.cache import clear_caches
-                # clear_caches()
-                
+            if enrichment[basis]['overwrite']:
                 self.reductor.delete_cached_operators()
                 
                 if basis == 'parameter_basis':
                     self.reductor.bases[basis] = self.FOM.Q.empty()
                 else:
                     self.reductor.bases[basis] = self.FOM.V.empty()
-                
+            
+            snapshots = self.snapshot_preprocessor.preprocess(
+                snapshots = snapshots,
+                product = self.reductor.products[basis],
+                config = enrichment[basis]
+            )
+    
             try:
                 self.reductor.extend_basis(
                     U = snapshots,
@@ -1192,9 +1177,9 @@ class QrVrROMOptimizer(Optimizer):
         #     print(len(_parameter_snapshots))
         
 
-        # B_u = [self.FOM.B(u[idx], idx) for idx in range(len(u))]
-        # for idx in range(0, self.FOM.nt + 1):
-        #     self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(B_u[idx].B_u_ad(p[idx])))
+        B_u = [self.FOM.B(u[idx], idx) for idx in range(len(u))]
+        for idx in range(0, self.FOM.nt + 1):
+            self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(B_u[idx].B_u_ad(p[idx])))
 
         # self._append_snapshot_set(
         #     _parameter_snapshots,
@@ -1286,9 +1271,13 @@ class QrVrROMOptimizer(Optimizer):
             else:
                 rel_est_error_J_r = np.inf
 
+            print("---------------------")
             print(rel_est_error_J_r)
             print(abs_est_error_J_r)
             print(J_r)
+            print(J)
+            print("---------------------")
+
 
             proj_q_in_tr = rel_est_error_J_r <= eta
         
@@ -1298,12 +1287,11 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics['flags']['proj_q_in_tr'].append(proj_q_in_tr)
 
             if not proj_q_in_tr:
-                # del self.reductor
-                self.reductor = InstationaryModelIPReductor(
-                    self.FOM,
-                    self.optimizer_parameter['error_estimator_types'],
-                    NCD = self.optimizer_parameter["NCD"]
-                )
+                # self.reductor = InstationaryModelIPReductor(
+                #     self.FOM,
+                #     self.optimizer_parameter['error_estimator_types'],
+                #     NCD = self.optimizer_parameter["NCD"]
+                # )
 
                 self._logger.warning(f"q^(i) is not in the trust region.")
                 self._logger.warning(f"Extending reduced spaces with all snapshots.")
@@ -1311,13 +1299,14 @@ class QrVrROMOptimizer(Optimizer):
                 _enrichment = copy.deepcopy(enrichment)
                 for basis in self.reduced_bases:
                     _enrichment[basis]['sample_every_n_th'] = None
-                    _enrichment[basis]['HaPOD']['HaPOD_tol'] = MACHINE_EPS
+                    _enrichment[basis]['HaPOD'] = None
                     #_enrichment[basis]['overwrite'] = False
                 
                 self._reset_snapshots()
                 self.logger.debug(f"Extending Qr-snapshots")
 
                 self.snapshots['parameter_basis'].append(nabla_J)
+                
                                 
                 self.logger.debug(f"Extending Vr-snapshots")
                 if self.reductor.NCD:
@@ -1327,7 +1316,6 @@ class QrVrROMOptimizer(Optimizer):
                     self.snapshots['state_basis'].append(u)
                     self.snapshots['state_basis'].append(p)
 
-                
                 self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                     bases=self.reduced_bases,
                     enrichment=_enrichment
@@ -1339,17 +1327,52 @@ class QrVrROMOptimizer(Optimizer):
                 p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=False)
                 J_r = self.QrVrROM.objective(u_r)
 
-                print(self.reductor.reconstruct(u_r, basis='state_basis').to_numpy())
-                print(u.to_numpy())
+                # u_ = self.reductor.reconstruct(u_r, basis='state_basis').to_numpy()
+                # u = self.FOM.solve_state(q)
+                # print(u_)
+                # print(u.to_numpy())
+                
 
-                print(u_r)
-                print(self.reductor.project_vectorarray(u, 'state_basis'))
+                # # print(u_r)
+                
 
-                print(J_r)
-                print(J)
+                # A_r = self.QrVrROM.A(q_r).assemble().matrix
+                # A = self.FOM.A(q)
+                # from pymor.algorithms.projection import project
+                # state_basis = self.reductor._get_projection_basis('state_basis')
+                # A = project(A, state_basis, state_basis)
 
-                import sys
-                sys.exit()
+                # # print(A_r)
+                # # print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
+                # # print(A.matrix)
+
+                # print(np.max(np.abs(A.matrix - A_r)))
+
+                # M_r = self.QrVrROM.M.matrix
+                # M = self.FOM.M
+                # from pymor.algorithms.projection import project
+                # state_basis = self.reductor._get_projection_basis('state_basis')
+                # M = project(M, state_basis, state_basis)
+                # print(np.max(np.abs(M.matrix - M_r)))
+
+                # prod_V_r = self.QrVrROM.products['prod_V'].matrix
+                # prod_V = self.FOM.products['prod_V']
+                # from pymor.algorithms.projection import project
+                # state_basis = self.reductor._get_projection_basis('state_basis')
+                # prod_V = project(prod_V, state_basis, state_basis)
+                # print(np.max(np.abs(prod_V.matrix - prod_V_r)))
+
+                # print(np.max(np.abs(u_ - u.to_numpy())))
+                # #print(np.max(np.abs(u_r.to_numpy() - self.reductor.project_vectorarray(u, 'state_basis'))))
+
+                
+
+
+                # print(J_r)
+                # print(J)
+
+                # import sys
+                # sys.exit()
 
 
                 nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
@@ -1367,9 +1390,9 @@ class QrVrROMOptimizer(Optimizer):
                 else:
                     rel_est_error_J_r = np.inf
             
-            print(rel_est_error_J_r)
-            print(eta)
-            print(proj_q_in_tr)
+            # print(rel_est_error_J_r)
+            # print(eta)
+            # print(proj_q_in_tr)
             assert (rel_est_error_J_r - 1e-16) <= eta 
 
             IRGNM_statistic = None
@@ -1649,9 +1672,9 @@ class QrVrROMOptimizer(Optimizer):
                     #     GN_hessian = self.FOM.Q.make_array(np.outer(nabla_J.to_numpy()[0], nabla_J.to_numpy()[0]))
                     #     _parameter_snapshots.append(GN_hessian)
 
-                    # B_u = [self.FOM.B(u[idx], idx) for idx in range(len(u))]
-                    # for idx in range(0, self.FOM.nt + 1):
-                    #     self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(B_u[idx].B_u_ad(p[idx])))
+                    B_u = [self.FOM.B(u[idx], idx) for idx in range(len(u))]
+                    for idx in range(0, self.FOM.nt + 1):
+                        self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(B_u[idx].B_u_ad(p[idx])))
 
 
                     #_parameter_snapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_exact']))

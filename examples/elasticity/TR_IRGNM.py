@@ -38,13 +38,19 @@ set_log_levels({
 set_defaults({})
 
 #########################################################################################''
+# from pymor.core.cache import clear_caches
+# from pymor.core.cache import disable_caching
+
+# disable_caching()
+# clear_caches()
+#########################################################################################''
 
 def main():
-    # y_res = 30
-    # z_res = 30
+    y_res = 30
+    z_res = 30
 
-    y_res = 8
-    z_res = 8
+    # y_res = 8
+    # z_res = 8
 
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
@@ -70,15 +76,15 @@ def main():
     q_exact = np.ones((1,par_dim)) * 1
 
 
-    # q_exact[0,200] = 2
-    # q_exact[0,300] = 3
+    q_exact[0,200] = 2
+    q_exact[0,300] = 3
 
     #q_exact[0,:] = 3    
 
     # q_exact[0,450] = 2
     # q_exact[0,470] = 3
 
-    q_exact[0,50] = 2
+    #q_exact[0,50] = 2
     q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
@@ -99,9 +105,9 @@ def main():
             }
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
@@ -241,19 +247,19 @@ def main():
         'enrichment': {
             'parameter_basis' : {
                 'sample_every_n_th' : None,
-                'normalize' : False,
+                'normalize' : True,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-16,    
+                    'HaPOD_tol': 1e-2,    
                 },
                 'overwrite' : False
             },
             'state_basis' : {
                 'sample_every_n_th' : None,
-                'normalize' : False,
+                'normalize' : True,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-16,    
+                    'HaPOD_tol': 1e-6,    
                 },
-                'overwrite' : True
+                'overwrite' : False
             },
             'adjoint_basis' : {
                 'sample_every_n_th' : None,
