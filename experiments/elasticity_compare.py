@@ -110,6 +110,8 @@ TR_optimizer_parameter = {
     'theta': 0.4,
     'Theta': 1.95,                                               # Upper bound for step acceptance condition
     'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
+    'NCD' : False,
+    'offline_parallel' : True,
     #####################
     'i_max': 75,                                                 # Max number of outer optimization iterations
     'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
@@ -130,12 +132,35 @@ TR_optimizer_parameter = {
     #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
     # },
     'enrichment': {
-        'parameter_strategy': 'snapshot_HaPOD',                  # Enrichment strategy for parameter basis
-        'parameter_HaPOD_tol': 1e-16,                             # Tolerance for parameter basis POD
-        'parameter_normalize': False,
-        'state_strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-        'state_HaPOD_tol': 1e-6,
-        'state_normalize': True                            # Tolerance for state basis POD
+        'parameter_basis' : {
+            'include_each_time_step' : True,
+            'sample_every_n_th' : None,
+            'normalize' : True,
+            'HaPOD' : {
+                'HaPOD_tol': 1e-1,    
+            },
+            # 'normalize' : None,
+            # 'HaPOD' : None,
+            'overwrite' : False,
+            'keep_last_n': None
+        },
+        'state_basis' : {
+            'sample_every_n_th' : None,
+            'normalize' : True,
+            'HaPOD' : {
+                'HaPOD_tol': 1e-10,    
+            },
+            'overwrite' : False,
+            'keep_last_n': None
+        },
+        'adjoint_basis' : {
+            'sample_every_n_th' : None,
+            'normalize' : False,
+            'HaPOD' : {
+                'HaPOD_tol': 1e-16,    
+            },
+            'overwrite' : False
+        }
     },
     'error_estimator_types' : {
         'state' : StateErrorEstimatorType.NONE,
