@@ -34,8 +34,7 @@ class SnapshotPreprocessor(BasicObject):
 
 
         return \
-        inc_vectorarray_hapod(#steps=len(snapshots)/2, 
-                              steps=1e4, 
+        inc_vectorarray_hapod(steps=len(snapshots)/2, 
                               U=snapshots, 
                               eps=HaPOD_tol,
                               omega=0.1,                

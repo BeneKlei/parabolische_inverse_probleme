@@ -79,6 +79,12 @@ def main():
     q_exact[0,200] = 2
     q_exact[0,300] = 3
 
+    # q_exact = q_exact.reshape(31,31)
+    # for i in [10,11,12,13,14]:
+    #     q_exact[i, :] = 2
+    # q_exact = q_exact.flatten()
+    
+
     #q_exact[0,:] = 3    
 
     # q_exact[0,450] = 2
@@ -201,6 +207,8 @@ def main():
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         'NCD' : False,
+        #'offline_parallel' : False,
+        'offline_parallel' : True,
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
@@ -214,52 +222,31 @@ def main():
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
             #'lin_solver_tol': 1e-6,                                 # Convergence tolerance for the linear solver
-            'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'inital_step_size': 1                                    # Initial step size for iterative linear solver
         },
-        # 'lin_solver_parms': {
-        #     'method': 'BiCGSTAB',                                  # BiCGSTAB method for solving nonsymmetric linear systems
-        #     'rtol': 1e-12,                                         # Relative convergence tolerance
-        #     'atol': 1e-12,                                         # Absolute convergence tolerance
-        #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
-        # },
-        # 'enrichment': {
-        #     'parameter_basis' : {
-        #         'strategy': 'snapshot_HaPOD',                  
-        #         'HaPOD_tol': 1e-3,
-        #         'transformation' : {
-        #             'sample_every_n_th' : 1,
-        #             'normalize': True,
-        #         },
-        #         'include_GN_hessian' : False
-        #     },
-        #     'state_basis' : {
-        #         #'strategy': 'snapshot_HaPOD',                      # Enrichment strategy for state basis
-        #         'strategy': 'full_HaPOD',                      # Enrichment strategy for state basi                
-        #         'HaPOD_tol': 1e-6,
-        #         'transformation' : {
-        #             'sample_every_n_th' : 1,
-        #             'normalize': True
-        #         }
-        #     }
-        # },
-
         'enrichment': {
             'parameter_basis' : {
+                'include_each_time_step' : True,
                 'sample_every_n_th' : None,
                 'normalize' : True,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-2,    
+                    'HaPOD_tol': 1e-1,    
                 },
-                'overwrite' : False
+                # 'normalize' : None,
+                # 'HaPOD' : None,
+                'overwrite' : False,
+                'keep_last_n': None
             },
             'state_basis' : {
                 'sample_every_n_th' : None,
                 'normalize' : True,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-6,    
+                    'HaPOD_tol': 1e-10,    
                 },
-                'overwrite' : False
+                'overwrite' : False,
+                'keep_last_n': None
             },
             'adjoint_basis' : {
                 'sample_every_n_th' : None,
@@ -281,6 +268,7 @@ def main():
         #####################
         #'eta0': 5 * 1e-1,                                                # Initial trust region tolerance
         'eta0': 1e-2,                                                # Initial trust region tolerance
+        'eta_max' : 0.25,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.90,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 

@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Union, List
+from typing import Dict, Union, List, Tuple
 import numpy as np
 import itertools
 
@@ -536,7 +536,8 @@ class InstationaryModelIP(ImmutableObject):
         
         lin_p = self.A.flip_vector_array(lin_p)
         return lin_p
-    
+
+
 #%% objective and gradient
     def objective(self, 
                   u: Union[VectorArray, np.ndarray],
@@ -573,7 +574,8 @@ class InstationaryModelIP(ImmutableObject):
                  p: VectorArray,
                  q: VectorArray = None,
                  alpha: float = 0,
-                 use_cached_operators: bool = False) -> NumpyVectorArray:
+                 use_cached_operators: bool = False,
+                 return_per_time_step : bool = False) -> NumpyVectorArray | Tuple[NumpyVectorArray, NumpyVectorArray]:
         
         assert u in self.V
         assert p in self.V
@@ -602,17 +604,20 @@ class InstationaryModelIP(ImmutableObject):
             grad.append(self.Q.make_array(B_u[idx].B_u_ad(p[idx])))
 
         if not self.q_time_dep:
-            grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
+            _grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
         
         if self.riesz_rep_grad:
-            grad = self.products['prod_Q'].apply_inverse(grad) 
+            _grad = self.products['prod_Q'].apply_inverse(_grad) 
         
         if alpha > 0:
-            out = grad + alpha * self.gradient_regularization_term(q)
+            out = _grad + alpha * self.gradient_regularization_term(q)
         else:
-            out = grad
+            out = _grad
 
-        return out
+        if return_per_time_step:
+            return (out, grad)
+        else: 
+            return out
 
     def linearized_objective(self,
                             q: VectorArray,
