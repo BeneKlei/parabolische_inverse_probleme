@@ -714,8 +714,8 @@ class FOMOptimizer(Optimizer):
             model = self.FOM,
             bounds = self.FOM.bounds,
             reductor = None,
-            #use_sufficient_condition = False,
-            use_sufficient_condition = True,
+            use_sufficient_condition = False,
+            #use_sufficient_condition = True,
             logger = self.logger
         )
 
