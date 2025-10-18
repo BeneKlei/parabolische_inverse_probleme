@@ -78,6 +78,7 @@ setup = {
 q_start = q_circ
 
 FOM_optimizer_parameter = {
+    'method' : 'FOM_IRGNM',
     'q_0': q_start,                                          # Initial guess for the parameter to be optimized
     'alpha_0': 1e-5,                                          # Initial regularization parameter
     'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
@@ -102,6 +103,7 @@ FOM_optimizer_parameter = {
 
 
 TR_optimizer_parameter = {
+    'method' : 'TR_IRGNM',
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
     'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
@@ -148,7 +150,7 @@ TR_optimizer_parameter = {
             'sample_every_n_th' : None,
             'normalize' : True,
             'HaPOD' : {
-                'HaPOD_tol': 1e-10,    
+                'HaPOD_tol': 1e-6,    
             },
             'overwrite_every_n' : False,
             'keep_last_n': None
