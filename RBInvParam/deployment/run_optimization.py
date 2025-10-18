@@ -60,10 +60,7 @@ def run_optimization(
                          data = optimizer_parameter,
                          use_timestamp=False)
 
-
-    
-
-    q_exact = FOM.setup["model_parameter"]["q_exact"]
+    q_exact = FOM.setup["q_exact"]
     
     ####################################### SETUP OPTIMIZER #######################################
 
@@ -103,7 +100,7 @@ def run_optimization(
     delta_q = q_est - q_exact
     logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
     
-    if setup["model_parameter"]["q_time_dep"]:
+    if setup["q_time_dep"]:
         norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]
         norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))[0,0]
     else:
