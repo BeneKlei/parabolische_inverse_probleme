@@ -43,7 +43,7 @@ def run_optimization(
 
     ####################################### SETUP FOM #######################################
 
-    FOM, _, _ = build_InstationaryModelIP(setup, logger)
+    FOM = build_InstationaryModelIP(setup, logger)
 
     setup_path = save_path / 'setup.pkl'
     if not setup_path.exists():
