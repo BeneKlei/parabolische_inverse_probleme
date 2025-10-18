@@ -141,7 +141,7 @@ TR_optimizer_parameter = {
             },
             # 'normalize' : None,
             # 'HaPOD' : None,
-            'overwrite' : False,
+            'overwrite_every_n' : False,
             'keep_last_n': None
         },
         'state_basis' : {
@@ -150,7 +150,7 @@ TR_optimizer_parameter = {
             'HaPOD' : {
                 'HaPOD_tol': 1e-10,    
             },
-            'overwrite' : False,
+            'overwrite_every_n' : False,
             'keep_last_n': None
         },
         'adjoint_basis' : {

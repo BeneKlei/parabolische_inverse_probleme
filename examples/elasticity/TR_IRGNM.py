@@ -90,6 +90,7 @@ def main():
     # q_exact[0,450] = 2
     # q_exact[0,470] = 3
 
+    
     #q_exact[0,50] = 2
     q_circ[0,:] = 1
 
@@ -236,16 +237,18 @@ def main():
                 },
                 # 'normalize' : None,
                 # 'HaPOD' : None,
-                'overwrite' : False,
+                'overwrite_every_n' : False,
                 'keep_last_n': None
             },
             'state_basis' : {
                 'sample_every_n_th' : None,
                 'normalize' : True,
-                'HaPOD' : {
-                    'HaPOD_tol': 1e-10,    
-                },
-                'overwrite' : False,
+                # 'HaPOD' : {
+                #     'HaPOD_tol': 1e-10,    
+                # },
+                'HaPOD' : None,
+                'overwrite_every_n' : 1,
+                #'keep_last_n': 400
                 'keep_last_n': None
             },
             'adjoint_basis' : {
@@ -268,7 +271,7 @@ def main():
         #####################
         #'eta0': 5 * 1e-1,                                                # Initial trust region tolerance
         'eta0': 1e-2,                                                # Initial trust region tolerance
-        'eta_max' : 0.25,
+        'eta_max' : 0.15,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.90,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 

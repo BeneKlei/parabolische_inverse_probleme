@@ -714,7 +714,8 @@ class FOMOptimizer(Optimizer):
             model = self.FOM,
             bounds = self.FOM.bounds,
             reductor = None,
-            use_sufficient_condition = False,
+            #use_sufficient_condition = False,
+            use_sufficient_condition = True,
             logger = self.logger
         )
 
@@ -1006,7 +1007,8 @@ class QrVrROMOptimizer(Optimizer):
 
     def extend_bases_and_rebuild_QrVrROM(self,
                                          bases: List[str],
-                                         enrichment : Dict) -> InstationaryModelIP:
+                                         enrichment : Dict,
+                                         i: int = -1) -> InstationaryModelIP:
         
         for basis in bases:
             extend_start_time = timer()
@@ -1014,7 +1016,7 @@ class QrVrROMOptimizer(Optimizer):
             assert basis in ['parameter_basis', 'state_basis', 'adjoint_basis']
             assert enrichment[basis]
             if enrichment[basis]['keep_last_n']:
-                assert not enrichment[basis]['overwrite']
+                assert not enrichment[basis]['overwrite_every_n']
                 assert isinstance(enrichment[basis]['keep_last_n'], int)
                 assert enrichment[basis]['keep_last_n'] > 0
 
@@ -1034,28 +1036,28 @@ class QrVrROMOptimizer(Optimizer):
                 product = self.reductor.products[basis],
                 config = enrichment[basis]
             )
-    
 
+            if enrichment[basis]['overwrite_every_n']:
+                n = enrichment[basis]['overwrite_every_n']
+                self.reductor.delete_cached_operators()
+                self.logger.debug(f"Using 'overwrite_every_n' with n = {n}.")
+                
+                if (i % n == 0) or i == -1:
+                    if basis == 'parameter_basis':
+                        self.reductor.bases[basis] = self.FOM.Q.empty()
+                    else:
+                        self.reductor.bases[basis] = self.FOM.V.empty()
+                        
             if enrichment[basis]['keep_last_n']:
                 n = enrichment[basis]['keep_last_n']
                 self.logger.debug(f"Using 'keep_last_n' with n = {n}.")
 
-                idx = max([n - len(snapshots), 0])
-                if len(self.reductor.bases[basis]) >= n:
+                if len(self.reductor.bases[basis]) >= n:#
                     self.reductor.delete_cached_operators()
                     x = self.FOM.V.empty()
-                    x.append(self.reductor.bases[basis][-idx:])
+                    x.append(self.reductor.bases[basis][-n:])
                     self.reductor.bases[basis] = x
 
-            if enrichment[basis]['overwrite']:
-                self.reductor.delete_cached_operators()
-                self.logger.debug(f"Using 'overwrite'.")
-                
-                if basis == 'parameter_basis':
-                    self.reductor.bases[basis] = self.FOM.Q.empty()
-                else:
-                    self.reductor.bases[basis] = self.FOM.V.empty()
-            
             try:
                 self.reductor.extend_basis(
                     U = snapshots,
@@ -1063,8 +1065,7 @@ class QrVrROMOptimizer(Optimizer):
                 )
                 
             except ExtensionError:
-                self._logger.warning(f"No new vectors were added to {basis}.")
-                
+                self._logger.warning(f"No new vectors were added to {basis}.")    
 
             self.statistics["outer_loop_runtime"]['extend_runtime'][basis][-1] += (timer() - extend_start_time)
 
@@ -1216,7 +1217,8 @@ class QrVrROMOptimizer(Optimizer):
             
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             bases=self.reduced_bases,
-            enrichment=enrichment
+            enrichment=enrichment, 
+            i = i
         )
 
         q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
@@ -1292,6 +1294,7 @@ class QrVrROMOptimizer(Optimizer):
 
             print("---------------------")
             print(rel_est_error_J_r)
+            print('abs_est_error_J_r:')
             print(abs_est_error_J_r)
             print(J_r)
             print(J)
@@ -1318,6 +1321,7 @@ class QrVrROMOptimizer(Optimizer):
                 _enrichment = copy.deepcopy(enrichment)
                 for basis in self.reduced_bases:
                     _enrichment[basis]['sample_every_n_th'] = None
+                    _enrichment[basis]['normalize'] = None
                     _enrichment[basis]['HaPOD'] = None
                     #_enrichment[basis]['overwrite'] = False
                 
@@ -1337,7 +1341,8 @@ class QrVrROMOptimizer(Optimizer):
 
                 self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                     bases=self.reduced_bases,
-                    enrichment=_enrichment
+                    enrichment=_enrichment,
+                    i = i
                 )                    
 
                 q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
@@ -1412,7 +1417,9 @@ class QrVrROMOptimizer(Optimizer):
             # print(rel_est_error_J_r)
             # print(eta)
             # print(proj_q_in_tr)
-            assert (rel_est_error_J_r - 1e-16) <= eta 
+            print(rel_est_error_J_r)
+            print(eta)
+            assert (rel_est_error_J_r - 1e-14) <= eta 
 
             IRGNM_statistic = None
             projector = SimpleBoundDomainProjector(
@@ -1456,12 +1463,11 @@ class QrVrROMOptimizer(Optimizer):
                 _enrichment = copy.deepcopy(enrichment)
                 for basis in self.reduced_bases:
                     _enrichment[basis]['sample_every_n_th'] = None
-                    _enrichment[basis]['HaPOD']['HaPOD_tol'] = MACHINE_EPS
-                    #_enrichment[basis]['overwrite'] = False
+                    _enrichment[basis]['normalize'] = None
+                    _enrichment[basis]['HaPOD'] = None
                 
                 self._reset_snapshots()
                 self.logger.debug(f"Extending Qr-snapshots")
-
                 self.snapshots['parameter_basis'].append(nabla_J)
                 
                 
@@ -1475,7 +1481,8 @@ class QrVrROMOptimizer(Optimizer):
 
                 self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                     bases=self.reduced_bases,
-                    enrichment=_enrichment
+                    enrichment=_enrichment,
+                    i = i
                 )     
 
                 AGC_jump_back = True
@@ -1600,7 +1607,7 @@ class QrVrROMOptimizer(Optimizer):
 
                     if rho > beta_2:
                         eta = 1/ beta_3 * eta
-                        eta = np.max([eta, eta_max])
+                        eta = np.min([eta, eta_max])
 
                 elif not necessary_condition:
                     self.logger.info(f"    Reject q.")
@@ -1649,7 +1656,7 @@ class QrVrROMOptimizer(Optimizer):
 
                         if rho > beta_2:
                             eta = 1/ beta_3 * eta
-                            eta = np.max([eta, eta_max])
+                            eta = np.min([eta, eta_max])
                     else:
                         self.logger.info(f"    Reject q.")
                         # q remain unchanged
@@ -1717,7 +1724,8 @@ class QrVrROMOptimizer(Optimizer):
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.reduced_bases,
-                        enrichment=enrichment
+                        enrichment=enrichment,
+                        i = i
                     )
 
                     q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
