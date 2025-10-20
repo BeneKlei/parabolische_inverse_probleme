@@ -36,8 +36,8 @@ setup = {
     'system_matrix' : {
         'type' : mm.SystemMatrixType.CosseratDelamination,
         'hyperparameter' : {
-            'lambda' : 1e2,
-            'mu' : 1e2,
+            'lambda' : 1e1,
+            'mu' : 1e1,
             'nu' : 1e-3,
         }
     },
@@ -82,7 +82,7 @@ FOM_optimizer_parameter = {
     'q_0': q_start,                                          # Initial guess for the parameter to be optimized
     'alpha_0': 1e-5,                                          # Initial regularization parameter
     'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
-    'tau': 1.50,                                              # Relative (to the noise) convergence tolerance for optimization
+    'tau': 1.00,                                              # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
     'theta': 0.4,                                         # Lower tolerance for the direction acceptance condition
     'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
@@ -107,7 +107,7 @@ TR_optimizer_parameter = {
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
     'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-    'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
+    'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
     'theta': 0.4,
     'Theta': 1.95,                                               # Upper bound for step acceptance condition
@@ -135,14 +135,14 @@ TR_optimizer_parameter = {
     # },
     'enrichment': {
         'parameter_basis' : {
-            'include_each_time_step' : True,
+            'include_each_time_step' : False,
             'sample_every_n_th' : None,
-            'normalize' : True,
-            'HaPOD' : {
-                'HaPOD_tol': 1e-1,    
-            },
-            # 'normalize' : None,
-            # 'HaPOD' : None,
+            # 'normalize' : True,
+            # 'HaPOD' : {
+            #     'HaPOD_tol': 1e-1,    
+            # },
+            'normalize' : None,
+            'HaPOD' : None,
             'overwrite_every_n' : False,
             'keep_last_n': None
         },
@@ -182,7 +182,37 @@ TR_optimizer_parameter = {
 }
 
 
+
+setup_sensors = copy.deepcopy(setup)
+setup_identity = copy.deepcopy(setup)
+setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
+
 EXPERIMENTS = {
-    'FOM_30' : (setup, FOM_optimizer_parameter),
-    'TR_30' : (setup, TR_optimizer_parameter)
+    'FOM_sensors' : (setup_sensors, FOM_optimizer_parameter),
+    'FOM_identity' : (setup_identity, FOM_optimizer_parameter),
 }
+
+##########################################################################################
+optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
+optimizer_parameter['enrichment']['parameter_basis']['include_each_time_step'] = True
+optimizer_parameter['enrichment']['parameter_basis']['normalize'] = True
+optimizer_parameter['enrichment']['parameter_basis']['HaPOD'] = {'HaPOD_tol': 1e-1}
+EXPERIMENTS['TR_sensors_include_each_time_step'] = (setup_sensors, optimizer_parameter)
+EXPERIMENTS['TR_identity_include_each_time_step'] = (setup_identity, optimizer_parameter)
+#----------------------------------------------------------------------------------------
+optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
+EXPERIMENTS['TR_sensors'] = (setup_sensors, optimizer_parameter)
+EXPERIMENTS['TR_identity'] = (setup_identity, optimizer_parameter)
+#----------------------------------------------------------------------------------------
+optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
+optimizer_parameter['enrichment']['state_basis']['normalize'] = None
+optimizer_parameter['enrichment']['state_basis']['HaPOD'] = None
+EXPERIMENTS['TR_sensors_no_HaPOD'] = (setup_sensors, optimizer_parameter)
+EXPERIMENTS['TR_identity_no_HaPOD'] = (setup_identity, optimizer_parameter)
+#----------------------------------------------------------------------------------------
+optimizer_parameter = copy.deepcopy(TR_optimizer_parameter)
+optimizer_parameter['enrichment']['state_basis']['HaPOD']['HaPOD_tol'] = 1e-3
+EXPERIMENTS['TR_sensors_HaPOD_tol_1e-3'] = (setup_sensors, optimizer_parameter)
+EXPERIMENTS['TR_identity_HaPOD_tol_1e-3'] = (setup_identity, optimizer_parameter)
+#----------------------------------------------------------------------------------------
+

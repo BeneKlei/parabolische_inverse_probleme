@@ -243,12 +243,10 @@ def main():
             'state_basis' : {
                 'sample_every_n_th' : None,
                 'normalize' : True,
-                # 'HaPOD' : {
-                #     'HaPOD_tol': 1e-10,    
-                # },
-                'HaPOD' : None,
-                'overwrite_every_n' : 1,
-                #'keep_last_n': 400
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-6,    
+                },
+                'overwrite_every_n' : None,
                 'keep_last_n': None
             },
             'adjoint_basis' : {

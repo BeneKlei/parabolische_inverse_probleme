@@ -1277,6 +1277,8 @@ class QrVrROMOptimizer(Optimizer):
             u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=use_cached_operators)
             p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
             J_r = self.QrVrROM.objective(u_r)
+
+            #print(f"ROM sparsity = {self.QrVrROM.compute_sparsity(q_r)}")
             
             nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
             
@@ -1701,8 +1703,23 @@ class QrVrROMOptimizer(Optimizer):
                     try:
                         alpha = IRGNM_statistic["alpha"][1]
                     except IndexError:
-                        pass
-                    
+                        pass                
+
+                # basis = 'state_basis'
+                # u_h_norm = self.FOM.products['prod_V'].pairwise_apply2(u,u)
+                # basis_ = self.reductor.bases[basis]
+                # coef = u.inner(basis_, self.reductor.products[basis])
+                # coef = coef**2
+
+                # print("Before enrichment")
+                # for i in range(len(self.reductor.dims_history['state_basis'])):
+                #     # coef = coef**2
+                #     dim_V = self.reductor.dims_history['state_basis'][i]
+                #     error = np.sqrt(np.sum((u_h_norm - np.sum(coef[:,:dim_V], axis=1))**2))      
+                #     print(f"current dim_V = {dim_V}:")
+                #     print(f"\t error : {error}")
+
+
                 if not convergence_criterium:
                     self._reset_snapshots()
                     self.logger.debug(f"Extending Qr-snapshots")
@@ -1727,6 +1744,23 @@ class QrVrROMOptimizer(Optimizer):
                         enrichment=enrichment,
                         i = i
                     )
+
+                    basis = 'state_basis'
+
+                    #u_h_norm = (u.norm(product=self.reductor.products[basis]))**2
+                    #u_h_norm = self.FOM.products['bochner_prod_V'].apply2(u,u)
+                    u_h_norm = self.FOM.products['prod_V'].pairwise_apply2(u,u)
+                    basis_ = self.reductor.bases[basis]
+                    coef = u.inner(basis_, self.reductor.products[basis])
+                    coef = coef**2
+
+                    print("After enrichment")
+                    for i in range(len(self.reductor.dims_history['state_basis'])):
+                        # coef = coef**2
+                        dim_V = self.reductor.dims_history['state_basis'][i]
+                        error = np.sqrt(np.sum((u_h_norm - np.sum(coef[:,:dim_V], axis=1))**2))      
+                        print(f"current dim_V = {dim_V}:")
+                        print(f"\t error : {error}")
 
                     q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
                     q_r = self.QrVrROM.Q.make_array(q_r)

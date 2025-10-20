@@ -309,6 +309,10 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                     [VTAV,   VTAW],
                     [VTAW.T, WTAW]
                 ])
+                # print("--------")
+                # print(np.sum(np.where(matrix != 0.0,1,0)))
+                # print(matrix.shape)
+                # print(np.sum(np.where(matrix != 0.0,1,0)) / (matrix.shape[0] * matrix.shape[1]))
 
                 assert matrix.shape == (dim_V_new, dim_V_new)
 
@@ -355,6 +359,9 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         print(self.parallel)
         A_r = self._project_A(parameter_reduced_A = parameter_reduced_A)
         print(timer() - t)
+
+        # import sys
+        # sys.exit()
 
         parameteric_operator, translation_operator = split_constant_and_parameterized_operator(
             complete_operator=A_r

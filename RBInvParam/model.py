@@ -996,8 +996,25 @@ class InstationaryModelIP(ImmutableObject):
         else:
             return np.sqrt(self.products['prod_Q'].apply2(V, V))[0,0]
     
-    def pymor_to_numpy(self,q):
-        return q.to_numpy()
-    
-    def numpy_to_pymor(self,q):
-        return self.Q.make_array(q)
+    def compute_sparsity(self,
+                         q: VectorArray,
+                         use_cached_operators: bool = False) -> Tuple[int,float]:
+
+        required_cache_keys = ['A_q']
+        self.update_cache(
+            q = q, 
+            use_cached_operators = use_cached_operators, 
+            required_cache_keys = required_cache_keys
+        )
+
+        A_q = self._cached_operators['A_q'][0]
+        A_q = A_q.assemble()
+        #try:
+        nzz = A_q.matrix.nzz
+        total_elements = A_q.shape[0] * A_q.shape[1]
+        sparsity = 1 - (nzz / total_elements)
+        return nzz, sparsity
+        # except:
+        #     return np.nan, np.nan
+            
+        
