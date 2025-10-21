@@ -184,6 +184,7 @@ TR_optimizer_parameter = {
     'beta_3': 0.5                                                # Shrinking/Enlarging factor for the trust region.
 }
 
+EXPERIMENTS = {}
 
 setup_sensors = copy.deepcopy(setup)
 setup_identity = copy.deepcopy(setup)
@@ -193,64 +194,60 @@ setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Iden
 FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
 TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
 
-EXPERIMENTS = {
-    'FOM_sensors' : (setup_sensors, FOM_optimizer_parameter_),
-    'FOM_identity' : (setup_identity, FOM_optimizer_parameter_),
-}
 
-TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
-TR_optimizer_parameter_['enrichment']['parameter_basis']['include_each_time_step'] = True
-TR_optimizer_parameter_['enrichment']['parameter_basis']['normalize'] = True
-TR_optimizer_parameter_['enrichment']['parameter_basis']['HaPOD'] = {'HaPOD_tol': 1e-1}
-EXPERIMENTS['TR_sensors_include_each_time_step'] = (setup_sensors, TR_optimizer_parameter_)
-EXPERIMENTS['TR_identity_include_each_time_step'] = (setup_identity, TR_optimizer_parameter_)
+EXPERIMENTS['FOM_high_res_sensors'] = (setup_sensors, FOM_optimizer_parameter_)
+EXPERIMENTS['FOM_high_res_identity'] = (setup_identity, FOM_optimizer_parameter_)
+
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['normalize'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['HaPOD'] = {'HaPOD_tol': 1e-1}
+EXPERIMENTS['TR_high_res_sensors_include_each_time_step'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_high_res_identity_include_each_time_step'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
-TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
-EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_)
-EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_)
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+EXPERIMENTS['TR_high_res_sensors'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_high_res_identity'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
-TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
-TR_optimizer_parameter_['enrichment']['state_basis']['normalize'] = None
-TR_optimizer_parameter_['enrichment']['state_basis']['HaPOD'] = None
-EXPERIMENTS['TR_sensors_no_HaPOD'] = (setup_sensors, TR_optimizer_parameter_)
-EXPERIMENTS['TR_identity_no_HaPOD'] = (setup_identity, TR_optimizer_parameter_)
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['state_basis']['normalize'] = None
+TR_optimizer_parameter__['enrichment']['state_basis']['HaPOD'] = None
+EXPERIMENTS['TR_high_res_sensors_no_HaPOD'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_high_res_identity_no_HaPOD'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
-TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
-TR_optimizer_parameter_['enrichment']['state_basis']['HaPOD']['HaPOD_tol'] = 1e-3
-EXPERIMENTS['TR_sensors_HaPOD_tol_1e-3'] = (setup_sensors, TR_optimizer_parameter_)
-EXPERIMENTS['TR_identity_HaPOD_tol_1e-3'] = (setup_identity, TR_optimizer_parameter_)
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['state_basis']['HaPOD']['HaPOD_tol'] = 1e-3
+EXPERIMENTS['TR_high_res_sensors_HaPOD_tol_1e-3'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_high_res_identity_HaPOD_tol_1e-3'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
 ##########################################################################################
 FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
-TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
+TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter_)
 
 FOM_optimizer_parameter_['lin_solver_parms']['lin_solver_tol'] = 1e-8
 TR_optimizer_parameter_['lin_solver_parms']['lin_solver_tol'] = 1e-8
 
-EXPERIMENTS = {
-    'FOM_low_res_lin_sensors' : (setup_sensors, FOM_optimizer_parameter_),
-    'FOM_low_res_lin_identity' : (setup_identity, FOM_optimizer_parameter_),
-}
+EXPERIMENTS['FOM_low_res_sensors'] = (setup_sensors, FOM_optimizer_parameter_)
+EXPERIMENTS['FOM_low_res_identity'] = (setup_identity, FOM_optimizer_parameter_)
 
-TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
-TR_optimizer_parameter_['enrichment']['parameter_basis']['include_each_time_step'] = True
-TR_optimizer_parameter_['enrichment']['parameter_basis']['normalize'] = True
-TR_optimizer_parameter_['enrichment']['parameter_basis']['HaPOD'] = {'HaPOD_tol': 1e-1}
-EXPERIMENTS['TR_low_res_lin_sensors_include_each_time_step'] = (setup_sensors, TR_optimizer_parameter_)
-EXPERIMENTS['TR_low_res_lin_identity_include_each_time_step'] = (setup_identity, TR_optimizer_parameter_)
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['normalize'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['HaPOD'] = {'HaPOD_tol': 1e-1}
+EXPERIMENTS['TR_low_res_sensors_include_each_time_step'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_low_res_identity_include_each_time_step'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
-TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
-EXPERIMENTS['TR_low_res_lin_sensors'] = (setup_sensors, TR_optimizer_parameter_)
-EXPERIMENTS['TR_low_res_lin_identity'] = (setup_identity, TR_optimizer_parameter_)
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+EXPERIMENTS['TR_low_res_sensors'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_low_res_identity'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
-TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
-TR_optimizer_parameter_['enrichment']['state_basis']['normalize'] = None
-TR_optimizer_parameter_['enrichment']['state_basis']['HaPOD'] = None
-EXPERIMENTS['TR_low_res_lin_sensors_no_HaPOD'] = (setup_sensors, TR_optimizer_parameter_)
-EXPERIMENTS['TR_low_res_lin_identity_no_HaPOD'] = (setup_identity, TR_optimizer_parameter_)
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['state_basis']['normalize'] = None
+TR_optimizer_parameter__['enrichment']['state_basis']['HaPOD'] = None
+EXPERIMENTS['TR_low_res_sensors_no_HaPOD'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_low_res_identity_no_HaPOD'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
-TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
-TR_optimizer_parameter_['enrichment']['state_basis']['HaPOD']['HaPOD_tol'] = 1e-3
-EXPERIMENTS['TR_low_res_lin_sensors_HaPOD_tol_1e-3'] = (setup_sensors, TR_optimizer_parameter_)
-EXPERIMENTS['TR_low_res_lin_identity_HaPOD_tol_1e-3'] = (setup_identity, TR_optimizer_parameter_)
-#----------------------------------------------------------------------------------------
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['state_basis']['HaPOD']['HaPOD_tol'] = 1e-3
+EXPERIMENTS['TR_low_res_sensors_HaPOD_tol_1e-3'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_low_res_identity_HaPOD_tol_1e-3'] = (setup_identity, TR_optimizer_parameter__)
