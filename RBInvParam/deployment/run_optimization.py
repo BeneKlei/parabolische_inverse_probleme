@@ -53,10 +53,10 @@ def run_optimization(
                         use_timestamp=False)
         
 
-    optimizer_parameter_path = save_path / 'optimizer_parameter.pkl'
-    if not optimizer_parameter_path.exists():
-        logger.info(f"Dumping model optimizer_parameter to {optimizer_parameter_path}.")
-        save_dict_to_pkl(path=optimizer_parameter_path, 
+    TR_optimizer_parameter_path = save_path / 'optimizer_parameter.pkl'
+    if not TR_optimizer_parameter_path.exists():
+        logger.info(f"Dumping model optimizer_parameter to {TR_optimizer_parameter_path}.")
+        save_dict_to_pkl(path=TR_optimizer_parameter_path, 
                          data = optimizer_parameter,
                          use_timestamp=False)
 
@@ -95,20 +95,20 @@ def run_optimization(
 
     q_est = optimizer.solve()
 
-    logger.debug("Differnce to q_exact:")
-    logger.debug("L^inf") 
-    delta_q = q_est - q_exact
-    logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
+    # logger.debug("Differnce to q_exact:")
+    # logger.debug("L^inf") 
+    # delta_q = q_est - q_exact
+    # logger.debug(f"  {np.max(np.abs(delta_q.to_numpy())):3.4e}")
     
-    if setup["q_time_dep"]:
-        norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]
-        norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))[0,0]
-    else:
-        norm_delta_q = np.sqrt(FOM.products['prod_Q'].apply2(delta_q, delta_q))[0,0]
-        norm_q_exact = np.sqrt(FOM.products['prod_Q'].apply2(q_exact, q_exact))[0,0]
+    # if setup["q_time_dep"]:
+    #     norm_delta_q = np.sqrt(FOM.products['bochner_prod_Q'].apply2(delta_q, delta_q))[0,0]
+    #     norm_q_exact = np.sqrt(FOM.products['bochner_prod_Q'].apply2(q_exact, q_exact))[0,0]
+    # else:
+    #     norm_delta_q = np.sqrt(FOM.products['prod_Q'].apply2(delta_q, delta_q))[0,0]
+    #     norm_q_exact = np.sqrt(FOM.products['prod_Q'].apply2(q_exact, q_exact))[0,0]
     
-    logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
-    logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
+    # logger.debug(f"  Absolute error: {norm_delta_q:3.4e}")
+    # logger.debug(f"  Relative error: {norm_delta_q / norm_q_exact * 100:3.4}%.")
     
     # TODO make this in a better way
     reset_logger(logger.name)

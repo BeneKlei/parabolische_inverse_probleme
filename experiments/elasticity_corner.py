@@ -21,8 +21,11 @@ assert T_final > T_initial
 q_circ = np.ones((1, par_dim))
 q_exact = np.ones((1,par_dim))
 
-q_exact[0,200] = 2
-q_exact[0,300] = 3
+q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+q_exact[0:15,0:15] = 3
+q_exact = q_exact.flatten()
+q_exact = np.array([q_exact])
+
 q_circ[0,:] = 1.0
 
 bounds = np.zeros((par_dim, 2))

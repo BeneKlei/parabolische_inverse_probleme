@@ -78,9 +78,9 @@ def _run_experiment_batch_palma(working_dir: Path,
                     use_timestamp = False
                 )
 
-                temp_optimizer_parameter_path = save_path / 'optimizer_parameter.pkl'
+                temp_TR_optimizer_parameter_path = save_path / 'optimizer_parameter.pkl'
                 save_dict_to_pkl(
-                    path = temp_optimizer_parameter_path,
+                    path = temp_TR_optimizer_parameter_path,
                     data = optimizer_parameter,
                     use_timestamp = False
                 )
@@ -90,7 +90,7 @@ def _run_experiment_batch_palma(working_dir: Path,
                 '--job-name=' + experiment_name,
                 PALMA_SCRIPT_PATH,
                 temp_setup_path.as_posix(),
-                temp_optimizer_parameter_path.as_posix(),
+                temp_TR_optimizer_parameter_path.as_posix(),
                 save_path.as_posix()
             ]
 
