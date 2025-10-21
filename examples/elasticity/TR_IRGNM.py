@@ -76,8 +76,16 @@ def main():
     q_exact = np.ones((1,par_dim)) * 1
 
 
-    q_exact[0,200] = 2
-    q_exact[0,300] = 3
+    # q_exact[0,200] = 2
+    # q_exact[0,300] = 3
+
+    #q_exact[0,100:300] = 3
+    q_exact[0,:] = 3
+
+    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    # q_exact[0:15,0:15] = 3
+    # q_exact = q_exact.flatten()
+    # q_exact = np.array([q_exact])
 
     # q_exact = q_exact.reshape(31,31)
     # for i in [10,11,12,13,14]:
@@ -112,9 +120,9 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
@@ -205,6 +213,7 @@ def main():
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.4,
         #'Theta': 1.00,                                               # Upper bound for step acceptance condition
+        #'Theta': 1.99,                                               # Upper bound for step acceptance condition
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         'NCD' : False,
@@ -221,7 +230,9 @@ def main():
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
-            'max_iter': 1e3,                                         # Maximum iterations for the linear solver
+            #'max_iter': 1e3,                                         # Maximum iterations for the linear solver
+            'max_iter': 250,                                         # Maximum iterations for the linear solver
+            #'max_iter': 1e3,                                         # Maximum iterations for the linear solver
             #'lin_solver_tol': 1e-6,                                 # Convergence tolerance for the linear solver
             #'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
             'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
@@ -229,23 +240,25 @@ def main():
         },
         'enrichment': {
             'parameter_basis' : {
-                'include_each_time_step' : True,
+                'include_each_time_step' : False,
                 'sample_every_n_th' : None,
-                'normalize' : True,
-                'HaPOD' : {
-                    'HaPOD_tol': 1e-1,    
-                },
-                # 'normalize' : None,
-                # 'HaPOD' : None,
+                # 'normalize' : True,
+                # 'HaPOD' : {
+                #     'HaPOD_tol': 1e-1,    
+                # },
+                'normalize' : None,
+                'HaPOD' : None,
                 'overwrite_every_n' : False,
                 'keep_last_n': None
             },
             'state_basis' : {
                 'sample_every_n_th' : None,
-                'normalize' : True,
-                'HaPOD' : {
-                    'HaPOD_tol': 1e-6,    
-                },
+                # 'normalize' : True,
+                # 'HaPOD' : {
+                #     'HaPOD_tol': 1e-6,    
+                # },
+                'normalize' : None,
+                'HaPOD' : None,
                 'overwrite_every_n' : None,
                 'keep_last_n': None
             },

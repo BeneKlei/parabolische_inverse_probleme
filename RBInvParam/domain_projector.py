@@ -80,6 +80,8 @@ class SimpleBoundDomainProjector(DomainProjector):
         if self.use_sufficient_condition:
             center_recon = self.reductor.reconstruct(center, basis='parameter_basis')
             center_recon = center_recon.to_numpy()
+            
+
 
             b = np.linalg.norm(
                 self.reductor.bases['parameter_basis'].to_numpy(), 
@@ -103,6 +105,8 @@ class SimpleBoundDomainProjector(DomainProjector):
                 u = np.min((center_recon[0] - _bounds[:,0]) * (1 / b), axis = 0)
                 self.r[0] = np.min(np.stack([l,u]), axis=0)
             
+            print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+            print(self.r)
             assert np.all(self.r + 1e-16 > 0)
             #assert np.all(self.r + 1e-10 > 0)
             
@@ -114,6 +118,11 @@ class SimpleBoundDomainProjector(DomainProjector):
             assert hasattr(self, 'r')
             suff_cond = np.linalg.norm(direction.to_numpy(), axis=1) <= self.r
             suff_cond = np.all(suff_cond)
+
+            print("--------------------")
+            print(np.linalg.norm(direction.to_numpy(), axis=1))
+            print(self.r)
+            print(suff_cond)
             
             if suff_cond:
                 return center + direction
@@ -124,7 +133,7 @@ class SimpleBoundDomainProjector(DomainProjector):
             update_recon = update_recon.to_numpy().flatten()
         else:
             update_recon = update.to_numpy().flatten()
-            
+        
         mask_lb = update_recon < self.bounds[:,0]
         mask_ub = update_recon > self.bounds[:,1]
 
@@ -133,15 +142,46 @@ class SimpleBoundDomainProjector(DomainProjector):
             update_recon[mask_ub] = self.bounds[mask_ub,1]
         else:
             return update    
-            
+        
+        update_recon_ = self.model.Q.make_array(update_recon.reshape((1, self.FOM_Q_dim)))
+        update_recon_ = self.reductor.reconstruct(update_recon_, basis='parameter_basis')
+        update_recon_ = update_recon.to_numpy().flatten()
+        mask_lb = update_recon_ < self.bounds[:,0]
+        mask_ub = update_recon_ > self.bounds[:,1]
+        assert not(np.any(mask_lb) or np.any(mask_ub))
+
+
         if self.model.q_time_dep:  
             update_recon = update_recon.reshape((self.model.nt, self.FOM_Q_dim))
         else:
             update_recon = update_recon.reshape((1, self.FOM_Q_dim))
         
+        update_recon_ = self.model.Q.make_array(update_recon)
+        update_recon_ = self.reductor.reconstruct(update_recon_, basis='parameter_basis')
+        update_recon_ = update_recon.to_numpy().flatten()
+        mask_lb = update_recon_ < self.bounds[:,0]
+        mask_ub = update_recon_ > self.bounds[:,1]
+        assert not(np.any(mask_lb) or np.any(mask_ub))
+        
         if self.reductor:
             update_recon = self.reductor.FOM.Q.make_array(update_recon)  
+        
+            update_recon_ = self.model.Q.make_array(update_recon)
+            update_recon_ = self.reductor.reconstruct(update_recon_, basis='parameter_basis')
+            update_recon_ = update_recon.to_numpy().flatten()
+            mask_lb = update_recon_ < self.bounds[:,0]
+            mask_ub = update_recon_ > self.bounds[:,1]
+            assert not(np.any(mask_lb) or np.any(mask_ub))
+
             update_recon = self.reductor.project_vectorarray(update_recon, basis='parameter_basis')
+
+            update_recon_ = self.model.Q.make_array(update_recon)
+            update_recon_ = self.reductor.reconstruct(update_recon_, basis='parameter_basis')
+            update_recon_ = update_recon.to_numpy().flatten()
+            mask_lb = update_recon < self.bounds[:,0]
+            mask_ub = update_recon > self.bounds[:,1]
+            assert not(np.any(mask_lb) or np.any(mask_ub))
+            
             return self.model.Q.make_array(update_recon)
         else:
             return self.model.Q.make_array(update_recon)  

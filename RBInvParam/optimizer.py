@@ -118,9 +118,16 @@ class Optimizer(BasicObject):
         if projector:
             projector.pre_compute(center=previous_q)
             current_q = projector.project_domain(previous_q, step_size * search_direction)
+
+            update_recon = self.reductor.reconstruct(current_q, basis='parameter_basis')
+            update_recon = update_recon.to_numpy().flatten()
+            mask_lb = update_recon < projector.bounds[:,0]
+            mask_ub = update_recon > projector.bounds[:,1]
+            assert not(np.any(mask_lb) or np.any(mask_ub))
+
         else:
             current_q = previous_q + step_size * search_direction
-
+        
         u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
         p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
         current_J = model.objective(u=u,
@@ -401,6 +408,12 @@ class Optimizer(BasicObject):
 
             regularization_qualification = False
             count = 1
+
+            update_recon = self.reductor.reconstruct(q, basis='parameter_basis')
+            update_recon = update_recon.to_numpy().flatten()
+            mask_lb = update_recon < projector.bounds[:,0]
+            mask_ub = update_recon > projector.bounds[:,1]
+            assert not(np.any(mask_lb) or np.any(mask_ub))
 
             if projector:
                 projector.pre_compute(center=q)
@@ -1429,6 +1442,7 @@ class QrVrROMOptimizer(Optimizer):
                 bounds = self.FOM.bounds,
                 reductor = self.reductor,
                 use_sufficient_condition = True,
+                #use_sufficient_condition = False,
                 logger = self.logger
             )
 
@@ -1453,6 +1467,9 @@ class QrVrROMOptimizer(Optimizer):
             )
 
             AGC_decay_cond = J_r_AGC < (J + 1e-13)
+
+            # print(J_r_AGC)
+            # print(J)
 
             if not AGC_jump_back:
                 self.statistics['flags']['AGC_decay_cond'].append(AGC_decay_cond)
