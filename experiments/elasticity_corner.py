@@ -29,7 +29,7 @@ q_exact = np.array([q_exact])
 q_circ[0,:] = 1.0
 
 bounds = np.zeros((par_dim, 2))
-bounds[:,0] = 0.001
+bounds[:,0] = 1e-20
 bounds[:,1] = 1e20
 
 
@@ -121,7 +121,7 @@ TR_optimizer_parameter = {
     'i_max': 75,                                                 # Max number of outer optimization iterations
     'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
     'i_max_inner': 30,                                           # Max number of inner iterations
-    'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC
+    'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
     'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
     #####################
     'lin_solver_parms': {
@@ -251,3 +251,6 @@ TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
 TR_optimizer_parameter__['enrichment']['state_basis']['HaPOD']['HaPOD_tol'] = 1e-3
 EXPERIMENTS['TR_low_res_sensors_HaPOD_tol_1e-3'] = (setup_sensors, TR_optimizer_parameter__)
 EXPERIMENTS['TR_low_res_identity_HaPOD_tol_1e-3'] = (setup_identity, TR_optimizer_parameter__)
+
+prefix = 'corner'
+EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

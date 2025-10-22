@@ -156,13 +156,20 @@ class Optimizer(BasicObject):
             J_rel_error = abs_est_error_J_r / current_J
         else:
             J_rel_error = np.inf
-                
+            
         TR_condition = J_rel_error <= eta
         condition = armijo_condition & TR_condition
         i += 1
 
         print("############")
+        print(model.compute_gradient_norm(current_q-previous_q))
+        print(step_size)
+        print(previous_J)
+        print(current_J)
+        print(lhs)
+        print(rhs)
         print(abs_est_error_J_r)
+        print(eta)
         print(f"{J_rel_error:3.4e}")
         print(armijo_condition)
         print(TR_condition)
@@ -220,8 +227,14 @@ class Optimizer(BasicObject):
             condition = armijo_condition & TR_condition
 
             print("############")
+            print(model.compute_gradient_norm(current_q-previous_q))
+            print(step_size)
+            print(previous_J)
+            print(current_J)
+            print(lhs)
+            print(rhs)
             print(abs_est_error_J_r)
-            print(J_rel_error)
+            print(eta)
             print(f"{J_rel_error:3.4e}")
             print(armijo_condition)
             print(TR_condition)
@@ -1159,7 +1172,7 @@ class QrVrROMOptimizer(Optimizer):
 
         inital_agc_armijo_step_size = 0.5 / norm_nabla_J
         #inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1])
-        inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1e-2])
+        inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1e-1])
         eta = eta0
                     
         self.logger.debug("Running Qr-Vr-IRGNM:")
@@ -1444,11 +1457,15 @@ class QrVrROMOptimizer(Optimizer):
 
             AGC_start_time = timer()
 
+            norm_grad = self.QrVrROM.compute_gradient_norm(nabla_J_r)            
+            search_direction = -nabla_J_r
+            search_direction.scal(1.0 / norm_grad)
+
             q_agc, J_r_AGC, model_unsufficent, AGC_max_iter_cond, _ = self._armijo_TR_line_serach(
                 model = self.QrVrROM,
                 previous_q = q_r,
                 previous_J = J_r,
-                search_direction = -nabla_J_r,
+                search_direction = search_direction,
                 max_iter = agc_armijo_max_iter,
                 inital_step_size = inital_agc_armijo_step_size,
                 eta = eta,
@@ -1458,10 +1475,12 @@ class QrVrROMOptimizer(Optimizer):
                 projector=projector
             )
 
+            print("$$$$$$$$$$$$$$$$$$$$$")
+            print(J)
+            print(J_r)
+            print(J_r_AGC)
+            
             AGC_decay_cond = J_r_AGC < (J + 1e-13)
-
-            # print(J_r_AGC)
-            # print(J)
 
             if not AGC_jump_back:
                 self.statistics['flags']['AGC_decay_cond'].append(AGC_decay_cond)
@@ -1497,7 +1516,9 @@ class QrVrROMOptimizer(Optimizer):
                 )     
 
                 AGC_jump_back = True
+                print(eta)
                 eta = beta_3 * eta
+                print(eta)
                 continue
              
             assert not AGC_max_iter_cond
