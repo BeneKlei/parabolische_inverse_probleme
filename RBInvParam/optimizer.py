@@ -59,6 +59,14 @@ class Optimizer(BasicObject):
         self.linear_solver_operator = None
  
         self.I = 0
+        self.FOM_projector = SimpleBoundDomainProjector(
+            model = FOM,
+            bounds = FOM.bounds,
+            reductor = None,
+            use_sufficient_condition = False,        
+            logger = self.logger
+        )
+
 
     def _check_optimizer_parameter(self) -> None:
         keys = self.optimizer_parameter.keys()
@@ -118,13 +126,6 @@ class Optimizer(BasicObject):
         if projector:
             projector.pre_compute(center=previous_q)
             current_q = projector.project_domain(previous_q, step_size * search_direction)
-
-            update_recon = self.reductor.reconstruct(current_q, basis='parameter_basis')
-            update_recon = update_recon.to_numpy().flatten()
-            mask_lb = update_recon < projector.bounds[:,0]
-            mask_ub = update_recon > projector.bounds[:,1]
-            assert not(np.any(mask_lb) or np.any(mask_ub))
-
         else:
             current_q = previous_q + step_size * search_direction
         
@@ -254,9 +255,13 @@ class Optimizer(BasicObject):
         if id(model) == id(self.FOM):
             return 0.0, 0.0
         
+        #assert self.FOM_projector.project_domain(center=q) == q
+
         if not model.objective_error_estimator:
             J = self.FOM.compute_objective(
-                q = self.reductor.reconstruct(q, basis='parameter_basis')
+                q = self.FOM_projector.project_domain(center=
+                    self.reductor.reconstruct(q, basis='parameter_basis')
+                )
             )
             J_r = model.compute_objective(
                 q = q
@@ -408,13 +413,7 @@ class Optimizer(BasicObject):
 
             regularization_qualification = False
             count = 1
-
-            update_recon = self.reductor.reconstruct(q, basis='parameter_basis')
-            update_recon = update_recon.to_numpy().flatten()
-            mask_lb = update_recon < projector.bounds[:,0]
-            mask_ub = update_recon > projector.bounds[:,1]
-            assert not(np.any(mask_lb) or np.any(mask_ub))
-
+            
             if projector:
                 projector.pre_compute(center=q)
 
@@ -723,15 +722,6 @@ class FOMOptimizer(Optimizer):
             self.logger.debug(f"        {key} : {val}")
         self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
 
-        projector = SimpleBoundDomainProjector(
-            model = self.FOM,
-            bounds = self.FOM.bounds,
-            reductor = None,
-            use_sufficient_condition = False,
-            #use_sufficient_condition = True,
-            logger = self.logger
-        )
-
         self.name = 'FOM'
         q, IRGNM_statistic = self.IRGNM(model = self.FOM,
                                         q_0 = q,
@@ -747,7 +737,7 @@ class FOMOptimizer(Optimizer):
                                         use_cached_operators = use_cached_operators,
                                         dump_IRGNM_intermed_stats = True,
                                         dump_every_nth_loop=dump_every_nth_loop,
-                                        projector=projector)
+                                        projector=self.FOM_projector)
 
         self.statistics["q"] = IRGNM_statistic["q"]
         self.statistics['time_steps'] = IRGNM_statistic['time_steps']
@@ -892,6 +882,7 @@ class QrFOMOptimizer(Optimizer):
                                               use_cached_operators = use_cached_operators)
             
             q = self.reductor.reconstruct(q_r, basis='parameter_basis')
+            assert self.FOM_projector.project_domain(center=q) == q
             u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
             p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
             J = self.FOM.objective(u)
@@ -1283,7 +1274,8 @@ class QrVrROMOptimizer(Optimizer):
             self.logger.warning(f"Qr-Vr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start Qr-Vr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-
+            
+            assert self.FOM_projector.project_domain(center=q) == q
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
             q_r = self.QrVrROM.Q.make_array(q_r)
 
@@ -1505,6 +1497,7 @@ class QrVrROMOptimizer(Optimizer):
                 )     
 
                 AGC_jump_back = True
+                eta = beta_3 * eta
                 continue
              
             assert not AGC_max_iter_cond
@@ -1602,6 +1595,7 @@ class QrVrROMOptimizer(Optimizer):
 
                     solve_snapshot_FOM_start_time = timer()
                     q = self.reductor.reconstruct(q_r, basis='parameter_basis')
+                    q = self.FOM_projector.project_domain(center=q)
                     u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
                     p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
                     J = self.FOM.objective(u)
@@ -1639,6 +1633,7 @@ class QrVrROMOptimizer(Optimizer):
                 else:
                     solve_snapshot_FOM_start_time = timer()
                     q_ = self.reductor.reconstruct(q_r, basis='parameter_basis')
+                    q_ = self.FOM_projector.project_domain(center=q_)
                     u_ = self.FOM.solve_state(q_, use_cached_operators=use_cached_operators)
                     p_ = self.FOM.solve_adjoint(q_, u_, use_cached_operators=use_cached_operators)
                     J_ = self.FOM.objective(u_)
@@ -1690,6 +1685,7 @@ class QrVrROMOptimizer(Optimizer):
 
                 solve_snapshot_FOM_start_time = timer()
                 q = self.reductor.reconstruct(q_r, basis='parameter_basis')
+                q = self.FOM_projector.project_domain(center=q)
                 u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
                 p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
                 J = self.FOM.objective(u)
