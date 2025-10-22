@@ -178,6 +178,7 @@ TR_optimizer_parameter = {
     #####################
     'eta0': 1e-2,                                                # Initial trust region tolerance
     'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
+    'eta_min' : 1e-5,
     'eta_max' : 0.15,
     'beta_1': 0.95,                                              # Trust region edge tolerance.
     'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 

@@ -80,6 +80,7 @@ def main():
     # q_exact[0,300] = 3
 
     #q_exact[0,100:300] = 3
+    #q_exact[0,:] = 3
     q_exact[0,:] = 3
 
     # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
@@ -224,14 +225,14 @@ def main():
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
-        'agc_armijo_max_iter': 100,                                  # Max iterations for computing the AGC
+        'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
         'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
         #'TR_armijo_max_iter': 2,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             #'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-            'max_iter': 250,                                         # Maximum iterations for the linear solver
+            'max_iter': 50,                                         # Maximum iterations for the linear solver
             #'max_iter': 1e3,                                         # Maximum iterations for the linear solver
             #'lin_solver_tol': 1e-6,                                 # Convergence tolerance for the linear solver
             #'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
@@ -282,6 +283,7 @@ def main():
         #####################
         #'eta0': 5 * 1e-1,                                                # Initial trust region tolerance
         'eta0': 1e-2,                                                # Initial trust region tolerance
+        'eta_min' : 1e-5,
         'eta_max' : 0.15,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.90,                                              # Trust region edge tolerance.

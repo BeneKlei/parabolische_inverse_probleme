@@ -1139,6 +1139,7 @@ class QrVrROMOptimizer(Optimizer):
         dump_every_nth_loop = self.optimizer_parameter['dump_every_nth_loop']
 
         eta0 = self.optimizer_parameter["eta0"]
+        eta_min = self.optimizer_parameter["eta_min"]
         eta_max = self.optimizer_parameter["eta_max"]
         kappa_arm = self.optimizer_parameter["kappa_arm"]
         beta_1 = self.optimizer_parameter["beta_1"]
@@ -1204,6 +1205,7 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
         self.logger.debug(f"                ")
         self.logger.debug(f"  eta0 : {eta0:3.4e}")
+        self.logger.debug(f"  eta_min : {eta_min:3.4e}")
         self.logger.debug(f"  eta_max : {eta_max:3.4e}")
         self.logger.debug(f"  kappa_arm : {kappa_arm:3.4e}")
         self.logger.debug(f"  beta_1 : {beta_1:3.4e}")
@@ -1320,7 +1322,10 @@ class QrVrROMOptimizer(Optimizer):
             print(J)
             print("---------------------")
 
-
+            if eta <= eta_min:
+                self.logger.info(f"Trust region tolerance eta = {eta} falls below eta_min = {eta_min}.")
+                break
+                    
             proj_q_in_tr = rel_est_error_J_r <= eta
         
             if AGC_jump_back: 
