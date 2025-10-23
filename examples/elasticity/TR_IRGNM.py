@@ -81,18 +81,14 @@ def main():
 
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
-    q_exact[0,:] = 3
+#    q_exact[0,:] = 3
 
-    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    # q_exact[0:15,0:15] = 3
-    # q_exact = q_exact.flatten()
-    # q_exact = np.array([q_exact])
+    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    q_exact[0:15,0:15] = 3
+    q_exact = q_exact.flatten()
+    q_exact = np.array([q_exact])
 
-    # q_exact = q_exact.reshape(31,31)
-    # for i in [10,11,12,13,14]:
-    #     q_exact[i, :] = 2
-    # q_exact = q_exact.flatten()
-    
+
 
     #q_exact[0,:] = 3    
 
@@ -231,13 +227,11 @@ def main():
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
-            #'max_iter': 1e3,                                         # Maximum iterations for the linear solver
             'max_iter': 50,                                         # Maximum iterations for the linear solver
-            #'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-            #'lin_solver_tol': 1e-6,                                 # Convergence tolerance for the linear solver
-            #'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
-            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
-            'inital_step_size': 1                                    # Initial step size for iterative linear solver
+            'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
+            'kappa_arm' : 1e-12,
+            'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
+            'armijo_min_step_size' : 1e-20
         },
         'enrichment': {
             'parameter_basis' : {
@@ -254,12 +248,12 @@ def main():
             },
             'state_basis' : {
                 'sample_every_n_th' : None,
-                # 'normalize' : True,
-                # 'HaPOD' : {
-                #     'HaPOD_tol': 1e-6,    
-                # },
-                'normalize' : None,
-                'HaPOD' : None,
+                'normalize' : True,
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-3,    
+                },
+                # 'normalize' : None,
+                # 'HaPOD' : None,
                 'overwrite_every_n' : None,
                 'keep_last_n': None
             },

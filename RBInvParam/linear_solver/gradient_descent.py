@@ -44,43 +44,57 @@ def armijo_line_serach(previous_iterate: NumpyVectorArray,
                        product : NumpyMatrixOperator,
                        inital_step_size: float,
                        projector: SimpleBoundDomainProjector = None,
-                       q: NumpyVectorArray = None) -> Tuple[NumpyVectorArray, float]:
+                       q: NumpyVectorArray = None,
+                       kappa_arm: float = 1e-12,
+                       min_step_size: float = 1e-20) -> Tuple[NumpyVectorArray, float, bool]:
+        
+        assert kappa_arm > 0
+        assert min_step_size > 0
 
+        stagnation_flag = False
         step_size = inital_step_size
         current_iterate = previous_iterate + step_size * search_direction
-
-        if projector: 
+        
+        if projector:
             current_iterate = projector.project_domain(q, current_iterate) - q
 
         current_value = func(current_iterate)
-
+        
         condition = armijo_condition(previous_value, 
                                      current_value, 
                                      step_size, 
                                      previous_iterate, 
                                      current_iterate,
                                      product=product,
-                                     kappa_arm=1e-12)
+                                     kappa_arm=kappa_arm)
+        
+
 
         while not condition:
             step_size = 0.5 * step_size
+            if step_size < min_step_size:
+                stagnation_flag = True
+                break
+
             current_iterate = previous_iterate + step_size * search_direction
 
             if projector: 
-                current_iterate = projector.project_domain(q, current_iterate) - q
-
+                current_iterate = projector.project_domain(q, current_iterate) - q                
 
             current_value = func(current_iterate)
-
+            
             condition = armijo_condition(previous_value, 
                                          current_value, 
                                          step_size, 
                                          previous_iterate, 
                                          current_iterate,
                                          product=product,
-                                         kappa_arm=1e-12)
+                                         kappa_arm=kappa_arm)
 
-        return (current_iterate, current_value)
+          
+            
+
+        return (current_iterate, current_value, stagnation_flag)
 
 def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
                                  pre_previous_iterate: NumpyVectorArray,
@@ -130,11 +144,15 @@ def gradient_descent_linearized_problem(
 
     max_iter=lin_solver_parms['max_iter']
     lin_solver_tol=lin_solver_parms['lin_solver_tol']
-    inital_step_size =lin_solver_parms['inital_step_size']
+    kappa_arm = lin_solver_parms['kappa_arm']
+    armijo_inital_step_size = lin_solver_parms['armijo_inital_step_size']
+    armijo_min_step_size = lin_solver_parms['armijo_min_step_size']
 
     assert alpha >= 0
     assert lin_solver_tol > 0
-    assert inital_step_size > 0
+    assert kappa_arm > 0
+    assert armijo_inital_step_size > 0
+    assert armijo_min_step_size > 0
 
     if not logger:
         logger = logging.getLogger('gradient_descent')
@@ -150,6 +168,7 @@ def gradient_descent_linearized_problem(
                                                    use_cached_operators=use_cached_operators)
                                                    
     converged = False
+    armijo_stagnation_flag = False
     last_i = -np.inf
     
     buffer_size = 3
@@ -201,7 +220,7 @@ def gradient_descent_linearized_problem(
         if i < 2:
             norm_grad = model.compute_gradient_norm(grad)            
             grad.scal(1.0 / norm_grad)
-            current_d, current_J = armijo_line_serach(
+            current_d, current_J, armijo_stagnation_flag = armijo_line_serach(
                 previous_iterate = previous_d,
                 previous_value = previous_J,
                 search_direction = -grad,
@@ -210,9 +229,11 @@ def gradient_descent_linearized_problem(
                                                                     alpha, 
                                                                     use_cached_operators=use_cached_operators),
                 product=product,
-                inital_step_size = inital_step_size,
+                inital_step_size = armijo_inital_step_size,
                 projector = projector,
-                q=q)       
+                q=q,
+                kappa_arm = kappa_arm,
+                min_step_size = armijo_min_step_size)       
         else:
             current_d, current_J = barzilai_borwein_line_serach(
                 previous_iterate =  buffer_d[-1],
@@ -242,11 +263,15 @@ def gradient_descent_linearized_problem(
         buffer_J.append(current_J)    
 
         #stagnation check
+        if armijo_stagnation_flag:
+            logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation (Armijo).")
+            break
+
         if i > 5:
             if abs(buffer_J[0] - buffer_J[1]) < CONV_TOL and abs(buffer_J[1] - buffer_J[2]) < CONV_TOL:
                 logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
                 break
-
+        
     if converged:
         logger.info(f"Gradient decent converged at iteration {last_i} of {int(max_iter)}.")
     else:

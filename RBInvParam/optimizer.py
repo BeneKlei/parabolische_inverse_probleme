@@ -367,7 +367,7 @@ class Optimizer(BasicObject):
             "total_runtime" : [],
             "stagnation_flag" : False,
             "FOM_num_calls" : {},
-            "counts" : None
+            "counts" : {}
         }
         counts = {
             'IRGNM_loop_iter' : -1,
@@ -867,7 +867,7 @@ class QrFOMOptimizer(Optimizer):
              basis = 'parameter_basis'
         )
         self.QrFOM = self.reductor.reduce()
-
+        IRGNM_statistic = {}
 
         while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
@@ -1817,7 +1817,12 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics['rel_est_error_nabla_J_r'].append(rel_est_error_nabla_J_r)
                 self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
                 self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
-                self.statistics["counts"].append(IRGNM_statistic['counts'])
+
+                if 'counts' in IRGNM_statistic.keys():
+                    self.statistics["counts"].append(IRGNM_statistic['counts'])
+                else:
+                    self.statistics["counts"].append({})
+
                 self.statistics["inner_loop_statistics"].append(IRGNM_statistic)
                 self.statistics["total_runtime"].append(timer() - start_time)    
                 self.statistics["outer_loop_runtime"]['total_runtime'].append(timer() - outer_loop_start_time)

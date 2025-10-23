@@ -70,6 +70,21 @@ class SimpleBoundDomainProjector(DomainProjector):
         else:
             assert self.bounds.shape == (self.FOM_Q_dim , 2)
         assert np.all(self.bounds[:,0] < self.bounds[:,1])
+    
+    def check_q(self, q: NumpyVectorArray) -> bool:
+        if self.reductor:
+            q_recon = self.reductor.reconstruct(q, basis='parameter_basis')
+            q_recon = q_recon.to_numpy().flatten()
+        else:
+            q_recon = q.to_numpy().flatten()
+
+        mask_lb = q_recon < self.bounds[:,0]
+        mask_ub = q_recon > self.bounds[:,1]
+
+        if np.any(mask_lb) or np.any(mask_ub):
+            return False
+        else:
+            return True
 
     def pre_compute(self,
                     center: NumpyVectorArray) -> None:
@@ -156,7 +171,11 @@ class SimpleBoundDomainProjector(DomainProjector):
         if self.reductor:
             update_recon = self.reductor.FOM.Q.make_array(update_recon)  
             update_recon = self.reductor.project_vectorarray(update_recon, basis='parameter_basis')            
-            return self.model.Q.make_array(update_recon)
+            update_recon = self.model.Q.make_array(update_recon)
+
+            #assert self.check_q(q = update_recon)
+            
+            return update_recon
         else:
             return self.model.Q.make_array(update_recon)  
         
