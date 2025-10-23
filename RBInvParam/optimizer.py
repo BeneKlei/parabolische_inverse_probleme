@@ -1323,6 +1323,7 @@ class QrVrROMOptimizer(Optimizer):
             print("---------------------")
 
             if eta <= eta_min:
+                self.statistics["stagnation_flag"] = True
                 self.logger.info(f"Trust region tolerance eta = {eta} falls below eta_min = {eta_min}.")
                 break
                     
