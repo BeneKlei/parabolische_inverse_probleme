@@ -17,6 +17,7 @@ from RBInvParam.deployment.run_optimization import run_optimization
 ALLOWED_TARGETS = ['local', 'ag-server', 'palma']
 #PALMA_SCRIPT_PATH = Path(__file__).parent.resolve() / "local_test.sh"
 PALMA_SCRIPT_PATH = Path(__file__).parent.resolve() / "queue_experiment.sh"
+PALMA_SCRIPT_PATH_EXPRESS = Path(__file__).parent.resolve() / "queue_experiment_express.sh"
 
 def _run_experiment_batch_local(working_dir: Path,
                                 experiments: List,
@@ -55,7 +56,8 @@ def _run_experiment_batch_local(working_dir: Path,
 
 def _run_experiment_batch_palma(working_dir: Path,
                                 experiments: List,
-                                logger: logging.Logger):
+                                logger: logging.Logger,
+                                express: bool = False) -> None:
 
     experiment_jobs = []
 
@@ -85,10 +87,15 @@ def _run_experiment_batch_palma(working_dir: Path,
                     use_timestamp = False
                 )
 
+            if express:
+                script_path = PALMA_SCRIPT_PATH_EXPRESS
+            else:
+                script_path = PALMA_SCRIPT_PATH
+
             cmd = [
                 'sbatch',
                 '--job-name=' + experiment_name,
-                PALMA_SCRIPT_PATH,
+                script_path,
                 temp_setup_path.as_posix(),
                 temp_TR_optimizer_parameter_path.as_posix(),
                 save_path.as_posix()
@@ -106,12 +113,12 @@ def _run_experiment_batch_palma(working_dir: Path,
     for experiment_job in experiment_jobs:
         experiment_job.wait()
     
+def run_experiment_batch(args) -> None:
 
-def run_experiment_batch(
-    experiments: Path,
-    target : str,
-    working_dir : Path = None) -> None:
-
+    experiments = args.experiments
+    target = args.target
+    working_dir = args.working_dir
+    
     assert experiments.parent.exists()
 
     if not working_dir:
@@ -195,7 +202,8 @@ def run_experiment_batch(
         _run_experiment_batch_palma(
             working_dir = working_dir,
             experiments = experiments,
-            logger = logger
+            logger = logger,
+            express = args.express
         )
 
     
@@ -205,8 +213,8 @@ if __name__ == '__main__':
     parser.add_argument('experiments', type=Path, help='Path to the experiments file')
     parser.add_argument('target', type=str, choices=ALLOWED_TARGETS, help='Target where to run the experiments')
     parser.add_argument('--working_dir', type=Path, default=None, help='Optional working directory for the experiments')
-    args = parser.parse_args()
+    parser.add_argument('--express', type=bool, default=False)
 
-    run_experiment_batch(args.experiments, args.target, args.working_dir)
+    run_experiment_batch(parser.parse_args())
     
     

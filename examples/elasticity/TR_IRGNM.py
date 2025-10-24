@@ -76,17 +76,19 @@ def main():
     q_exact = np.ones((1,par_dim)) * 1
 
 
-    # q_exact[0,200] = 2
-    # q_exact[0,300] = 3
+    q_exact[0,200] = 2
+    q_exact[0,300] = 3
 
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
 #    q_exact[0,:] = 3
 
-    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    q_exact[0:15,0:15] = 3
-    q_exact = q_exact.flatten()
-    q_exact = np.array([q_exact])
+    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    # q_exact[0:15,0:15] = 3
+    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    # q_exact[0:20,0:20] = 3
+    # q_exact = q_exact.flatten()
+    # q_exact = np.array([q_exact])
 
 
 
@@ -218,7 +220,8 @@ def main():
         'offline_parallel' : True,
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
-        'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
+        #'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
+        'reg_loop_max': 50,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
@@ -227,8 +230,8 @@ def main():
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
-            'max_iter': 50,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
+            'max_iter': 1e3,                                         # Maximum iterations for the linear solver
+            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
@@ -250,7 +253,7 @@ def main():
                 'sample_every_n_th' : None,
                 'normalize' : True,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-3,    
+                    'HaPOD_tol': 1e-6,    
                 },
                 # 'normalize' : None,
                 # 'HaPOD' : None,

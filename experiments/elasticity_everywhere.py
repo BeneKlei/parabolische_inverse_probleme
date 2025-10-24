@@ -92,8 +92,10 @@ FOM_optimizer_parameter = {
     'lin_solver_parms': {
         'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 1e3,                                     # Max iterations for the linear solver
-        'lin_solver_tol': 1e-12,                          # Tolerance for convergence in the linear solver
-        'inital_step_size': 1.0                                # Initial step size for iterative solvers (if applicable)
+        'lin_solver_tol': 1e-12,                          # Tolerance for convergence in the linear solve        
+        'kappa_arm' : 1e-12,
+        'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
+        'armijo_min_step_size' : 1e-20
     },
     'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
     'dump_every_nth_loop': 1,                                # Dump intermediate results every n optimization iterations
@@ -123,7 +125,9 @@ TR_optimizer_parameter = {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 1e3,                                         # Maximum iterations for the linear solver
         'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
-        'inital_step_size': 1                                    # Initial step size for iterative linear solver
+        'kappa_arm' : 1e-12,
+        'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
+        'armijo_min_step_size' : 1e-20
     },
     # 'lin_solver_parms': {
     #     'method': 'BiCGSTAB',                                  # BiCGSTAB method for solving nonsymmetric linear systems
