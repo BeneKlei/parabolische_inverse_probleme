@@ -1447,7 +1447,7 @@ class QrVrROMOptimizer(Optimizer):
             print(eta)
             assert (rel_est_error_J_r - 1e-14) <= eta 
 
-            IRGNM_statistic = None
+            IRGNM_statistic = {}
             projector = SimpleBoundDomainProjector(
                 model = self.QrVrROM,
                 bounds = self.FOM.bounds,
@@ -1568,7 +1568,7 @@ class QrVrROMOptimizer(Optimizer):
 
             ########################################### Accept / Reject ###########################################
 
-            if IRGNM_statistic is not None:
+            if len(IRGNM_statistic) > 0:
                 check_conditions = len(IRGNM_statistic['q']) > 1
             else:
                 check_conditions = False
@@ -1739,7 +1739,7 @@ class QrVrROMOptimizer(Optimizer):
             if not rejected:
                 delta = delta
                 
-                if IRGNM_statistic is not None:
+                if len(IRGNM_statistic) > 0:
                     try:
                         alpha = IRGNM_statistic["alpha"][1]
                     except IndexError:
