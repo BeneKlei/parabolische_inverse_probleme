@@ -119,9 +119,9 @@ def main():
             }
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
@@ -147,7 +147,7 @@ def main():
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
-        'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
+        'q_time_dep': False,                          # Whether parameter is time-dependent (bool)        
         'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
         'save_path' : save_path,
@@ -204,13 +204,14 @@ def main():
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
+        #'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         #'alpha_0': 1e-14,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
-        'theta': 0.4,
+        'theta': 0.40,
         #'Theta': 1.00,                                               # Upper bound for step acceptance condition
         #'Theta': 1.99,                                               # Upper bound for step acceptance condition
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
@@ -220,8 +221,7 @@ def main():
         'offline_parallel' : True,
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
-        #'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
-        'reg_loop_max': 50,                                          # Max number of regularization updates per iteration
+        'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
@@ -253,10 +253,8 @@ def main():
                 'sample_every_n_th' : None,
                 'normalize' : True,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-6,    
+                    'HaPOD_tol': 1e-3,    
                 },
-                # 'normalize' : None,
-                # 'HaPOD' : None,
                 'overwrite_every_n' : None,
                 'keep_last_n': None
             },
