@@ -108,7 +108,13 @@ def main():
 
     setup = {
         'spatial_resolution' : [4,y_res,z_res],
-        'body_force_type' : mm.BodyForceType.CenterExcite,
+        'body_force' : {
+            'type' : mm.BodyForceType.CenterExcite,
+            'hyperparameter' : {
+                'center': [-0.1,0,0],
+                'width' : 1.0,
+            }
+        },
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
             'hyperparameter' : {
@@ -253,7 +259,7 @@ def main():
                 'sample_every_n_th' : None,
                 'normalize' : True,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-3,    
+                    'HaPOD_tol': 1e-6,    
                 },
                 'overwrite_every_n' : None,
                 'keep_last_n': None

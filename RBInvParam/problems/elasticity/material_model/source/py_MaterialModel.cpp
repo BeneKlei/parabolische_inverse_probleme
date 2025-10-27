@@ -8,7 +8,7 @@
 
 #include "MaterialModel.hpp"
 #include "MaterialMatricesFactory.hpp"
-#include "BodyForce.hpp"
+#include "BodyForceFactory.hpp"
 #include "ObservationOperatorFactory.hpp"
 #include "StateProductFactory.hpp"
 #include "ObservationSpaceProductFactory.hpp"
@@ -61,15 +61,15 @@ PYBIND11_MODULE(material_model, m) {
           .def("save_state", &MaterialModel::save_state, py::return_value_policy::reference_internal)
           .def("save_time_series", &MaterialModel::save_time_series, py::return_value_policy::reference_internal);
 
-      py::enum_<BodyForceType>(m, "BodyForceType")
-         .value("CenterExcite", BodyForceType::CenterExcite)
-         .value("Dummy", BodyForceType::Dummy)
-         .export_values();
-
       py::enum_<SystemMatrixType>(m, "SystemMatrixType")
          .value("Cosserat", SystemMatrixType::Cosserat)
          .value("CosseratDelamination", SystemMatrixType::CosseratDelamination)
          .value("CosseratSpatial", SystemMatrixType::CosseratSpatial)
+         .export_values();
+      
+      py::enum_<BodyForceType>(m, "BodyForceType")
+         .value("CenterExcite", BodyForceType::CenterExcite)
+         .value("Gaussian", BodyForceType::Gaussian)
          .export_values();
 
       py::enum_<ObservationOperatorType>(m, "ObservationOperatorType")
@@ -109,6 +109,7 @@ PYBIND11_MODULE(material_model, m) {
           .def_readwrite("delta_t", &MaterialModelConfig::delta_t)
           .def_readwrite("spatial_resolution", &MaterialModelConfig::spatial_resolution)
           .def_readwrite("body_force_type", &MaterialModelConfig::body_force_type)
+          .def_readwrite("body_force_hyperparameter", &MaterialModelConfig::body_force_hyperparameter)
           .def_readwrite("system_matrix_type", &MaterialModelConfig::system_matrix_type)
           .def_readwrite("system_matrix_hyperparameter", &MaterialModelConfig::system_matrix_hyperparameter);
           

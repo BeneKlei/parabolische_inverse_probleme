@@ -42,11 +42,14 @@ def build_InstationaryModelIP(setup : Dict,
     material_model_config.T_final = setup['T_final']
     material_model_config.delta_t = setup['delta_t']
     material_model_config.spatial_resolution = setup['spatial_resolution']
-    material_model_config.body_force_type = setup['body_force_type']
 
     material_model_config.system_matrix_type = setup['system_matrix']['type']
     if setup['system_matrix']['hyperparameter']: 
         material_model_config.system_matrix_hyperparameter = setup['system_matrix']['hyperparameter']
+
+    material_model_config.body_force_type = setup['body_force']['type']
+    if setup['body_force']['hyperparameter']: 
+        material_model_config.body_force_hyperparameter = setup['body_force']['hyperparameter']
 
     material_model = mm.MaterialModel(material_model_config)
     material_model.make_grid()

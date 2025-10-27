@@ -21,7 +21,6 @@
 #include <iostream>
 
 #include "MaterialModel.hpp"
-#include "BodyForce.hpp"
 #include "utils.hpp"
 
 MaterialModel::MaterialModel(const MaterialModelConfig& config)
@@ -130,8 +129,18 @@ void MaterialModel::setup_system()
 
   // --------------------------------------------------
 
-  std::cout << "\t Defining BodyForce." << std::endl;
-  setup_body_force();
+  BodyForceFactoryContext<3, Number> ctx_body_force {
+    m_config.body_force_type,
+    m_fe,
+    m_dof_handler,
+    m_config.body_force_hyperparameter
+  };
+
+
+  m_body_force = m_body_force_factory.assemble_body_force(
+    ctx_body_force
+  );
+
   std::cout << "\t Assembling force list." << std::endl;
   assemble_force_list();
 
@@ -367,17 +376,17 @@ void MaterialModel::assemble_bilinear_cost_matrix()
 }
 
 // TODO Make a body force factory
-void MaterialModel::setup_body_force() {
-  switch (m_config.body_force_type)
-  {
-  case BodyForceType::CenterExcite:
-    std::cout << "\t Using CenterExcite BodyForce" << std::endl;
-    m_body_force = std::make_unique<CenterExciteBodyForce>();
-    break;
-  default:
-    throw std::runtime_error("Unknown body force.");
-  }
-}
+// void MaterialModel::setup_body_force() {
+//   switch (m_config.body_force_type)
+//   {
+//   case BodyForceType::CenterExcite:
+//     std::cout << "\t Using CenterExcite BodyForce" << std::endl;
+//     m_body_force = std::make_unique<CenterExciteBodyForce>();
+//     break;
+//   default:
+//     throw std::runtime_error("Unknown body force.");
+//   }
+// }
 
 void MaterialModel::save_state(const Vector<Number>& v, 
                                const std::string save_path)

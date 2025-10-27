@@ -24,7 +24,7 @@
 
 #include "MaterialMatricesFactory.hpp"
 #include "SystemMatrices.hpp"
-#include "BodyForce.hpp"
+#include "BodyForceFactory.hpp"
 #include "ObservationOperatorFactory.hpp"
 #include "StateProductFactory.hpp"
 #include "ObservationSpaceProductFactory.hpp"
@@ -44,6 +44,7 @@ struct MaterialModelConfig {
     double delta_t = 1.0 / 50;
     std::vector<uint32_t> spatial_resolution = {4,30,30};
     BodyForceType body_force_type = BodyForceType::CenterExcite;
+    BodyForceHyperparameter body_force_hyperparameter = {};
     SystemMatrixType system_matrix_type = SystemMatrixType::CosseratDelamination;
     SystemMatrixHyperparameter system_matrix_hyperparameter = {};
 };
@@ -128,6 +129,7 @@ private:
   ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
   ObservationSpaceProductFactory<dim, Number> m_observation_space_product_factory = ObservationSpaceProductFactory<3, Number>();
+  BodyForceFactory<dim, Number> m_body_force_factory = BodyForceFactory<3, Number>();
 
   SystemMatrices<dim, Number> m_system_matrices;
 
