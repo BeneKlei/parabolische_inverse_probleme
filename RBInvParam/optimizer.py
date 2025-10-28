@@ -1259,9 +1259,12 @@ class QrVrROMOptimizer(Optimizer):
         
         
 
-        lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
-        lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
-        # nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
+        if enrichment['state_basis']['include_lins'] or enrichment['parameter_basis']['include_lin_grad']:
+            lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
+            lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
+
+        if enrichment['parameter_basis']['include_lin_grad']:
+            nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
         
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
         self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
@@ -1320,11 +1323,14 @@ class QrVrROMOptimizer(Optimizer):
         self.snapshots['parameter_basis'].append(q)
         self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
 
-        #self.snapshots['parameter_basis'].append(nabla_lin_J)
         
         if enrichment['parameter_basis']['include_each_time_step'] and not self.FOM.q_time_dep:
             self.logger.debug('Include gradients for each time step as snapshots')
             self.snapshots['parameter_basis'].append(time_step_nabla_J)
+        
+        if enrichment['parameter_basis']['include_lin_grad']:
+            self.logger.debug('Include nabla_lin_J')
+            self.snapshots['parameter_basis'].append(nabla_lin_J)
 
                   
         self.logger.debug(f"Extending Vr-snapshots")
@@ -1336,9 +1342,11 @@ class QrVrROMOptimizer(Optimizer):
             self.snapshots['state_basis'].append(u)
             self.snapshots['state_basis'].append(p)
 
-            self.snapshots['state_basis'].append(lin_u)
-            self.snapshots['state_basis'].append(lin_p)
-            
+            if enrichment['state_basis']['include_lins']:
+                self.logger.debug('Include lins') 
+                self.snapshots['state_basis'].append(lin_u)
+                self.snapshots['state_basis'].append(lin_p)
+                
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             bases=self.reduced_bases,
             enrichment=enrichment, 
@@ -1765,10 +1773,14 @@ class QrVrROMOptimizer(Optimizer):
                                                                    return_per_time_step = True)
                     
 
-                    lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
-                    lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
-                    # nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
+                    if enrichment['state_basis']['include_lins'] or enrichment['parameter_basis']['include_lin_grad']:
+                        lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
+                        lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
+                    if enrichment['parameter_basis']['include_lin_grad']:
+                        nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
+
+                    
                     norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
                     self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
 
@@ -1825,9 +1837,12 @@ class QrVrROMOptimizer(Optimizer):
                         time_step_nabla_J = time_step_nabla_J_ 
                         norm_nabla_J = norm_nabla_J_
 
-                        lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
-                        lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
-                        # nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
+                        if enrichment['state_basis']['include_lins'] or enrichment['parameter_basis']['include_lin_grad']:
+                            lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
+                            lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
+
+                        if enrichment['parameter_basis']['include_lin_grad']:
+                            nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
                         
                         delta_J = self.statistics["J"][-1] - J
                         delta_J_r = self.statistics["J_r"][-1] - J_r
@@ -1913,6 +1928,10 @@ class QrVrROMOptimizer(Optimizer):
                         self.logger.debug('Include gradients for each time step as snapshots')
                         self.snapshots['parameter_basis'].append(time_step_nabla_J)
                     
+                    if enrichment['parameter_basis']['include_lin_grad']:
+                        self.logger.debug('Include nabla_lin_J')
+                        self.snapshots['parameter_basis'].append(nabla_lin_J)
+                    
                     self.logger.debug(f"Extending Vr-snapshots")
 
                     if self.reductor.NCD:
@@ -1922,8 +1941,10 @@ class QrVrROMOptimizer(Optimizer):
                         self.snapshots['state_basis'].append(u)
                         self.snapshots['state_basis'].append(p)
 
-                        self.snapshots['state_basis'].append(lin_u)
-                        self.snapshots['state_basis'].append(lin_p)
+                        if enrichment['state_basis']['include_lins']:
+                            self.logger.debug('Include lins') 
+                            self.snapshots['state_basis'].append(lin_u)
+                            self.snapshots['state_basis'].append(lin_p)
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.reduced_bases,

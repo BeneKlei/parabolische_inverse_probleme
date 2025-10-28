@@ -59,16 +59,34 @@ void CenterExciteBodyForce::vector_value(const Point<3> &p, Vector<double> &valu
     } else {
         fz = 0;
     }
-    values(0) = 0;
+    // values(0) = 0;
+    // values(1) = 0;
+    // values(2) = ft*fx*fy*fz;
+
+    values(0) = ft*fx*fy*fz;
     values(1) = 0;
-    values(2) = ft*fx*fy*fz;
+    values(2) = 0;
 }
 
 void GaussianBodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
 {
-    values(0) = 0;
+    double amplitude;
+    if (get_time() <= 0.5)  {
+        if (get_time() <= 0) {
+            amplitude = 0;
+        } else {
+            amplitude = 1.0 * get_time();
+        }
+    } else {
+        amplitude = 0;
+    }
+
+    const double r = p.distance(center);
+    const double gaussian = amplitude * std::exp(-(r*r)/(2.0*width*width));
+    
+    values(0) = gaussian;
     values(1) = 0;
-    values(2) = 1;
+    values(2) = 0;
 };
 
 
@@ -111,10 +129,10 @@ std::unique_ptr<BodyForce> BodyForceFactory<dim, Number>::assemble_gaussian_body
 {
   //check_required_keys<double>(ctx.hyperparameter, {"center", "width"});
   std::vector<double> center = std::get<std::vector<double>>(ctx.hyperparameter.at("center"));
-  double width = std::get<double>(ctx.hyperparameter.at("width"));
+  double sigma = std::get<double>(ctx.hyperparameter.at("sigma"));
 
   return std::make_unique<GaussianBodyForce>(
-      Point<3>(0,0,0), width
+      Point<3>(0,0,0), sigma
   );
   
 };

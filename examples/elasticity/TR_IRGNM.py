@@ -79,6 +79,32 @@ def main():
     q_exact[0,200] = 2
     q_exact[0,300] = 3
 
+    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    q_exact[9,21] = 3
+    q_exact[8,21] = 3
+    q_exact[7,21] = 3
+    q_exact[9,22] = 3
+    q_exact[8,22] = 3
+    q_exact[7,22] = 3
+    q_exact[9,20] = 3
+    q_exact[8,20] = 3
+    q_exact[7,20] = 3
+
+
+    q_exact[7,14] = 3
+    q_exact[6,14] = 3
+    q_exact[5,14] = 3
+    q_exact[7,13] = 3
+    q_exact[6,13] = 3
+    q_exact[5,13] = 3
+    q_exact[7,15] = 3
+    q_exact[6,15] = 3
+    q_exact[5,15] = 3
+
+
+    q_exact = q_exact.flatten()
+    q_exact = np.array([q_exact])
+
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
 #    q_exact[0,:] = 3
@@ -109,10 +135,13 @@ def main():
     setup = {
         'spatial_resolution' : [4,y_res,z_res],
         'body_force' : {
-            'type' : mm.BodyForceType.CenterExcite,
+            # 'type' : mm.BodyForceType.CenterExcite,
+            # 'hyperparameter' : {}
+            'type' : mm.BodyForceType.Gaussian,
             'hyperparameter' : {
-                'center': [-0.1,0,0],
-                'width' : 1.0,
+                'center': [-0.1,0.0,0.0],
+                #'sigma' : 1.0,
+                'sigma' : 1.0,
             }
         },
         'system_matrix' : {
@@ -207,6 +236,13 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in FOM.L.vectors],
+        str('L'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
+
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
@@ -245,6 +281,7 @@ def main():
         'enrichment': {
             'parameter_basis' : {
                 'include_each_time_step' : False,
+                'include_lin_grad' : False,
                 'sample_every_n_th' : None,
                 # 'normalize' : True,
                 # 'HaPOD' : {
@@ -256,6 +293,7 @@ def main():
                 'keep_last_n': None
             },
             'state_basis' : {
+                'include_lins' : False,
                 'sample_every_n_th' : None,
                 'normalize' : True,
                 'HaPOD' : {
