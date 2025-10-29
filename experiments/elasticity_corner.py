@@ -142,7 +142,9 @@ TR_optimizer_parameter = {
     # },
     'enrichment': {
         'parameter_basis' : {
+            'reduced_basis' : True,
             'include_each_time_step' : False,
+            'include_lin_grad' : False,
             'sample_every_n_th' : None,
             # 'normalize' : True,
             # 'HaPOD' : {
