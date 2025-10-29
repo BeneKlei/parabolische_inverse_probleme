@@ -110,7 +110,8 @@ class Optimizer(BasicObject):
                                beta: float,
                                kappa_arm: float,
                                use_cached_operators: bool = False,
-                               projector: SimpleBoundDomainProjector = None) -> Tuple[NumpyVectorArray, float, bool]:
+                               projector: SimpleBoundDomainProjector = None,
+                               alpha: float = 0.0) -> Tuple[NumpyVectorArray, float, bool]:
 
         assert 0 <= beta < 1
         assert 0 < eta
@@ -131,8 +132,11 @@ class Optimizer(BasicObject):
         
         u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
         p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
+
         current_J = model.objective(u=u,
-                                    q=current_q)
+                                    q=current_q,
+                                    alpha=alpha)
+        
         
         norm_d = model.compute_gradient_norm(previous_q - current_q)
         lhs =  previous_J - current_J
@@ -186,7 +190,8 @@ class Optimizer(BasicObject):
             u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
             p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
             current_J = model.objective(u=u,
-                                        q=current_q)
+                                        q=current_q,
+                                        alpha=alpha)
             
             norm_d = model.compute_gradient_norm(previous_q - current_q)
             lhs = previous_J - current_J
@@ -1225,6 +1230,8 @@ class QrVrROMOptimizer(Optimizer):
         agc_armijo_max_iter = self.optimizer_parameter["agc_armijo_max_iter"]
         TR_armijo_max_iter = self.optimizer_parameter["TR_armijo_max_iter"]
 
+        reg_AGC_step = self.optimizer_parameter["reg_AGC_step"]
+
 
         lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
         use_cached_operators = self.optimizer_parameter['use_cached_operators']        
@@ -1298,6 +1305,8 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
         self.logger.debug(f"  agc_armijo_max_iter : {agc_armijo_max_iter:3.4e}")
         self.logger.debug(f"  TR_armijo_max_iter : {TR_armijo_max_iter:3.4e}")
+        self.logger.debug(f"                ")
+        self.logger.debug(f"  reg_AGC_step : {reg_AGC_step}")
         self.logger.debug(f"                ")
         self.logger.debug(f"  lin_solver_parms : ")
         for (key,val) in lin_solver_parms.items():
@@ -1612,14 +1621,22 @@ class QrVrROMOptimizer(Optimizer):
 
             AGC_start_time = timer()
 
-            norm_grad = self.QrVrROM.compute_gradient_norm(nabla_J_r)            
-            search_direction = -nabla_J_r
-            search_direction.scal(1.0 / norm_grad)
+            if reg_AGC_step:                
+                previous_J = self.QrVrROM.objective(u_r, q=q_r, alpha=alpha)
+                nabla_reg_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, alpha=alpha)
+                norm_grad = self.QrVrROM.compute_gradient_norm(nabla_reg_J_r)            
+                search_direction = -nabla_reg_J_r
+                search_direction.scal(1.0 / norm_grad)
+            else:
+                previous_J = J_r
+                norm_grad = self.QrVrROM.compute_gradient_norm(nabla_J_r)            
+                search_direction = -nabla_J_r
+                search_direction.scal(1.0 / norm_grad)
 
             q_agc, J_r_AGC, model_unsufficent, AGC_max_iter_cond, _ = self._armijo_TR_line_serach(
                 model = self.QrVrROM,
                 previous_q = q_r,
-                previous_J = J_r,
+                previous_J = previous_J,
                 search_direction = search_direction,
                 max_iter = agc_armijo_max_iter,
                 inital_step_size = inital_agc_armijo_step_size,
@@ -1627,7 +1644,8 @@ class QrVrROMOptimizer(Optimizer):
                 beta = beta_1,
                 kappa_arm = kappa_arm,
                 use_cached_operators=use_cached_operators,
-                projector=projector
+                projector=projector,
+                alpha = alpha
             )
 
             print("$$$$$$$$$$$$$$$$$$$$$")
@@ -1636,9 +1654,12 @@ class QrVrROMOptimizer(Optimizer):
             print(J_r_AGC)
             
             AGC_decay_cond = J_r_AGC < (J + 1e-13)
-
+            
             if not AGC_jump_back:
                 self.statistics['flags']['AGC_decay_cond'].append(AGC_decay_cond)
+
+            if reg_AGC_step:
+                AGC_decay_cond = True
                         
             if not AGC_decay_cond:
                 self._logger.warning(f"J_r_AGC = {J_r_AGC:3.4e} is greater or equal than J = {J:3.4e}.")

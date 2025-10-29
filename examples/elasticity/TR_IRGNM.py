@@ -135,14 +135,14 @@ def main():
     setup = {
         'spatial_resolution' : [4,y_res,z_res],
         'body_force' : {
-            # 'type' : mm.BodyForceType.CenterExcite,
-            # 'hyperparameter' : {}
-            'type' : mm.BodyForceType.Gaussian,
-            'hyperparameter' : {
-                'center': [-0.1,0.0,0.0],
-                #'sigma' : 1.0,
-                'sigma' : 1.0,
-            }
+            'type' : mm.BodyForceType.CenterExcite,
+            'hyperparameter' : {}
+            # 'type' : mm.BodyForceType.Gaussian,
+            # 'hyperparameter' : {
+            #     'center': [-0.1,0.0,0.0],
+            #     #'sigma' : 1.0,
+            #     'sigma' : 1.0,
+            # }
         },
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
@@ -272,6 +272,8 @@ def main():
         'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
         #'TR_armijo_max_iter': 2,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
+        'reg_AGC_step' : True,
+        #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
@@ -283,25 +285,27 @@ def main():
         'enrichment': {
             'parameter_basis' : {
                 'reduced_basis' : True,
-                'include_each_time_step' : False,
+                'include_each_time_step' : True,
                 'include_lin_grad' : False,
                 'sample_every_n_th' : None,
-                # 'normalize' : True,
-                # 'HaPOD' : {
-                #     'HaPOD_tol': 1e-1,    
-                # },
-                'normalize' : None,
-                'HaPOD' : None,
+                'normalize' : True,
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-1,    
+                },
+                # 'normalize' : None,
+                # 'HaPOD' : None,
                 'overwrite_every_n' : False,
                 'keep_last_n': None
             },
             'state_basis' : {
                 'include_lins' : False,
                 'sample_every_n_th' : None,
-                'normalize' : True,
-                'HaPOD' : {
-                    'HaPOD_tol': 1e-3,    
-                },
+                # 'normalize' : True,
+                # 'HaPOD' : {
+                #     'HaPOD_tol': 1e-3,    
+                # },
+                'normalize' : None,
+                'HaPOD' : None,
                 'overwrite_every_n' : None,
                 'keep_last_n': None
             },
@@ -323,11 +327,9 @@ def main():
         'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
-        #'eta0': 1e-1,                                                # Initial trust region tolerance
         'eta0': 1e-2,                                                # Initial trust region tolerance
         'eta_min' : 1e-5,
-        #'eta_max' : 0.50,
-        'eta_max' : 0.15,
+        'eta_max' : 0.05,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.90,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 
