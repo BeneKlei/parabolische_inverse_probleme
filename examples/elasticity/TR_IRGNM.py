@@ -79,31 +79,31 @@ def main():
     q_exact[0,200] = 2
     q_exact[0,300] = 3
 
-    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    q_exact[9,21] = 3
-    q_exact[8,21] = 3
-    q_exact[7,21] = 3
-    q_exact[9,22] = 3
-    q_exact[8,22] = 3
-    q_exact[7,22] = 3
-    q_exact[9,20] = 3
-    q_exact[8,20] = 3
-    q_exact[7,20] = 3
+    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    # q_exact[9,21] = 3
+    # q_exact[8,21] = 3
+    # q_exact[7,21] = 3
+    # q_exact[9,22] = 3
+    # q_exact[8,22] = 3
+    # q_exact[7,22] = 3
+    # q_exact[9,20] = 3
+    # q_exact[8,20] = 3
+    # q_exact[7,20] = 3
 
 
-    q_exact[7,14] = 3
-    q_exact[6,14] = 3
-    q_exact[5,14] = 3
-    q_exact[7,13] = 3
-    q_exact[6,13] = 3
-    q_exact[5,13] = 3
-    q_exact[7,15] = 3
-    q_exact[6,15] = 3
-    q_exact[5,15] = 3
+    # q_exact[7,14] = 2
+    # q_exact[6,14] = 2
+    # q_exact[5,14] = 2
+    # q_exact[7,13] = 2
+    # q_exact[6,13] = 2
+    # q_exact[5,13] = 2
+    # q_exact[7,15] = 2
+    # q_exact[6,15] = 2
+    # q_exact[5,15] = 2
 
 
-    q_exact = q_exact.flatten()
-    q_exact = np.array([q_exact])
+    # q_exact = q_exact.flatten()
+    # q_exact = np.array([q_exact])
 
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
@@ -149,6 +149,8 @@ def main():
             'hyperparameter' : {
                 'lambda' : 1e1,
                 'mu' : 1e1,
+                # 'lambda' : 1e2,
+                # 'mu' : 1e2,
                 'nu' : 1e-3,
                 'surface' : 'left'
             }
@@ -280,6 +282,7 @@ def main():
         },
         'enrichment': {
             'parameter_basis' : {
+                'reduced_basis' : True,
                 'include_each_time_step' : False,
                 'include_lin_grad' : False,
                 'sample_every_n_th' : None,
@@ -297,7 +300,7 @@ def main():
                 'sample_every_n_th' : None,
                 'normalize' : True,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-6,    
+                    'HaPOD_tol': 1e-3,    
                 },
                 'overwrite_every_n' : None,
                 'keep_last_n': None
@@ -320,9 +323,10 @@ def main():
         'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
-        #'eta0': 5 * 1e-1,                                                # Initial trust region tolerance
+        #'eta0': 1e-1,                                                # Initial trust region tolerance
         'eta0': 1e-2,                                                # Initial trust region tolerance
         'eta_min' : 1e-5,
+        #'eta_max' : 0.50,
         'eta_max' : 0.15,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.90,                                              # Trust region edge tolerance.

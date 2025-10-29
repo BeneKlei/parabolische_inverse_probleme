@@ -575,21 +575,21 @@ class Optimizer(BasicObject):
                 # print(model.compute_gradient_norm(d))
                 q += d
             
-            u = self.FOM.solve_state(
-            q = self.FOM_projector.project_domain(center=
-                    self.reductor.reconstruct(q, basis='parameter_basis')
-                )
-            )
-            u_r = self.reductor.reconstruct(model.solve_state(q), basis='state_basis')
+            # u = self.FOM.solve_state(
+            # q = self.FOM_projector.project_domain(center=
+            #         self.reductor.reconstruct(q, basis='parameter_basis')
+            #     )
+            # )
+            # u_r = self.reductor.reconstruct(model.solve_state(q), basis='state_basis')
 
-            self.I += 1
-            diff = u - u_r
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in diff.vectors],
-                str(f'diff_u_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # self.I += 1
+            # diff = u - u_r
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in diff.vectors],
+            #     str(f'diff_u_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
             ########################################### Final ###########################################
 
@@ -635,22 +635,22 @@ class Optimizer(BasicObject):
             if model_unsufficent:
                 break
         
-        u = self.FOM.solve_state(
-            q = self.FOM_projector.project_domain(center=
-                self.reductor.reconstruct(q, basis='parameter_basis')
-            )
-        )
-        u_r = self.reductor.reconstruct(model.solve_state(q), basis='state_basis')
+        # u = self.FOM.solve_state(
+        #     q = self.FOM_projector.project_domain(center=
+        #         self.reductor.reconstruct(q, basis='parameter_basis')
+        #     )
+        # )
+        # u_r = self.reductor.reconstruct(model.solve_state(q), basis='state_basis')
 
 
-        self.I += 1
-        diff = u - u_r
-        self.FOM.A.material_model.save_time_series(
-            [v.real_part.impl for v in diff.vectors],
-            str(f'diff_u_{self.I}_last'),
-            str(self.save_path),
-            np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-        )
+        # self.I += 1
+        # diff = u - u_r
+        # self.FOM.A.material_model.save_time_series(
+        #     [v.real_part.impl for v in diff.vectors],
+        #     str(f'diff_u_{self.I}_last'),
+        #     str(self.save_path),
+        #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+        # )
 
         self.logger.info(f'Final {method_name} Statistics:')
         if loop_terminated:
@@ -1318,21 +1318,29 @@ class QrVrROMOptimizer(Optimizer):
 
         self._reset_snapshots()
         self.logger.debug(f"Extending Qr-snapshots")
-        
-        self.snapshots['parameter_basis'].append(nabla_J)
-        self.snapshots['parameter_basis'].append(q)
-        self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
 
-        
-        if enrichment['parameter_basis']['include_each_time_step'] and not self.FOM.q_time_dep:
-            self.logger.debug('Include gradients for each time step as snapshots')
-            self.snapshots['parameter_basis'].append(time_step_nabla_J)
-        
-        if enrichment['parameter_basis']['include_lin_grad']:
-            self.logger.debug('Include nabla_lin_J')
-            self.snapshots['parameter_basis'].append(nabla_lin_J)
 
-                  
+        if not enrichment['parameter_basis']['reduced_basis']:
+            self.logger.debug('Using reduced parameter space')
+
+            assert isinstance(self.FOM.Q, NumpyVectorSpace)
+            self.snapshots['parameter_basis'].append( 
+                self.FOM.Q.make_array(np.identity(self.FOM.Q.dim))
+            )
+        else:
+            self.snapshots['parameter_basis'].append(nabla_J)
+            self.snapshots['parameter_basis'].append(q)
+            self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
+            
+            if enrichment['parameter_basis']['include_each_time_step'] and not self.FOM.q_time_dep:
+                self.logger.debug('Include gradients for each time step as snapshots')
+                self.snapshots['parameter_basis'].append(time_step_nabla_J)
+            
+            if enrichment['parameter_basis']['include_lin_grad']:
+                self.logger.debug('Include nabla_lin_J')
+                self.snapshots['parameter_basis'].append(nabla_lin_J)
+
+
         self.logger.debug(f"Extending Vr-snapshots")
 
         if self.reductor.NCD:
@@ -1492,9 +1500,10 @@ class QrVrROMOptimizer(Optimizer):
                     #_enrichment[basis]['overwrite'] = False
                 
                 self._reset_snapshots()
-                self.logger.debug(f"Extending Qr-snapshots")
 
-                self.snapshots['parameter_basis'].append(nabla_J)
+                if enrichment['parameter_basis']['reduced_basis']:
+                    self.logger.debug(f"Extending Qr-snapshots")
+                    self.snapshots['parameter_basis'].append(nabla_J)
                 
                                 
                 self.logger.debug(f"Extending Vr-snapshots")
@@ -1643,8 +1652,9 @@ class QrVrROMOptimizer(Optimizer):
                     _enrichment[basis]['HaPOD'] = None
                 
                 self._reset_snapshots()
-                self.logger.debug(f"Extending Qr-snapshots")
-                self.snapshots['parameter_basis'].append(nabla_J)
+                if enrichment['parameter_basis']['reduced_basis']:
+                    self.logger.debug(f"Extending Qr-snapshots")
+                    self.snapshots['parameter_basis'].append(nabla_J)
                 
                 
                 self.logger.debug(f"Extending Vr-snapshots")
@@ -1919,19 +1929,20 @@ class QrVrROMOptimizer(Optimizer):
 
                 if not convergence_criterium:
                     self._reset_snapshots()
-                    self.logger.debug(f"Extending Qr-snapshots")
                     
-                    self.snapshots['parameter_basis'].append(nabla_J)
-                    #self.snapshots['parameter_basis'].append(nabla_lin_J)
 
-                    if enrichment['parameter_basis']['include_each_time_step'] and not self.FOM.q_time_dep:
-                        self.logger.debug('Include gradients for each time step as snapshots')
-                        self.snapshots['parameter_basis'].append(time_step_nabla_J)
-                    
-                    if enrichment['parameter_basis']['include_lin_grad']:
-                        self.logger.debug('Include nabla_lin_J')
-                        self.snapshots['parameter_basis'].append(nabla_lin_J)
-                    
+                    if enrichment['parameter_basis']['reduced_basis']:
+                        self.logger.debug(f"Extending Qr-snapshots")            
+                        self.snapshots['parameter_basis'].append(nabla_J)
+
+                        if enrichment['parameter_basis']['include_each_time_step'] and not self.FOM.q_time_dep:
+                            self.logger.debug('Include gradients for each time step as snapshots')
+                            self.snapshots['parameter_basis'].append(time_step_nabla_J)
+                        
+                        if enrichment['parameter_basis']['include_lin_grad']:
+                            self.logger.debug('Include nabla_lin_J')
+                            self.snapshots['parameter_basis'].append(nabla_lin_J)
+                        
                     self.logger.debug(f"Extending Vr-snapshots")
 
                     if self.reductor.NCD:
