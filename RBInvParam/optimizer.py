@@ -1747,8 +1747,8 @@ class QrVrROMOptimizer(Optimizer):
                 print(eta)
                 continue
             
-            #if not reg_AGC_step:
-            assert not AGC_max_iter_cond
+            if not reg_AGC_step:
+                assert not AGC_max_iter_cond
 
             AGC_jump_back = False
                 

@@ -129,7 +129,7 @@ TR_optimizer_parameter = {
     'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
     'i_max_inner': 30,                                           # Max number of inner iterations
     'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
-    'TR_armijo_max_iter': 1,                                     # Max iterations Armijo condition to enforce the trust-region 
+    'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
     #####################
     'reg_AGC_step' : True,
     #'TR_enforcement' : 'check_error',

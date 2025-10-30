@@ -266,8 +266,9 @@ def main():
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
-        'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
-        'TR_armijo_max_iter': 1,                                     # Max iterations Armijo condition to enforce the trust-region 
+        'agc_armijo_max_iter': 1,                                  # Max iterations for computing the AGC
+        #'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
+        'TR_armijo_max_iter': 2,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
         'reg_AGC_step' : True,
         #'TR_enforcement' : 'check_error',
@@ -284,7 +285,7 @@ def main():
         'enrichment': {
             'parameter_basis' : {
                 'reduced_basis' : True,
-                'include_each_time_step' : False,
+                'include_each_time_step' : True,
                 'include_lin_grad' : False,
                 'sample_every_n_th' : None,
                 # 'normalize' : True,
@@ -329,7 +330,7 @@ def main():
         'eta0': 1e-2,                                                # Initial trust region tolerance
         'eta_min' : 1e-5,
         #'eta_max' : 0.05,
-        'eta_max' : 0.15,
+        'eta_max' : 0.05,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.90,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 
