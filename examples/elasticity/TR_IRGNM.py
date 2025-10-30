@@ -248,16 +248,14 @@ def main():
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
-        #'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
-        #'alpha_0': 1e-14,                                              # Initial regularization parameter (data fidelity vs. regularization)        
+        #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
-        #'Theta': 1.00,                                               # Upper bound for step acceptance condition
-        #'Theta': 1.99,                                               # Upper bound for step acceptance condition
+        #'Theta': 1.75,                                               # Upper bound for step acceptance condition
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         'NCD' : False,
@@ -269,10 +267,11 @@ def main():
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
         'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
-        'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
-        #'TR_armijo_max_iter': 2,                                     # Max iterations Armijo condition to enforce the trust-region 
+        'TR_armijo_max_iter': 1,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
         'reg_AGC_step' : True,
+        #'TR_enforcement' : 'check_error',
+        'TR_enforcement' : 'backtracking',
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
@@ -285,27 +284,27 @@ def main():
         'enrichment': {
             'parameter_basis' : {
                 'reduced_basis' : True,
-                'include_each_time_step' : True,
+                'include_each_time_step' : False,
                 'include_lin_grad' : False,
                 'sample_every_n_th' : None,
-                'normalize' : True,
-                'HaPOD' : {
-                    'HaPOD_tol': 1e-1,    
-                },
-                # 'normalize' : None,
-                # 'HaPOD' : None,
+                # 'normalize' : True,
+                # 'HaPOD' : {
+                #     'HaPOD_tol': 1e-1,    
+                # },
+                'normalize' : None,
+                'HaPOD' : None,
                 'overwrite_every_n' : False,
                 'keep_last_n': None
             },
             'state_basis' : {
                 'include_lins' : False,
                 'sample_every_n_th' : None,
-                # 'normalize' : True,
-                # 'HaPOD' : {
-                #     'HaPOD_tol': 1e-3,    
-                # },
-                'normalize' : None,
-                'HaPOD' : None,
+                'normalize' : True,
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-3,    
+                },
+                # 'normalize' : None,
+                # 'HaPOD' : None,
                 'overwrite_every_n' : None,
                 'keep_last_n': None
             },
@@ -329,7 +328,8 @@ def main():
         #####################
         'eta0': 1e-2,                                                # Initial trust region tolerance
         'eta_min' : 1e-5,
-        'eta_max' : 0.05,
+        #'eta_max' : 0.05,
+        'eta_max' : 0.15,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.90,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 

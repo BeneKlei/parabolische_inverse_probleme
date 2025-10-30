@@ -247,6 +247,7 @@ class Optimizer(BasicObject):
 
             
             i += 1
+
         if (J_rel_error > beta * eta):
             model_unsufficent = True
         
@@ -356,9 +357,9 @@ class Optimizer(BasicObject):
               Theta : float,
               i_max : int,
               reg_loop_max: int,
-              use_TR: bool = False,
+              TR_enforcement: str | None = None,
               lin_solver_parms: Dict = None,
-              TR_backtracking_params: Dict = None,
+              TR_params: Dict = None,
               use_cached_operators: bool = False,
               dump_IRGNM_intermed_stats: bool = False,
               dump_every_nth_loop: int = 0,
@@ -372,8 +373,9 @@ class Optimizer(BasicObject):
 
         assert lin_solver_parms is not None        
 
-        if use_TR:
-            assert TR_backtracking_params is not None
+        if TR_enforcement is not None:
+            assert TR_enforcement in ['check_error', 'backtracking']
+            assert TR_params is not None
             method_name = 'TR-IRGNM'
         else:
             method_name = 'IRGNM'
@@ -557,28 +559,73 @@ class Optimizer(BasicObject):
                 break
                 
             ########################################### Armijo ###########################################
-            if use_TR:
-                self.logger.info(f"Enforcing TR condition.")
+            
+            TR_max_iter_cond = False
+            model_unsufficent = False
+
+            if TR_enforcement == 'backtracking':
+                self.logger.info(f"Enforcing TR condition using 'backtracking'.")
                 q_TR, _, model_unsufficent, TR_max_iter_cond, step_size = self._armijo_TR_line_serach(
                     model = model,
                     previous_q = q,
                     previous_J = J,
                     search_direction = d,
-                    **TR_backtracking_params,
+                    **TR_params,
                     use_cached_operators=use_cached_operators,
                     projector=projector
                 )
 
                 if TR_max_iter_cond:
                     break
-                
-                # print("|q-q_TR|")
-                # print(model.compute_gradient_norm(q - q_TR))
+
                 q = q_TR
+
+            elif TR_enforcement == 'check_error':
+                self.logger.info(f"Enforcing TR condition using 'check_error'.")
+
+                if projector:
+                    projector.pre_compute(center=q)
+                    next_q = projector.project_domain(q, d)
+                else:
+                    next_q = q + d
+
+                u = model.solve_state(q=next_q, use_cached_operators=use_cached_operators)
+                p = model.solve_adjoint(q=next_q, u=u, use_cached_operators=use_cached_operators)
+                next_J = model.objective(u=u,q=next_q)
+
+                if next_J > 0:
+                    abs_est_error_J_r, _ = self.estimate_objective_error(
+                        model = model,
+                        q = next_q,
+                        u = u,
+                        p = p,
+                        use_cached_operators=use_cached_operators
+                    )
+                    J_rel_error = abs_est_error_J_r / next_J
+                else:
+                    J_rel_error = np.inf
+
+                eta = TR_params['eta']
+                beta = TR_params['beta']
+
+                if J_rel_error <= eta:
+                    q = next_q
+
+                if (J_rel_error > beta * eta):
+                    model_unsufficent = True
+
+                print("############")
+                print(next_J)
+                print(abs_est_error_J_r)
+                print(eta)
+                print(f"{J_rel_error:3.4e}")
+                print(J_rel_error <= eta)
+                print(J_rel_error <= beta * eta)
+
             else:
-                # print("|d|")
-                # print(model.compute_gradient_norm(d))
-                q += d
+                #q += d
+                projector.pre_compute(center=q)
+                next_q = projector.project_domain(q, d)
             
             # u = self.FOM.solve_state(
             # q = self.FOM_projector.project_domain(center=
@@ -1231,7 +1278,8 @@ class QrVrROMOptimizer(Optimizer):
         TR_armijo_max_iter = self.optimizer_parameter["TR_armijo_max_iter"]
 
         reg_AGC_step = self.optimizer_parameter["reg_AGC_step"]
-
+        TR_enforcement = self.optimizer_parameter["TR_enforcement"]
+        assert TR_enforcement in ['check_error', 'backtracking']
 
         lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
         use_cached_operators = self.optimizer_parameter['use_cached_operators']        
@@ -1307,6 +1355,7 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"  TR_armijo_max_iter : {TR_armijo_max_iter:3.4e}")
         self.logger.debug(f"                ")
         self.logger.debug(f"  reg_AGC_step : {reg_AGC_step}")
+        self.logger.debug(f"  TR_enforcement : {TR_enforcement}")
         self.logger.debug(f"                ")
         self.logger.debug(f"  lin_solver_parms : ")
         for (key,val) in lin_solver_parms.items():
@@ -1644,7 +1693,7 @@ class QrVrROMOptimizer(Optimizer):
                 beta = beta_1,
                 kappa_arm = kappa_arm,
                 use_cached_operators=use_cached_operators,
-                projector=projector,
+                projector = projector,
                 alpha = alpha
             )
 
@@ -1697,7 +1746,8 @@ class QrVrROMOptimizer(Optimizer):
                 eta = beta_3 * eta
                 print(eta)
                 continue
-             
+            
+            #if not reg_AGC_step:
             assert not AGC_max_iter_cond
 
             AGC_jump_back = False
@@ -1709,7 +1759,7 @@ class QrVrROMOptimizer(Optimizer):
             ########################################### IRGNM ###########################################
             IRGNM_start_time = timer()
 
-            TR_backtracking_params = {
+            TR_params = {
                 'max_iter' : TR_armijo_max_iter, 
                 'inital_step_size' : 1, 
                 'eta' : eta, 
@@ -1729,8 +1779,8 @@ class QrVrROMOptimizer(Optimizer):
                                                   theta = theta,
                                                   Theta = Theta,
                                                   reg_loop_max = reg_loop_max,
-                                                  use_TR=True,
-                                                  TR_backtracking_params=TR_backtracking_params,
+                                                  TR_enforcement=TR_enforcement,
+                                                  TR_params=TR_params,
                                                   lin_solver_parms=lin_solver_parms,
                                                   use_cached_operators=use_cached_operators,
                                                   projector=projector)
