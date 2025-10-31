@@ -623,9 +623,9 @@ class Optimizer(BasicObject):
                 print(J_rel_error <= beta * eta)
 
             else:
-                #q += d
-                projector.pre_compute(center=q)
-                next_q = projector.project_domain(q, d)
+                q += d
+                # projector.pre_compute(center=q)
+                # next_q = projector.project_domain(q, d)
             
             # u = self.FOM.solve_state(
             # q = self.FOM_projector.project_domain(center=
@@ -1330,8 +1330,7 @@ class QrVrROMOptimizer(Optimizer):
         #assert norm_nabla_J > 0
 
         inital_agc_armijo_step_size = 0.5 / norm_nabla_J
-        #inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1])
-        inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1e-1])
+        inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1e-3])
         eta = eta0
                     
         self.logger.debug("Running Qr-Vr-IRGNM:")
@@ -1488,6 +1487,7 @@ class QrVrROMOptimizer(Optimizer):
 
         convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
         AGC_jump_back = False
+        last_inner_alpha = None
 
         while not convergence_criterium and i<i_max:            
             outer_loop_start_time = timer()
@@ -1671,16 +1671,24 @@ class QrVrROMOptimizer(Optimizer):
             AGC_start_time = timer()
 
             if reg_AGC_step:                
-                previous_J = self.QrVrROM.objective(u_r, q=q_r, alpha=alpha)
-                nabla_reg_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, alpha=alpha)
+                if last_inner_alpha is not None:
+                    AGC_alpha = last_inner_alpha
+                else:
+                    AGC_alpha = alpha
+
+                previous_J = self.QrVrROM.objective(u_r, q=q_r, alpha=AGC_alpha)
+                nabla_reg_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, alpha=AGC_alpha)
                 norm_grad = self.QrVrROM.compute_gradient_norm(nabla_reg_J_r)            
                 search_direction = -nabla_reg_J_r
                 search_direction.scal(1.0 / norm_grad)
             else:
+                AGC_alpha = 0.0
                 previous_J = J_r
                 norm_grad = self.QrVrROM.compute_gradient_norm(nabla_J_r)            
                 search_direction = -nabla_J_r
                 search_direction.scal(1.0 / norm_grad)
+
+            self.logger.warning(f"Using AGC_alpha = {AGC_alpha}.")
 
             q_agc, J_r_AGC, model_unsufficent, AGC_max_iter_cond, _ = self._armijo_TR_line_serach(
                 model = self.QrVrROM,
@@ -1694,7 +1702,7 @@ class QrVrROMOptimizer(Optimizer):
                 kappa_arm = kappa_arm,
                 use_cached_operators=use_cached_operators,
                 projector = projector,
-                alpha = alpha
+                alpha = AGC_alpha
             )
 
             print("$$$$$$$$$$$$$$$$$$$$$")
@@ -1756,6 +1764,7 @@ class QrVrROMOptimizer(Optimizer):
             self.statistics["outer_loop_runtime"]['AGC_runtime'].append(timer() - AGC_start_time)
 
             q_r = q_agc.copy()
+
             ########################################### IRGNM ###########################################
             IRGNM_start_time = timer()
 
@@ -1784,7 +1793,8 @@ class QrVrROMOptimizer(Optimizer):
                                                   lin_solver_parms=lin_solver_parms,
                                                   use_cached_operators=use_cached_operators,
                                                   projector=projector)
-
+            
+            
             self.statistics["outer_loop_runtime"]['IRGNM_runtime'].append(timer() - IRGNM_start_time)
 
             ########################################### Accept / Reject ###########################################
@@ -1980,8 +1990,9 @@ class QrVrROMOptimizer(Optimizer):
                 if len(IRGNM_statistic) > 0:
                     try:
                         alpha = IRGNM_statistic["alpha"][1]
+                        last_inner_alpha = IRGNM_statistic["alpha"][-1]
                     except IndexError:
-                        pass                
+                        last_inner_alpha = None
 
                 # basis = 'state_basis'
                 # u_h_norm = self.FOM.products['prod_V'].pairwise_apply2(u,u)

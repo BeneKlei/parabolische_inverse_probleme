@@ -1,6 +1,5 @@
 import numpy as np
 import copy
-import itertools
 
 import RBInvParam.problems.elasticity.material_model as mm
 
@@ -118,7 +117,7 @@ TR_optimizer_parameter = {
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
     'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-    'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
+    'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
     'theta': 0.4,
     'Theta': 1.95,                                               # Upper bound for step acceptance condition
@@ -130,16 +129,16 @@ TR_optimizer_parameter = {
     'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
     'i_max_inner': 30,                                           # Max number of inner iterations
     'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
-    'TR_armijo_max_iter': 10,    
+    'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
     #####################
     'reg_AGC_step' : False,
     #'TR_enforcement' : 'check_error',
-    'TR_enforcement' : 'backtracking',                                 # Max iterations Armijo condition to enforce the trust-region 
+    'TR_enforcement' : 'backtracking',
     #####################
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-        'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+        'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
         'kappa_arm' : 1e-12,
         'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
         'armijo_min_step_size' : 1e-20
@@ -196,7 +195,7 @@ TR_optimizer_parameter = {
     'eta0': 1e-2,                                                # Initial trust region tolerance
     'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
     'eta_min' : 1e-5,
-    'eta_max' : 0.15,
+    'eta_max' : 0.05,
     'beta_1': 0.95,                                              # Trust region edge tolerance.
     'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 
     'beta_3': 0.5                                                # Shrinking/Enlarging factor for the trust region.
@@ -204,40 +203,29 @@ TR_optimizer_parameter = {
 
 EXPERIMENTS = {}
 
+setup_sensors = copy.deepcopy(setup)
+setup_identity = copy.deepcopy(setup)
+setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
+
 ##########################################################################################
+FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
+TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
 
-#noise_levels = [5 * 1e-5, 1e-4, 5 * 1e-4]
-noise_levels = [1e-4, 5 * 1e-4]
-alpha_0s = [1e-5, 1e-4, 1e-3]
 
-for noise_level,alpha_0 in itertools.product(noise_levels,alpha_0s):
-    setup_ = copy.deepcopy(setup)
-    setup_['noise_level'] = noise_level
+EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_)
+EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_)
 
-    setup_sensors = copy.deepcopy(setup_)
-    setup_identity = copy.deepcopy(setup_)
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['normalize'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['HaPOD'] = {'HaPOD_tol': 1e-1}
+EXPERIMENTS['TR_sensors_include_each_time_step'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_identity_include_each_time_step'] = (setup_identity, TR_optimizer_parameter__)
+#----------------------------------------------------------------------------------------
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter__)
 
-    setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
 
-    FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
-    TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
-    FOM_optimizer_parameter_['alpha_0'] = alpha_0
-    TR_optimizer_parameter_['alpha_0'] = alpha_0
-
-    EXPERIMENTS[f'noise_level_{noise_level}_FOM_sensors_alpha_0_{alpha_0}'] = (setup_sensors, FOM_optimizer_parameter_)
-    EXPERIMENTS[f'noise_level_{noise_level}_FOM_identity_alpha_0_{alpha_0}'] = (setup_identity, FOM_optimizer_parameter_)
-
-    # TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-    # TR_optimizer_parameter__['enrichment']['parameter_basis']['include_each_time_step'] = True
-    # TR_optimizer_parameter__['enrichment']['parameter_basis']['normalize'] = True
-    # TR_optimizer_parameter__['enrichment']['parameter_basis']['HaPOD'] = {'HaPOD_tol': 1e-1}
-    # EXPERIMENTS[f'noise_level_{noise_level}_TR_sensors_include_each_time_step_alpha_0_{alpha_0}'] = (setup_sensors, TR_optimizer_parameter__)
-    # EXPERIMENTS[f'noise_level_{noise_level}_TR_identity_include_each_time_step_alpha_0_{alpha_0}'] = (setup_identity, TR_optimizer_parameter__)
-    # #----------------------------------------------------------------------------------------
-    # TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-    # EXPERIMENTS[f'noise_level_{noise_level}_TR_sensors_alpha_0_{alpha_0}'] = (setup_sensors, TR_optimizer_parameter__)
-    # EXPERIMENTS[f'noise_level_{noise_level}_TR_identity_alpha_0_{alpha_0}'] = (setup_identity, TR_optimizer_parameter__)
-    #----------------------------------------------------------------------------------------
-
-prefix = 'test_regularization'
+prefix = 'new_baseline'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

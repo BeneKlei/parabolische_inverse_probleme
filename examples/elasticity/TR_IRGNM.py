@@ -1,8 +1,13 @@
 import numpy as np
 import logging
-import os
 from pathlib import Path
 from datetime import datetime
+
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 from pymor.basic import *
 
@@ -198,52 +203,53 @@ def main():
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
-    u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in u_exact.vectors],
-        str('u_exact'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    #u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
 
-    p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in p_exact.vectors],
-        str('p_exact'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in u_exact.vectors],
+    #     str('u_exact'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in u_start.vectors],
-        str('u_start'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in p_exact.vectors],
+    #     str('p_exact'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in p_start.vectors],
-        str('p_start'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # u_start = FOM.solve_state(FOM.Q.make_array(q_start))
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in u_start.vectors],
+    #     str('u_start'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    diff = u_start - u_exact
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in diff.vectors],
-        str('diff'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in p_start.vectors],
+    #     str('p_start'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in FOM.L.vectors],
-        str('L'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # diff = u_start - u_exact
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in diff.vectors],
+    #     str('diff'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
+
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in FOM.L.vectors],
+    #     str('L'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
 
     optimizer_parameter = {
@@ -255,22 +261,20 @@ def main():
         'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
-        #'Theta': 1.75,                                               # Upper bound for step acceptance condition
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
+        #'Theta': 1.95,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         'NCD' : False,
-        #'offline_parallel' : False,
-        'offline_parallel' : True,
+        'offline_parallel' : False,
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
-        'agc_armijo_max_iter': 1,                                  # Max iterations for computing the AGC
-        #'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
-        'TR_armijo_max_iter': 2,                                     # Max iterations Armijo condition to enforce the trust-region 
+        'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
+        'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
-        'reg_AGC_step' : True,
+        'reg_AGC_step' : False,
         #'TR_enforcement' : 'check_error',
         'TR_enforcement' : 'backtracking',
         #####################
@@ -279,7 +283,7 @@ def main():
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
             'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
-            'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
+            'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
         },
         'enrichment': {
@@ -288,12 +292,12 @@ def main():
                 'include_each_time_step' : True,
                 'include_lin_grad' : False,
                 'sample_every_n_th' : None,
-                # 'normalize' : True,
-                # 'HaPOD' : {
-                #     'HaPOD_tol': 1e-1,    
-                # },
-                'normalize' : None,
-                'HaPOD' : None,
+                'normalize' : True,
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-1,    
+                },
+                # 'normalize' : None,
+                # 'HaPOD' : None,
                 'overwrite_every_n' : False,
                 'keep_last_n': None
             },
@@ -324,13 +328,13 @@ def main():
             'objective' : ObjectiveErrorEstimatorType.NONE,
         },
         #####################
-        'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
+        'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
-        'eta0': 1e-2,                                                # Initial trust region tolerance
+        'eta0': 2.5 * 1e-2,                                                # Initial trust region tolerance
         'eta_min' : 1e-5,
         #'eta_max' : 0.05,
-        'eta_max' : 0.05,
+        'eta_max' : 0.15,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.90,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 
@@ -354,22 +358,22 @@ def main():
         save_path=save_path
     )
     q_est = optimizer.solve()
-    print(q_est)
-    u = FOM.solve_state(q_est)
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in u.vectors],
-        str('u_est'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # print(q_est)
+    # u = FOM.solve_state(q_est)
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in u.vectors],
+    #     str('u_est'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    diff = u - u_exact
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in diff.vectors],
-        str('diff_est'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # diff = u - u_exact
+    # FOM.A.material_model.save_time_series(
+    #     [v.real_part.impl for v in diff.vectors],
+    #     str('diff_est'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
 
 

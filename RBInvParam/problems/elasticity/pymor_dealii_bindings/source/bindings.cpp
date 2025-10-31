@@ -146,7 +146,18 @@ void bind_sparse_matrix(pybind11::module& module) {
       .def("clear", &Matrix::clear)
       .def("l1_norm", &Matrix::l1_norm)
       .def("linfty_norm", &Matrix::linfty_norm)
-      .def("vmult", &Matrix::template vmult<Vector, Vector>)
+      //.def("vmult", &Matrix::template vmult<Vector, Vector>)
+      .def("vmult",
+          [](const Matrix &self, Vector &dst, const Vector &src) {
+            py::gil_scoped_release release;
+            self.vmult(dst, src);})
+      // .def("vmult_batch", [](const Matrix& A, const std::vector<Vector>& src) {
+      //     py::gil_scoped_release release;
+      //     std::vector<Vector> dst(src.size());
+      //     for (size_t i = 0; i < src.size(); ++i)
+      //         A.vmult(dst[i], src[i]);
+      //     return dst;
+      // })
       .def("Tvmult", &Matrix::template Tvmult<Vector, Vector>)
       .def("mmult",
           static_cast<void (Matrix::*)(
@@ -166,8 +177,16 @@ void bind_sparse_matrix(pybind11::module& module) {
           py::arg("rebuild_sparsity_pattern") = true)
       .def("get_sparsity_pattern", &Matrix::get_sparsity_pattern, py::return_value_policy::reference_internal)
       .def("add", (void(Matrix::*)(Number, const Matrix&)) & Matrix::template add<Number>)
-      .def("copy_from", (Matrix & (Matrix::*)(const Matrix&)) & Matrix::template copy_from<Number>)
-      .def("reinit", (void(Matrix::*)(const dealii::SparsityPattern& sparsity))& Matrix::reinit)
+      .def("copy_from",
+        [](Matrix &self, const Matrix &other) {
+            py::gil_scoped_release release;
+            return self.copy_from(other);
+        })
+    .def("reinit",
+        [](Matrix &self, const dealii::SparsityPattern &sp) {
+            py::gil_scoped_release release;
+            self.reinit(sp);
+        })
       .def("cg_solve", cg_solve);
 }
 
