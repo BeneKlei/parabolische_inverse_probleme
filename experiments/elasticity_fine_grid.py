@@ -8,8 +8,8 @@ from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEst
 from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
 
 
-y_res = 30
-z_res = 30
+y_res = 50
+z_res = 50
 par_dim = (y_res + 1) * (z_res + 1) 
 T_initial = 0
 T_final = 5.0
@@ -31,7 +31,7 @@ bounds[:,0] = 1e-20
 bounds[:,1] = 1e20
 
 setup = {
-    'spatial_resolution' : [4,y_res,z_res],
+    'spatial_resolution' : [6,y_res,z_res],
     'body_force' : {
         'type' : mm.BodyForceType.CenterExcite,
         'hyperparameter' : {}
@@ -169,7 +169,7 @@ TR_optimizer_parameter = {
             'sample_every_n_th' : None,
             'normalize' : True,
             'HaPOD' : {
-                'HaPOD_tol': 1e-6,    
+                'HaPOD_tol': 1e-3,    
             },
             'overwrite_every_n' : False,
             'keep_last_n': None
@@ -226,24 +226,6 @@ TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
 EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
-TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['state_basis']['normalize'] = None
-TR_optimizer_parameter__['enrichment']['state_basis']['HaPOD'] = None
-EXPERIMENTS['TR_sensors_no_HaPOD'] = (setup_sensors, TR_optimizer_parameter__)
-EXPERIMENTS['TR_identity_no_HaPOD'] = (setup_identity, TR_optimizer_parameter__)
-#----------------------------------------------------------------------------------------
-TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['state_basis']['HaPOD']['HaPOD_tol'] = 1e-3
-EXPERIMENTS['TR_sensors_HaPOD_tol_1e-3'] = (setup_sensors, TR_optimizer_parameter__)
-EXPERIMENTS['TR_identity_HaPOD_tol_1e-3'] = (setup_identity, TR_optimizer_parameter__)
-#----------------------------------------------------------------------------------------
-TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['include_lin_grad'] = True
-TR_optimizer_parameter__['enrichment']['parameter_basis']['normalize'] = True
-TR_optimizer_parameter__['enrichment']['state_basis']['include_lins'] = True
-EXPERIMENTS['TR_sensors_include_all_lins_HaPOD_tol_1e-3'] = (setup_sensors, TR_optimizer_parameter__)
-EXPERIMENTS['TR_identity_include_all_lins_HaPOD_tol_1e-3'] = (setup_identity, TR_optimizer_parameter__)
-#----------------------------------------------------------------------------------------
 
-prefix = 'baseline'
+prefix = 'fine_grid'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

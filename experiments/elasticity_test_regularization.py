@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+import itertools
 
 import RBInvParam.problems.elasticity.material_model as mm
 
@@ -169,7 +170,7 @@ TR_optimizer_parameter = {
             'sample_every_n_th' : None,
             'normalize' : True,
             'HaPOD' : {
-                'HaPOD_tol': 1e-6,    
+                'HaPOD_tol': 1e-3,    
             },
             'overwrite_every_n' : False,
             'keep_last_n': None
@@ -203,47 +204,40 @@ TR_optimizer_parameter = {
 
 EXPERIMENTS = {}
 
-setup_sensors = copy.deepcopy(setup)
-setup_identity = copy.deepcopy(setup)
-setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
-
 ##########################################################################################
-FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
-TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
+
+noise_levels = [5 * 1e-5, 1e-4, 5 * 1e-4]
+alpha_0s = [1e-5, 1e-4, 1e-3]
+
+for noise_level,alpha_0 in itertools.product(noise_levels,alpha_0s):
+    setup_ = copy.deepcopy(setup)
+    setup_['noise_level'] = noise_level
 
 
-EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_)
-EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_)
+    setup_sensors = copy.deepcopy(setup)
+    setup_identity = copy.deepcopy(setup)
 
-TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['include_each_time_step'] = True
-TR_optimizer_parameter__['enrichment']['parameter_basis']['normalize'] = True
-TR_optimizer_parameter__['enrichment']['parameter_basis']['HaPOD'] = {'HaPOD_tol': 1e-1}
-EXPERIMENTS['TR_sensors_include_each_time_step'] = (setup_sensors, TR_optimizer_parameter__)
-EXPERIMENTS['TR_identity_include_each_time_step'] = (setup_identity, TR_optimizer_parameter__)
-#----------------------------------------------------------------------------------------
-TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
-EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter__)
-#----------------------------------------------------------------------------------------
-TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['state_basis']['normalize'] = None
-TR_optimizer_parameter__['enrichment']['state_basis']['HaPOD'] = None
-EXPERIMENTS['TR_sensors_no_HaPOD'] = (setup_sensors, TR_optimizer_parameter__)
-EXPERIMENTS['TR_identity_no_HaPOD'] = (setup_identity, TR_optimizer_parameter__)
-#----------------------------------------------------------------------------------------
-TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['state_basis']['HaPOD']['HaPOD_tol'] = 1e-3
-EXPERIMENTS['TR_sensors_HaPOD_tol_1e-3'] = (setup_sensors, TR_optimizer_parameter__)
-EXPERIMENTS['TR_identity_HaPOD_tol_1e-3'] = (setup_identity, TR_optimizer_parameter__)
-#----------------------------------------------------------------------------------------
-TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['include_lin_grad'] = True
-TR_optimizer_parameter__['enrichment']['parameter_basis']['normalize'] = True
-TR_optimizer_parameter__['enrichment']['state_basis']['include_lins'] = True
-EXPERIMENTS['TR_sensors_include_all_lins_HaPOD_tol_1e-3'] = (setup_sensors, TR_optimizer_parameter__)
-EXPERIMENTS['TR_identity_include_all_lins_HaPOD_tol_1e-3'] = (setup_identity, TR_optimizer_parameter__)
-#----------------------------------------------------------------------------------------
+    setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
 
-prefix = 'baseline'
+    FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
+    TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
+    FOM_optimizer_parameter_['alpha_0'] = alpha_0
+    TR_optimizer_parameter_['alpha_0'] = alpha_0
+
+    EXPERIMENTS[f'noise_level_{noise_level}_FOM_sensors_alpha_0_{alpha_0}'] = (setup_sensors, FOM_optimizer_parameter_)
+    EXPERIMENTS[f'noise_level_{noise_level}_FOM_identity_alpha_0_{alpha_0}'] = (setup_identity, FOM_optimizer_parameter_)
+
+    TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+    TR_optimizer_parameter__['enrichment']['parameter_basis']['include_each_time_step'] = True
+    TR_optimizer_parameter__['enrichment']['parameter_basis']['normalize'] = True
+    TR_optimizer_parameter__['enrichment']['parameter_basis']['HaPOD'] = {'HaPOD_tol': 1e-1}
+    EXPERIMENTS[f'noise_level_{noise_level}_TR_sensors_include_each_time_step_alpha_0_{alpha_0}'] = (setup_sensors, TR_optimizer_parameter__)
+    EXPERIMENTS[f'noise_level_{noise_level}_TR_identity_include_each_time_step_alpha_0_{alpha_0}'] = (setup_identity, TR_optimizer_parameter__)
+    #----------------------------------------------------------------------------------------
+    TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+    EXPERIMENTS[f'noise_level_{noise_level}_TR_sensors_alpha_0_{alpha_0}'] = (setup_sensors, TR_optimizer_parameter__)
+    EXPERIMENTS[f'noise_level_{noise_level}_TR_identity_alpha_0_{alpha_0}'] = (setup_identity, TR_optimizer_parameter__)
+    #----------------------------------------------------------------------------------------
+
+prefix = 'test_regularization'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}
