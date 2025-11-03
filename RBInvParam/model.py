@@ -29,6 +29,7 @@ class InstationaryModelIP(ImmutableObject):
                  A : EvaluatorA,
                  L : VectorArray,
                  B : EvaluatorB,
+                 C : Operator,
                  constant_cost_term: None | float,
                  linear_cost_term: None | VectorArray,
                  bilinear_cost_term: None | Operator,
@@ -65,6 +66,8 @@ class InstationaryModelIP(ImmutableObject):
         assert 'adjoint' in initial_data.keys()
         assert 'lin_state' in initial_data.keys()
         assert 'lin_adjoint' in initial_data.keys()
+        assert 'second_adjoint' in initial_data.keys()
+
         self.initial_data = initial_data
 
         assert not M.parametric
@@ -73,6 +76,7 @@ class InstationaryModelIP(ImmutableObject):
         self.A = A 
         self.L = L 
         self.B = B 
+        self.C = C
         self.constant_cost_term = constant_cost_term 
         self.linear_cost_term = linear_cost_term 
         self.bilinear_cost_term = bilinear_cost_term 
@@ -99,6 +103,7 @@ class InstationaryModelIP(ImmutableObject):
         self.delta_t = self.setup['delta_t']
         self.q_time_dep = self.setup['q_time_dep']
         self.riesz_rep_grad = self.setup['riesz_rep_grad']
+        self.riesz_rep_hess = self.setup['riesz_rep_hess']
 
         assert self.setup['time_stepper']['name'] in ['implicit_euler', 'newman_second_order']
 
@@ -132,10 +137,12 @@ class InstationaryModelIP(ImmutableObject):
                 'solve_adjoint' : 0,
                 'solve_linearized_state' : 0,
                 'solve_linearized_adjoint' : 0,
+                'solve_second_adjoint' : 0,
                 'objective' : 0,
                 'gradient' : 0,
                 'linearized_objective' : 0,
                 'linearized_gradient' : 0,
+                'gauss_newton_hessian' : 0
             }
         else:
             self.num_calls = num_calls
@@ -147,6 +154,9 @@ class InstationaryModelIP(ImmutableObject):
         assert self.A.source == self.A.range
         assert self.M.source == self.A.source
         assert self.A.range == self.V
+        if self.C is not None:
+            assert self.C.source == self.V
+
         assert isinstance(self.L, VectorArray)
         assert len(self.L) in [1, self.nt + 1]
         assert self.L in self.V
@@ -537,6 +547,54 @@ class InstationaryModelIP(ImmutableObject):
         lin_p = self.A.flip_vector_array(lin_p)
         return lin_p
 
+    def solve_second_adjoint(self, 
+                             q: VectorArray, 
+                             lin_u: VectorArray,
+                             use_cached_operators: bool = False) -> VectorArray:
+            
+        assert self.bilinear_cost_term 
+        assert q in self.Q
+        assert lin_u in self.V
+
+        if self.q_time_dep:
+            assert len(q) == self.nt + 1
+        else:
+            assert len(q) == 1
+
+        assert len(lin_u) == self.nt + 1
+
+        self.num_calls['solve_second_adjoint'] += 1
+        required_cache_keys = ['A_q'] 
+        required_cache_keys += self.time_stepper.required_cache_keys.copy()
+
+        self.update_cache(
+            q = q, 
+            use_cached_operators = use_cached_operators, 
+            required_cache_keys = required_cache_keys)
+
+        rhs = self.bilinear_cost_term.apply(lin_u)
+        rhs = self.A.clear_rhs_boundary_dofs(
+            rhs = rhs,
+            flip = True
+        )
+
+        rhs = (-1) * rhs
+        iterator = self.time_stepper.iterate(initial_data = self.initial_data['second_adjoint'], 
+                                             q=q,
+                                             rhs=rhs,
+                                             use_cached_operators=use_cached_operators,
+                                             cached_operators=self._cached_operators,
+                                             config={
+                                                 'implicit_euler_rhs' : True
+                                             })
+        
+        z = self.V.empty(reserve = (self.nt + 1))
+        for z_n, _ in iterator:
+            z.append(z_n)
+
+        #return self.V.make_array(np.flip(p.to_numpy(), axis=0))
+        return self.A.flip_vector_array(z)
+
 
 #%% objective and gradient
     def objective(self, 
@@ -620,12 +678,12 @@ class InstationaryModelIP(ImmutableObject):
             return out
 
     def linearized_objective(self,
-                            q: VectorArray,
-                            d: VectorArray,
-                            u: VectorArray,
-                            lin_u: VectorArray,
-                            alpha : float,
-                            use_cached_operators: bool = False) -> float:
+                             q: VectorArray,
+                             d: VectorArray,
+                             u: VectorArray,
+                             lin_u: VectorArray,
+                             alpha : float,
+                             use_cached_operators: bool = False) -> float:
 
         if self.q_time_dep:
             assert len(q) == self.nt + 1
@@ -671,7 +729,6 @@ class InstationaryModelIP(ImmutableObject):
         assert len(u) == self.nt + 1
         assert len(lin_p) == self.nt + 1
         
-
         assert q in self.Q
         assert d in self.Q
         assert u in self.V
@@ -715,8 +772,56 @@ class InstationaryModelIP(ImmutableObject):
             out = grad
         return out
     
-    def linearized_hessian(self):
-        raise NotImplementedError
+    def gauss_newton_hessian(self,
+                             u: VectorArray,
+                             z: VectorArray,
+                             q: VectorArray = None,
+                             alpha: float = 0,
+                             use_cached_operators: bool = False,
+                             return_per_time_step : bool = False) -> NumpyVectorArray | Tuple[NumpyVectorArray, NumpyVectorArray]:
+                             
+                             
+        assert u in self.V
+        assert z in self.V
+        assert len(u) == self.nt + 1
+        assert len(z) == self.nt + 1
+
+        required_cache_keys = ['B_u']
+        self.update_cache(
+            q, 
+            u,
+            use_cached_operators, 
+            required_cache_keys
+        )
+
+
+        if use_cached_operators:
+            B_u = self._cached_operators['B_u']
+        else:
+            B_u = [self.B(u[idx], idx) for idx in range(len(u))]
+
+        self.num_calls['gauss_newton_hessian'] += 1
+        hess = self.Q.empty(reserve=(self.nt + 1))
+
+        # TODO Check if this is efficent and / or how its efficeny can be improved
+        for idx in range(0, self.nt + 1):
+            hess.append(self.Q.make_array(B_u[idx].B_u_ad(z[idx])))
+
+        if not self.q_time_dep:
+            _hess = self.delta_t * self.Q.make_array(np.sum(hess.to_numpy(), axis=0, keepdims=True))
+        
+        if self.riesz_rep_hess:
+            _hess = self.products['prod_Q'].apply_inverse(_hess) 
+        
+        if alpha > 0:
+            raise NotImplementedError
+        else:
+            out = _hess
+
+        if return_per_time_step:
+            return (out, hess)
+        else: 
+            return out
 
 #%% regularization
     def regularization_term(self, 
@@ -790,7 +895,25 @@ class InstationaryModelIP(ImmutableObject):
             return out
         else:
             return self.products['prod_Q'].apply_inverse(out)
-            
+
+    def solution(self,
+                 u: VectorArray,
+                 use_cached_operators: bool = False) -> VectorArray:
+
+        assert u in self.V
+        assert len(u) == self.nt + 1
+        
+        return self.C.apply(u)
+        
+    def solution_derivative(self,
+                            lin_u: VectorArray,
+                            use_cached_operators: bool = False) -> VectorArray:
+        
+        assert lin_u in self.V
+        assert len(lin_u) == self.nt + 1
+
+        return self.C.apply(lin_u)
+
 
 #%% error estimator
 
@@ -895,7 +1018,6 @@ class InstationaryModelIP(ImmutableObject):
         )
         return e 
         
-    
     def estimate_gradient_error(self) -> float:
         raise NotImplementedError
 
@@ -924,7 +1046,7 @@ class InstationaryModelIP(ImmutableObject):
     def compute_gradient(self,
                          q: VectorArray,
                          alpha : float = 0,
-                         use_cached_operators: bool = False) -> float:    
+                         use_cached_operators: bool = False) -> VectorArray:    
         u = self.solve_state(q=q, 
                              use_cached_operators=use_cached_operators)
         p = self.solve_adjoint(q=q, 
@@ -952,7 +1074,7 @@ class InstationaryModelIP(ImmutableObject):
                                     q: VectorArray,
                                     d: VectorArray,
                                     alpha : float,
-                                    use_cached_operators: bool = False) -> float:
+                                    use_cached_operators: bool = False) -> VectorArray:
 
         u = self.solve_state(q, 
                              use_cached_operators=use_cached_operators)
@@ -986,7 +1108,74 @@ class InstationaryModelIP(ImmutableObject):
                                              u = u,
                                              p = p,
                                              use_cached_operators=use_cached_operators)
+    
+    def compute_solution(self,
+                         q: VectorArray,
+                         use_cached_operators: bool = False) -> VectorArray:
 
+        if self.q_time_dep:
+            assert len(q) == self.nt + 1
+        else:
+            assert len(q) == 1
+        assert q in self.Q
+
+        u = self.solve_state(q, 
+                             use_cached_operators=use_cached_operators)
+
+        return self.solution(u = u,use_cached_operators=use_cached_operators)
+        
+    def compute_solution_derivative(self,
+                                    q: VectorArray,
+                                    d: VectorArray,
+                                    use_cached_operators: bool = False) -> VectorArray:
+        if self.q_time_dep:
+            assert len(q) == self.nt + 1
+        else:
+            assert len(q) == 1
+        assert len(q) == len(d)
+        
+        assert q in self.Q
+        assert d in self.Q
+
+        u = self.solve_state(q, 
+                             use_cached_operators=use_cached_operators)
+
+        lin_u = self.solve_linearized_state(q=q, 
+                                            d=d, 
+                                            u=u, 
+                                            use_cached_operators=use_cached_operators)                         
+        
+        return self.solution_derivative(lin_u = lin_u,use_cached_operators=use_cached_operators)                           
+
+    def compute_gauss_newton_hessian(self,
+                                     q: VectorArray,
+                                     d: VectorArray,
+                                     alpha : float = 0,
+                                     use_cached_operators: bool = False) -> VectorArray:    
+        
+        if self.q_time_dep:
+            assert len(q) == self.nt + 1
+        else:
+            assert len(q) == 1
+        assert len(q) == len(d)
+        
+        assert q in self.Q
+        assert d in self.Q
+        
+        u = self.solve_state(q=q, 
+                             use_cached_operators=use_cached_operators)
+        
+        lin_u = self.solve_linearized_state(q=q, 
+                                            d=d,
+                                            u=u, 
+                                            use_cached_operators=use_cached_operators)
+        
+        z = self.solve_second_adjoint(q=q, 
+                                      lin_u=lin_u, 
+                                      use_cached_operators=use_cached_operators)
+        
+        return self.gauss_newton_hessian(u, z, q, alpha)
+            
 #%% helpers
     def compute_gradient_norm(self,
                               V: VectorArray) -> float:

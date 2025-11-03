@@ -1397,6 +1397,50 @@ class QrVrROMOptimizer(Optimizer):
                 self.logger.debug('Include nabla_lin_J')
                 self.snapshots['parameter_basis'].append(nabla_lin_J)
 
+            if enrichment['parameter_basis']['include_krylov_directions']:
+                n = enrichment['parameter_basis']['include_krylov_directions']['n']
+                self.logger.debug(f'Include krylov directions, with n = {n}') 
+
+                krylov_directions = self.FOM.Q.empty()
+                krylov_sensitivites = self.FOM.V.empty()
+
+                #krylov_direction = nabla_J
+                krylov_direction = self.FOM.Q.ones()
+                krylov_directions.append(krylov_direction)
+
+                for j in range(n):
+                    lin_u = self.FOM.solve_linearized_state(q=q, 
+                                                            d=krylov_direction,
+                                                            u=u, 
+                                                            use_cached_operators=use_cached_operators)
+                    krylov_sensitivites.append(lin_u)
+                    #print(lin_u.to_numpy())
+                    z = self.FOM.solve_second_adjoint(q=q, 
+                                                      lin_u=lin_u, 
+                                                      use_cached_operators=use_cached_operators)
+
+
+
+                    krylov_direction = self.FOM.gauss_newton_hessian(u = u, 
+                                                                     z = z, 
+                                                                     q = q,
+                                                                     use_cached_operators=use_cached_operators)
+                    # print(z.to_numpy())
+                    # print(krylov_direction)
+                    # import sys
+                    # sys.exit()
+                    krylov_directions.append(krylov_direction)
+                    
+
+                lin_u = self.FOM.solve_linearized_state(q=q, 
+                                                        d=krylov_direction,
+                                                        u=u, 
+                                                        use_cached_operators=use_cached_operators)
+                krylov_sensitivites.append(lin_u)
+                print(len(self.snapshots['parameter_basis']))
+                print(krylov_sensitivites)
+                self.snapshots['parameter_basis'].append(krylov_directions)
+
 
         self.logger.debug(f"Extending Vr-snapshots")
 
@@ -1410,7 +1454,12 @@ class QrVrROMOptimizer(Optimizer):
             if enrichment['state_basis']['include_lins']:
                 self.logger.debug('Include lins') 
                 self.snapshots['state_basis'].append(lin_u)
-                self.snapshots['state_basis'].append(lin_p)
+                self.snapshots['state_basis'].append(lin_p)            
+            
+            if enrichment['state_basis']['include_krylov_sensitivites']:
+                assert enrichment['parameter_basis']['include_krylov_directions']
+                self.logger.debug('Include krylov sensitivites') 
+                self.snapshots['state_basis'].append(krylov_sensitivites)
                 
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             bases=self.reduced_bases,
@@ -1495,7 +1544,7 @@ class QrVrROMOptimizer(Optimizer):
             self.logger.warning(f"Qr-Vr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start Qr-Vr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-            
+    
             assert self.FOM_projector.project_domain(center=q) == q
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
             q_r = self.QrVrROM.Q.make_array(q_r)
@@ -2025,6 +2074,41 @@ class QrVrROMOptimizer(Optimizer):
                             self.logger.debug('Include nabla_lin_J')
                             self.snapshots['parameter_basis'].append(nabla_lin_J)
                         
+                        if enrichment['parameter_basis']['include_krylov_directions']:
+                            n = enrichment['parameter_basis']['include_krylov_directions']['n']
+                            self.logger.debug(f'Include krylov directions, with n = {n}') 
+
+                            krylov_directions = self.FOM.Q.empty()
+                            krylov_sensitivites = self.FOM.V.empty()
+
+                            #krylov_direction = nabla_J
+                            krylov_direction = self.FOM.Q.ones()
+                            krylov_directions.append(krylov_direction)
+
+                            for _ in range(n):
+                                lin_u = self.FOM.solve_linearized_state(q=q, 
+                                                                        d=krylov_direction,
+                                                                        u=u, 
+                                                                        use_cached_operators=use_cached_operators)
+                                krylov_sensitivites.append(lin_u)
+                                z = self.FOM.solve_second_adjoint(q=q, 
+                                                                  lin_u=lin_u, 
+                                                                  use_cached_operators=use_cached_operators)
+
+                                krylov_direction = self.FOM.gauss_newton_hessian(u = u, 
+                                                                                 z = z, 
+                                                                                 q = q,
+                                                                                 use_cached_operators=use_cached_operators)
+                                
+                                krylov_directions.append(krylov_direction)
+
+                            lin_u = self.FOM.solve_linearized_state(q=q, 
+                                                                    d=krylov_direction,
+                                                                    u=u, 
+                                                                    use_cached_operators=use_cached_operators)
+                            krylov_sensitivites.append(lin_u)
+                            self.snapshots['parameter_basis'].append(krylov_directions)
+                        
                     self.logger.debug(f"Extending Vr-snapshots")
 
                     if self.reductor.NCD:
@@ -2038,6 +2122,11 @@ class QrVrROMOptimizer(Optimizer):
                             self.logger.debug('Include lins') 
                             self.snapshots['state_basis'].append(lin_u)
                             self.snapshots['state_basis'].append(lin_p)
+                        
+                        if enrichment['state_basis']['include_krylov_sensitivites']:
+                            assert enrichment['parameter_basis']['include_krylov_directions']
+                            self.logger.debug('Include krylov sensitivites') 
+                            self.snapshots['state_basis'].append(krylov_sensitivites)
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.reduced_bases,

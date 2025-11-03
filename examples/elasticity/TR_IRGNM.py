@@ -4,10 +4,10 @@ from pathlib import Path
 from datetime import datetime
 
 import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "4"
+os.environ["OPENBLAS_NUM_THREADS"] = "4"
+os.environ["MKL_NUM_THREADS"] = "4"
+os.environ["NUMEXPR_NUM_THREADS"] = "4"
 
 from pymor.basic import *
 
@@ -81,34 +81,34 @@ def main():
     q_exact = np.ones((1,par_dim)) * 1
 
 
-    q_exact[0,200] = 2
-    q_exact[0,300] = 3
+    # q_exact[0,200] = 2
+    # q_exact[0,300] = 3
 
-    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    # q_exact[9,21] = 3
-    # q_exact[8,21] = 3
-    # q_exact[7,21] = 3
-    # q_exact[9,22] = 3
-    # q_exact[8,22] = 3
-    # q_exact[7,22] = 3
-    # q_exact[9,20] = 3
-    # q_exact[8,20] = 3
-    # q_exact[7,20] = 3
-
-
-    # q_exact[7,14] = 2
-    # q_exact[6,14] = 2
-    # q_exact[5,14] = 2
-    # q_exact[7,13] = 2
-    # q_exact[6,13] = 2
-    # q_exact[5,13] = 2
-    # q_exact[7,15] = 2
-    # q_exact[6,15] = 2
-    # q_exact[5,15] = 2
+    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    q_exact[9,21] = 3
+    q_exact[8,21] = 3
+    q_exact[7,21] = 3
+    q_exact[9,22] = 3
+    q_exact[8,22] = 3
+    q_exact[7,22] = 3
+    q_exact[9,20] = 3
+    q_exact[8,20] = 3
+    q_exact[7,20] = 3
 
 
-    # q_exact = q_exact.flatten()
-    # q_exact = np.array([q_exact])
+    q_exact[7,14] = 2
+    q_exact[6,14] = 2
+    q_exact[5,14] = 2
+    q_exact[7,13] = 2
+    q_exact[6,13] = 2
+    q_exact[5,13] = 2
+    q_exact[7,15] = 2
+    q_exact[6,15] = 2
+    q_exact[5,15] = 2
+
+
+    q_exact = q_exact.flatten()
+    q_exact = np.array([q_exact])
 
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
@@ -191,6 +191,7 @@ def main():
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
         'q_time_dep': False,                          # Whether parameter is time-dependent (bool)        
         'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
+        'riesz_rep_hess': False,                       # Use Riesz representative for gradient in optimization
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
         'save_path' : save_path,
         'time_stepper' : {
@@ -291,25 +292,29 @@ def main():
                 'reduced_basis' : True,
                 'include_each_time_step' : True,
                 'include_lin_grad' : False,
-                'sample_every_n_th' : None,
-                'normalize' : True,
-                'HaPOD' : {
-                    'HaPOD_tol': 1e-1,    
+                'include_krylov_directions' : {
+                    'n' : 5,
                 },
-                # 'normalize' : None,
-                # 'HaPOD' : None,
+                'sample_every_n_th' : None,
+                # 'normalize' : True,
+                # 'HaPOD' : {
+                #     'HaPOD_tol': 1e-1,    
+                # },
+                'normalize' : True,
+                'HaPOD' : None,
                 'overwrite_every_n' : False,
                 'keep_last_n': None
             },
             'state_basis' : {
                 'include_lins' : False,
+                'include_krylov_sensitivites' : False,
                 'sample_every_n_th' : None,
                 'normalize' : True,
-                'HaPOD' : {
-                    'HaPOD_tol': 1e-3,    
-                },
+                # 'HaPOD' : {
+                #     'HaPOD_tol': 1e-3,    
+                # },
                 # 'normalize' : None,
-                # 'HaPOD' : None,
+                'HaPOD' : None,
                 'overwrite_every_n' : None,
                 'keep_last_n': None
             },
@@ -328,15 +333,14 @@ def main():
             'objective' : ObjectiveErrorEstimatorType.NONE,
         },
         #####################
-        'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
+        'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
         'eta0': 2.5 * 1e-2,                                                # Initial trust region tolerance
         'eta_min' : 1e-5,
-        #'eta_max' : 0.05,
-        'eta_max' : 0.15,
+        'eta_max' : 0.05,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
-        'beta_1': 0.90,                                              # Trust region edge tolerance.
+        'beta_1': 0.80,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 
         'beta_3': 0.5                                                # Shrinking/Enlarging factor for the trust region.
     }

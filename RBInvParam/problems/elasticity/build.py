@@ -151,6 +151,10 @@ def build_InstationaryModelIP(setup : Dict,
             'zeroth_order' : zero_data,
             'first_order' : zero_data
         },
+        'second_adjoint' : {
+            'zeroth_order' : zero_data,
+            'first_order' : zero_data
+        },
     }
     
     material_model.assemble_mass_matrix()
@@ -212,6 +216,7 @@ def build_InstationaryModelIP(setup : Dict,
         'A' : A,
         'L' : L,
         'B' : B,
+        'C' : None,
         'constant_cost_term' : None,
         'linear_cost_term' : None,
         'bilinear_cost_term' : None,
@@ -239,6 +244,8 @@ def build_InstationaryModelIP(setup : Dict,
     material_model.assemble_observation_operator_matrix(setup['observation_operator']['type'])
     C = DealIIMatrixOperator(matrix = material_model.observation_operator)
     C_continuity_constant = 1.0
+
+    building_blocks['C'] = C
     
     # -------------------------------------------------------------------- 
     _str_to_enum_map_observation_space = {

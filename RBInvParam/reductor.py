@@ -553,6 +553,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'A' : A,
             'L' : L,
             'B' : B,
+            'C' : project(self.FOM.C, None, state_basis),
             'constant_cost_term' : self.FOM.constant_cost_term,
             'linear_cost_term' : linear_cost_term,
             'bilinear_cost_term' : project(self.FOM.bilinear_cost_term, state_basis, state_basis),
