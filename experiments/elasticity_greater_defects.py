@@ -158,6 +158,10 @@ TR_optimizer_parameter = {
     'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
     'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
     #####################
+    'reg_AGC_step' : False,
+    #'TR_enforcement' : 'check_error',
+    'TR_enforcement' : 'backtracking',
+    #####################
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 1e3,                                         # Maximum iterations for the linear solver
