@@ -81,8 +81,8 @@ def main():
     q_exact = np.ones((1,par_dim)) * 1
 
 
-    # q_exact[0,200] = 2
-    # q_exact[0,300] = 3
+    q_exact[0,200] = 2
+    q_exact[0,300] = 3
 
     q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
     q_exact[9,21] = 3
@@ -290,33 +290,42 @@ def main():
         'enrichment': {
             'parameter_basis' : {
                 'reduced_basis' : True,
-                'include_each_time_step' : True,
-                'include_lin_grad' : False,
-                'include_krylov_directions' : {
-                    'n' : 5,
+                'additional_snapshots' :{
+                    'include_each_time_step' : True,
+                    'include_lin_grad' : False,
+                    'include_krylov_directions' : {
+                        'n' : 5,
+                        'inital_direction' : 'ones'
+                    },
                 },
-                'sample_every_n_th' : None,
-                # 'normalize' : True,
-                # 'HaPOD' : {
-                #     'HaPOD_tol': 1e-1,    
-                # },
-                'normalize' : True,
-                'HaPOD' : None,
-                'overwrite_every_n' : False,
-                'keep_last_n': None
+                'compression' : {
+                    'sample_every_n_th' : None,
+                    # 'normalize' : True,
+                    # 'HaPOD' : {
+                    #     'HaPOD_tol': 1e-1,    
+                    # },
+                    'normalize' : True,
+                    'HaPOD' : None,
+                    'overwrite_every_n' : False,
+                    'keep_last_n': None
+                }
             },
             'state_basis' : {
-                'include_lins' : False,
-                'include_krylov_sensitivites' : False,
-                'sample_every_n_th' : None,
-                'normalize' : True,
-                # 'HaPOD' : {
-                #     'HaPOD_tol': 1e-3,    
-                # },
-                # 'normalize' : None,
-                'HaPOD' : None,
-                'overwrite_every_n' : None,
-                'keep_last_n': None
+                'additional_snapshots' :{
+                    'include_lins' : False,
+                    'include_krylov_sensitivites' : False,
+                },
+                'compression' : {                
+                    'sample_every_n_th' : None,
+                    'normalize' : True,
+                    # 'HaPOD' : {
+                    #     'HaPOD_tol': 1e-3,    
+                    # },
+                    # 'normalize' : None,
+                    'HaPOD' : None,
+                    'overwrite_every_n' : None,
+                    'keep_last_n': None
+                }
             },
             'adjoint_basis' : {
                 'sample_every_n_th' : None,

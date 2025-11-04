@@ -1081,12 +1081,18 @@ class QrVrROMOptimizer(Optimizer):
             NCD = optimizer_parameter["NCD"],
             parallel = optimizer_parameter["offline_parallel"]
         )
-        self.snapshot_preprocessor = SnapshotPreprocessor()
+        self.snapshot_preprocessor = SnapshotPreprocessor(
+            FOM = FOM
+        )
 
         if optimizer_parameter["NCD"]:
             self.reduced_bases = ['parameter_basis','state_basis', 'adjoint_basis']
         else:
             self.reduced_bases = ['parameter_basis','state_basis']
+        
+        if not optimizer_parameter['enrichment']['parameter_basis']['reduced_basis']:
+            self.reduced_bases = self.reduced_bases[1:]
+
 
         self.QrVrROM = None
 
@@ -1153,10 +1159,11 @@ class QrVrROMOptimizer(Optimizer):
 
             assert basis in ['parameter_basis', 'state_basis', 'adjoint_basis']
             assert enrichment[basis]
-            if enrichment[basis]['keep_last_n']:
-                assert not enrichment[basis]['overwrite_every_n']
-                assert isinstance(enrichment[basis]['keep_last_n'], int)
-                assert enrichment[basis]['keep_last_n'] > 0
+
+            if enrichment[basis]['compression']['keep_last_n']:
+                assert not enrichment[basis]['compression']['overwrite_every_n']
+                assert isinstance(enrichment[basis]['compression']['keep_last_n'], int)
+                assert enrichment[basis]['compression']['keep_last_n'] > 0
 
             self.logger.debug(f"Extending '{basis}'")
             snapshots = self.snapshots[basis]
@@ -1172,11 +1179,11 @@ class QrVrROMOptimizer(Optimizer):
             snapshots = self.snapshot_preprocessor.preprocess(
                 snapshots = snapshots,
                 product = self.reductor.products[basis],
-                config = enrichment[basis]
+                config = enrichment[basis]['compression']
             )
 
-            if enrichment[basis]['overwrite_every_n']:
-                n = enrichment[basis]['overwrite_every_n']
+            if enrichment[basis]['compression']['overwrite_every_n']:
+                n = enrichment[basis]['compression']['overwrite_every_n']
                 self.reductor.delete_cached_operators()
                 self.logger.debug(f"Using 'overwrite_every_n' with n = {n}.")
                 
@@ -1186,8 +1193,8 @@ class QrVrROMOptimizer(Optimizer):
                     else:
                         self.reductor.bases[basis] = self.FOM.V.empty()
                         
-            if enrichment[basis]['keep_last_n']:
-                n = enrichment[basis]['keep_last_n']
+            if enrichment[basis]['compression']['keep_last_n']:
+                n = enrichment[basis]['compression']['keep_last_n']
                 self.logger.debug(f"Using 'keep_last_n' with n = {n}.")
 
                 if len(self.reductor.bases[basis]) >= n:#
@@ -1251,7 +1258,7 @@ class QrVrROMOptimizer(Optimizer):
         self.statistics["outer_loop_runtime"]['reduce_runtime'][-1] += (timer() - reduce_start_time)
         
         return QrVrROM    
-
+    
     def _reset_snapshots(self) -> None:
         self.snapshots = {
             'parameter_basis' : self.FOM.Q.empty(),
@@ -1295,6 +1302,11 @@ class QrVrROMOptimizer(Optimizer):
         beta_2 = self.optimizer_parameter["beta_2"]
         beta_3 = self.optimizer_parameter["beta_3"]
 
+        lin_u = None
+        lin_p = None
+        nabla_lin_J = None
+        time_step_nabla_J = None
+
 
         start_time = timer()
         i = 0
@@ -1312,13 +1324,11 @@ class QrVrROMOptimizer(Optimizer):
                                                        use_cached_operators=use_cached_operators,
                                                        return_per_time_step = True)
         
-        
-
-        if enrichment['state_basis']['include_lins'] or enrichment['parameter_basis']['include_lin_grad']:
+        if enrichment['state_basis']['additional_snapshots']['include_lins'] or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
             lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
             lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
-        if enrichment['parameter_basis']['include_lin_grad']:
+        if enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
             nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
         
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
@@ -1374,9 +1384,20 @@ class QrVrROMOptimizer(Optimizer):
 
 
         self._reset_snapshots()
+        additional_parameter_snapshots, additional_state_snapshots, _ = self.snapshot_preprocessor.additional_snapshots(
+            config = enrichment,
+            bases = self.reduced_bases,
+            q = q,
+            u = u,
+            lin_u = lin_u,
+            lin_p = lin_p,
+            nabla_J = nabla_J,
+            nabla_lin_J = nabla_lin_J,
+            time_step_nabla_J = time_step_nabla_J,
+            use_cached_operators = use_cached_operators,
+        )
+
         self.logger.debug(f"Extending Qr-snapshots")
-
-
         if not enrichment['parameter_basis']['reduced_basis']:
             self.logger.debug('Using reduced parameter space')
 
@@ -1388,59 +1409,9 @@ class QrVrROMOptimizer(Optimizer):
             self.snapshots['parameter_basis'].append(nabla_J)
             self.snapshots['parameter_basis'].append(q)
             self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
-            
-            if enrichment['parameter_basis']['include_each_time_step'] and not self.FOM.q_time_dep:
-                self.logger.debug('Include gradients for each time step as snapshots')
-                self.snapshots['parameter_basis'].append(time_step_nabla_J)
-            
-            if enrichment['parameter_basis']['include_lin_grad']:
-                self.logger.debug('Include nabla_lin_J')
-                self.snapshots['parameter_basis'].append(nabla_lin_J)
-
-            if enrichment['parameter_basis']['include_krylov_directions']:
-                n = enrichment['parameter_basis']['include_krylov_directions']['n']
-                self.logger.debug(f'Include krylov directions, with n = {n}') 
-
-                krylov_directions = self.FOM.Q.empty()
-                krylov_sensitivites = self.FOM.V.empty()
-
-                #krylov_direction = nabla_J
-                krylov_direction = self.FOM.Q.ones()
-                krylov_directions.append(krylov_direction)
-
-                for j in range(n):
-                    lin_u = self.FOM.solve_linearized_state(q=q, 
-                                                            d=krylov_direction,
-                                                            u=u, 
-                                                            use_cached_operators=use_cached_operators)
-                    krylov_sensitivites.append(lin_u)
-                    #print(lin_u.to_numpy())
-                    z = self.FOM.solve_second_adjoint(q=q, 
-                                                      lin_u=lin_u, 
-                                                      use_cached_operators=use_cached_operators)
-
-
-
-                    krylov_direction = self.FOM.gauss_newton_hessian(u = u, 
-                                                                     z = z, 
-                                                                     q = q,
-                                                                     use_cached_operators=use_cached_operators)
-                    # print(z.to_numpy())
-                    # print(krylov_direction)
-                    # import sys
-                    # sys.exit()
-                    krylov_directions.append(krylov_direction)
-                    
-
-                lin_u = self.FOM.solve_linearized_state(q=q, 
-                                                        d=krylov_direction,
-                                                        u=u, 
-                                                        use_cached_operators=use_cached_operators)
-                krylov_sensitivites.append(lin_u)
-                print(len(self.snapshots['parameter_basis']))
-                print(krylov_sensitivites)
-                self.snapshots['parameter_basis'].append(krylov_directions)
-
+            self.snapshots['parameter_basis'].append(
+                additional_parameter_snapshots
+            )
 
         self.logger.debug(f"Extending Vr-snapshots")
 
@@ -1451,15 +1422,9 @@ class QrVrROMOptimizer(Optimizer):
             self.snapshots['state_basis'].append(u)
             self.snapshots['state_basis'].append(p)
 
-            if enrichment['state_basis']['include_lins']:
-                self.logger.debug('Include lins') 
-                self.snapshots['state_basis'].append(lin_u)
-                self.snapshots['state_basis'].append(lin_p)            
-            
-            if enrichment['state_basis']['include_krylov_sensitivites']:
-                assert enrichment['parameter_basis']['include_krylov_directions']
-                self.logger.debug('Include krylov sensitivites') 
-                self.snapshots['state_basis'].append(krylov_sensitivites)
+        self.snapshots['state_basis'].append(
+                additional_state_snapshots
+            )
                 
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             bases=self.reduced_bases,
@@ -1601,9 +1566,9 @@ class QrVrROMOptimizer(Optimizer):
 
                 _enrichment = copy.deepcopy(enrichment)
                 for basis in self.reduced_bases:
-                    _enrichment[basis]['sample_every_n_th'] = None
-                    _enrichment[basis]['normalize'] = None
-                    _enrichment[basis]['HaPOD'] = None
+                    _enrichment[basis]['compression']['sample_every_n_th'] = None
+                    _enrichment[basis]['compression']['normalize'] = None
+                    _enrichment[basis]['compression']['HaPOD'] = None
                     #_enrichment[basis]['overwrite'] = False
                 
                 self._reset_snapshots()
@@ -1774,9 +1739,9 @@ class QrVrROMOptimizer(Optimizer):
                 
                 _enrichment = copy.deepcopy(enrichment)
                 for basis in self.reduced_bases:
-                    _enrichment[basis]['sample_every_n_th'] = None
-                    _enrichment[basis]['normalize'] = None
-                    _enrichment[basis]['HaPOD'] = None
+                    _enrichment[basis]['compression']['sample_every_n_th'] = None
+                    _enrichment[basis]['compression']['normalize'] = None
+                    _enrichment[basis]['compression']['HaPOD'] = None
                 
                 self._reset_snapshots()
                 if enrichment['parameter_basis']['reduced_basis']:
@@ -1913,11 +1878,11 @@ class QrVrROMOptimizer(Optimizer):
                                                                    return_per_time_step = True)
                     
 
-                    if enrichment['state_basis']['include_lins'] or enrichment['parameter_basis']['include_lin_grad']:
+                    if enrichment['state_basis']['additional_snapshots']['include_lins'] or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
                         lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
                         lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
-                    if enrichment['parameter_basis']['include_lin_grad']:
+                    if enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
                         nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
 
                     
@@ -1977,11 +1942,11 @@ class QrVrROMOptimizer(Optimizer):
                         time_step_nabla_J = time_step_nabla_J_ 
                         norm_nabla_J = norm_nabla_J_
 
-                        if enrichment['state_basis']['include_lins'] or enrichment['parameter_basis']['include_lin_grad']:
+                        if enrichment['state_basis']['additional_snapshots']['include_lins'] or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
                             lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
                             lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
-                        if enrichment['parameter_basis']['include_lin_grad']:
+                        if enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
                             nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
                         
                         delta_J = self.statistics["J"][-1] - J
@@ -2060,54 +2025,28 @@ class QrVrROMOptimizer(Optimizer):
 
                 if not convergence_criterium:
                     self._reset_snapshots()
+
+                    additional_parameter_snapshots, additional_state_snapshots, _ = self.snapshot_preprocessor.additional_snapshots(
+                        config = enrichment,
+                        bases = self.reduced_bases,
+                        q = q,
+                        u = u,
+                        lin_u = lin_u,
+                        lin_p = lin_p,
+                        nabla_J = nabla_J,
+                        nabla_lin_J = nabla_lin_J,
+                        time_step_nabla_J = time_step_nabla_J,
+                        use_cached_operators = use_cached_operators,
+                    )
+
                     
 
                     if enrichment['parameter_basis']['reduced_basis']:
                         self.logger.debug(f"Extending Qr-snapshots")            
                         self.snapshots['parameter_basis'].append(nabla_J)
-
-                        if enrichment['parameter_basis']['include_each_time_step'] and not self.FOM.q_time_dep:
-                            self.logger.debug('Include gradients for each time step as snapshots')
-                            self.snapshots['parameter_basis'].append(time_step_nabla_J)
-                        
-                        if enrichment['parameter_basis']['include_lin_grad']:
-                            self.logger.debug('Include nabla_lin_J')
-                            self.snapshots['parameter_basis'].append(nabla_lin_J)
-                        
-                        if enrichment['parameter_basis']['include_krylov_directions']:
-                            n = enrichment['parameter_basis']['include_krylov_directions']['n']
-                            self.logger.debug(f'Include krylov directions, with n = {n}') 
-
-                            krylov_directions = self.FOM.Q.empty()
-                            krylov_sensitivites = self.FOM.V.empty()
-
-                            #krylov_direction = nabla_J
-                            krylov_direction = self.FOM.Q.ones()
-                            krylov_directions.append(krylov_direction)
-
-                            for _ in range(n):
-                                lin_u = self.FOM.solve_linearized_state(q=q, 
-                                                                        d=krylov_direction,
-                                                                        u=u, 
-                                                                        use_cached_operators=use_cached_operators)
-                                krylov_sensitivites.append(lin_u)
-                                z = self.FOM.solve_second_adjoint(q=q, 
-                                                                  lin_u=lin_u, 
-                                                                  use_cached_operators=use_cached_operators)
-
-                                krylov_direction = self.FOM.gauss_newton_hessian(u = u, 
-                                                                                 z = z, 
-                                                                                 q = q,
-                                                                                 use_cached_operators=use_cached_operators)
-                                
-                                krylov_directions.append(krylov_direction)
-
-                            lin_u = self.FOM.solve_linearized_state(q=q, 
-                                                                    d=krylov_direction,
-                                                                    u=u, 
-                                                                    use_cached_operators=use_cached_operators)
-                            krylov_sensitivites.append(lin_u)
-                            self.snapshots['parameter_basis'].append(krylov_directions)
+                        self.snapshots['parameter_basis'].append(
+                            additional_parameter_snapshots
+                        )
                         
                     self.logger.debug(f"Extending Vr-snapshots")
 
@@ -2118,15 +2057,9 @@ class QrVrROMOptimizer(Optimizer):
                         self.snapshots['state_basis'].append(u)
                         self.snapshots['state_basis'].append(p)
 
-                        if enrichment['state_basis']['include_lins']:
-                            self.logger.debug('Include lins') 
-                            self.snapshots['state_basis'].append(lin_u)
-                            self.snapshots['state_basis'].append(lin_p)
-                        
-                        if enrichment['state_basis']['include_krylov_sensitivites']:
-                            assert enrichment['parameter_basis']['include_krylov_directions']
-                            self.logger.debug('Include krylov sensitivites') 
-                            self.snapshots['state_basis'].append(krylov_sensitivites)
+                    self.snapshots['state_basis'].append(
+                        additional_state_snapshots
+                    )
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.reduced_bases,
