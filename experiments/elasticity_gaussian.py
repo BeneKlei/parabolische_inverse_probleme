@@ -80,6 +80,7 @@ setup = {
     'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
     'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
     'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
+    'riesz_rep_hess' : False,
     'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
     'save_path' : None,
     'time_stepper' : {
@@ -136,6 +137,10 @@ TR_optimizer_parameter = {
     'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
     'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
     #####################
+    'reg_AGC_step' : False,
+    #'TR_enforcement' : 'check_error',
+    'TR_enforcement' : 'backtracking',
+    #####################
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 1e3,                                         # Maximum iterations for the linear solver
@@ -155,6 +160,7 @@ TR_optimizer_parameter = {
             'reduced_basis' : True,
             'include_each_time_step' : False,
             'include_lin_grad' : False,
+            'include_krylov_directions' : False,
             'sample_every_n_th' : None,
             # 'normalize' : True,
             # 'HaPOD' : {
@@ -167,6 +173,7 @@ TR_optimizer_parameter = {
         },
         'state_basis' : {
             'include_lins' : False,
+            'include_krylov_sensitivites' : False,
             'sample_every_n_th' : None,
             'normalize' : True,
             'HaPOD' : {

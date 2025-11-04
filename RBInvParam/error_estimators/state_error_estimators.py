@@ -50,13 +50,6 @@ class StateErrorEstimator(ABC):
                          cached_operators: Dict = None) -> VectorArray:
         pass
 
-    @abstractmethod
-    def compute_residuum(self, 
-                         q: VectorArray,
-                         u: VectorArray,
-                         use_cached_operators: bool = False,
-                         cached_operators: Dict = None) -> VectorArray:
-        pass
 
 class ParabolicStateErrorEstimator(StateErrorEstimator):
     def __init__(self,
