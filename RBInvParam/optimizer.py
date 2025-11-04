@@ -1078,14 +1078,14 @@ class QrVrROMOptimizer(Optimizer):
         self.reductor = InstationaryModelIPReductor(
             FOM,
             optimizer_parameter['error_estimator_types'],
-            NCD = optimizer_parameter["NCD"],
+            use_adjoint_space = optimizer_parameter["use_adjoint_space"],
             parallel = optimizer_parameter["offline_parallel"]
         )
         self.snapshot_preprocessor = SnapshotPreprocessor(
             FOM = FOM
         )
 
-        if optimizer_parameter["NCD"]:
+        if optimizer_parameter["use_adjoint_space"]:
             self.reduced_bases = ['parameter_basis','state_basis', 'adjoint_basis']
         else:
             self.reduced_bases = ['parameter_basis','state_basis']
@@ -1192,7 +1192,17 @@ class QrVrROMOptimizer(Optimizer):
                         self.reductor.bases[basis] = self.FOM.Q.empty()
                     else:
                         self.reductor.bases[basis] = self.FOM.V.empty()
-                        
+
+            
+            try:
+                self.reductor.extend_basis(
+                    U = snapshots,
+                    basis = basis
+                )
+                
+            except ExtensionError:
+                self._logger.warning(f"No new vectors were added to {basis}.")    
+                     
             if enrichment[basis]['compression']['keep_last_n']:
                 n = enrichment[basis]['compression']['keep_last_n']
                 self.logger.debug(f"Using 'keep_last_n' with n = {n}.")
@@ -1203,39 +1213,6 @@ class QrVrROMOptimizer(Optimizer):
                     x.append(self.reductor.bases[basis][-n:])
                     self.reductor.bases[basis] = x
 
-
-            # if basis == 'state_basis':
-            #     import copy
-            #     from pymor.algorithms.gram_schmidt import gram_schmidt
-            #     self.reductor.delete_cached_operators()
-
-            #     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            #     print(len(snapshots))
-            #     print(self.reductor.bases['state_basis'])
-            #     x = copy.deepcopy(self.reductor.bases['state_basis'])
-            #     x.append(snapshots)
-            #     print(len(x))
-            #     snapshots, svals, snap_count  = self.snapshot_preprocessor._HaPOD(
-            #         snapshots = x,
-            #         product = self.reductor.products[basis],
-            #         #HaPOD_tol = 1e0,
-            #         HaPOD_tol = 1e-3,
-            #     )
-            #     print(svals)
-            #     print(len(snapshots))
-            #     self.reductor.bases['state_basis'] = snapshots
-            #     gram_schmidt(self.reductor.bases['state_basis'], offset=0, product=self.reductor.products[basis], copy=False, check=False)
-
-
-            #if basis != 'state_basis':
-            try:
-                self.reductor.extend_basis(
-                    U = snapshots,
-                    basis = basis
-                )
-                
-            except ExtensionError:
-                self._logger.warning(f"No new vectors were added to {basis}.")    
 
             self.statistics["outer_loop_runtime"]['extend_runtime'][basis][-1] += (timer() - extend_start_time)
 
@@ -1275,8 +1252,6 @@ class QrVrROMOptimizer(Optimizer):
         theta = self.optimizer_parameter["theta"]
         Theta = self.optimizer_parameter["Theta"]
         tau_tilde = self.optimizer_parameter["tau_tilde"]
-        NCD = self.optimizer_parameter["NCD"]
-        offline_parallel = self.optimizer_parameter["offline_parallel"]
 
         i_max = self.optimizer_parameter["i_max"]
         reg_loop_max = self.optimizer_parameter["reg_loop_max"]
@@ -1284,6 +1259,8 @@ class QrVrROMOptimizer(Optimizer):
         agc_armijo_max_iter = self.optimizer_parameter["agc_armijo_max_iter"]
         TR_armijo_max_iter = self.optimizer_parameter["TR_armijo_max_iter"]
 
+        use_adjoint_space = self.optimizer_parameter["use_adjoint_space"]
+        offline_parallel = self.optimizer_parameter["offline_parallel"]
         reg_AGC_step = self.optimizer_parameter["reg_AGC_step"]
         TR_enforcement = self.optimizer_parameter["TR_enforcement"]
         assert TR_enforcement in ['check_error', 'backtracking']
@@ -1354,8 +1331,6 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"  theta : {theta:3.4e}")
         self.logger.debug(f"  Theta : {Theta:3.4e}")
         self.logger.debug(f"  tau_tilde : {tau_tilde:3.4e}")
-        self.logger.debug(f"  NCD : {NCD}")
-        self.logger.debug(f"  offline_parallel : {offline_parallel}")
         self.logger.debug(f"                ")
         self.logger.debug(f"  i_max : {i_max:3.4e}")
         self.logger.debug(f"  i_max_inner : {i_max_inner:3.4e}")
@@ -1363,6 +1338,8 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"  agc_armijo_max_iter : {agc_armijo_max_iter:3.4e}")
         self.logger.debug(f"  TR_armijo_max_iter : {TR_armijo_max_iter:3.4e}")
         self.logger.debug(f"                ")
+        self.logger.debug(f"  use_adjoint_space : {use_adjoint_space}")
+        self.logger.debug(f"  offline_parallel : {offline_parallel}")
         self.logger.debug(f"  reg_AGC_step : {reg_AGC_step}")
         self.logger.debug(f"  TR_enforcement : {TR_enforcement}")
         self.logger.debug(f"                ")
@@ -1384,7 +1361,8 @@ class QrVrROMOptimizer(Optimizer):
 
 
         self._reset_snapshots()
-        additional_parameter_snapshots, additional_state_snapshots, _ = self.snapshot_preprocessor.additional_snapshots(
+        additional_parameter_snapshots, additional_state_snapshots, additional_adjoint_snapshots = \
+        self.snapshot_preprocessor.additional_snapshots(
             config = enrichment,
             bases = self.reduced_bases,
             q = q,
@@ -1415,16 +1393,21 @@ class QrVrROMOptimizer(Optimizer):
 
         self.logger.debug(f"Extending Vr-snapshots")
 
-        if self.reductor.NCD:
+        if self.reductor.use_adjoint_space:
             self.snapshots['state_basis'].append(u)
             self.snapshots['adjoint_basis'].append(p)
+            
+            self.snapshots['adjoint_basis'].append(
+                additional_adjoint_snapshots
+            )
         else:
             self.snapshots['state_basis'].append(u)
             self.snapshots['state_basis'].append(p)
 
         self.snapshots['state_basis'].append(
-                additional_state_snapshots
-            )
+            additional_state_snapshots
+        )
+    
                 
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             bases=self.reduced_bases,
@@ -1558,7 +1541,7 @@ class QrVrROMOptimizer(Optimizer):
                 # self.reductor = InstationaryModelIPReductor(
                 #     self.FOM,
                 #     self.optimizer_parameter['error_estimator_types'],
-                #     NCD = self.optimizer_parameter["NCD"]
+                #     use_adjoint_space = self.optimizer_parameter["use_adjoint_space"]
                 # )
 
                 self._logger.warning(f"q^(i) is not in the trust region.")
@@ -1569,8 +1552,8 @@ class QrVrROMOptimizer(Optimizer):
                     _enrichment[basis]['compression']['sample_every_n_th'] = None
                     _enrichment[basis]['compression']['normalize'] = None
                     _enrichment[basis]['compression']['HaPOD'] = None
-                    #_enrichment[basis]['overwrite'] = False
-                
+                    _enrichment[basis]['compression']['keep_last_n'] = None
+                                    
                 self._reset_snapshots()
 
                 if enrichment['parameter_basis']['reduced_basis']:
@@ -1579,7 +1562,7 @@ class QrVrROMOptimizer(Optimizer):
                 
                                 
                 self.logger.debug(f"Extending Vr-snapshots")
-                if self.reductor.NCD:
+                if self.reductor.use_adjoint_space:
                     self.snapshots['state_basis'].append(u)
                     self.snapshots['adjoint_basis'].append(p)
                 else:
@@ -1742,6 +1725,7 @@ class QrVrROMOptimizer(Optimizer):
                     _enrichment[basis]['compression']['sample_every_n_th'] = None
                     _enrichment[basis]['compression']['normalize'] = None
                     _enrichment[basis]['compression']['HaPOD'] = None
+                    _enrichment[basis]['compression']['keep_last_n'] = None
                 
                 self._reset_snapshots()
                 if enrichment['parameter_basis']['reduced_basis']:
@@ -1750,7 +1734,7 @@ class QrVrROMOptimizer(Optimizer):
                 
                 
                 self.logger.debug(f"Extending Vr-snapshots")
-                if self.reductor.NCD:
+                if self.reductor.use_adjoint_space:
                     self.snapshots['state_basis'].append(u)
                     self.snapshots['adjoint_basis'].append(p)
                 else:
@@ -2026,7 +2010,8 @@ class QrVrROMOptimizer(Optimizer):
                 if not convergence_criterium:
                     self._reset_snapshots()
 
-                    additional_parameter_snapshots, additional_state_snapshots, _ = self.snapshot_preprocessor.additional_snapshots(
+                    additional_parameter_snapshots, additional_state_snapshots, additional_adjoint_snapshots = \
+                    self.snapshot_preprocessor.additional_snapshots(
                         config = enrichment,
                         bases = self.reduced_bases,
                         q = q,
@@ -2050,9 +2035,13 @@ class QrVrROMOptimizer(Optimizer):
                         
                     self.logger.debug(f"Extending Vr-snapshots")
 
-                    if self.reductor.NCD:
+                    if self.reductor.use_adjoint_space:
                         self.snapshots['state_basis'].append(u)
                         self.snapshots['adjoint_basis'].append(p)
+
+                        self.snapshots['adjoint_basis'].append(
+                            additional_adjoint_snapshots
+                        )
                     else:
                         self.snapshots['state_basis'].append(u)
                         self.snapshots['state_basis'].append(p)

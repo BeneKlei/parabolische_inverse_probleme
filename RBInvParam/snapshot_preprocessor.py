@@ -190,7 +190,7 @@ class SnapshotPreprocessor(BasicObject):
                     lin_p = lin_p
                 )
             else:
-                raise ValueError
+                pass
         
         return (parameter_snapshots, state_snapshots, adjoint_snapshots)
 

@@ -169,12 +169,12 @@ class ROMEvaluatorB(EvaluatorB):
                  translation_operator : Operator | None):
 
         assert parameteric_operator.parametric
-        assert parameteric_operator.source == V
+        assert parameteric_operator.source == range
         assert parameteric_operator.range == V
 
         if translation_operator:
             assert not translation_operator.parametric
-            assert parameteric_operator.source == V
+            assert parameteric_operator.source == range
             assert parameteric_operator.range == V
         
         self.parameters = parameteric_operator.parameters
@@ -192,7 +192,7 @@ class ROMEvaluatorB(EvaluatorB):
         if not self.parameteric_operator:
             raise NotImplementedError
         
-        DoFs = u.space.dim
+        DoFs = self.range.dim
         ops = self.parameteric_operator.operators
         T = len(ops)
 
