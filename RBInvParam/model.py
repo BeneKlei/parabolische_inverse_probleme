@@ -126,7 +126,8 @@ class InstationaryModelIP(ImmutableObject):
             T_final= self.T_final,
             q_time_dep=self.q_time_dep,
             time_stepper = self.setup['time_stepper'],
-            A_q_key = 'A_q'
+            A_q_key = 'A_q',
+            key_prefix = 'time_stepper'
         )
 
         self.solver_options = None
@@ -266,7 +267,8 @@ class InstationaryModelIP(ImmutableObject):
             T_final= self.T_final,
             q_time_dep=self.q_time_dep,
             time_stepper = self.setup['time_stepper'],
-            A_q_key = A_ad_q_key
+            A_q_key = A_ad_q_key,
+            key_prefix = 'time_stepper_ad'
         )
 
 
@@ -275,13 +277,8 @@ class InstationaryModelIP(ImmutableObject):
         keys = []
         keys += ['q', 'A_q', 'A_ad_q']
         keys += ['residual_A_q', 'B_u', 'B_u_ad']
-
-        self.time_stepper_required_cache_keys = ['time_stepper_' + key for key in self.time_stepper.required_cache_keys.copy()]
-        self.time_stepper_ad_required_cache_keys = ['time_stepper_ad_' + key for key in self.time_stepper.required_cache_keys.copy()]
-
-
-        keys += self.time_stepper_required_cache_keys
-        keys += self.time_stepper_ad_required_cache_keys
+        keys += self.time_stepper.required_cache_keys
+        keys += self.time_stepper_ad.required_cache_keys
 
         self.reset_cached_operators(
             keys = keys
@@ -303,25 +300,25 @@ class InstationaryModelIP(ImmutableObject):
                          q: VectorArray,
                          u: VectorArray) -> None:
         
-        if target in self.time_stepper_required_cache_keys:
+        if target in self.time_stepper.required_cache_keys:
             A_q_key = self.time_stepper.A_q_key
             assert self._cached_operators[A_q_key][time_step]
 
             self._cached_operators[target][time_step] = \
                 self.time_stepper.cache_operator(
-                    target = target.replace('time_stepper_', ''),
+                    target = target,
                     time_step = time_step,
                     q = q,
                     u = u,
                     A_q = self._cached_operators[A_q_key][time_step]
-                )
-        elif target in self.time_stepper_ad_required_cache_keys:
+                )    
+        elif target in self.time_stepper_ad.required_cache_keys:
             A_q_key = self.time_stepper_ad.A_q_key
             assert self._cached_operators[A_q_key][time_step]
 
             self._cached_operators[target][time_step] = \
                 self.time_stepper_ad.cache_operator(
-                    target = target.replace('time_stepper_ad_', ''),
+                    target = target,
                     time_step = time_step,
                     q = q,
                     u = u,
@@ -330,7 +327,7 @@ class InstationaryModelIP(ImmutableObject):
         elif target == 'A_q':
             self._cached_operators['A_q'][time_step] = self.A(q[time_step])
         elif target == 'A_ad_q':
-            self._cached_operators['A_ad_q'][time_step] = self.A(q[time_step])            
+            self._cached_operators['A_ad_q'][time_step] = self.A_ad(q[time_step])            
         elif target == 'residual_A_q':
             if self.state_error_estimator:
                 assert self.state_error_estimator.state_residual_operator.A == self.adjoint_error_estimator.adjoint_residual_operator.A
@@ -403,7 +400,7 @@ class InstationaryModelIP(ImmutableObject):
                 self._cached_operators['q'] = self.Q.empty()
                 continue
             
-            if self.q_time_dep or (key == 'B_u'):
+            if self.q_time_dep or (key in ['B_u', 'B_u_ad']):
                 self._cached_operators[key] = [None] * (self.nt + 1)
             else:
                 self._cached_operators[key] = [None]
@@ -439,7 +436,7 @@ class InstationaryModelIP(ImmutableObject):
         self.num_calls['solve_state'] += 1
 
         required_cache_keys = ['A_q'] 
-        required_cache_keys += self.time_stepper_required_cache_keys
+        required_cache_keys += self.time_stepper.required_cache_keys
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 
@@ -482,7 +479,7 @@ class InstationaryModelIP(ImmutableObject):
             A_ad_q_key = 'A_q'
     
         required_cache_keys = [A_ad_q_key] 
-        required_cache_keys += self.time_stepper_ad_required_cache_keys
+        required_cache_keys += self.time_stepper_ad.required_cache_keys
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 
@@ -530,7 +527,7 @@ class InstationaryModelIP(ImmutableObject):
         self.num_calls['solve_linearized_state'] += 1
         
         required_cache_keys = ['A_q']
-        required_cache_keys += self.time_stepper_required_cache_keys
+        required_cache_keys += self.time_stepper.required_cache_keys
         required_cache_keys += ['B_u']
         self.update_cache(
             q = q, 
@@ -587,7 +584,7 @@ class InstationaryModelIP(ImmutableObject):
             A_ad_q_key = 'A_q'
     
         required_cache_keys = [A_ad_q_key] 
-        required_cache_keys += self.time_stepper_ad_required_cache_keys
+        required_cache_keys += self.time_stepper_ad.required_cache_keys
         self.update_cache(
             q = q, 
             use_cached_operators = use_cached_operators, 
@@ -638,7 +635,7 @@ class InstationaryModelIP(ImmutableObject):
 
         self.num_calls['solve_second_adjoint'] += 1
         required_cache_keys = ['A_q'] 
-        required_cache_keys += self.time_stepper_required_cache_keys
+        required_cache_keys += self.time_stepper.required_cache_keys
 
         self.update_cache(
             q = q, 
@@ -1269,6 +1266,8 @@ class InstationaryModelIP(ImmutableObject):
             return np.sqrt(self.products['bochner_prod_Q'].apply2(V, V))[0,0]
         else:
             return np.sqrt(self.products['prod_Q'].apply2(V, V))[0,0]
+        
+        
     
     def compute_sparsity(self,
                          q: VectorArray,

@@ -145,7 +145,7 @@ class SnapshotPreprocessor(BasicObject):
             assert lin_p is not None
 
             self.logger.debug('Include lins')
-            state_snapshots.append(lin_u)
+            state_snapshots.append(lin_u)       
             state_snapshots.append(lin_p)
         
         if config['include_krylov_sensitivites']:
@@ -189,8 +189,12 @@ class SnapshotPreprocessor(BasicObject):
                     lin_u = lin_u,
                     lin_p = lin_p
                 )
+            elif basis == 'adjoint_basis':
+                adjoint_snapshots = lin_p
             else:
-                pass
+                raise ValueError
+            
+        #adjoint_snapshots = state_snapshots
         
         return (parameter_snapshots, state_snapshots, adjoint_snapshots)
 

@@ -51,11 +51,11 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    # y_res = 30
-    # z_res = 30
+    y_res = 30
+    z_res = 30
 
-    y_res = 8
-    z_res = 8
+    # y_res = 8
+    # z_res = 8
 
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
@@ -84,31 +84,31 @@ def main():
     # q_exact[0,200] = 2
     # q_exact[0,300] = 3
 
-    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    # q_exact[9,21] = 3
-    # q_exact[8,21] = 3
-    # q_exact[7,21] = 3
-    # q_exact[9,22] = 3
-    # q_exact[8,22] = 3
-    # q_exact[7,22] = 3
-    # q_exact[9,20] = 3
-    # q_exact[8,20] = 3
-    # q_exact[7,20] = 3
+    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    q_exact[9,21] = 3
+    q_exact[8,21] = 3
+    q_exact[7,21] = 3
+    q_exact[9,22] = 3
+    q_exact[8,22] = 3
+    q_exact[7,22] = 3
+    q_exact[9,20] = 3
+    q_exact[8,20] = 3
+    q_exact[7,20] = 3
 
 
-    # q_exact[7,14] = 2
-    # q_exact[6,14] = 2
-    # q_exact[5,14] = 2
-    # q_exact[7,13] = 2
-    # q_exact[6,13] = 2
-    # q_exact[5,13] = 2
-    # q_exact[7,15] = 2
-    # q_exact[6,15] = 2
-    # q_exact[5,15] = 2
+    q_exact[7,14] = 2
+    q_exact[6,14] = 2
+    q_exact[5,14] = 2
+    q_exact[7,13] = 2
+    q_exact[6,13] = 2
+    q_exact[5,13] = 2
+    q_exact[7,15] = 2
+    q_exact[6,15] = 2
+    q_exact[5,15] = 2
 
 
-    # q_exact = q_exact.flatten()
-    # q_exact = np.array([q_exact])
+    q_exact = q_exact.flatten()
+    q_exact = np.array([q_exact])
 
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
@@ -129,7 +129,7 @@ def main():
     # q_exact[0,470] = 3
 
     
-    q_exact[0,50] = 2
+    #q_exact[0,50] = 2
     q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
@@ -161,9 +161,9 @@ def main():
             }
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
@@ -273,7 +273,7 @@ def main():
         'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
         'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
-        'use_adjoint_space' : True,
+        'use_adjoint_space' : False,
         'offline_parallel' : False,
         'reg_AGC_step' : False,
         #'TR_enforcement' : 'check_error',
@@ -291,13 +291,13 @@ def main():
             'parameter_basis' : {
                 'reduced_basis' : True,
                 'additional_snapshots' :{
-                    'include_each_time_step' : True,
+                    'include_each_time_step' : False,
                     'include_lin_grad' : False,
-                    'include_krylov_directions' : False,
-                    # {
-                    #     'n' : 5,
-                    #     'inital_direction' : 'ones'
-                    # },
+                    'include_krylov_directions' : 
+                    {
+                        'n' : 5,
+                        'inital_direction' : 'gradient'
+                    },
                 },
                 'compression' : {
                     'sample_every_n_th' : None,
@@ -320,10 +320,10 @@ def main():
                     'sample_every_n_th' : None,
                     'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-3,    
+                        'HaPOD_tol': 1e-12,    
                     },
                     # 'normalize' : None,
-                    #'HaPOD' : None,
+                    # 'HaPOD' : None,
                     'overwrite_every_n' : None,
                     'keep_last_n': None
                 }
@@ -332,10 +332,12 @@ def main():
                 'additional_snapshots' : {},
                 'compression' : {
                     'sample_every_n_th' : None,
-                    'normalize' : False,
+                    'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-3,    
+                        'HaPOD_tol': 1e-6,    
                     },
+                    # 'normalize' : None,
+                    # 'HaPOD' : None,
                     'overwrite_every_n' : None,
                     'keep_last_n': None
                 }
@@ -353,7 +355,8 @@ def main():
         # 'eta0': 2.5 * 1e-2,                                                # Initial trust region tolerance
         # 'eta_min' : 1e-5,
         # 'eta_max' : 0.05,
-        'eta0': 5.0 * 1e-2,                                                # Initial trust region tolerance
+        'eta0': 0.15,                                                # Initial trust region tolerance
+        #'eta0': 5.0 * 1e-2,                                                # Initial trust region tolerance
         'eta_min' : 1e-5,
         'eta_max' : 0.15,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease

@@ -391,10 +391,10 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
                 # assemble
                 M = np.empty((dim_range_new, dim_source_new), dtype=np.float64)
-                M[:range_V_old, :source_V_old] = VTAV_old
-                M[:range_V_old, source_V_old:] = VTAW
-                M[range_V_old:, :source_V_old] = WTAV
-                M[range_V_old:, source_V_old:] = WTAW
+                M[:dim_range_old, :dim_source_old] = VTAV_old
+                M[:dim_range_old, dim_source_old:] = VTAW
+                M[dim_range_old:, :dim_source_old] = WTAV
+                M[dim_range_old:, dim_source_old:] = WTAW
             else:
                 AV = A.apply(_source_basis)
                 M  = _range_basis.inner(AV)

@@ -23,7 +23,8 @@ class TimeStepper(ABC):
                 T_initial: float,
                 T_final: float,
                 q_time_dep: Dict,
-                A_q_key : str = 'A_q'):
+                A_q_key: str = 'A_q',
+                key_prefix : str = ''):
     
         self.nt = nt
         self.M = M 
@@ -35,6 +36,7 @@ class TimeStepper(ABC):
         self.q_time_dep = q_time_dep
         self.required_cache_keys : List[str] = []
         self.A_q_key = A_q_key
+        self.key_prefix = key_prefix
 
         assert isinstance(self.M, Operator)
         assert isinstance(self.A, EvaluatorA)
@@ -182,7 +184,10 @@ class NewmanSecondOrder(TimeStepper):
         super().__init__(**kwargs)
         assert 0 <= zeta <= 1 
         self.zeta = zeta
-        self.required_cache_keys = ['S_zeta', 'S_zeta_minus_one']
+        self.required_cache_keys = [
+            self.key_prefix + '_' + 'S_zeta', 
+            self.key_prefix + '_' + 'S_zeta_minus_one'
+        ]
     
     def cache_operator(self,
                        target: str,
@@ -199,9 +204,9 @@ class NewmanSecondOrder(TimeStepper):
         #rho = 2.7 * 1e3
         #rho = 1
 
-        if target == 'S_zeta':
+        if target == (self.key_prefix + '_' +'S_zeta'):
             return self.M + dt**2 * zeta**2 * A_q
-        elif target == 'S_zeta_minus_one':
+        elif target == (self.key_prefix + '_' + 'S_zeta_minus_one'):
             return self.M + dt**2 * zeta * (zeta - 1) * A_q
         else:
             raise ValueError
@@ -262,8 +267,8 @@ class NewmanSecondOrder(TimeStepper):
 
         if use_cached_operators:
             A_q = cached_operators[self.A_q_key][0]
-            S_zeta = cached_operators['S_zeta'][0]
-            S_zeta_minus_one = cached_operators['S_zeta_minus_one'][0]
+            S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][0]
+            S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][0]
         else:
             A_q = self.A(q[0])
             S_zeta = self.M + dt**2 * zeta**2 * A_q
@@ -290,8 +295,8 @@ class NewmanSecondOrder(TimeStepper):
                 # Otherwise the values set above are never updated
                 if use_cached_operators:
                     A_q = cached_operators[self.A_q_key][n]
-                    S_zeta = cached_operators['S_zeta'][n]
-                    S_zeta_minus_one = cached_operators['S_zeta_minus_one'][n]
+                    S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][n]
+                    S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][n]
                 else:
                     A_q = self.A(q[n])
                     S_zeta = self.M + dt**2 * zeta**2 * A_q
@@ -341,7 +346,8 @@ def get_time_stepper(
         T_final : float,
         q_time_dep : bool,
         time_stepper : dict,
-        A_q_key: bool) -> TimeStepper:
+        A_q_key: str,
+        key_prefix: str = None) -> TimeStepper:
     
     if time_stepper['name'] == 'implicit_euler':
         return ImplicitEulerTimeStepper(
@@ -353,7 +359,8 @@ def get_time_stepper(
             T_initial= T_initial,
             T_final= T_final,
             q_time_dep=q_time_dep,
-            A_q_key = A_q_key
+            A_q_key = A_q_key,
+            key_prefix = key_prefix
         )
 
     elif time_stepper['name'] == 'newman_second_order':
@@ -367,8 +374,8 @@ def get_time_stepper(
             T_final= T_final,
             q_time_dep=q_time_dep,
             zeta=time_stepper['zeta'],
-            A_q_key = A_q_key
-            
+            A_q_key = A_q_key,
+            key_prefix = key_prefix
         )
     else:
         raise ValueError
