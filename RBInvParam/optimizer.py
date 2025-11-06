@@ -433,7 +433,11 @@ class Optimizer(BasicObject):
                 nabla_lin_J = self.FOM.linearized_gradient(q, d, u, lin_u, 0.0, use_cached_operators=use_cached_operators)
 
                 diff = nabla_lin_J - _nabla_lin_J_r
-                err_nabla_lin_J = np.sqrt(self.FOM.products['bochner_prod_Q'].apply2(diff, diff))[0,0]
+                if self.FOM.q_time_dep:
+                    err_nabla_lin_J = np.sqrt(self.FOM.products['bochner_prod_Q'].apply2(diff, diff))[0,0]
+                else:
+                    err_nabla_lin_J = np.sqrt(self.FOM.products['prod_Q'].apply2(diff, diff))[0,0]
+
                 self._logger.debug(f'Actual err_nabla_lin_J = {err_nabla_lin_J:3.4e}')
         
         return (
