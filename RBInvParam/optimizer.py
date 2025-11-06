@@ -419,18 +419,18 @@ class Optimizer(BasicObject):
 
             if required_quantity == 'lin_J':
                 if lin_J_r is None:
-                    lin_J_r = model.linearized_objective(q_r, d_r, u_r, lin_u_r, use_cached_operators=use_cached_operators)
+                    lin_J_r = model.linearized_objective(q_r, d_r, u_r, lin_u_r, 0.0, use_cached_operators=use_cached_operators)
                 
-                lin_J = self.FOM.objective(q, d, u, lin_u, use_cached_operators=use_cached_operators)
+                lin_J = self.FOM.linearized_objective(q, d, u, lin_u, 0.0, use_cached_operators=use_cached_operators)
                 lin_err_J = np.abs(lin_J - lin_J_r)
                 self._logger.debug(f'Actual lin_err_J = {lin_err_J:3.4e}')
   
             if required_quantity == 'nabla_lin_J':
                 if nabla_lin_J_r is None:
-                    nabla_lin_J_r = model.linearized_gradient(q_r, d_r, u_r, lin_p_r, use_cached_operators=use_cached_operators)
+                    nabla_lin_J_r = model.linearized_gradient(q_r, d_r, u_r, lin_p_r, 0.0, use_cached_operators=use_cached_operators)
                 
                 _nabla_lin_J_r = self.reductor.reconstruct(nabla_lin_J_r, basis='parameter_basis')
-                nabla_lin_J = self.FOM.linearized_gradient(q, d, u, lin_u, use_cached_operators=use_cached_operators)
+                nabla_lin_J = self.FOM.linearized_gradient(q, d, u, lin_u, 0.0, use_cached_operators=use_cached_operators)
 
                 diff = nabla_lin_J - _nabla_lin_J_r
                 err_nabla_lin_J = np.sqrt(self.FOM.products['bochner_prod_Q'].apply2(diff, diff))[0,0]
@@ -549,12 +549,6 @@ class Optimizer(BasicObject):
             self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
             self.logger.info(f"Try 1: test alpha = {alpha:3.4e}.")
 
-            # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            # _ = self.estimate_objective_error(model, 
-            #                                   q_r=q, 
-            #                                   targets=['u', 'p', 'J', 'nabla_J'],
-            #                                   use_cached_operators=use_cached_operators)
-
             regularization_qualification = False
             count = 1
             
@@ -573,6 +567,14 @@ class Optimizer(BasicObject):
                                                                logger = self.logger,
                                                                use_cached_operators=use_cached_operators,
                                                                projector=projector)
+
+            # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            # _ = self.estimate_objective_error(model, 
+            #                                   q_r=q, 
+            #                                   d_r=d,
+            #                                   targets='all',
+            #                                   use_cached_operators=use_cached_operators)
+
 
             counts['lin_solver_iter'].append([lin_solver_iter])
             

@@ -96,7 +96,7 @@ FOM_optimizer_parameter = {
     'q_0': q_start,                                          # Initial guess for the parameter to be optimized
     'alpha_0': 1e-5,                                          # Initial regularization parameter
     'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
-    'tau': 1.00,                                              # Relative (to the noise) convergence tolerance for optimization
+    'tau': 2.00,                                              # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
     'theta': 0.4,                                         # Lower tolerance for the direction acceptance condition
     'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
@@ -123,7 +123,7 @@ TR_optimizer_parameter = {
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
     'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-    'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
+    'tau': 2.00,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
     'theta': 0.4,
     'Theta': 1.95,                                               # Upper bound for step acceptance condition
@@ -144,7 +144,7 @@ TR_optimizer_parameter = {
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-        'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+        'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
         'kappa_arm' : 1e-12,
         'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
         'armijo_min_step_size' : 1e-20
@@ -158,37 +158,57 @@ TR_optimizer_parameter = {
     'enrichment': {
         'parameter_basis' : {
             'reduced_basis' : True,
-            'include_each_time_step' : False,
-            'include_lin_grad' : False,
-            'include_krylov_directions' : False,
-            'sample_every_n_th' : None,
-            # 'normalize' : True,
-            # 'HaPOD' : {
-            #     'HaPOD_tol': 1e-1,    
-            # },
-            'normalize' : None,
-            'HaPOD' : None,
-            'overwrite_every_n' : False,
-            'keep_last_n': None
+            'additional_snapshots' :{
+                'include_each_time_step' : False,
+                'include_lin_grad' : False,
+                'include_krylov_directions' : 
+                {
+                    'n' : 5,
+                    'inital_direction' : 'gradient'
+                },
+            },
+            'compression' : {
+                'sample_every_n_th' : None,
+                # 'normalize' : True,
+                # 'HaPOD' : {
+                #     'HaPOD_tol': 1e-1,    
+                # },
+                'normalize' : True,
+                'HaPOD' : None,
+                'overwrite_every_n' : None,
+                'keep_last_n': None
+            }
         },
         'state_basis' : {
-            'include_lins' : False,
-            'include_krylov_sensitivites' : False,
-            'sample_every_n_th' : None,
-            'normalize' : True,
-            'HaPOD' : {
-                'HaPOD_tol': 1e-6,    
+            'additional_snapshots' :{
+                'include_lins' : False,
+                'include_krylov_sensitivites' : True,
             },
-            'overwrite_every_n' : False,
-            'keep_last_n': None
+            'compression' : {                
+                'sample_every_n_th' : None,
+                'normalize' : True,
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-3,    
+                },
+                # 'normalize' : None,
+                # 'HaPOD' : None,
+                'overwrite_every_n' : None,
+                'keep_last_n': None
+            }
         },
         'adjoint_basis' : {
-            'sample_every_n_th' : None,
-            'normalize' : False,
-            'HaPOD' : {
-                'HaPOD_tol': 1e-16,    
-            },
-            'overwrite' : False
+            'additional_snapshots' : {},
+            'compression' : {
+                'sample_every_n_th' : None,
+                'normalize' : True,
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-6,    
+                },
+                # 'normalize' : None,
+                # 'HaPOD' : None,
+                'overwrite_every_n' : None,
+                'keep_last_n': None
+            }
         }
     },
     'error_estimator_types' : {
@@ -237,5 +257,5 @@ for sigma in sigmas:
     EXPERIMENTS[f'{sigma}_TR_identity'] = (setup_identity, TR_optimizer_parameter__)
 
 
-prefix = 'gaussian'
+prefix = 'gaussian_krylov'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}
