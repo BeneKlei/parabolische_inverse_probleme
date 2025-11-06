@@ -81,34 +81,34 @@ def main():
     q_exact = np.ones((1,par_dim)) * 1
 
 
-    # q_exact[0,200] = 2
-    # q_exact[0,300] = 3
+    q_exact[0,200] = 2
+    q_exact[0,300] = 3
 
-    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    q_exact[9,21] = 3
-    q_exact[8,21] = 3
-    q_exact[7,21] = 3
-    q_exact[9,22] = 3
-    q_exact[8,22] = 3
-    q_exact[7,22] = 3
-    q_exact[9,20] = 3
-    q_exact[8,20] = 3
-    q_exact[7,20] = 3
-
-
-    q_exact[7,14] = 2
-    q_exact[6,14] = 2
-    q_exact[5,14] = 2
-    q_exact[7,13] = 2
-    q_exact[6,13] = 2
-    q_exact[5,13] = 2
-    q_exact[7,15] = 2
-    q_exact[6,15] = 2
-    q_exact[5,15] = 2
+    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    # q_exact[9,21] = 3
+    # q_exact[8,21] = 3
+    # q_exact[7,21] = 3
+    # q_exact[9,22] = 3
+    # q_exact[8,22] = 3
+    # q_exact[7,22] = 3
+    # q_exact[9,20] = 3
+    # q_exact[8,20] = 3
+    # q_exact[7,20] = 3
 
 
-    q_exact = q_exact.flatten()
-    q_exact = np.array([q_exact])
+    # q_exact[7,14] = 2
+    # q_exact[6,14] = 2
+    # q_exact[5,14] = 2
+    # q_exact[7,13] = 2
+    # q_exact[6,13] = 2
+    # q_exact[5,13] = 2
+    # q_exact[7,15] = 2
+    # q_exact[6,15] = 2
+    # q_exact[5,15] = 2
+
+
+    # q_exact = q_exact.flatten()
+    # q_exact = np.array([q_exact])
 
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
@@ -140,14 +140,14 @@ def main():
     setup = {
         'spatial_resolution' : [4,y_res,z_res],
         'body_force' : {
-            'type' : mm.BodyForceType.CenterExcite,
-            'hyperparameter' : {}
-            # 'type' : mm.BodyForceType.Gaussian,
-            # 'hyperparameter' : {
-            #     'center': [-0.1,0.0,0.0],
-            #     #'sigma' : 1.0,
-            #     'sigma' : 2.0,
-            # }
+            #'type' : mm.BodyForceType.CenterExcite,
+            #'hyperparameter' : {}
+            'type' : mm.BodyForceType.Gaussian,
+            'hyperparameter' : {
+                'center': [-0.1,0.0,0.0],
+                #'sigma' : 1.0,
+                'sigma' : 2.0,
+            }
         },
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
@@ -282,7 +282,7 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
@@ -296,7 +296,7 @@ def main():
                     'include_krylov_directions' : 
                     {
                         'n' : 5,
-                        'inital_direction' : 'gradient'
+                        'inital_direction' : 'ones'
                     },
                 },
                 'compression' : {
@@ -305,7 +305,7 @@ def main():
                     # 'HaPOD' : {
                     #     'HaPOD_tol': 1e-1,    
                     # },
-                    'normalize' : True,
+                    'normalize' : None,
                     'HaPOD' : None,
                     'overwrite_every_n' : None,
                     'keep_last_n': None
@@ -320,7 +320,7 @@ def main():
                     'sample_every_n_th' : None,
                     'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-12,    
+                        'HaPOD_tol': 1e-6,    
                     },
                     # 'normalize' : None,
                     # 'HaPOD' : None,
@@ -330,17 +330,7 @@ def main():
             },
             'adjoint_basis' : {
                 'additional_snapshots' : {},
-                'compression' : {
-                    'sample_every_n_th' : None,
-                    'normalize' : True,
-                    'HaPOD' : {
-                        'HaPOD_tol': 1e-6,    
-                    },
-                    # 'normalize' : None,
-                    # 'HaPOD' : None,
-                    'overwrite_every_n' : None,
-                    'keep_last_n': None
-                }
+                'compression' : {}
             }
         },
         'error_estimator_types' : {

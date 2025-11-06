@@ -96,7 +96,7 @@ FOM_optimizer_parameter = {
     'q_0': q_start,                                          # Initial guess for the parameter to be optimized
     'alpha_0': 1e-5,                                          # Initial regularization parameter
     'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
-    'tau': 2.00,                                              # Relative (to the noise) convergence tolerance for optimization
+    'tau': 1.00,                                              # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
     'theta': 0.4,                                         # Lower tolerance for the direction acceptance condition
     'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
@@ -123,13 +123,11 @@ TR_optimizer_parameter = {
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
     'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-    'tau': 2.00,                                                  # Relative (to the noise) convergence tolerance for optimization
+    'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
     'theta': 0.4,
     'Theta': 1.95,                                               # Upper bound for step acceptance condition
     'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
-    'NCD' : False,
-    'offline_parallel' : True,
     #####################
     'i_max': 75,                                                 # Max number of outer optimization iterations
     'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
@@ -137,6 +135,8 @@ TR_optimizer_parameter = {
     'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
     'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
     #####################
+    'use_adjoint_space' : False,
+    'offline_parallel' : False,
     'reg_AGC_step' : False,
     #'TR_enforcement' : 'check_error',
     'TR_enforcement' : 'backtracking',
@@ -158,7 +158,7 @@ TR_optimizer_parameter = {
     'enrichment': {
         'parameter_basis' : {
             'reduced_basis' : True,
-            'additional_snapshots' :{
+            'additional_snapshots' : {
                 'include_each_time_step' : False,
                 'include_lin_grad' : False,
                 'include_krylov_directions' : 
@@ -182,13 +182,13 @@ TR_optimizer_parameter = {
         'state_basis' : {
             'additional_snapshots' :{
                 'include_lins' : False,
-                'include_krylov_sensitivites' : True,
+                'include_krylov_sensitivites' : False,
             },
             'compression' : {                
                 'sample_every_n_th' : None,
                 'normalize' : True,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-3,    
+                    'HaPOD_tol': 1e-6,    
                 },
                 # 'normalize' : None,
                 # 'HaPOD' : None,
@@ -248,14 +248,13 @@ for sigma in sigmas:
     TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
 
     # --------------------------------------------------------------------------
-    EXPERIMENTS[f'{sigma}_FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_)
-    EXPERIMENTS[f'{sigma}_FOM_identity'] = (setup_identity, FOM_optimizer_parameter_)
+    # EXPERIMENTS[f'{sigma}_FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_)
+    # EXPERIMENTS[f'{sigma}_FOM_identity'] = (setup_identity, FOM_optimizer_parameter_)
     # --------------------------------------------------------------------------
     TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
     TR_optimizer_parameter__['enrichment']['state_basis']['HaPOD']['HaPOD_tol'] = 1e-3
     EXPERIMENTS[f'{sigma}_TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
     EXPERIMENTS[f'{sigma}_TR_identity'] = (setup_identity, TR_optimizer_parameter__)
-
 
 
 prefix = 'gaussian_krylov'

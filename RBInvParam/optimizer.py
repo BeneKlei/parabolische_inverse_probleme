@@ -361,6 +361,10 @@ class Optimizer(BasicObject):
                 err_u = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(diff, diff))[0,0]
                 self._logger.debug(f'Actual err_u = {err_u:3.4e}')
 
+                norm_u = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(u, u))[0,0]
+                rel_err_u = err_u / norm_u
+                self._logger.debug(f'Actual rel_err_u = {rel_err_u:3.4e}')
+
             if required_quantity == 'p':
                 if p_r is None:
                     p_r = model.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
@@ -372,6 +376,10 @@ class Optimizer(BasicObject):
                 diff = p - _p_r
                 err_p = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(diff, diff))[0,0]
                 self._logger.debug(f'Actual err_p = {err_p:3.4e}')
+
+                norm_p = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(p, p))[0,0]
+                rel_err_p = err_p / norm_p
+                self._logger.debug(f'Actual rel_err_p = {rel_err_p:3.4e}')
             
             if required_quantity == 'lin_u':
                 if lin_u_r is None:
@@ -383,6 +391,10 @@ class Optimizer(BasicObject):
                 diff = lin_u - _lin_u_r
                 err_lin_u = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(diff, diff))[0,0]
                 self._logger.debug(f'Actual err_lin_u = {err_lin_u:3.4e}')
+                
+                norm_lin_u = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(lin_u, lin_u))[0,0]
+                rel_err_lin_u = err_lin_u / norm_lin_u
+                self._logger.debug(f'Actual rel_err_lin_u = {rel_err_lin_u:3.4e}')
 
             if required_quantity == 'lin_p':
                 if lin_p_r is None:
@@ -394,6 +406,10 @@ class Optimizer(BasicObject):
                 diff = lin_p - _lin_p_r
                 err_lin_p = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(diff, diff))[0,0]
                 self._logger.debug(f'Actual err_lin_p = {err_lin_p:3.4e}')
+
+                norm_lin_p = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(lin_p, lin_p))[0,0]
+                rel_err_lin_p = err_lin_p / norm_lin_p
+                self._logger.debug(f'Actual rel_err_lin_p = {rel_err_lin_p:3.4e}')
             
             if required_quantity == 'J':
                 if J_r is None:
@@ -402,6 +418,10 @@ class Optimizer(BasicObject):
                 J = self.FOM.objective(u, q)
                 err_J = np.abs(J - J_r)
                 self._logger.debug(f'Actual err_J = {err_J:3.4e}')
+
+                rel_err_J = err_J / np.abs(J)
+                self._logger.debug(f'Actual rel_err_J = {rel_err_J:3.4e}')
+
 
             if required_quantity == 'nabla_J':
                 if nabla_J_r is None:
@@ -413,17 +433,25 @@ class Optimizer(BasicObject):
                 diff = nabla_J - _nabla_J_r
                 if self.FOM.q_time_dep:
                     err_nabla_J = np.sqrt(self.FOM.products['bochner_prod_Q'].apply2(diff, diff))[0,0]
+                    norm_nabla_J = np.sqrt(self.FOM.products['bochner_prod_Q'].apply2(nabla_J, nabla_J))[0,0]
                 else:
                     err_nabla_J = np.sqrt(self.FOM.products['prod_Q'].apply2(diff, diff))[0,0]
+                    norm_nabla_J = np.sqrt(self.FOM.products['prod_Q'].apply2(nabla_J, nabla_J))[0,0]
+
                 self._logger.debug(f'Actual err_nabla_J = {err_nabla_J:3.4e}')
+                rel_err_nabla_J = err_nabla_J / norm_nabla_J
+                self._logger.debug(f'Actual rel_err_nabla_J = {rel_err_nabla_J:3.4e}')
 
             if required_quantity == 'lin_J':
                 if lin_J_r is None:
                     lin_J_r = model.linearized_objective(q_r, d_r, u_r, lin_u_r, 0.0, use_cached_operators=use_cached_operators)
                 
                 lin_J = self.FOM.linearized_objective(q, d, u, lin_u, 0.0, use_cached_operators=use_cached_operators)
-                lin_err_J = np.abs(lin_J - lin_J_r)
-                self._logger.debug(f'Actual lin_err_J = {lin_err_J:3.4e}')
+                err_lin_J = np.abs(lin_J - lin_J_r)
+                self._logger.debug(f'Actual err_lin_J = {err_lin_J:3.4e}')
+
+                rel_err_lin_J = err_lin_J / np.abs(lin_J)
+                self._logger.debug(f'Actual rel_err_lin_J = {rel_err_lin_J:3.4e}')
   
             if required_quantity == 'nabla_lin_J':
                 if nabla_lin_J_r is None:
@@ -435,10 +463,14 @@ class Optimizer(BasicObject):
                 diff = nabla_lin_J - _nabla_lin_J_r
                 if self.FOM.q_time_dep:
                     err_nabla_lin_J = np.sqrt(self.FOM.products['bochner_prod_Q'].apply2(diff, diff))[0,0]
+                    norm_nabla_lin_J = np.sqrt(self.FOM.products['bochner_prod_Q'].apply2(nabla_lin_J, nabla_lin_J))[0,0]
                 else:
                     err_nabla_lin_J = np.sqrt(self.FOM.products['prod_Q'].apply2(diff, diff))[0,0]
+                    norm_nabla_lin_J = np.sqrt(self.FOM.products['prod_Q'].apply2(nabla_lin_J, nabla_lin_J))[0,0]
 
                 self._logger.debug(f'Actual err_nabla_lin_J = {err_nabla_lin_J:3.4e}')
+                rel_err_nabla_lin_J = err_nabla_lin_J / norm_nabla_lin_J
+                self._logger.debug(f'Actual rel_err_nabla_lin_J = {rel_err_nabla_lin_J:3.4e}')
         
         return (
             err_u,
@@ -1518,6 +1550,10 @@ class QrVrROMOptimizer(Optimizer):
             i = i
         )
 
+        # state_basis = self.reductor.bases['state_basis']
+        # error_matrix = state_basis.inner(state_basis, self.FOM.products['prod_V'])
+        # print(error_matrix)
+
         q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
         q_r = self.QrVrROM.Q.make_array(q_r)
 
@@ -1707,7 +1743,6 @@ class QrVrROMOptimizer(Optimizer):
                 if enrichment['parameter_basis']['reduced_basis']:
                     self.logger.debug(f"Extending Qr-snapshots")
                     self.snapshots['parameter_basis'].append(nabla_J)
-                
                                 
                 self.logger.debug(f"Extending Vr-snapshots")
                 if self.reductor.use_adjoint_space:
@@ -1716,66 +1751,24 @@ class QrVrROMOptimizer(Optimizer):
                 else:
                     self.snapshots['state_basis'].append(u)
                     self.snapshots['state_basis'].append(p)
-
+                    
                 self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                     bases=self.reduced_bases,
                     enrichment=_enrichment,
                     i = i
-                )                    
+                )   
+
+                # print("--------------------------------")                
+                # state_basis = self.reductor.bases['state_basis']
+                # error_matrix = state_basis.inner(state_basis, self.FOM.products['prod_V'])
+                # print(error_matrix)
+                 
 
                 q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
                 q_r = self.QrVrROM.Q.make_array(q_r)
                 u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=False)
                 p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=False)
                 J_r = self.QrVrROM.objective(u_r)
-
-                # u_ = self.reductor.reconstruct(u_r, basis='state_basis').to_numpy()
-                # u = self.FOM.solve_state(q)
-                # print(u_)
-                # print(u.to_numpy())
-                
-
-                # # print(u_r)
-                
-
-                # A_r = self.QrVrROM.A(q_r).assemble().matrix
-                # A = self.FOM.A(q)
-                # from pymor.algorithms.projection import project
-                # state_basis = self.reductor._get_projection_basis('state_basis')
-                # A = project(A, state_basis, state_basis)
-
-                # # print(A_r)
-                # # print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
-                # # print(A.matrix)
-
-                # print(np.max(np.abs(A.matrix - A_r)))
-
-                # M_r = self.QrVrROM.M.matrix
-                # M = self.FOM.M
-                # from pymor.algorithms.projection import project
-                # state_basis = self.reductor._get_projection_basis('state_basis')
-                # M = project(M, state_basis, state_basis)
-                # print(np.max(np.abs(M.matrix - M_r)))
-
-                # prod_V_r = self.QrVrROM.products['prod_V'].matrix
-                # prod_V = self.FOM.products['prod_V']
-                # from pymor.algorithms.projection import project
-                # state_basis = self.reductor._get_projection_basis('state_basis')
-                # prod_V = project(prod_V, state_basis, state_basis)
-                # print(np.max(np.abs(prod_V.matrix - prod_V_r)))
-
-                # print(np.max(np.abs(u_ - u.to_numpy())))
-                # #print(np.max(np.abs(u_r.to_numpy() - self.reductor.project_vectorarray(u, 'state_basis'))))
-
-                
-
-
-                # print(J_r)
-                # print(J)
-
-                # import sys
-                # sys.exit()
-
 
                 nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
                 norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
@@ -1880,8 +1873,7 @@ class QrVrROMOptimizer(Optimizer):
                 self._reset_snapshots()
                 if enrichment['parameter_basis']['reduced_basis']:
                     self.logger.debug(f"Extending Qr-snapshots")
-                    self.snapshots['parameter_basis'].append(nabla_J)
-                
+                    self.snapshots['parameter_basis'].append(nabla_J)                
                 
                 self.logger.debug(f"Extending Vr-snapshots")
                 if self.reductor.use_adjoint_space:

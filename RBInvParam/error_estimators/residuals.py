@@ -179,8 +179,7 @@ class StateResidualOperator(ImplicitEulerResidualOperator):
                            q=q,
                            use_cached_operators=use_cached_operators,
                            cached_operators=cached_operators)
-
-        
+     
 class AdjointResidualOperator(ImplicitEulerResidualOperator):
     def __init__(self,
                  M : Operator,
@@ -233,3 +232,7 @@ class AdjointResidualOperator(ImplicitEulerResidualOperator):
                            q=q,
                            use_cached_operators=use_cached_operators,
                            cached_operators=cached_operators)
+
+
+
+#class Newman

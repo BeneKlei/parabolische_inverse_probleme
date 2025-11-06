@@ -1266,9 +1266,7 @@ class InstationaryModelIP(ImmutableObject):
             return np.sqrt(self.products['bochner_prod_Q'].apply2(V, V))[0,0]
         else:
             return np.sqrt(self.products['prod_Q'].apply2(V, V))[0,0]
-        
-        
-    
+         
     def compute_sparsity(self,
                          q: VectorArray,
                          use_cached_operators: bool = False) -> Tuple[int,float]:
