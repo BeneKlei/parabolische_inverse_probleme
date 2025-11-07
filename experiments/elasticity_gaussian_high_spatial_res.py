@@ -8,12 +8,12 @@ from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEst
 from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
 
 
-y_res = 30
-z_res = 30
+y_res = 40
+z_res = 40
 par_dim = (y_res + 1) * (z_res + 1) 
 T_initial = 0
 T_final = 5.0
-nt = 100
+nt = 50
 
 delta_t = (T_final - T_initial) / nt
 
@@ -166,10 +166,10 @@ TR_optimizer_parameter = {
             },
             'compression' : {
                 'sample_every_n_th' : None,
-                'normalize' : True,
-                'HaPOD' : {
-                    'HaPOD_tol': 1e-6,    
-                },
+                # 'normalize' : True,
+                # 'HaPOD' : {
+                #     'HaPOD_tol': 1e-1,    
+                # },
                 'normalize' : True,
                 'HaPOD' : None,
                 'overwrite_every_n' : None,
@@ -246,13 +246,12 @@ for sigma in sigmas:
 
     # --------------------------------------------------------------------------
     # EXPERIMENTS[f'{sigma}_FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_)
-    # EXPERIMENTS[f'{sigma}_FOM_identity'] = (setup_identity, FOM_optimizer_parameter_)
+    EXPERIMENTS[f'{sigma}_FOM_identity'] = (setup_identity, FOM_optimizer_parameter_)
     # --------------------------------------------------------------------------
     TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-    EXPERIMENTS[f'{sigma}_time_steps_TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
+    #EXPERIMENTS[f'{sigma}_time_res_time_steps_TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
     EXPERIMENTS[f'{sigma}_time_steps_TR_identity'] = (setup_identity, TR_optimizer_parameter__)
 
 
-
-prefix = 'gaussian_high_time_res'
+prefix = 'gaussian_high_spatial_res'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

@@ -14,8 +14,8 @@ using namespace dealii;
 enum class ObservationOperatorType {
     Identity,
     Boundary,
-    SensorsR9d,
-    SensorsR8d,
+    // SensorsR9d,
+    // SensorsR8d,
     SensorsR28d,
 };
 

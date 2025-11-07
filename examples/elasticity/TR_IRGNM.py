@@ -51,8 +51,8 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    y_res = 40
+    z_res = 40
 
     # y_res = 8
     # z_res = 8
@@ -140,14 +140,14 @@ def main():
     setup = {
         'spatial_resolution' : [4,y_res,z_res],
         'body_force' : {
-            #'type' : mm.BodyForceType.CenterExcite,
-            #'hyperparameter' : {}
-            'type' : mm.BodyForceType.Gaussian,
-            'hyperparameter' : {
-                'center': [-0.1,0.0,0.0],
-                #'sigma' : 1.0,
-                'sigma' : 2.0,
-            }
+            'type' : mm.BodyForceType.CenterExcite,
+            'hyperparameter' : {}
+            # 'type' : mm.BodyForceType.Gaussian,
+            # 'hyperparameter' : {
+            #     'center': [-0.1,0.0,0.0],
+            #     #'sigma' : 1.0,
+            #     'sigma' : 2.0,
+            # }
         },
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
@@ -161,9 +161,9 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
@@ -204,7 +204,7 @@ def main():
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
-    #u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
+    # u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
 
     # FOM.A.material_model.save_time_series(
     #     [v.real_part.impl for v in u_exact.vectors],
@@ -251,6 +251,8 @@ def main():
     #     str(save_path),
     #     np.linspace(T_initial, T_final, nt+1)
     # )
+    # import sys
+    # sys.exit()
 
 
     optimizer_parameter = {
@@ -291,13 +293,13 @@ def main():
             'parameter_basis' : {
                 'reduced_basis' : True,
                 'additional_snapshots' :{
-                    'include_each_time_step' : False,
+                    'include_each_time_step' : True,
                     'include_lin_grad' : False,
-                    'include_krylov_directions' : 
-                    {
-                        'n' : 5,
-                        'inital_direction' : 'ones'
-                    },
+                    'include_krylov_directions' : False,
+                    # {
+                    #     'n' : 5,
+                    #     'inital_direction' : 'ones'
+                    # },
                 },
                 'compression' : {
                     'sample_every_n_th' : None,
@@ -320,7 +322,7 @@ def main():
                     'sample_every_n_th' : None,
                     'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-6,    
+                        'HaPOD_tol': 1e-9,    
                     },
                     # 'normalize' : None,
                     # 'HaPOD' : None,
@@ -345,7 +347,7 @@ def main():
         # 'eta0': 2.5 * 1e-2,                                                # Initial trust region tolerance
         # 'eta_min' : 1e-5,
         # 'eta_max' : 0.05,
-        'eta0': 0.15,                                                # Initial trust region tolerance
+        'eta0': 0.05,                                                # Initial trust region tolerance
         #'eta0': 5.0 * 1e-2,                                                # Initial trust region tolerance
         'eta_min' : 1e-5,
         'eta_max' : 0.15,

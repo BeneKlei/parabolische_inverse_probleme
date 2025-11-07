@@ -30,8 +30,8 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
         observation_operator_sp
     );
     break;
-  case ObservationOperatorType::SensorsR8d:
-  case ObservationOperatorType::SensorsR9d:
+//   case ObservationOperatorType::SensorsR8d:
+//   case ObservationOperatorType::SensorsR9d:
   case ObservationOperatorType::SensorsR28d:
     ObservationOperatorFactory::assemble_sensors_observation(
         ctx,
@@ -169,32 +169,32 @@ std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_poi
     std::vector<Point<dim>> sensor_points;
 
     switch (observation_operator_type) {
-    case ObservationOperatorType::SensorsR9d:
-        sensor_points.resize(64);
-        for (unsigned int i = 0; i < 8; i++) {
-            sensor_points[i] = Point<3>(0.1, -16.0 + i*4.0, -16.0);
-            sensor_points[i + 8] = Point<3>(0.1, 16.0, -16.0 + i*4.0);
-            sensor_points[i + 16] = Point<3>(0.1, 16.0 - i*4.0, 16.0);
-            sensor_points[i + 24] = Point<3>(0.1, -16.0, 16.0 - i*4.0);
-            sensor_points[i + 32] = Point<3>(-0.1, -16.0 + i*4.0, -16.0);
-            sensor_points[i + 40] = Point<3>(-0.1, 16.0, -16.0 + i*4.0);
-            sensor_points[i + 48] = Point<3>(-0.1, 16.0 - i*4.0, 16.0);
-            sensor_points[i + 56] = Point<3>(-0.1, -16.0, 16.0 - i*4.0);
-        }
-        break;
-   case ObservationOperatorType::SensorsR8d:
-        sensor_points.resize(56);
-        for (unsigned int i = 0; i < 7; i++) {
-            sensor_points[i] = Point<3>(0.1, -14.0 + i*4.0, -14.0);
-            sensor_points[i + 7] = Point<3>(0.1, 14.0, -14.0 + i*4.0);
-            sensor_points[i + 14] = Point<3>(0.1, 14.0 - i*4.0, 14.0);
-            sensor_points[i + 21] = Point<3>(0.1, -14.0, 14.0 - i*4.0);
-            sensor_points[i + 28] = Point<3>(-0.1, -14.0 + i*4.0, -14.0);
-            sensor_points[i + 35] = Point<3>(-0.1, 14.0, -14.0 + i*4.0);
-            sensor_points[i + 42] = Point<3>(-0.1, 14.0 - i*4.0, 14.0);
-            sensor_points[i + 49] = Point<3>(-0.1, -14.0, 14.0 - i*4.0);
-        }
-        break;
+//     case ObservationOperatorType::SensorsR9d:
+//         sensor_points.resize(64);
+//         for (unsigned int i = 0; i < 8; i++) {
+//             sensor_points[i] = Point<3>(0.1, -16.0 + i*4.0, -16.0);
+//             sensor_points[i + 8] = Point<3>(0.1, 16.0, -16.0 + i*4.0);
+//             sensor_points[i + 16] = Point<3>(0.1, 16.0 - i*4.0, 16.0);
+//             sensor_points[i + 24] = Point<3>(0.1, -16.0, 16.0 - i*4.0);
+//             sensor_points[i + 32] = Point<3>(-0.1, -16.0 + i*4.0, -16.0);
+//             sensor_points[i + 40] = Point<3>(-0.1, 16.0, -16.0 + i*4.0);
+//             sensor_points[i + 48] = Point<3>(-0.1, 16.0 - i*4.0, 16.0);
+//             sensor_points[i + 56] = Point<3>(-0.1, -16.0, 16.0 - i*4.0);
+//         }
+//         break;
+//    case ObservationOperatorType::SensorsR8d:
+//         sensor_points.resize(56);
+//         for (unsigned int i = 0; i < 7; i++) {
+//             sensor_points[i] = Point<3>(0.1, -14.0 + i*4.0, -14.0);
+//             sensor_points[i + 7] = Point<3>(0.1, 14.0, -14.0 + i*4.0);
+//             sensor_points[i + 14] = Point<3>(0.1, 14.0 - i*4.0, 14.0);
+//             sensor_points[i + 21] = Point<3>(0.1, -14.0, 14.0 - i*4.0);
+//             sensor_points[i + 28] = Point<3>(-0.1, -14.0 + i*4.0, -14.0);
+//             sensor_points[i + 35] = Point<3>(-0.1, 14.0, -14.0 + i*4.0);
+//             sensor_points[i + 42] = Point<3>(-0.1, 14.0 - i*4.0, 14.0);
+//             sensor_points[i + 49] = Point<3>(-0.1, -14.0, 14.0 - i*4.0);
+//         }
+//         break;
     case ObservationOperatorType::SensorsR28d:
         sensor_points.resize(8 * 28);
         for (unsigned int i = 0; i < 28; i++) {
