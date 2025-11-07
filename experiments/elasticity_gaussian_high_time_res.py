@@ -13,7 +13,7 @@ z_res = 30
 par_dim = (y_res + 1) * (z_res + 1) 
 T_initial = 0
 T_final = 5.0
-nt = 50
+nt = 100
 
 delta_t = (T_final - T_initial) / nt
 
@@ -262,5 +262,5 @@ for sigma in sigmas:
     EXPERIMENTS[f'{sigma}_10_TR_identity'] = (setup_identity, TR_optimizer_parameter__)
 
 
-prefix = 'gaussian_krylov_ones'
+prefix = 'gaussian_high_time_res'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}
