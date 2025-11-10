@@ -325,7 +325,7 @@ def main():
                         'HaPOD_tol': 1e-9,    
                     },
                     # 'normalize' : None,
-                    # 'HaPOD' : None,
+                    'HaPOD' : None,
                     'overwrite_every_n' : None,
                     'keep_last_n': None
                 }
@@ -341,7 +341,7 @@ def main():
             'objective' : ObjectiveErrorEstimatorType.NONE,
         },
         #####################
-        'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
+        'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
         # 'eta0': 2.5 * 1e-2,                                                # Initial trust region tolerance

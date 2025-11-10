@@ -490,6 +490,12 @@ class InstationaryModelIP(ImmutableObject):
             rhs = rhs,
             flip = True
         )
+
+        # print(self.bilinear_cost_term_ad.apply(u).to_numpy())
+        # print(len(rhs))
+        # print(rhs.to_numpy())
+        # import sys
+        # sys.exit()
         
         rhs = (-1) * rhs
         iterator = self.time_stepper_ad.iterate(initial_data = self.initial_data['adjoint'], 
@@ -498,7 +504,7 @@ class InstationaryModelIP(ImmutableObject):
                                                 use_cached_operators=use_cached_operators,
                                                 cached_operators=self._cached_operators,
                                                 config={
-                                                    'implicit_euler_rhs' : True
+                                                    'implicit_euler_rhs' : False
                                                 })
         
         p = self.V_ad.empty(reserve = (self.nt + 1))
@@ -655,7 +661,7 @@ class InstationaryModelIP(ImmutableObject):
                                              use_cached_operators=use_cached_operators,
                                              cached_operators=self._cached_operators,
                                              config={
-                                                 'implicit_euler_rhs' : True
+                                                 'implicit_euler_rhs' : False
                                              })
         
         z = self.V.empty(reserve = (self.nt + 1))

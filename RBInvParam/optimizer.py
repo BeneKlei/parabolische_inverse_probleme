@@ -756,21 +756,86 @@ class Optimizer(BasicObject):
                 # projector.pre_compute(center=q)
                 # next_q = projector.project_domain(q, d)
             
-            # u = self.FOM.solve_state(
-            # q = self.FOM_projector.project_domain(center=
-            #         self.reductor.reconstruct(q, basis='parameter_basis')
-            #     )
-            # )
-            # u_r = self.reductor.reconstruct(model.solve_state(q), basis='state_basis')
+            u = self.FOM.solve_state(
+                q = self.FOM_projector.project_domain(center=
+                    self.reductor.reconstruct(q, basis='parameter_basis')
+                )
+            )
 
-            # self.I += 1
-            # diff = u - u_r
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in diff.vectors],
-            #     str(f'diff_u_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
+            _u_r = model.solve_state(q)
+            u_r = self.reductor.reconstruct(_u_r, basis='state_basis')
+
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in u_r.vectors],
+                str(f'u_r_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+
+            self.I += 1
+            diff = u - u_r
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in diff.vectors],
+                str(f'diff_u_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in u.vectors],
+                str(f'u_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+            p = self.FOM.solve_adjoint(
+                q = self.FOM_projector.project_domain(center=
+                    self.reductor.reconstruct(q, basis='parameter_basis')
+                ),
+                u = u
+            )
+
+            p_r = self.reductor.reconstruct(model.solve_adjoint(q, u=_u_r), basis='state_basis')
+            _u = model.V.make_array(self.reductor.project_vectorarray(u, basis='state_basis'))
+            p_u_FOM_r = self.reductor.reconstruct(model.solve_adjoint(q, u=_u), basis='state_basis')
+
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in p.vectors],
+                str(f'p_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in p_r.vectors],
+                str(f'p_r_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in p_u_FOM_r.vectors],
+                str(f'p_u_FOM_r_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+
+            diff = p - p_r
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in diff.vectors],
+                str(f'diff_p_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+
+            diff = p - p_u_FOM_r
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in diff.vectors],
+                str(f'diff_p_u_FOM_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+
+
 
             ########################################### Final ###########################################
 
@@ -1674,6 +1739,37 @@ class QrVrROMOptimizer(Optimizer):
             self.logger.warning(f"Qr-Vr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
             self.logger.info(f'Start Qr-Vr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+            
+
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in u.vectors],
+                str(f'u_snapshot_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in p.vectors],
+                str(f'p_snapshot_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+
+            lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
+            lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
+
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in u.vectors],
+                str(f'lin_u_snapshot_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in p.vectors],
+                str(f'lin_p_snapshot_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
+
     
             assert self.FOM_projector.project_domain(center=q) == q
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
