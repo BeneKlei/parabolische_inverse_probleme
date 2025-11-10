@@ -75,6 +75,7 @@ setup = {
     'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
     'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
     'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
+    'riesz_rep_hess' : False,
     'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
     'save_path' : None,
     'time_stepper' : {
