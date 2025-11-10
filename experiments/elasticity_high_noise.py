@@ -263,5 +263,5 @@ EXPERIMENTS['TR_sensors_include_all_lins_HaPOD_tol_1e-3'] = (setup_sensors, TR_o
 EXPERIMENTS['TR_identity_include_all_lins_HaPOD_tol_1e-3'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
 
-prefix = 'baseline'
+prefix = 'high_noise'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}
