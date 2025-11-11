@@ -36,3 +36,40 @@ class BochnerProductOperator(Operator):
             self.product.pairwise_apply2(V,U, mu),
             keepdims=True
         )])
+    
+
+class EnergyProductOperator(Operator):
+    def __init__(self, 
+                 kinetic_product: Operator,
+                 potential_product: Operator,
+                 space : VectorSpace):
+                 
+    
+        self.kinetic_product = kinetic_product
+        self.potential_product = potential_product
+        
+        self.space = space
+        self.source = space
+        self.range = space
+
+        assert self.kinetic_product.source == self.kinetic_product.range        
+        assert self.kinetic_product.source == self.space
+        assert self.potential_product.source == self.potential_product.range        
+        assert self.potential_product.source == self.space
+    
+    def apply(self,
+              U : VectorArray,
+              mu=None) -> float:
+
+        assert U in self.space
+        return self.kinetic_product.apply(U) + self.potential_product.apply(U)
+
+    def apply2(self, 
+               V: VectorArray, 
+               U: VectorArray,
+               mu=None) -> float:
+
+        assert V in self.space
+        assert U in self.space
+
+        return self.kinetic_product.apply2(V,U) + self.potential_product.apply2(V,U)

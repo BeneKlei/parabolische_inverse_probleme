@@ -1,6 +1,7 @@
 from typing import Dict
 from abc import ABC, abstractmethod
 from enum import Enum
+from typing import Union
 import numpy as np
 
 from pymor.vectorarrays.interface import VectorArray
@@ -13,14 +14,15 @@ from RBInvParam.error_estimators.objective_error_estimators import CoercivityCon
 class StateErrorEstimatorType(Enum):
     NONE = "none"
     PARABOLIC = "parabolic"
+    HYPERBOLIC = "hyperbolic"
 
-class StateErrorEstimator(ABC):
+class StateErrorEstimator():
     def __init__(self,
                  state_residual_operator : StateResidualOperator,
                  A_coercivity_constant_estimator: CoercivityConstantEstimator,
                  Q : VectorSpace,
                  V : VectorSpace,
-                 product : Operator,
+                 gram_operator : Operator,
                  setup: Dict):
         
         assert isinstance(state_residual_operator, StateResidualOperator)
@@ -28,7 +30,7 @@ class StateErrorEstimator(ABC):
         self.state_residual_operator = state_residual_operator
         self.Q = Q
         self.V = V
-        self.product = product
+        self.gram_operator = gram_operator
         self.setup = setup
 
         self.delta_t = self.setup['delta_t']
@@ -39,67 +41,23 @@ class StateErrorEstimator(ABC):
         #assert self.Q == self.A_coercivity_constant_estimator.Q
         #assert self.Q == self.state_residual_operator.Q
         #assert self.V == self.state_residual_operator.V
-        if product:
-            assert self.state_residual_operator.range == product.source
+        if gram_operator:
+            assert self.state_residual_operator.range == gram_operator.source
 
     @abstractmethod
-    def compute_residuum(self, 
-                         q: VectorArray,
-                         u: VectorArray,
-                         use_cached_operators: bool = False,
-                         cached_operators: Dict = None) -> VectorArray:
+    def estimate_error(self, 
+                    q: VectorArray,
+                    u: VectorArray,
+                    u_dot: VectorArray = None,
+                    use_cached_operators: bool = False,
+                    cached_operators: Dict = None) -> float:
         pass
 
-
 class ParabolicStateErrorEstimator(StateErrorEstimator):
-    def __init__(self,
-                 state_residual_operator: StateResidualOperator,
-                 A_coercivity_constant_estimator: CoercivityConstantEstimator,
-                 Q: VectorSpace,
-                 V: VectorSpace,
-                 product: Operator,
-                 setup: Dict) -> None:
-    
-        super().__init__(state_residual_operator,
-                         A_coercivity_constant_estimator,
-                         Q, 
-                         V, 
-                         product, 
-                         setup)
-
-
-
-    def compute_residuum(self, 
-                         q: VectorArray,
-                         u: VectorArray,
-                         use_cached_operators: bool = False,
-                         cached_operators: Dict = None) -> VectorArray:
-        
-        if self.q_time_dep:
-            assert len(q) == (self.nt + 1)
-        else:
-            assert len(q) == 1
-
-        assert q in self.Q
-        assert u in self.V
-        assert len(u) == (self.nt + 1)
-
-        u_old = self.V.zeros(count=1)
-        u_old.append(u[:-1])
-
-        r = self.state_residual_operator.apply(
-            u = u, 
-            u_old = u_old,
-            q = q,
-            use_cached_operators = use_cached_operators,
-            cached_operators = cached_operators
-        )
-        return r
-        
-
     def estimate_error(self, 
                        q: VectorArray,
                        u: VectorArray,
+                       u_dot: VectorArray = None,
                        use_cached_operators: bool = False,
                        cached_operators: Dict = None) -> float:
         
@@ -112,97 +70,63 @@ class ParabolicStateErrorEstimator(StateErrorEstimator):
         assert u in self.V
         assert len(u) == (self.nt + 1)
 
-        alpha_q = np.min(self.A_coercivity_constant_estimator(q))
-        r = self.compute_residuum(q=q, 
-                                  u=u, 
-                                  use_cached_operators = use_cached_operators,
-                                  cached_operators = cached_operators)
+        r = self.state_residual_operator.apply(
+            u = u, 
+            mass_u = u,
+            q = q,
+            use_cached_operators = use_cached_operators,
+            cached_operators = cached_operators
+        )
         
-        return np.sqrt(self.delta_t / alpha_q * np.sum(r.norm2(product=self.product)))
+        alpha_q = np.min(self.A_coercivity_constant_estimator(q))
+        
+        return np.sqrt(self.delta_t / alpha_q * np.sum(r.norm2(product=self.gram_operator)))
              
 
-
-
-# class NewmanHyperbolicStateErrorEstimator(StateErrorEstimator):
-#     def __init__(self,
-#                  state_residual_operator: StateResidualOperator,
-#                  A_coercivity_constant_estimator: CoercivityConstantEstimator,
-#                  Q: VectorSpace,
-#                  V: VectorSpace,
-#                  product: Operator,
-#                  setup: Dict) -> None:
-    
-#         super().__init__(state_residual_operator,
-#                          A_coercivity_constant_estimator,
-#                          Q, 
-#                          V, 
-#                          product, 
-#                          setup)
-
-
-
-#     def compute_residuum(self, 
-#                          q: VectorArray,
-#                          u: VectorArray,
-#                          use_cached_operators: bool = False,
-#                          cached_operators: Dict = None) -> VectorArray:
+class HyperbolicStateErrorEstimator(StateErrorEstimator):
+    def estimate_error(self, 
+                       q: VectorArray,
+                       u: VectorArray,
+                       u_dot: VectorArray,
+                       use_cached_operators: bool = False,
+                       cached_operators: Dict = None) -> float:
         
-#         if self.q_time_dep:
-#             assert len(q) == (self.nt + 1)
-#         else:
-#             assert len(q) == 1
+        if self.q_time_dep:
+            assert len(q) == (self.nt + 1)
+        else:
+            assert len(q) == 1
 
-#         assert q in self.Q
-#         assert u in self.V
-#         assert len(u) == (self.nt + 1)
+        assert q in self.Q
+        assert u in self.V
+        assert u_dot in self.V
 
-#         u_old = self.V.zeros(count=1)
-#         u_old.append(u[:-1])
+        assert len(u) == (self.nt + 1)
+        assert len(u_dot) == (self.nt + 1)
 
-#         r = self.state_residual_operator.apply(
-#             u = u, 
-#             u_old = u_old,
-#             q = q,
-#             use_cached_operators = use_cached_operators,
-#             cached_operators = cached_operators
-#         )
-#         return r
+        r = self.state_residual_operator.apply(
+            u = u, 
+            mass_u = u_dot,
+            q = q,
+            use_cached_operators = use_cached_operators,
+            cached_operators = cached_operators
+        )
+        r = self.gram_operator.pairwise_apply2(r,r)
+        assert r.shape == (self.nt,)
         
+        inner_sums = np.cumsum(r)        
+        sqrt_inner = np.sqrt(inner_sums)
+        err = np.sum(sqrt_inner)
 
-#     def estimate_error(self, 
-#                        q: VectorArray,
-#                        u: VectorArray,
-#                        use_cached_operators: bool = False,
-#                        cached_operators: Dict = None) -> float:
-        
-#         if self.q_time_dep:
-#             assert len(q) == (self.nt + 1)
-#         else:
-#             assert len(q) == 1
+        alpha_q = np.min(self.A_coercivity_constant_estimator(q))
+        assert alpha_q > 0
 
-#         assert q in self.Q
-#         assert u in self.V
-#         assert len(u) == (self.nt + 1)
-
-#         alpha_q = np.min(self.A_coercivity_constant_estimator(q))
-
-#         r = self.compute_residuum(q=q, 
-#                                   u=u, 
-#                                   use_cached_operators = use_cached_operators,
-#                                   cached_operators = cached_operators)
-        
-#         #return np.sqrt(self.delta_t / alpha_q * np.sum(r.norm2(product=self.product)))
-
-
+        err *= (2 * self.delta_t) / (alpha_q)
+        return err
 
 
 def create_state_error_estimator(estimator_type: StateErrorEstimatorType,
-                                 state_residual_operator : StateResidualOperator,
-                                 A_coercivity_constant_estimator: CoercivityConstantEstimator,
-                                 Q: VectorSpace,
-                                 V: VectorSpace,
-                                 product: Operator,
-                                 setup: Dict) -> StateErrorEstimator:
+                                 products : Dict,
+                                 **kwargs) -> StateErrorEstimator:
     """
     Factory function to create a StateErrorEstimator subclass
     based on the estimator_type enum.
@@ -210,13 +134,9 @@ def create_state_error_estimator(estimator_type: StateErrorEstimatorType,
     if estimator_type == StateErrorEstimatorType.NONE:
         return None
     elif estimator_type == StateErrorEstimatorType.PARABOLIC:
-        return ParabolicStateErrorEstimator(
-            state_residual_operator,
-            A_coercivity_constant_estimator,
-            Q, 
-            V, 
-            product, 
-            setup
-        )
+        return ParabolicStateErrorEstimator(**kwargs, gram_operator=products['prod_V'])
+    elif estimator_type == StateErrorEstimatorType.HYPERBOLIC:
+        return HyperbolicStateErrorEstimator(**kwargs, gram_operator=products['prod_H'])
     
     raise ValueError(f"Unsupported estimator type: {estimator_type}")
+

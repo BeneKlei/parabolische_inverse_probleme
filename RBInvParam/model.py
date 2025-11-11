@@ -424,7 +424,8 @@ class InstationaryModelIP(ImmutableObject):
 #%% solve methods
     def solve_state(self, 
                     q: VectorArray,
-                    use_cached_operators: bool = False) -> VectorArray:
+                    use_cached_operators: bool = False,
+                    return_higher_orders: bool = False) -> VectorArray | Tuple[VectorArray,VectorArray]:
         
         assert q in self.Q
 
@@ -449,15 +450,22 @@ class InstationaryModelIP(ImmutableObject):
                                              use_cached_operators=use_cached_operators,
                                              cached_operators=self._cached_operators)
         
-        u = self.V.empty(reserve= (self.nt + 1))
-        for u_n, _ in iterator:
+        u = self.V.empty(reserve=(self.nt + 1))
+        u_dot = self.V.empty(reserve=(self.nt + 1))
+        for u_n, u_dot_n,  _ in iterator:
             u.append(u_n)
-        return u
+            u_dot.append(u_dot_n)
+
+        if return_higher_orders:
+            return u, u_dot
+        else:
+            return u
 
     def solve_adjoint(self, 
                       q: VectorArray, 
                       u: VectorArray,
-                      use_cached_operators: bool = False) -> VectorArray:
+                      use_cached_operators: bool = False,
+                      return_higher_orders: bool = False) -> VectorArray | Tuple[VectorArray,VectorArray]:
         
         assert self.bilinear_cost_term 
         assert self.linear_cost_term 
@@ -507,18 +515,26 @@ class InstationaryModelIP(ImmutableObject):
                                                     'implicit_euler_rhs' : False
                                                 })
         
-        p = self.V_ad.empty(reserve = (self.nt + 1))
-        for p_n, _ in iterator:
+        p = self.V.empty(reserve=(self.nt + 1))
+        p_dot = self.V.empty(reserve=(self.nt + 1))
+        for p_n, p_dot_n,  _ in iterator:
             p.append(p_n)
+            p_dot.append(p_dot_n)
 
-        #return self.V.make_array(np.flip(p.to_numpy(), axis=0))
-        return self.A_ad.flip_vector_array(p)
+        p = self.A_ad.flip_vector_array(p)
+        p_dot = self.A_ad.flip_vector_array(p_dot)
+
+        if return_higher_orders:
+            return p, p_dot
+        else:
+            return p    
     
     def solve_linearized_state(self,
                                q: VectorArray,
                                d: VectorArray,
                                u: VectorArray,
-                               use_cached_operators: bool = False) -> VectorArray:
+                               use_cached_operators: bool = False,
+                               return_higher_orders: bool = False) -> VectorArray | Tuple[VectorArray,VectorArray]:
         
         assert q in self.Q
         assert d in self.Q
@@ -559,16 +575,24 @@ class InstationaryModelIP(ImmutableObject):
                                              use_cached_operators=use_cached_operators,
                                              cached_operators=self._cached_operators)
         
-        lin_u = self.V.empty(reserve= (self.nt + 1))
-        for lin_u_n, _ in iterator:
+    
+        lin_u = self.V.empty(reserve=(self.nt + 1))
+        lin_u_dot = self.V.empty(reserve=(self.nt + 1))
+        for lin_u_n, lin_u_dot_n,  _ in iterator:
             lin_u.append(lin_u_n)
-        return lin_u
+            lin_u_dot.append(lin_u_dot_n)
+
+        if return_higher_orders:
+            return lin_u, lin_u_dot
+        else:
+            return lin_u
     
     def solve_linearized_adjoint(self,
                                  q: VectorArray,
                                  u: VectorArray,
                                  lin_u: VectorArray,
-                                 use_cached_operators: bool = False) -> VectorArray:
+                                 use_cached_operators: bool = False,
+                                 return_higher_orders: bool = False) -> VectorArray | Tuple[VectorArray,VectorArray]:
 
         assert self.bilinear_cost_term 
         assert self.linear_cost_term
@@ -612,18 +636,26 @@ class InstationaryModelIP(ImmutableObject):
                                                 config={
                                                     'implicit_euler_rhs' : True
                                                 })
-        
-        lin_p = self.V_ad.empty(reserve= (self.nt + 1))
-        for lin_p_n, _ in iterator:
+            
+        lin_p = self.V.empty(reserve=(self.nt + 1))
+        lin_p_dot = self.V.empty(reserve=(self.nt + 1))
+        for lin_p_n, lin_p_dot_n,  _ in iterator:
             lin_p.append(lin_p_n)
-        
+            lin_p_dot.append(lin_p_dot_n)
+
         lin_p = self.A_ad.flip_vector_array(lin_p)
-        return lin_p
+        lin_p_dot = self.A_ad.flip_vector_array(lin_p_dot)
+
+        if return_higher_orders:
+            return lin_p, lin_p_dot
+        else:
+            return lin_p
 
     def solve_second_adjoint(self, 
                              q: VectorArray, 
                              lin_u: VectorArray,
-                             use_cached_operators: bool = False) -> VectorArray:
+                             use_cached_operators: bool = False,
+                             return_higher_orders: bool = False) -> VectorArray | Tuple[VectorArray,VectorArray]:
         
         if self.use_adjoint_space:
             raise NotImplementedError
@@ -665,12 +697,21 @@ class InstationaryModelIP(ImmutableObject):
                                              })
         
         z = self.V.empty(reserve = (self.nt + 1))
-        for z_n, _ in iterator:
+        z_dot = self.V.empty(reserve = (self.nt + 1))
+
+        for z_n, z_dot_n, _ in iterator:
             z.append(z_n)
+            z_dot.append(z_dot_n)
 
-        #return self.V.make_array(np.flip(p.to_numpy(), axis=0))
-        return self.A.flip_vector_array(z)
+        z = self.A_ad.flip_vector_array(z)
+        z_dot = self.A_ad.flip_vector_array(z_dot)
 
+        if return_higher_orders:
+            return z, z_dot
+        else:
+            return z
+
+        
 
 #%% objective and gradient
     def objective(self, 
@@ -1005,10 +1046,10 @@ class InstationaryModelIP(ImmutableObject):
 
 #%% error estimator
 
-    # TODO Enable cache also for error est, i.e. A_q
     def estimate_state_error(self,
                              q: VectorArray,
                              u: VectorArray,
+                             u_dot: VectorArray = None,
                              use_cached_operators: bool = False) -> float:        
         
         assert len(u) == self.nt + 1
@@ -1027,6 +1068,7 @@ class InstationaryModelIP(ImmutableObject):
             return self.state_error_estimator.estimate_error(
                 q = q,
                 u = u,
+                u_dot = u_dot,
                 use_cached_operators=use_cached_operators,
                 cached_operators=self._cached_operators
             )

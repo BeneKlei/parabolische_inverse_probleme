@@ -19,7 +19,7 @@ from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealII
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.discretization import construct_noise_data, process_product_names
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.products import BochnerProductOperator
+from RBInvParam.products import BochnerProductOperator, EnergyProductOperator
 from RBInvParam.error_estimators.objective_error_estimators import CoercivityConstantEstimator
 
 from RBInvParam.problems.elasticity.evaluators import ElasticitiyFOMEvaluatorA, ElasticitiyFOMEvaluatorB
@@ -84,9 +84,11 @@ def build_InstationaryModelIP(setup : Dict,
         'prod_Q' : None,
         'prod_V' : None,
         'prod_C' : None,
+        'energy' : None,
         'bochner_prod_Q' : None,
         'bochner_prod_V' : None,
         'bochner_prod_C' : None,
+        'bochner_energy' : None,
     }
 
     assembled_parameter_products  = {
@@ -113,6 +115,12 @@ def build_InstationaryModelIP(setup : Dict,
         matrix = material_model.product_V
     )
 
+    products['energy'] = EnergyProductOperator(
+        kinetic_product = products['prod_H'],
+        potential_product = products['prod_V'],
+        space = V_h
+    )
+
     products['bochner_prod_Q'] = BochnerProductOperator(
         product=NumpyMatrixOperator(
             matrix = assembled_parameter_products[product_names['prod_Q']]
@@ -126,6 +134,13 @@ def build_InstationaryModelIP(setup : Dict,
         product=DealIIMatrixOperator(
             matrix = material_model.product_V
         ),
+        delta_t=setup['delta_t'],
+        space = V_h,
+        nt = setup['dims']['nt']
+    )
+
+    products['bochner_energy'] = BochnerProductOperator(
+        product=products['energy'],
         delta_t=setup['delta_t'],
         space = V_h,
         nt = setup['dims']['nt']
@@ -326,8 +341,11 @@ def build_InstationaryModelIP(setup : Dict,
     building_blocks['model_constants'] = None
     building_blocks['model_constants'] = {
         'A_coercivity_constant_estimator' : A_coercivity_constant_estimator,
-        'C_continuity_constant' : C_continuity_constant
+        'C_continuity_constant' : C_continuity_constant,
     }
+
+
+    
 
     return InstationaryModelIP(
         **building_blocks,

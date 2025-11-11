@@ -130,8 +130,14 @@ class Optimizer(BasicObject):
         else:
             current_q = previous_q + step_size * search_direction
         
-        u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
-        p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
+        u, u_dot = model.solve_state(q=current_q, 
+                                     use_cached_operators=use_cached_operators,
+                                     return_higher_orders=True)
+
+        p, p_dot = model.solve_adjoint(q=current_q, 
+                                       u=u, 
+                                       use_cached_operators=use_cached_operators,
+                                       return_higher_orders=True)
 
         current_J = model.objective(u=u,
                                     q=current_q,
@@ -151,11 +157,13 @@ class Optimizer(BasicObject):
         armijo_condition = lhs >= rhs
         if current_J > 0:
             _, _, _, _, abs_est_error_J_r, abs_est_error_nabla_J_r, _, _ = \
-            self.estimate_objective_error(
+            self.estimate_errors(
                 model = model,
                 q_r = current_q,
                 u_r = u,
                 p_r = p,
+                u_dot_r = u_dot,
+                p_dot_r = p_dot,
                 targets=['J'],
                 use_cached_operators=use_cached_operators
             )
@@ -189,8 +197,14 @@ class Optimizer(BasicObject):
             else:
                 current_q = previous_q + step_size * search_direction
 
-            u = model.solve_state(q=current_q, use_cached_operators=use_cached_operators)
-            p = model.solve_adjoint(q=current_q, u=u, use_cached_operators=use_cached_operators)
+            u, u_dot = model.solve_state(q=current_q, 
+                                         use_cached_operators=use_cached_operators, 
+                                         return_higher_orders=True)
+            p, p_dot = model.solve_adjoint(q=current_q, 
+                                           u=u, 
+                                           use_cached_operators=use_cached_operators, 
+                                           return_higher_orders=True)
+
             current_J = model.objective(u=u,
                                         q=current_q,
                                         alpha=alpha)
@@ -220,11 +234,13 @@ class Optimizer(BasicObject):
 
             if current_J > 0:
                 _, _, _, _, abs_est_error_J_r, _, _, _ = \
-                self.estimate_objective_error(
+                self.estimate_errors(
                     model = model,
                     q_r = current_q,
                     u_r = u,
                     p_r = p,
+                    u_dot_r = u_dot,
+                    p_dot_r = p_dot,
                     targets=['J'],
                     use_cached_operators=use_cached_operators
                 )                
@@ -267,25 +283,75 @@ class Optimizer(BasicObject):
             self.logger.debug(f"Armijo backtracking does terminate normally with step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
 
         return (current_q, current_J, model_unsufficent, TR_max_iter_cond, step_size)
-    
-    def estimate_objective_error(self,
-                                 model: InstationaryModelIP,
-                                 q_r : VectorArray,
-                                 d_r : VectorArray = None,
-                                 u_r : VectorArray = None,
-                                 p_r : VectorArray = None,
-                                 lin_u_r : VectorArray = None,
-                                 lin_p_r : VectorArray = None,
-                                 targets : str | List[str] = 'all',
-                                 use_error_estimator: bool = False,
-                                 use_cached_operators: bool = True) -> Tuple[float,float,float,float,float,float,float,float]:
+
+    def estimate_errors(self,
+                        model: InstationaryModelIP,
+                        q_r : VectorArray,
+                        d_r : VectorArray = None,
+                        u_r : VectorArray = None,
+                        p_r : VectorArray = None,
+                        u_dot_r : VectorArray = None,
+                        p_dot_r : VectorArray = None,
+                        lin_u_r : VectorArray = None,
+                        lin_p_r : VectorArray = None,
+                        targets : str | List[str] = 'all',
+                        use_error_estimator: bool = True,
+                        use_cached_operators: bool = True) -> Tuple[float,float,float,float,float,float,float,float]:
 
         if id(model) == id(self.FOM):
-            return 0.0, 0.0
-
-        if use_error_estimator:
-            raise NotImplementedError
+            return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         
+        if use_error_estimator:
+            est_err_u_r = model.estimate_state_error(
+                q = q_r,
+                u = u_r,
+                u_dot = u_dot_r,
+                use_cached_operators = use_cached_operators,
+            )
+
+            print("?????????????????????????????????????????????????????")
+            print(est_err_u_r)
+            return self._estimate_actual_errors(
+                model = model,
+                q_r = q_r,
+                d_r = d_r,
+                u_r = u_r,
+                p_r = p_r,
+                lin_u_r = lin_u_r,
+                lin_p_r = lin_p_r,
+                targets = targets,
+                use_cached_operators = use_cached_operators,
+            )
+
+
+            #return np.nan,np.nan,np.nan,np.nan,np.nan,np.nan,np.nan,np.nan
+        
+        else:
+            return self._estimate_actual_errors(
+                model = model,
+                q_r = q_r,
+                d_r = d_r,
+                u_r = u_r,
+                p_r = p_r,
+                lin_u_r = lin_u_r,
+                lin_p_r = lin_p_r,
+                targets = targets,
+                use_cached_operators = use_cached_operators,
+            )
+    
+    def _estimate_actual_errors(self,
+                                model: InstationaryModelIP,
+                                q_r : VectorArray,
+                                d_r : VectorArray = None,
+                                u_r : VectorArray = None,
+                                p_r : VectorArray = None,
+                                lin_u_r : VectorArray = None,
+                                lin_p_r : VectorArray = None,
+                                targets : str | List[str] = 'all',
+                                use_cached_operators: bool = True) -> Tuple[float,float,float,float,float,float,float,float]:
+
+        
+                
         ordered_targets = ['u', 'p', 'lin_u', 'lin_p', 'J', 'nabla_J', 'lin_J', 'nabla_lin_J']
 
         if targets == 'all':
@@ -603,9 +669,39 @@ class Optimizer(BasicObject):
                                                                logger = self.logger,
                                                                use_cached_operators=use_cached_operators,
                                                                projector=projector)
+            
+            # import matplotlib.pyplot as plt
+            # d__ = self.reductor.reconstruct(d, basis='parameter_basis')
+            # plt.imshow(d__.to_numpy().reshape(31,31))
+            # plt.title("RB")
+            # plt.colorbar()
+            # plt.show()
+
+            # d_start_ = self.reductor.reconstruct(q, basis='parameter_basis').to_numpy().copy()
+            # d_start_[:,:] = 0
+            # d_start_ = self.FOM.Q.make_array(d_start_)
+            # print("Here")
+            # d_, lin_solver_iter = self.solve_linearized_problem(model=self.FOM,
+            #                                                    q=self.reductor.reconstruct(q, basis='parameter_basis'),
+            #                                                    d_start=d_start_,
+            #                                                    alpha=alpha,
+            #                                                    lin_solver_parms = lin_solver_parms, 
+            #                                                    logger = self.logger,
+            #                                                    use_cached_operators=use_cached_operators,
+            #                                                    projector=None)
+
+            # plt.imshow(d_.to_numpy().reshape(31,31))
+            # plt.title("FOM")
+            # plt.colorbar()
+            # plt.show()
+
+            # plt.imshow(d_.to_numpy().reshape(31,31) - d__.to_numpy().reshape(31,31))
+            # plt.title("Diff")
+            # plt.colorbar()
+            # plt.show()
 
             # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            # _ = self.estimate_objective_error(model, 
+            # _ = self.estimate_errors(model, 
             #                                   q_r=q, 
             #                                   d_r=d,
             #                                   targets='all',
@@ -716,17 +812,19 @@ class Optimizer(BasicObject):
                 else:
                     next_q = q + d
 
-                u = model.solve_state(q=next_q, use_cached_operators=use_cached_operators)
-                p = model.solve_adjoint(q=next_q, u=u, use_cached_operators=use_cached_operators)
+                u, u_dot = model.solve_state(q=next_q, use_cached_operators=use_cached_operators)
+                p, p_dot = model.solve_adjoint(q=next_q, u=u, use_cached_operators=use_cached_operators)
                 next_J = model.objective(u=u,q=next_q)
 
                 if next_J > 0:
                     _, _, _, _, abs_est_error_J_r, _, _, _ = \
-                    self.estimate_objective_error(
+                    self.estimate_errors(
                         model = model,
                         q_r = next_q,
                         u_r = u,
                         p_r = p,
+                        u_dot_r = u_dot,
+                        p_dot_r = p_dot,
                         targets = ['J'],
                         use_cached_operators=use_cached_operators
                     )
@@ -756,84 +854,84 @@ class Optimizer(BasicObject):
                 # projector.pre_compute(center=q)
                 # next_q = projector.project_domain(q, d)
             
-            u = self.FOM.solve_state(
-                q = self.FOM_projector.project_domain(center=
-                    self.reductor.reconstruct(q, basis='parameter_basis')
-                )
-            )
+            # u = self.FOM.solve_state(
+            #     q = self.FOM_projector.project_domain(center=
+            #         self.reductor.reconstruct(q, basis='parameter_basis')
+            #     )
+            # )
 
-            _u_r = model.solve_state(q)
-            u_r = self.reductor.reconstruct(_u_r, basis='state_basis')
+            # _u_r = model.solve_state(q)
+            # u_r = self.reductor.reconstruct(_u_r, basis='state_basis')
 
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in u_r.vectors],
-                str(f'u_r_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in u_r.vectors],
+            #     str(f'u_r_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
-            self.I += 1
-            diff = u - u_r
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in diff.vectors],
-                str(f'diff_u_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # self.I += 1
+            # diff = u - u_r
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in diff.vectors],
+            #     str(f'diff_u_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in u.vectors],
-                str(f'u_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
-            p = self.FOM.solve_adjoint(
-                q = self.FOM_projector.project_domain(center=
-                    self.reductor.reconstruct(q, basis='parameter_basis')
-                ),
-                u = u
-            )
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in u.vectors],
+            #     str(f'u_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
+            # p = self.FOM.solve_adjoint(
+            #     q = self.FOM_projector.project_domain(center=
+            #         self.reductor.reconstruct(q, basis='parameter_basis')
+            #     ),
+            #     u = u
+            # )
 
-            p_r = self.reductor.reconstruct(model.solve_adjoint(q, u=_u_r), basis='state_basis')
-            _u = model.V.make_array(self.reductor.project_vectorarray(u, basis='state_basis'))
-            p_u_FOM_r = self.reductor.reconstruct(model.solve_adjoint(q, u=_u), basis='state_basis')
+            # p_r = self.reductor.reconstruct(model.solve_adjoint(q, u=_u_r), basis='state_basis')
+            # _u = model.V.make_array(self.reductor.project_vectorarray(u, basis='state_basis'))
+            # p_u_FOM_r = self.reductor.reconstruct(model.solve_adjoint(q, u=_u), basis='state_basis')
 
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in p.vectors],
-                str(f'p_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in p.vectors],
+            #     str(f'p_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in p_r.vectors],
-                str(f'p_r_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in p_r.vectors],
+            #     str(f'p_r_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in p_u_FOM_r.vectors],
-                str(f'p_u_FOM_r_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in p_u_FOM_r.vectors],
+            #     str(f'p_u_FOM_r_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
-            diff = p - p_r
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in diff.vectors],
-                str(f'diff_p_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # diff = p - p_r
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in diff.vectors],
+            #     str(f'diff_p_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
-            diff = p - p_u_FOM_r
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in diff.vectors],
-                str(f'diff_p_u_FOM_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # diff = p - p_u_FOM_r
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in diff.vectors],
+            #     str(f'diff_p_u_FOM_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
 
 
@@ -1622,8 +1720,13 @@ class QrVrROMOptimizer(Optimizer):
         q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
         q_r = self.QrVrROM.Q.make_array(q_r)
 
-        u_r = self.QrVrROM.solve_state(q_r)
-        p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
+        u_r, u_dot_r = self.QrVrROM.solve_state(q_r,
+                                                use_cached_operators = use_cached_operators,
+                                                return_higher_orders = True)
+        p_r, p_dot_r = self.QrVrROM.solve_adjoint(q_r, 
+                                                  u_r,
+                                                  use_cached_operators = use_cached_operators,
+                                                  return_higher_orders = True)
         J_r = self.QrVrROM.objective(u_r)
         nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
         norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
@@ -1655,11 +1758,13 @@ class QrVrROMOptimizer(Optimizer):
         # )
 
         _, _, _, _, abs_est_error_J_r, abs_est_error_nabla_J_r, _, _ = \
-        self.estimate_objective_error(
+        self.estimate_errors(
             model=self.QrVrROM,
             q_r = q_r,
             u_r = u_r,
             p_r = p_r,
+            u_dot_r = u_dot_r,
+            p_dot_r = p_dot_r,
             targets = ['J'],
             use_cached_operators=use_cached_operators
         )
@@ -1741,42 +1846,47 @@ class QrVrROMOptimizer(Optimizer):
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             
 
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in u.vectors],
-                str(f'u_snapshot_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in p.vectors],
-                str(f'p_snapshot_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in u.vectors],
+            #     str(f'u_snapshot_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in p.vectors],
+            #     str(f'p_snapshot_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
-            lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
-            lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
+            # lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
+            # lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in u.vectors],
-                str(f'lin_u_snapshot_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
-            self.FOM.A.material_model.save_time_series(
-                [v.real_part.impl for v in p.vectors],
-                str(f'lin_p_snapshot_{self.I}'),
-                str(self.save_path),
-                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            )
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in u.vectors],
+            #     str(f'lin_u_snapshot_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in p.vectors],
+            #     str(f'lin_p_snapshot_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
 
     
             assert self.FOM_projector.project_domain(center=q) == q
             q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
             q_r = self.QrVrROM.Q.make_array(q_r)
 
-            u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=use_cached_operators)
-            p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
+            u_r, u_dot_r = self.QrVrROM.solve_state(q_r, 
+                                                    use_cached_operators=use_cached_operators,
+                                                    return_higher_orders = True)
+            p_r, p_dot_r = self.QrVrROM.solve_adjoint(q_r, 
+                                                      u_r, 
+                                                      use_cached_operators=use_cached_operators,
+                                                      return_higher_orders = True)
             J_r = self.QrVrROM.objective(u_r)
 
             #print(f"ROM sparsity = {self.QrVrROM.compute_sparsity(q_r)}")
@@ -1784,11 +1894,13 @@ class QrVrROMOptimizer(Optimizer):
             nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
             
             _, _, _, _, abs_est_error_J_r, abs_est_error_nabla_J_r, _, _ = \
-            self.estimate_objective_error(
+            self.estimate_errors(
                 model = self.QrVrROM,
                 q_r = q_r,
                 u_r = u_r,
                 p_r = p_r,
+                u_dot_r = u_dot_r,
+                p_dot_r = p_dot_r,
                 targets=['J'],
                 use_cached_operators=use_cached_operators)
             
@@ -1862,19 +1974,27 @@ class QrVrROMOptimizer(Optimizer):
 
                 q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
                 q_r = self.QrVrROM.Q.make_array(q_r)
-                u_r = self.QrVrROM.solve_state(q_r, use_cached_operators=False)
-                p_r = self.QrVrROM.solve_adjoint(q_r, u_r, use_cached_operators=False)
+                u_r, u_dot_r = self.QrVrROM.solve_state(q_r, 
+                                                        use_cached_operators=False,
+                                                        return_higher_orders=True)
+                p_r, p_dot_r = self.QrVrROM.solve_adjoint(q_r, 
+                                                          u_r, 
+                                                          use_cached_operators=False,
+                                                          return_higher_orders=True)
+                
                 J_r = self.QrVrROM.objective(u_r)
 
                 nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
                 norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
 
                 _, _, _, _, abs_est_error_J_r, _, _, _ = \
-                self.estimate_objective_error(
+                self.estimate_errors(
                     model = self.QrVrROM,
                     q_r = q_r,
                     u_r = u_r,
                     p_r = p_r,
+                    u_dot_r = u_dot_r,
+                    p_dot_r = p_dot_r,
                     targets=['J'],
                     use_cached_operators=use_cached_operators)
                 
@@ -1899,6 +2019,7 @@ class QrVrROMOptimizer(Optimizer):
                 #use_sufficient_condition = False,
                 logger = self.logger
             )
+            #projector = None
 
             ########################################### AGC ###########################################
 
@@ -2046,18 +2167,25 @@ class QrVrROMOptimizer(Optimizer):
             if check_conditions:
                 self.logger.debug("Decide on q; Either accept or reject")
 
-                u_r = self.QrVrROM.solve_state(q_r)
-                p_r = self.QrVrROM.solve_adjoint(q_r, u_r)
+                u_r, u_dot_r = self.QrVrROM.solve_state(q_r,
+                                                        use_cached_operators=use_cached_operators, 
+                                                        return_higher_orders=True)
+                p_r, p_dot_r = self.QrVrROM.solve_adjoint(q_r, 
+                                                          u_r,
+                                                          use_cached_operators=use_cached_operators, 
+                                                          return_higher_orders=True)
                 J_r = self.QrVrROM.objective(u_r)
                 nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
                 norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
 
                 _, _, _, _, abs_est_error_J_r, abs_est_error_nabla_J_r, _, _ = \
-                self.estimate_objective_error(
+                self.estimate_errors(
                     model = self.QrVrROM,
                     q_r = q_r,
                     u_r = u_r,
                     p_r = p_r,
+                    u_dot_r = u_dot_r,
+                    p_dot_r = p_dot_r,
                     targets = ['J'],
                     use_cached_operators=use_cached_operators
                 )

@@ -1,8 +1,10 @@
-#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/dofs/dof_handler.h>
 
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/vector.h>
+#include <deal.II/lac/slepc_solver.h>
+#include <deal.II/lac/petsc_sparse_matrix.h>
 
 #include <deal.II/numerics/data_out.h>
 
@@ -151,6 +153,7 @@ void MaterialModel::setup_system()
   std::cout << "\t ---------------------- " << std::endl;
   std::cout << "\t #DoFs: " << m_state_space_dim  << std::endl;
   std::cout << "\t #Parameter: " << m_param_space_dim  << std::endl;
+
 
 }
 

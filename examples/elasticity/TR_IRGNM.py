@@ -51,8 +51,8 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    y_res = 40
-    z_res = 40
+    y_res = 30
+    z_res = 30
 
     # y_res = 8
     # z_res = 8
@@ -112,7 +112,7 @@ def main():
 
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
-#    q_exact[0,:] = 3
+    #q_exact[0,:] = 3
 
     # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
     # q_exact[0:15,0:15] = 3
@@ -322,10 +322,10 @@ def main():
                     'sample_every_n_th' : None,
                     'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-9,    
+                        'HaPOD_tol': 1e-3,    
                     },
                     # 'normalize' : None,
-                    'HaPOD' : None,
+                    #'HaPOD' : None,
                     'overwrite_every_n' : None,
                     'keep_last_n': None
                 }
@@ -336,7 +336,7 @@ def main():
             }
         },
         'error_estimator_types' : {
-            'state' : StateErrorEstimatorType.NONE,
+            'state' : StateErrorEstimatorType.HYPERBOLIC,
             'adjoint' : AdjointErrorEstimatorType.NONE,
             'objective' : ObjectiveErrorEstimatorType.NONE,
         },

@@ -116,7 +116,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             #del self._cached_operators[target]
             self._cached_operators[target] = None
 
-
     def calc_projection_error(self,
                               x: VectorArray,
                               basis: str,
@@ -415,120 +414,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         )
         return self._cached_operators[cache_key]
     
-
-    # def _project_A(self, 
-    #                parameter_reduced_A: LincombOperator,
-    #                basis: str = 'state_basis') -> LincombOperator:
-        
-    #     assert isinstance(parameter_reduced_A, LincombOperator)
-    #     if basis == 'state_basis':
-    #         cache_key = 'A_r_state'
-    #     elif basis == 'adjoint_basis':
-    #         cache_key = 'A_r_adjoint'
-    #     else:
-    #         raise ValueError
-        
-    #     self._logger.debug(f"Project A_r onto '{basis}'")
-
-    #     # --- sizes ---------------------------------------------------------------
-    #     dim_Q_old = self.dims_history['parameter_basis'][-2]
-    #     dim_Q_new = self.dims_history['parameter_basis'][-1]
-
-    #     dim_V_old = self.dims_history[basis][-2]
-    #     dim_V_new = self.dims_history[basis][-1]
-
-    #     # --- bases ---------------------------------------------------------------
-    #     _basis = self._get_projection_basis(basis)
-
-    #     V_old = _basis[:dim_V_old]                # (n, dim_V_old)
-    #     W     = _basis[dim_V_old:]                # (n, dim_V_new - dim_V_old)
-
-    #     # --- cached reduced operators --------------------------------------------
-    #     if not self._cached_operators[cache_key]:
-    #         self._cached_operators[cache_key] = project(parameter_reduced_A,
-    #                                                       _basis,
-    #                                                       _basis)
-    #         return self._cached_operators[cache_key]
-
-    #     cached_reduced = self._cached_operators[cache_key]
-    #     cached_blocks = [op.matrix for op in cached_reduced.operators]  # list of (dim_V_old, dim_V_old)
-
-    #     # --- original parameter-reduced operator ---------------------------------
-    #     coefficients = parameter_reduced_A.coefficients
-    #     base_operators = parameter_reduced_A.operators  # list of full-order operators
-    #     #base_mats = [op.matrix for op in base_operators]   # list of (n, n)
-    #     #base_mats = [op for op in base_operators]   # list of (n, n)
-
-    #     n_ops = len(base_operators)
-
-    #     # worker uses ONLY numpy arrays, no self, no methods
-    #     def build_reduced_operator(i: int) -> NumpyMatrixOperator:
-    #                             #    base_operators : list,
-    #                             #    cached_blocks : list,
-    #                             #    V_old : VectorArray,
-    #                             #    W : VectorArray,
-    #                             #    state_basis : VectorArray,
-    #                             #    dim_V_old : int,
-    #                             #    dim_V_new : int,
-    #                             #    dim_Q_old : int) -> NumpyMatrixOperator:
-
-    #         tid = threading.get_ident()
-    #         t0 = time.perf_counter()
-
-    #         A = base_operators[i]           # (n, n)
-    #         #A = base_mats[i]           # (n, n)
-    #         step = time.perf_counter()
-    #         step_cpu = time.thread_time()
-    #         #print(f"t={tid} i={i} A.get {(step - t0)*1e3:.3f} ms")
-
-    #         if i < dim_Q_old:
-    #             VTAV_old = cached_blocks[i]  # (dim_V_old, dim_V_old)
-
-    #             #W_impls = [w.real_part.impl for w in W.vectors]
-    #             # AW = [parameter_reduced_A.range.real_zero_vector() for _ in W]
-    #             # AW_impls = [v.impl for v in AW]
-    #             #AW = A.vmult_batch(W_impls)
-
-    #             AW = A.apply(W)
-
-    #             t1 = time.perf_counter()
-    #             t1_cpu = time.thread_time()
-    #             #print(f"t={tid} i={i} A.apply(W) {(t1 - step)*1e3:.3f} ms; cpu={(t1_cpu - step_cpu)*1e3:.3f} ms")
-
-    #             VTAW = V_old.inner(AW)
-    #             t2 = time.perf_counter()
-    #             #print(f"t={tid} i={i} V_old.inner {(t2 - t1)*1e3:.3f} ms")
-
-    #             WTAW = W.inner(AW)
-    #             t3 = time.perf_counter()
-    #             #print(f"t={tid} i={i} W.inner {(t3 - t2)*1e3:.3f} ms")
-
-    #             # assemble
-    #             M = np.empty((dim_V_new, dim_V_new), dtype=np.float64)
-    #             M[:dim_V_old, :dim_V_old] = VTAV_old
-    #             M[:dim_V_old, dim_V_old:] = VTAW
-    #             M[dim_V_old:, :dim_V_old] = VTAW.T
-    #             M[dim_V_old:, dim_V_old:] = WTAW
-    #         else:
-    #             AV = A.apply(_basis)
-    #             M  = _basis.inner(AV)
-
-    #         return NumpyMatrixOperator(matrix=M)
-
-    #     # --- parallel / serial path ----------------------------------------------
-    #     if self.parallel:
-    #         with ThreadPoolExecutor() as ex:
-    #             operators = list(ex.map(build_reduced_operator, range(n_ops)))
-    #     else:
-    #         operators = [build_reduced_operator(i) for i in range(n_ops)]
-
-    #     # save new reduced operator
-    #     self._cached_operators[cache_key] = LincombOperator(
-    #         operators=operators,
-    #         coefficients=coefficients
-    #     )
-    #     return self._cached_operators[cache_key]
-
     def project_operators(self,
                           parameter_reduced_A: LincombOperator,
                           Q : VectorSpace,
@@ -831,8 +716,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if mode == 'none':
             ret["residual_image_basis"] = None
             ret["A_range"] = self.FOM.V
-            #ret["riesz_representative"] = True
             ret["riesz_representative"] = False
+            ret["gram_operator"] = None
             return ret
         else:
             raise ValueError
@@ -843,6 +728,9 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                                  V : VectorSpace,
                                  V_ad : VectorSpace,
                                  setup: Dict) -> Dict:
+
+        if self.use_adjoint_space:
+            raise NotImplementedError
 
         assert isinstance(A_r, LincombOperator)
         if self.use_adjoint_space:
@@ -880,8 +768,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
             unconstant_operator, constant_operator = split_constant_and_parameterized_operator(
                 complete_operator=project(op = A_r,
-                                        range_basis = residual_image_basis,
-                                        source_basis = state_basis)
+                                          range_basis = residual_image_basis,
+                                          source_basis = state_basis)
             )
 
             M = project(self.FOM.M, residual_image_basis, state_basis)
@@ -908,6 +796,11 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         else:
             L = self.FOM.L
 
+        if setup['time_stepper']['name'] == 'newman_second_order':
+            zeta = setup['time_stepper']['zeta']
+        else:
+            zeta = 1.0
+
         projected_state_quantities = {
             'M' : M,
             'A' : A,
@@ -915,9 +808,11 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'Q' : _Q,
             'V' : _V,
             'riesz_representative' : residual_config['riesz_representative'],
+            'gram_operator' : residual_config['gram_operator'],
             'products': self.FOM.products,
             'setup' : setup,
-            'bases' : bases
+            'bases' : bases,
+            'zeta' : zeta
         }
 
         projected_adjoint_quantities = {
@@ -928,6 +823,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'Q' : _Q,
             'V' : _V,
             'riesz_representative' : residual_config['riesz_representative'],
+            'gram_operator' : residual_config['gram_operator'],
             'products': self.FOM.products,
             'setup' : setup,
             'bases' : bases
@@ -971,20 +867,20 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         state_error_estimator = create_state_error_estimator(
             estimator_type = self.error_estimator_types['state'],
+            products = self.FOM.products,
             state_residual_operator = state_residual_operator,
             A_coercivity_constant_estimator = A_coercivity_constant_estimator,
             Q = Q,
             V = V,
-            product = product,
             setup = setup
         )
         adjoint_error_estimator = create_adjoint_error_estimator(
             estimator_type = self.error_estimator_types['adjoint'],
+            products = self.FOM.products,
             adjoint_residual_operator = adjoint_residual_operator,
             A_coercivity_constant_estimator = A_coercivity_constant_estimator,
             Q = Q,
             V = V,
-            product = product,
             setup = setup
         )
 

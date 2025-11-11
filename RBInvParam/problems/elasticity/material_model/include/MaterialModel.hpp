@@ -118,7 +118,7 @@ public:
   SparsityPattern m_bilinear_cost_operator_sp;
   SparsityPattern m_observation_operator_sp;
   SparsityPattern m_obs_space_product_sp;
-
+  
 private:
   const MaterialModelConfig m_config;
   Triangulation<dim> m_triangulation;
@@ -143,6 +143,7 @@ private:
   
   void assemble_force_list();
   void assemble_force(Vector<Number>& result, double time);
+
 };
 
 

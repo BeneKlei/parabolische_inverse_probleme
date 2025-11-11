@@ -127,12 +127,8 @@ class ParabolicAdjointErrorEstimator(AdjointErrorEstimator):
 
         
 def create_adjoint_error_estimator(estimator_type: AdjointErrorEstimatorType,
-                                   adjoint_residual_operator: AdjointResidualOperator,
-                                   A_coercivity_constant_estimator: CoercivityConstantEstimator,
-                                   Q: VectorSpace,
-                                   V: VectorSpace,
-                                   product: Operator,
-                                   setup: Dict) -> AdjointErrorEstimator:
+                                   products : Dict,
+                                   **kwargs) -> AdjointErrorEstimator:
     """
     Factory function to create a StateErrorEstimator subclass
     based on the estimator_type enum.
@@ -140,13 +136,6 @@ def create_adjoint_error_estimator(estimator_type: AdjointErrorEstimatorType,
     if estimator_type == AdjointErrorEstimatorType.NONE:
         return None
     elif estimator_type == AdjointErrorEstimatorType.PARABOLIC:
-        return ParabolicAdjointErrorEstimator(
-            adjoint_residual_operator,
-            A_coercivity_constant_estimator,
-            Q, 
-            V, 
-            product, 
-            setup
-        )
+        return ParabolicAdjointErrorEstimator(**kwargs, gram_operator=products['prod_V'])
     
     raise ValueError(f"Unsupported estimator type: {estimator_type}")

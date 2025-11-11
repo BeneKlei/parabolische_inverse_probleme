@@ -254,13 +254,14 @@ class NewmanSecondOrder(TimeStepper):
         ################################### First step ###################################
 
         U_cur = initial_data['zeroth_order']
-        M_dot_U_cur = self.M.apply(initial_data['first_order'])
+        U_dot_cur = initial_data['first_order']
+        M_U_dot_cur = self.M.apply(U_dot_cur)
 
         t = self.T_initial
-        yield U_cur, t
+        yield U_cur, U_dot_cur, t
 
         U_pre = U_cur.copy()
-        M_dot_U_pre = M_dot_U_cur.copy()
+        M_U_dot_pre = M_U_dot_cur.copy()
 
         rhs_pre = rhs[0].copy()
         rhs_cur = rhs[0].copy()
@@ -286,7 +287,7 @@ class NewmanSecondOrder(TimeStepper):
         for n in range(1,self.nt+1):
             t += dt
             U_pre = U_cur
-            M_dot_U_pre = M_dot_U_cur
+            M_U_dot_pre = M_U_dot_cur
 
             if rhs_time_dep:
                 rhs_pre = rhs_cur
@@ -316,7 +317,7 @@ class NewmanSecondOrder(TimeStepper):
             # --------------------------------------------------------------
             _lhs = S_zeta
             _rhs = S_zeta_minus_one.apply(U_pre)
-            _rhs += dt * M_dot_U_pre
+            _rhs += dt * M_U_dot_pre
             _rhs += zeta * dt_R
 
 
@@ -327,13 +328,14 @@ class NewmanSecondOrder(TimeStepper):
             
     
             # --------------------------------------------------------------
-            M_dot_U_cur = M_dot_U_pre
+            M_U_dot_cur = M_U_dot_pre
             _U = zeta * U_cur + (1 - zeta) * U_pre
-            M_dot_U_cur += (-1) * dt * A_q.apply(_U)
-            M_dot_U_cur += dt_R
+            M_U_dot_cur += (-1) * dt * A_q.apply(_U)
+            M_U_dot_cur += dt_R
+            U_dot_cur = self.M.apply_inverse(M_U_dot_cur)
             # --------------------------------------------------------------
 
-            yield U_cur, t
+            yield U_cur, U_dot_cur, t
 
 
 def get_time_stepper(
