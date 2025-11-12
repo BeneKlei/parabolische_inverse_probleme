@@ -81,34 +81,34 @@ def main():
     q_exact = np.ones((1,par_dim)) * 1
 
 
-    q_exact[0,200] = 2
-    q_exact[0,300] = 3
+    # q_exact[0,200] = 2
+    # q_exact[0,300] = 3
 
-    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    # q_exact[9,21] = 3
-    # q_exact[8,21] = 3
-    # q_exact[7,21] = 3
-    # q_exact[9,22] = 3
-    # q_exact[8,22] = 3
-    # q_exact[7,22] = 3
-    # q_exact[9,20] = 3
-    # q_exact[8,20] = 3
-    # q_exact[7,20] = 3
-
-
-    # q_exact[7,14] = 2
-    # q_exact[6,14] = 2
-    # q_exact[5,14] = 2
-    # q_exact[7,13] = 2
-    # q_exact[6,13] = 2
-    # q_exact[5,13] = 2
-    # q_exact[7,15] = 2
-    # q_exact[6,15] = 2
-    # q_exact[5,15] = 2
+    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    q_exact[9,21] = 3
+    q_exact[8,21] = 3
+    q_exact[7,21] = 3
+    q_exact[9,22] = 3
+    q_exact[8,22] = 3
+    q_exact[7,22] = 3
+    q_exact[9,20] = 3
+    q_exact[8,20] = 3
+    q_exact[7,20] = 3
 
 
-    # q_exact = q_exact.flatten()
-    # q_exact = np.array([q_exact])
+    q_exact[7,14] = 2
+    q_exact[6,14] = 2
+    q_exact[5,14] = 2
+    q_exact[7,13] = 2
+    q_exact[6,13] = 2
+    q_exact[5,13] = 2
+    q_exact[7,15] = 2
+    q_exact[6,15] = 2
+    q_exact[5,15] = 2
+
+
+    q_exact = q_exact.flatten()
+    q_exact = np.array([q_exact])
 
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
@@ -133,7 +133,7 @@ def main():
     q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
-    bounds[:,0] = 1e-20
+    bounds[:,0] = 0.75
     bounds[:,1] = 1e20
 
 
@@ -157,13 +157,14 @@ def main():
                 # 'lambda' : 1e2,
                 # 'mu' : 1e2,
                 'nu' : 1e-3,
+                #'nu' : 1e-1,
                 'surface' : 'left'
             }
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {}
         },
@@ -204,53 +205,47 @@ def main():
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
-    # u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
+    u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
 
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in u_exact.vectors],
-    #     str('u_exact'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in u_exact.vectors],
+        str('u_exact'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
-    # p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in p_exact.vectors],
-    #     str('p_exact'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in p_exact.vectors],
+        str('p_exact'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
-    # u_start = FOM.solve_state(FOM.Q.make_array(q_start))
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in u_start.vectors],
-    #     str('u_start'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in u_start.vectors],
+        str('u_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
-    # p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in p_start.vectors],
-    #     str('p_start'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in p_start.vectors],
+        str('p_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
-    # diff = u_start - u_exact
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in diff.vectors],
-    #     str('diff'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    diff = u_start - u_exact
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in diff.vectors],
+        str('diff'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
-    # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in FOM.L.vectors],
-    #     str('L'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
     # import sys
     # sys.exit()
 
@@ -275,6 +270,7 @@ def main():
         'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
         'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
+        'use_error_estimator' : False,
         'use_adjoint_space' : False,
         'offline_parallel' : False,
         'reg_AGC_step' : False,
@@ -303,12 +299,12 @@ def main():
                 },
                 'compression' : {
                     'sample_every_n_th' : None,
-                    # 'normalize' : True,
-                    # 'HaPOD' : {
-                    #     'HaPOD_tol': 1e-1,    
-                    # },
-                    'normalize' : None,
-                    'HaPOD' : None,
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'HaPOD_tol': 1e-1,    
+                    },
+                    #'normalize' : None,
+                    #'HaPOD' : None,
                     'overwrite_every_n' : None,
                     'keep_last_n': None
                 }
@@ -338,19 +334,18 @@ def main():
         'error_estimator_types' : {
             'state' : StateErrorEstimatorType.HYPERBOLIC,
             'adjoint' : AdjointErrorEstimatorType.NONE,
-            'objective' : ObjectiveErrorEstimatorType.NONE,
+            'objective' : ObjectiveErrorEstimatorType.NAIVE,
         },
         #####################
         'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
-        # 'eta0': 2.5 * 1e-2,                                                # Initial trust region tolerance
-        # 'eta_min' : 1e-5,
-        # 'eta_max' : 0.05,
         'eta0': 0.05,                                                # Initial trust region tolerance
-        #'eta0': 5.0 * 1e-2,                                                # Initial trust region tolerance
         'eta_min' : 1e-5,
         'eta_max' : 0.15,
+        #'eta0': 100.00,                                                # Initial trust region tolerance
+        #s'eta_min' : 1e-5,
+        #'eta_max' : 500.00,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.80,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 

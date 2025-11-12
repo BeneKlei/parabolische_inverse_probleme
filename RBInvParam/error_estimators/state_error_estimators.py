@@ -1,7 +1,6 @@
 from typing import Dict
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Union
 import numpy as np
 
 from pymor.vectorarrays.interface import VectorArray
@@ -79,7 +78,6 @@ class ParabolicStateErrorEstimator(StateErrorEstimator):
         )
         
         alpha_q = np.min(self.A_coercivity_constant_estimator(q))
-        
         return np.sqrt(self.delta_t / alpha_q * np.sum(r.norm2(product=self.gram_operator)))
              
 
@@ -112,15 +110,13 @@ class HyperbolicStateErrorEstimator(StateErrorEstimator):
         )
         r = self.gram_operator.pairwise_apply2(r,r)
         assert r.shape == (self.nt,)
-        
-        inner_sums = np.cumsum(r)        
-        sqrt_inner = np.sqrt(inner_sums)
-        err = np.sum(sqrt_inner)
-
-        alpha_q = np.min(self.A_coercivity_constant_estimator(q))
-        assert alpha_q > 0
-
-        err *= (2 * self.delta_t) / (alpha_q)
+        r = np.sqrt(r)
+        inner_sums = np.cumsum(r)
+        inner_sums *= self.delta_t
+        inner_sums = inner_sums**2
+        err = np.sum(inner_sums)
+        err = np.sqrt(err)
+        err *= 2 * np.sqrt(self.delta_t)
         return err
 
 

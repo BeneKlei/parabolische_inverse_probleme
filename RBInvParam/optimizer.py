@@ -111,7 +111,8 @@ class Optimizer(BasicObject):
                                kappa_arm: float,
                                use_cached_operators: bool = False,
                                projector: SimpleBoundDomainProjector = None,
-                               alpha: float = 0.0) -> Tuple[NumpyVectorArray, float, bool]:
+                               alpha: float = 0.0,
+                               use_error_estimator: bool = False) -> Tuple[NumpyVectorArray, float, bool]:
 
         assert 0 <= beta < 1
         assert 0 < eta
@@ -164,8 +165,10 @@ class Optimizer(BasicObject):
                 p_r = p,
                 u_dot_r = u_dot,
                 p_dot_r = p_dot,
+                J_r = current_J,
                 targets=['J'],
-                use_cached_operators=use_cached_operators
+                use_cached_operators=use_cached_operators,
+                use_error_estimator = use_error_estimator
             )
             J_rel_error = abs_est_error_J_r / current_J
         else:
@@ -241,8 +244,10 @@ class Optimizer(BasicObject):
                     p_r = p,
                     u_dot_r = u_dot,
                     p_dot_r = p_dot,
+                    J_r = current_J,
                     targets=['J'],
-                    use_cached_operators=use_cached_operators
+                    use_cached_operators=use_cached_operators,
+                    use_error_estimator=use_error_estimator
                 )                
                 J_rel_error = abs_est_error_J_r / current_J
             else:
@@ -294,6 +299,7 @@ class Optimizer(BasicObject):
                         p_dot_r : VectorArray = None,
                         lin_u_r : VectorArray = None,
                         lin_p_r : VectorArray = None,
+                        J_r: float = None,
                         targets : str | List[str] = 'all',
                         use_error_estimator: bool = True,
                         use_cached_operators: bool = True) -> Tuple[float,float,float,float,float,float,float,float]:
@@ -302,32 +308,22 @@ class Optimizer(BasicObject):
             return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         
         if use_error_estimator:
-            est_err_u_r = model.estimate_state_error(
-                q = q_r,
-                u = u_r,
-                u_dot = u_dot_r,
-                use_cached_operators = use_cached_operators,
-            )
-
-            print("?????????????????????????????????????????????????????")
-            print(est_err_u_r)
-            return self._estimate_actual_errors(
+            return self._estimate_error(
                 model = model,
                 q_r = q_r,
                 d_r = d_r,
                 u_r = u_r,
                 p_r = p_r,
+                u_dot_r = u_dot_r,
+                p_dot_r = p_dot_r,
                 lin_u_r = lin_u_r,
                 lin_p_r = lin_p_r,
+                J_r = J_r,
                 targets = targets,
-                use_cached_operators = use_cached_operators,
-            )
-
-
-            #return np.nan,np.nan,np.nan,np.nan,np.nan,np.nan,np.nan,np.nan
-        
+                use_cached_operators = use_cached_operators
+            )        
         else:
-            return self._estimate_actual_errors(
+            return self._calc_errors(
                 model = model,
                 q_r = q_r,
                 d_r = d_r,
@@ -339,16 +335,81 @@ class Optimizer(BasicObject):
                 use_cached_operators = use_cached_operators,
             )
     
-    def _estimate_actual_errors(self,
-                                model: InstationaryModelIP,
-                                q_r : VectorArray,
-                                d_r : VectorArray = None,
-                                u_r : VectorArray = None,
-                                p_r : VectorArray = None,
-                                lin_u_r : VectorArray = None,
-                                lin_p_r : VectorArray = None,
-                                targets : str | List[str] = 'all',
-                                use_cached_operators: bool = True) -> Tuple[float,float,float,float,float,float,float,float]:
+    def _estimate_error(self,
+                        model: InstationaryModelIP,
+                        q_r : VectorArray,
+                        d_r : VectorArray = None,
+                        u_r : VectorArray = None,
+                        p_r : VectorArray = None,
+                        u_dot_r : VectorArray = None,
+                        p_dot_r : VectorArray = None,
+                        lin_u_r : VectorArray = None,
+                        lin_p_r : VectorArray = None,
+                        J_r: float = None,
+                        targets : str | List[str] = 'all',
+                        use_error_estimator: bool = True,
+                        use_cached_operators: bool = True) -> Tuple[float,float,float,float,float,float,float,float]:
+
+        ordered_targets = ['u', 'p', 'lin_u', 'lin_p', 'J', 'nabla_J', 'lin_J', 'nabla_lin_J']
+        implemented_targets = ['J']
+
+        if targets == 'all':
+            targets = ordered_targets
+
+        assert set(targets).issubset(implemented_targets)
+        est_err_u = np.nan
+        est_err_p = np.nan
+        est_err_lin_u = np.nan
+        est_err_lin_p = np.nan
+        est_err_J = np.nan
+        est_err_nabla_J = np.nan
+        est_err_lin_J = np.nan
+        est_err_nabla_lin_J = np.nan
+
+        for target in targets:
+            if target == 'J':
+                assert q_r is not None
+                assert u_r is not None
+                assert u_dot_r is not None
+                assert J_r is not None
+                assert J_r > 0
+
+                est_err_J = model.estimate_objective_error(
+                    q = q_r,
+                    u = u_r,
+                    u_dot = u_dot_r,
+                    J = J_r,
+                    use_cached_operators = use_cached_operators,
+                )
+
+                self._logger.debug(f'Estimated err_J = {est_err_J:3.4e}')
+                rel_est_err_J = est_err_J / J_r
+                self._logger.debug(f'Estimated rel_err_J = {rel_est_err_J:3.4e}')
+                continue
+                
+            raise ValueError
+
+        return (
+            est_err_u,
+            est_err_p,
+            est_err_lin_u,
+            est_err_lin_p,
+            est_err_J,
+            est_err_nabla_J,
+            est_err_lin_J,
+            est_err_nabla_lin_J,
+        )
+
+    def _calc_errors(self,
+                     model: InstationaryModelIP,
+                     q_r : VectorArray,
+                     d_r : VectorArray = None,
+                     u_r : VectorArray = None,
+                     p_r : VectorArray = None,
+                     lin_u_r : VectorArray = None,
+                     lin_p_r : VectorArray = None,
+                     targets : str | List[str] = 'all',
+                     use_cached_operators: bool = True) -> Tuple[float,float,float,float,float,float,float,float]:
 
         
                 
@@ -430,6 +491,7 @@ class Optimizer(BasicObject):
                 norm_u = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(u, u))[0,0]
                 rel_err_u = err_u / norm_u
                 self._logger.debug(f'Actual rel_err_u = {rel_err_u:3.4e}')
+                continue
 
             if required_quantity == 'p':
                 if p_r is None:
@@ -437,7 +499,6 @@ class Optimizer(BasicObject):
                 
                 _p_r = self.reductor.reconstruct(p_r, basis='state_basis')
                 p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
-
                 
                 diff = p - _p_r
                 err_p = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(diff, diff))[0,0]
@@ -446,6 +507,7 @@ class Optimizer(BasicObject):
                 norm_p = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(p, p))[0,0]
                 rel_err_p = err_p / norm_p
                 self._logger.debug(f'Actual rel_err_p = {rel_err_p:3.4e}')
+                continue
             
             if required_quantity == 'lin_u':
                 if lin_u_r is None:
@@ -461,6 +523,7 @@ class Optimizer(BasicObject):
                 norm_lin_u = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(lin_u, lin_u))[0,0]
                 rel_err_lin_u = err_lin_u / norm_lin_u
                 self._logger.debug(f'Actual rel_err_lin_u = {rel_err_lin_u:3.4e}')
+                continue
 
             if required_quantity == 'lin_p':
                 if lin_p_r is None:
@@ -487,6 +550,7 @@ class Optimizer(BasicObject):
 
                 rel_err_J = err_J / np.abs(J)
                 self._logger.debug(f'Actual rel_err_J = {rel_err_J:3.4e}')
+                continue
 
 
             if required_quantity == 'nabla_J':
@@ -507,6 +571,7 @@ class Optimizer(BasicObject):
                 self._logger.debug(f'Actual err_nabla_J = {err_nabla_J:3.4e}')
                 rel_err_nabla_J = err_nabla_J / norm_nabla_J
                 self._logger.debug(f'Actual rel_err_nabla_J = {rel_err_nabla_J:3.4e}')
+                continue
 
             if required_quantity == 'lin_J':
                 if lin_J_r is None:
@@ -518,6 +583,7 @@ class Optimizer(BasicObject):
 
                 rel_err_lin_J = err_lin_J / np.abs(lin_J)
                 self._logger.debug(f'Actual rel_err_lin_J = {rel_err_lin_J:3.4e}')
+                continue
   
             if required_quantity == 'nabla_lin_J':
                 if nabla_lin_J_r is None:
@@ -537,6 +603,9 @@ class Optimizer(BasicObject):
                 self._logger.debug(f'Actual err_nabla_lin_J = {err_nabla_lin_J:3.4e}')
                 rel_err_nabla_lin_J = err_nabla_lin_J / norm_nabla_lin_J
                 self._logger.debug(f'Actual rel_err_nabla_lin_J = {rel_err_nabla_lin_J:3.4e}')
+                continue
+            
+            raise ValueError
         
         return (
             err_u,
@@ -566,7 +635,8 @@ class Optimizer(BasicObject):
               use_cached_operators: bool = False,
               dump_IRGNM_intermed_stats: bool = False,
               dump_every_nth_loop: int = 0,
-              projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, Dict]: 
+              projector: SimpleBoundDomainProjector = None,
+              use_error_estimator: bool = False) -> Tuple[VectorArray, Dict]: 
 
         assert q_0 in model.Q
         assert tol > 0
@@ -795,7 +865,8 @@ class Optimizer(BasicObject):
                     search_direction = d,
                     **TR_params,
                     use_cached_operators=use_cached_operators,
-                    projector=projector
+                    projector=projector,
+                    use_error_estimator=use_error_estimator
                 )
 
                 if TR_max_iter_cond:
@@ -825,8 +896,10 @@ class Optimizer(BasicObject):
                         p_r = p,
                         u_dot_r = u_dot,
                         p_dot_r = p_dot,
+                        J_r = J,
                         targets = ['J'],
-                        use_cached_operators=use_cached_operators
+                        use_cached_operators=use_cached_operators,
+                        use_error_estimator=use_error_estimator
                     )
                     J_rel_error = abs_est_error_J_r / next_J
                 else:
@@ -1305,7 +1378,8 @@ class QrFOMOptimizer(Optimizer):
                                               Theta = Theta,
                                               reg_loop_max = reg_loop_max,
                                               lin_solver_parms = lin_solver_parms,
-                                              use_cached_operators = use_cached_operators)
+                                              use_cached_operators = use_cached_operators,
+                                              use_error_estimator=False)
             
             q = self.reductor.reconstruct(q_r, basis='parameter_basis')
             assert self.FOM_projector.project_domain(center=q) == q
@@ -1551,6 +1625,7 @@ class QrVrROMOptimizer(Optimizer):
         agc_armijo_max_iter = self.optimizer_parameter["agc_armijo_max_iter"]
         TR_armijo_max_iter = self.optimizer_parameter["TR_armijo_max_iter"]
 
+        use_error_estimator = self.optimizer_parameter["use_error_estimator"]
         use_adjoint_space = self.optimizer_parameter["use_adjoint_space"]
         offline_parallel = self.optimizer_parameter["offline_parallel"]
         reg_AGC_step = self.optimizer_parameter["reg_AGC_step"]
@@ -1630,7 +1705,8 @@ class QrVrROMOptimizer(Optimizer):
         self.logger.debug(f"  agc_armijo_max_iter : {agc_armijo_max_iter:3.4e}")
         self.logger.debug(f"  TR_armijo_max_iter : {TR_armijo_max_iter:3.4e}")
         self.logger.debug(f"                ")
-        self.logger.debug(f"  use_adjoint_space : {use_adjoint_space}")
+        self.logger.debug(f"  use_error_estimator : {use_error_estimator}")
+        self.logger.debug(f"  use_adjoint_space : {use_adjoint_space}")        
         self.logger.debug(f"  offline_parallel : {offline_parallel}")
         self.logger.debug(f"  reg_AGC_step : {reg_AGC_step}")
         self.logger.debug(f"  TR_enforcement : {TR_enforcement}")
@@ -1765,8 +1841,10 @@ class QrVrROMOptimizer(Optimizer):
             p_r = p_r,
             u_dot_r = u_dot_r,
             p_dot_r = p_dot_r,
+            J_r = J,
             targets = ['J'],
-            use_cached_operators=use_cached_operators
+            use_cached_operators=use_cached_operators,
+            use_error_estimator=use_error_estimator
         )
 
         if J_r > 0:
@@ -1901,8 +1979,10 @@ class QrVrROMOptimizer(Optimizer):
                 p_r = p_r,
                 u_dot_r = u_dot_r,
                 p_dot_r = p_dot_r,
+                J_r = J,
                 targets=['J'],
-                use_cached_operators=use_cached_operators)
+                use_cached_operators=use_cached_operators,
+                use_error_estimator=use_error_estimator)
             
             if J_r > 0:
                 rel_est_error_J_r = abs_est_error_J_r / J_r
@@ -1951,6 +2031,8 @@ class QrVrROMOptimizer(Optimizer):
                 if enrichment['parameter_basis']['reduced_basis']:
                     self.logger.debug(f"Extending Qr-snapshots")
                     self.snapshots['parameter_basis'].append(nabla_J)
+                    self.snapshots['parameter_basis'].append(q)
+                    self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
                                 
                 self.logger.debug(f"Extending Vr-snapshots")
                 if self.reductor.use_adjoint_space:
@@ -1995,8 +2077,10 @@ class QrVrROMOptimizer(Optimizer):
                     p_r = p_r,
                     u_dot_r = u_dot_r,
                     p_dot_r = p_dot_r,
+                    J_r = J,
                     targets=['J'],
-                    use_cached_operators=use_cached_operators)
+                    use_cached_operators=use_cached_operators,
+                    use_error_estimator=use_error_estimator)
                 
                 if J_r > 0:
                     rel_est_error_J_r = abs_est_error_J_r / J_r
@@ -2059,7 +2143,8 @@ class QrVrROMOptimizer(Optimizer):
                 kappa_arm = kappa_arm,
                 use_cached_operators=use_cached_operators,
                 projector = projector,
-                alpha = AGC_alpha
+                alpha = AGC_alpha,
+                use_error_estimator=use_error_estimator
             )
 
             print("$$$$$$$$$$$$$$$$$$$$$")
@@ -2150,7 +2235,8 @@ class QrVrROMOptimizer(Optimizer):
                                                   TR_params=TR_params,
                                                   lin_solver_parms=lin_solver_parms,
                                                   use_cached_operators=use_cached_operators,
-                                                  projector=projector)
+                                                  projector=projector,
+                                                  use_error_estimator=use_error_estimator)
             
             
             self.statistics["outer_loop_runtime"]['IRGNM_runtime'].append(timer() - IRGNM_start_time)
@@ -2186,8 +2272,10 @@ class QrVrROMOptimizer(Optimizer):
                     p_r = p_r,
                     u_dot_r = u_dot_r,
                     p_dot_r = p_dot_r,
+                    J_r = J,
                     targets = ['J'],
-                    use_cached_operators=use_cached_operators
+                    use_cached_operators=use_cached_operators,
+                    use_error_estimator=use_error_estimator
                 )
                 
                 if J_r > 0:

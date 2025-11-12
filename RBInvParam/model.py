@@ -187,7 +187,7 @@ class InstationaryModelIP(ImmutableObject):
             assert isinstance(objective_error_estimator, ObjectiveErrorEstimator)
             assert 'C_continuity_constant' in self.model_constants.keys()
             assert self.state_error_estimator
-            assert self.adjoint_error_estimator
+            #assert self.adjoint_error_estimator
         if self.model_constants:
             assert 'A_coercivity_constant_estimator' in self.model_constants.keys()
             assert 'C_continuity_constant' in self.model_constants.keys()
@@ -1110,7 +1110,10 @@ class InstationaryModelIP(ImmutableObject):
     def estimate_objective_error(self,
                                  q: VectorArray,
                                  u: VectorArray,
-                                 p: VectorArray,
+                                 p: VectorArray = None,
+                                 u_dot: VectorArray = None,
+                                 p_dot: VectorArray = None,
+                                 J : float = None,
                                  use_cached_operators: bool = False) -> float | None:
 
         if not self.objective_error_estimator:
@@ -1127,24 +1130,31 @@ class InstationaryModelIP(ImmutableObject):
         estimated_state_error = self.estimate_state_error(
             q = q,
             u = u,
+            u_dot = u_dot,
             use_cached_operators=use_cached_operators
-        )            
-        adjoint_residuum = self.adjoint_error_estimator.compute_residuum(
-            q = q,
-            u = u,
-            p = p,
-            use_cached_operators=use_cached_operators,
-            cached_operators=self._cached_operators
         )
-        adjoint_residuum = np.sqrt(self.adjoint_error_estimator.delta_t * \
-            np.sum(adjoint_residuum.norm2(
-                product=self.adjoint_error_estimator.product
-            )
-        ))
+        print(estimated_state_error)
+
+
+        # adjoint_residuum = self.adjoint_error_estimator.compute_residuum(
+        #     q = q,
+        #     u = u,
+        #     p = p,
+        #     use_cached_operators=use_cached_operators,
+        #     cached_operators=self._cached_operators
+        # )
+        # adjoint_residuum = np.sqrt(self.adjoint_error_estimator.delta_t * \
+        #     np.sum(adjoint_residuum.norm2(
+        #         product=self.adjoint_error_estimator.product
+        #     )
+        # ))
+
         e = self.objective_error_estimator.estimate_error(
             q = q,
+            u = u,
+            J = J,
             estimated_state_error = estimated_state_error,
-            adjoint_residuum = adjoint_residuum
+            adjoint_residuum = None
         )
         return e 
         

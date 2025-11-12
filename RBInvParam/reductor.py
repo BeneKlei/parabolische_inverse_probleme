@@ -27,8 +27,8 @@ from RBInvParam.evaluators import ROMEvaluatorA, ROMEvaluatorB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.utils.logger import get_default_logger
-from RBInvParam.error_estimators.state_error_estimators import create_state_error_estimator
-from RBInvParam.error_estimators.adjoint_error_estimators import create_adjoint_error_estimator
+from RBInvParam.error_estimators.state_error_estimators import create_state_error_estimator, StateErrorEstimatorType
+from RBInvParam.error_estimators.adjoint_error_estimators import create_adjoint_error_estimator, AdjointErrorEstimatorType
 from RBInvParam.error_estimators.objective_error_estimators import create_objective_error_estimator
 from RBInvParam.error_estimators.residuals import StateResidualOperator, AdjointResidualOperator
 
@@ -708,7 +708,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     def _estimate_residual_image_basis(self,
                                        basis: str,
                                        mode: str) -> Dict:
-        assert basis in ['state_residual_image_basis', 'adjoint_residual_image_basis']
+        assert basis in ['state', 'adjoint']
         assert mode in ['none']
 
         ret = {}
@@ -716,11 +716,18 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if mode == 'none':
             ret["residual_image_basis"] = None
             ret["A_range"] = self.FOM.V
-            ret["riesz_representative"] = False
-            ret["gram_operator"] = None
-            return ret
+            ret["riesz_representative"] = True
         else:
             raise ValueError
+        
+        if self.error_estimator_types[basis] == StateErrorEstimatorType.HYPERBOLIC:
+            ret['gram_operator'] = self.FOM.products['prod_H']
+        elif self.error_estimator_types[basis] == StateErrorEstimatorType.PARABOLIC:
+            ret['gram_operator'] = self.FOM.products['prod_V']
+        else:
+            ret['gram_operator'] = None
+
+        return ret
 
     def assemble_error_estimator(self,
                                  A_r: LincombOperator,
@@ -737,17 +744,16 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             assert V_ad is not None
 
         state_residual_config = self._estimate_residual_image_basis(
-            basis = 'state_residual_image_basis',
+            basis = 'state',
             mode = self.residual_image_basis_mode
         )
 
         adjoint_residual_config = self._estimate_residual_image_basis(
-            basis = 'adjoint_residual_image_basis',
+            basis = 'adjoint',
             mode = self.residual_image_basis_mode
         )
 
         # At the moment we allow only that both residuals have the same image basis
-        assert state_residual_config == adjoint_residual_config
         residual_config = state_residual_config
 
         residual_image_basis = residual_config['residual_image_basis']
@@ -842,19 +848,19 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         else:
             orthonormal_basis = False
 
-        if orthonormal_basis:
-            product = None
-        else:
-            # product = project(self.FOM.products['prod_V'],
-            #                   residual_image_basis,
-            #                   residual_image_basis,
-            #                   product=None)
-            product = project(InverseOperator(self.FOM.products['prod_V']),
-                              residual_image_basis,
-                              residual_image_basis,
-                              product=None)
-            assert not state_residual_operator.riesz_representative
-            assert not adjoint_residual_operator.riesz_representative
+        # if orthonormal_basis:
+        #     product = None
+        # else:
+        #     # product = project(self.FOM.products['prod_V'],
+        #     #                   residual_image_basis,
+        #     #                   residual_image_basis,
+        #     #                   product=None)
+        #     product = project(InverseOperator(self.FOM.products['prod_V']),
+        #                       residual_image_basis,
+        #                       residual_image_basis,
+        #                       product=None)
+        #     assert not state_residual_operator.riesz_representative
+        #     assert not adjoint_residual_operator.riesz_representative
 
         A_coercivity_constant_estimator = self.FOM.model_constants['A_coercivity_constant_estimator']
         A_coercivity_constant_estimator = copy.copy(A_coercivity_constant_estimator)
@@ -887,7 +893,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         objective_error_estimator = create_objective_error_estimator(
             estimator_type = self.error_estimator_types['objective'],
             A_coercivity_constant_estimator = A_coercivity_constant_estimator,
-            C_continuity_constant = self.FOM.model_constants['C_continuity_constant']
+            C_continuity_constant = self.FOM.model_constants['C_continuity_constant'],
+            setup = setup
         )
 
         error_estimator = {

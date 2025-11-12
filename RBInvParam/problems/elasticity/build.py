@@ -194,9 +194,23 @@ def build_InstationaryModelIP(setup : Dict,
     )
     ############################### Coercivity ###############################
 
-    #assert product_names['prod_V'] == 'h1_0_semi'
+    assert product_names['prod_V'] == 'h1_0_semi'
     # I AM NOT SURE THAT THIS IS CORRECT! JUST FOR TESTING
-    A_coercivity_constant_estimator_function = lambda q: 1
+    #A_coercivity_constant_estimator_function = lambda q: 1
+
+    x = np.min([
+        2 * setup['system_matrix']['hyperparameter']['mu'],
+        2 * setup['system_matrix']['hyperparameter']['nu'],
+        2 * setup['system_matrix']['hyperparameter']['mu'] + \
+        3 * setup['system_matrix']['hyperparameter']['lambda']
+    ])
+
+    #A_coercivity_constant_estimator_function = lambda q: np.min(q.to_numpy()) * x
+    y = np.min(setup['bounds'][:,0])
+    assert y > 0
+    A_coercivity_constant_estimator_function = lambda q: y * x
+    
+    
 
     A_coercivity_constant_estimator = CoercivityConstantEstimator(
         coercivity_estimator_function = A_coercivity_constant_estimator_function,

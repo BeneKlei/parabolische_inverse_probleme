@@ -30,10 +30,6 @@ class TimeResidualOperator(Operator):
         assert (0.0 <= zeta) and (zeta <= 1.0)
         self.zeta = zeta
 
-        if riesz_representative:
-            assert 'prod_V' in self.products
-            self.products['prod_V'].range == V
-
         self.delta_t = self.setup['delta_t']
         assert self.delta_t > 0
         self.rez_delta_t = 1 / self.delta_t
@@ -67,7 +63,7 @@ class TimeResidualOperator(Operator):
             
         if riesz_representative:
             assert gram_operator is not None
-            self.riesz_op = InverseOperator(self.riesz_op)
+            self.riesz_op = InverseOperator(self.gram_operator)
     
     def _precompute_residual_A_q(self, 
                                  q: VectorArray) -> List:

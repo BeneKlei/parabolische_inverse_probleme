@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable,Dict
 from abc import ABC, abstractmethod
 from enum import Enum
 import numpy as np
@@ -8,6 +8,7 @@ from pymor.vectorarrays.interface import VectorSpace
 
 class ObjectiveErrorEstimatorType(Enum):
     NONE = "none"
+    NAIVE = "naive"
     PARABOLIC = "parabolic"
 
 class CoercivityConstantEstimator():
@@ -27,38 +28,38 @@ class CoercivityConstantEstimator():
             alpha_qks = np.array([
                 self.coercivity_estimator_function(qk) for qk in q
             ])
-        else:
+        else:        
             alpha_qks = np.array([self.coercivity_estimator_function(q[0])])
         
         assert np.all(alpha_qks > 0)
         return alpha_qks
 
-
 class ObjectiveErrorEstimator(ABC):
     def __init__(self,
                  A_coercivity_constant_estimator: CoercivityConstantEstimator,
-                 C_continuity_constant: float):
+                 C_continuity_constant: float,
+                 setup: Dict):
 
         self.A_coercivity_constant_estimator = A_coercivity_constant_estimator
         self.C_continuity_constant = C_continuity_constant
+        self.setup = setup
+
+        self.delta_t = self.setup['delta_t']
 
     @abstractmethod
     def estimate_error(self, 
-                    q: VectorArray,
-                    estimated_state_error: float,
-                    adjoint_residuum: float) -> float:
+                       q: VectorArray,
+                       u: VectorArray,
+                       J: float,
+                       estimated_state_error: float,
+                       adjoint_residuum: float) -> float:
         pass
             
 class ParabolicObjectiveErrorEstimator(ObjectiveErrorEstimator):
-    def __init__(self,
-                 A_coercivity_constant_estimator: CoercivityConstantEstimator,
-                 C_continuity_constant: float):
-
-        super().__init__(A_coercivity_constant_estimator,
-                         C_continuity_constant)
-
     def estimate_error(self, 
                        q: VectorArray,
+                       u: VectorArray,
+                       J: float,
                        estimated_state_error: float,
                        adjoint_residuum: float) -> float:
 
@@ -70,20 +71,30 @@ class ParabolicObjectiveErrorEstimator(ObjectiveErrorEstimator):
         ret += self.C_continuity_constant**2 / (2 * alpha_q) * estimated_state_error**2
 
         return ret 
+    
+class NaiveObjectiveErrorEstimator(ObjectiveErrorEstimator):
+    def estimate_error(self, 
+                       q: VectorArray,
+                       u: VectorArray,
+                       J: float,
+                       estimated_state_error: float,
+                       adjoint_residuum: float) -> float:
+        
+
+        ret = 0
+        alpha_q = np.min(self.A_coercivity_constant_estimator(q))
+        ret += (self.C_continuity_constant**2 / (2 * alpha_q)) * estimated_state_error**2
+        ret += np.sqrt((2 * J) / (alpha_q * self.delta_t)) *estimated_state_error
+        return ret 
         
 def create_objective_error_estimator(estimator_type: ObjectiveErrorEstimatorType,
-                                     A_coercivity_constant_estimator: CoercivityConstantEstimator,
-                                     C_continuity_constant: float) -> ObjectiveErrorEstimator:
-    """
-    Factory function to create a StateErrorEstimator subclass
-    based on the estimator_type enum.
-    """
+                                     **kwargs) -> ObjectiveErrorEstimator:
+
     if estimator_type == ObjectiveErrorEstimatorType.NONE:
         return None
     elif estimator_type == ObjectiveErrorEstimatorType.PARABOLIC:
-        return ParabolicObjectiveErrorEstimator(
-            A_coercivity_constant_estimator,
-            C_continuity_constant
-        )
-    
+        return ParabolicObjectiveErrorEstimator(**kwargs)
+    elif estimator_type == ObjectiveErrorEstimatorType.NAIVE:
+        return NaiveObjectiveErrorEstimator(**kwargs)
+        
     raise ValueError(f"Unsupported estimator type: {estimator_type}")
