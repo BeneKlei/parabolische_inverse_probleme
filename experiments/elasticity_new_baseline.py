@@ -87,6 +87,7 @@ setup = {
 }
 
 q_start = q_circ
+lin_solver_tol = 5 * 1e-9
 
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
@@ -105,7 +106,7 @@ FOM_optimizer_parameter = {
     'lin_solver_parms': {
         'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 1e3,                                     # Max iterations for the linear solver
-        'lin_solver_tol': 1e-12,                          # Tolerance for convergence in the linear solver
+        'lin_solver_tol': lin_solver_tol,                          # Tolerance for convergence in the linear solver
         'kappa_arm' : 1e-12,
         'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
         'armijo_min_step_size' : 1e-20
@@ -142,7 +143,7 @@ TR_optimizer_parameter = {
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-        'lin_solver_tol': 1e-8,                                 # Convergence tolerance for the linear solver
+        'lin_solver_tol': lin_solver_tol,                                 # Convergence tolerance for the linear solver
         'kappa_arm' : 1e-12,
         'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
         'armijo_min_step_size' : 1e-20
