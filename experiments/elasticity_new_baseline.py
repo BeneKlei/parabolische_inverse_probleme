@@ -153,34 +153,40 @@ TR_optimizer_parameter = {
     #     'atol': 1e-12,                                         # Absolute convergence tolerance
     #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
     # },
-    'enrichment': {
+        'enrichment': {
         'parameter_basis' : {
             'reduced_basis' : True,
-            'include_each_time_step' : False,
-            'include_lin_grad' : False,
-            'sample_every_n_th' : None,
-            'normalize' : None,
-            'HaPOD' : None,
-            'overwrite_every_n' : False,
-            'keep_last_n': None
+            'additional_snapshots' :{
+                'include_each_time_step' : False,
+                'include_lin_grad' : False,
+                'include_krylov_directions' : False,
+            },
+            'compression' : {
+                'sample_every_n_th' : None,
+                'normalize' : None,
+                'HaPOD' : None,
+                'overwrite_every_n' : None,
+                'keep_last_n': None
+            }
         },
         'state_basis' : {
-            'include_lins' : False,
-            'sample_every_n_th' : None,
-            'normalize' : True,
-            'HaPOD' : {
-                'HaPOD_tol': 1e-3,    
+            'additional_snapshots' :{
+                'include_lins' : False,
+                'include_krylov_sensitivites' : False,
             },
-            'overwrite_every_n' : False,
-            'keep_last_n': None
+            'compression' : {                
+                'sample_every_n_th' : None,
+                'normalize' : True,
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-3,    
+                },
+                'overwrite_every_n' : None,
+                'keep_last_n': None
+            }
         },
         'adjoint_basis' : {
-            'sample_every_n_th' : None,
-            'normalize' : False,
-            'HaPOD' : {
-                'HaPOD_tol': 1e-16,    
-            },
-            'overwrite' : False
+            'additional_snapshots' : {},
+            'compression' : {}
         }
     },
     'error_estimator_types' : {
@@ -216,14 +222,14 @@ EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_)
 EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_)
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['include_each_time_step'] = True
-TR_optimizer_parameter__['enrichment']['parameter_basis']['normalize'] = True
-TR_optimizer_parameter__['enrichment']['parameter_basis']['HaPOD'] = {'HaPOD_tol': 1e-1}
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'HaPOD_tol': 1e-1}
 EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter__)
 EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
 EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter__)
 EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
@@ -232,7 +238,7 @@ EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['include_krylov_directions'] = \
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_krylov_directions'] = \
 {
     'n' : 5,
     'inital_direction' : 'ones'
