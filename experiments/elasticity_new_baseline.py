@@ -121,7 +121,7 @@ TR_optimizer_parameter = {
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
     'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-    'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
+    'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
     'theta': 0.4,
     'Theta': 1.95,                                               # Upper bound for step acceptance condition
