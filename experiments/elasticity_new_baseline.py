@@ -50,8 +50,10 @@ setup = {
         }
     },
     'observation_operator': {
-        'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
-        'hyperparameter' : {}
+        'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+        'hyperparameter' : {
+            'spatial_resolution' : [4,y_res,z_res]
+        }
     },
     'dims' : {
         'nt': nt,                                     # Number of time steps
@@ -122,8 +124,6 @@ TR_optimizer_parameter = {
     'theta': 0.4,
     'Theta': 1.95,                                               # Upper bound for step acceptance condition
     'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
-    'NCD' : False,
-    'offline_parallel' : False,
     #####################
     'i_max': 75,                                                 # Max number of outer optimization iterations
     'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
@@ -131,6 +131,9 @@ TR_optimizer_parameter = {
     'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
     'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
     #####################
+    'use_error_estimator' : False,
+    'use_adjoint_space' : False,
+    'offline_parallel' : False,
     'reg_AGC_step' : False,
     #'TR_enforcement' : 'check_error',
     'TR_enforcement' : 'backtracking',
@@ -155,10 +158,6 @@ TR_optimizer_parameter = {
             'include_each_time_step' : False,
             'include_lin_grad' : False,
             'sample_every_n_th' : None,
-            # 'normalize' : True,
-            # 'HaPOD' : {
-            #     'HaPOD_tol': 1e-1,    
-            # },
             'normalize' : None,
             'HaPOD' : None,
             'overwrite_every_n' : False,
@@ -192,10 +191,10 @@ TR_optimizer_parameter = {
     'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
     'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
     #####################
-    'eta0': 1e-2,                                                # Initial trust region tolerance
+    'eta0': 0.05,                                                # Initial trust region tolerance
     'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
     'eta_min' : 1e-5,
-    'eta_max' : 0.05,
+    'eta_max' : 0.15,
     'beta_1': 0.95,                                              # Trust region edge tolerance.
     'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 
     'beta_3': 0.5                                                # Shrinking/Enlarging factor for the trust region.
@@ -219,12 +218,26 @@ TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
 TR_optimizer_parameter__['enrichment']['parameter_basis']['include_each_time_step'] = True
 TR_optimizer_parameter__['enrichment']['parameter_basis']['normalize'] = True
 TR_optimizer_parameter__['enrichment']['parameter_basis']['HaPOD'] = {'HaPOD_tol': 1e-1}
-EXPERIMENTS['TR_sensors_include_each_time_step'] = (setup_sensors, TR_optimizer_parameter__)
-EXPERIMENTS['TR_identity_include_each_time_step'] = (setup_identity, TR_optimizer_parameter__)
+EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter__)
+#----------------------------------------------------------------------------------------
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['include_each_time_step'] = True
+EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter__)
 #----------------------------------------------------------------------------------------
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
 EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter__)
+#----------------------------------------------------------------------------------------
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['include_krylov_directions'] = \
+{
+    'n' : 5,
+    'inital_direction' : 'ones'
+}
+EXPERIMENTS['TR_sensors_krylov'] = (setup_sensors, TR_optimizer_parameter__)
+EXPERIMENTS['TR_identity_krylov'] = (setup_identity, TR_optimizer_parameter__)
 
 
 prefix = 'new_baseline'
