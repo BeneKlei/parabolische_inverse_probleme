@@ -77,6 +77,7 @@ setup = {
     'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
     'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
     'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
+    'riesz_rep_hess': False,                       # Use Riesz representative for gradient in optimization
     'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
     'save_path' : None,
     'time_stepper' : {
@@ -183,9 +184,9 @@ TR_optimizer_parameter = {
         }
     },
     'error_estimator_types' : {
-        'state' : StateErrorEstimatorType.NONE,
+        'state' : StateErrorEstimatorType.HYPERBOLIC,
         'adjoint' : AdjointErrorEstimatorType.NONE,
-        'objective' : ObjectiveErrorEstimatorType.NONE,
+        'objective' : ObjectiveErrorEstimatorType.NAIVE,
     },
     #####################
     'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
