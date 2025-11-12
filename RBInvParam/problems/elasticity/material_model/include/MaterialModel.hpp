@@ -61,7 +61,10 @@ public:
   void setup_system();
 
   void assemble_mass_matrix();
-  void assemble_observation_operator_matrix(ObservationOperatorType observation_operator_type);
+  void assemble_observation_operator_matrix(
+    const ObservationOperatorType observation_operator_type,
+    const ObservationOperatorHyperparameter hyperparameter
+  );
   void assemble_system_matrix();
   void assemble_parameteric_matrix();
   void assemble_system_matrix_derivative(const Vector<Number>& state_DoFs, size_t parameter_basis_idx);

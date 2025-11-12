@@ -75,9 +75,7 @@ PYBIND11_MODULE(material_model, m) {
       py::enum_<ObservationOperatorType>(m, "ObservationOperatorType")
          .value("Identity", ObservationOperatorType::Identity)
          .value("Boundary", ObservationOperatorType::Boundary)
-         //.value("SensorsR9d", ObservationOperatorType::SensorsR9d)
-         //.value("SensorsR8d", ObservationOperatorType::SensorsR8d)
-         .value("SensorsR28d", ObservationOperatorType::SensorsR28d)
+         .value("Sensors", ObservationOperatorType::Sensors)
          .export_values();
 
       py::enum_<StateProductType>(m, "StateProductType")

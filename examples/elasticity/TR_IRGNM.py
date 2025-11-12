@@ -51,11 +51,11 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    y_res = 40
+    z_res = 40
 
-    # y_res = 8
-    # z_res = 8
+    #y_res = 8
+    #z_res = 8
 
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
@@ -84,6 +84,9 @@ def main():
     # q_exact[0,200] = 2
     # q_exact[0,300] = 3
 
+    # q_exact[0,200] = 2
+    # q_exact[0,300] = 3
+
     q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
     q_exact[9,21] = 3
     q_exact[8,21] = 3
@@ -106,9 +109,10 @@ def main():
     q_exact[6,15] = 2
     q_exact[5,15] = 2
 
-
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
+
+    
 
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
@@ -140,14 +144,14 @@ def main():
     setup = {
         'spatial_resolution' : [4,y_res,z_res],
         'body_force' : {
-            'type' : mm.BodyForceType.CenterExcite,
-            'hyperparameter' : {}
-            # 'type' : mm.BodyForceType.Gaussian,
-            # 'hyperparameter' : {
-            #     'center': [-0.1,0.0,0.0],
-            #     #'sigma' : 1.0,
-            #     'sigma' : 2.0,
-            # }
+            # 'type' : mm.BodyForceType.CenterExcite,
+            # 'hyperparameter' : {}
+            'type' : mm.BodyForceType.Gaussian,
+            'hyperparameter' : {
+                'center': [-0.1,0.0,0.0],
+                'sigma' : 5.0,
+                #'sigma' : 2.0,
+            }
         },
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
@@ -162,11 +166,12 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.SensorsR56d,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            'hyperparameter' : {}
+            'hyperparameter' : {
+                'spatial_resolution' : [4,y_res,z_res]
+            }
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps
@@ -246,12 +251,11 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
+    # print(FOM.C)
     # import sys
     # sys.exit()
-
-
     optimizer_parameter = {
-        'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
+        'q_0': q_start,                                              # Initial guess for the parameter to be optimized            
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)        
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization

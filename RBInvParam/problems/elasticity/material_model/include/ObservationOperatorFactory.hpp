@@ -14,11 +14,12 @@ using namespace dealii;
 enum class ObservationOperatorType {
     Identity,
     Boundary,
-    // SensorsR9d,
-    // SensorsR8d,
-    SensorsR28d,
+    Sensors,
 };
 
+
+typedef std::variant<int, double, std::string, std::vector<double>> ObservationOperatorHyperparameterType;
+typedef std::map<std::string, ObservationOperatorHyperparameterType>  ObservationOperatorHyperparameter;
 
 template <int dim, typename Number>
 struct ObservationOperatorFactoryContext {
@@ -27,8 +28,8 @@ struct ObservationOperatorFactoryContext {
     const DoFHandler<dim> &dof_handler;
     const AffineConstraints<Number> &constraints;
     const SparsityPattern &sparsity_pattern;
+    const ObservationOperatorHyperparameter &hyperparameter;
 };
-
 
 template <int dim, typename Number>
 class ObservationOperatorFactory
@@ -62,8 +63,9 @@ public:
     // ---------------------------- utils funcs ----------------------------
     
     std::vector<Point<dim>> _get_sensor_points(
-        const ObservationOperatorType &observation_operator_type
+        const ObservationOperatorFactoryContext<dim, Number> ctx
     ) const;
+
 private:
     StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
 };

@@ -320,7 +320,10 @@ void MaterialModel::assemble_mass_matrix()
   );
 }
 
-void MaterialModel::assemble_observation_operator_matrix(ObservationOperatorType observation_operator_type)
+void MaterialModel::assemble_observation_operator_matrix(
+  const ObservationOperatorType observation_operator_type,
+  const ObservationOperatorHyperparameter hyperparameter
+)
 {
     ObservationOperatorFactoryContext<dim, Number> ctx {
       observation_operator_type,
@@ -328,6 +331,7 @@ void MaterialModel::assemble_observation_operator_matrix(ObservationOperatorType
       m_dof_handler,
       m_BC_constraints,
       m_system_matrix_sp,
+      hyperparameter,
     };
   
     m_observation_operator_factory.assemble_observation(

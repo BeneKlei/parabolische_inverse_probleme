@@ -32,7 +32,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
     break;
 //   case ObservationOperatorType::SensorsR8d:
 //   case ObservationOperatorType::SensorsR9d:
-  case ObservationOperatorType::SensorsR28d:
+  case ObservationOperatorType::Sensors:
     ObservationOperatorFactory::assemble_sensors_observation(
         ctx,
         observation_operator_matrix,
@@ -106,7 +106,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
         boundary_mass_ctx,
         boundary_mass_matrix
     );
-    const std::vector<Point<dim>> sensor_points = this->_get_sensor_points(ctx.observation_operator_type);    
+    const std::vector<Point<dim>> sensor_points = this->_get_sensor_points(ctx);    
     const unsigned int L = ctx.dof_handler.n_dofs();
     const unsigned int l = sensor_points.size();
     std::vector<std::vector<types::global_dof_index>> rows(l);
@@ -161,57 +161,53 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
 
 template <int dim, typename Number>
 std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_points(
-    const ObservationOperatorType &observation_operator_type
+    const ObservationOperatorFactoryContext<dim, Number> ctx
 ) const
 {   
     AssertDimension(dim, 3);
-
     std::vector<Point<dim>> sensor_points;
+    
+    std::vector<double> spatial_resolution = std::get<std::vector<double>>(ctx.hyperparameter.at("spatial_resolution"));
+    //double frequence  = std::get<double>(ctx.hyperparameter.at("frequence"));
+    double frequence = 1.0;
 
-    switch (observation_operator_type) {
-//     case ObservationOperatorType::SensorsR9d:
-//         sensor_points.resize(64);
-//         for (unsigned int i = 0; i < 8; i++) {
-//             sensor_points[i] = Point<3>(0.1, -16.0 + i*4.0, -16.0);
-//             sensor_points[i + 8] = Point<3>(0.1, 16.0, -16.0 + i*4.0);
-//             sensor_points[i + 16] = Point<3>(0.1, 16.0 - i*4.0, 16.0);
-//             sensor_points[i + 24] = Point<3>(0.1, -16.0, 16.0 - i*4.0);
-//             sensor_points[i + 32] = Point<3>(-0.1, -16.0 + i*4.0, -16.0);
-//             sensor_points[i + 40] = Point<3>(-0.1, 16.0, -16.0 + i*4.0);
-//             sensor_points[i + 48] = Point<3>(-0.1, 16.0 - i*4.0, 16.0);
-//             sensor_points[i + 56] = Point<3>(-0.1, -16.0, 16.0 - i*4.0);
-//         }
-//         break;
-//    case ObservationOperatorType::SensorsR8d:
-//         sensor_points.resize(56);
-//         for (unsigned int i = 0; i < 7; i++) {
-//             sensor_points[i] = Point<3>(0.1, -14.0 + i*4.0, -14.0);
-//             sensor_points[i + 7] = Point<3>(0.1, 14.0, -14.0 + i*4.0);
-//             sensor_points[i + 14] = Point<3>(0.1, 14.0 - i*4.0, 14.0);
-//             sensor_points[i + 21] = Point<3>(0.1, -14.0, 14.0 - i*4.0);
-//             sensor_points[i + 28] = Point<3>(-0.1, -14.0 + i*4.0, -14.0);
-//             sensor_points[i + 35] = Point<3>(-0.1, 14.0, -14.0 + i*4.0);
-//             sensor_points[i + 42] = Point<3>(-0.1, 14.0 - i*4.0, 14.0);
-//             sensor_points[i + 49] = Point<3>(-0.1, -14.0, 14.0 - i*4.0);
-//         }
-//         break;
-    case ObservationOperatorType::SensorsR28d:
-        sensor_points.resize(8 * 28);
-        for (unsigned int i = 0; i < 28; i++) {
-            sensor_points[i + (0 * 28)] = Point<3>(0.1, -14.0 + i*1.0, -14.0);
-            sensor_points[i + (1 * 28)] = Point<3>(0.1, 14.0, -14.0 + i*1.0);
-            sensor_points[i + (2 * 28)] = Point<3>(0.1, 14.0 - i*1.0, 14.0);
-            sensor_points[i + (3 * 28)] = Point<3>(0.1, -14.0, 14.0 - i*1.0);
-            sensor_points[i + (4 * 28)] = Point<3>(-0.1, -14.0 + i*1.0, -14.0);
-            sensor_points[i + (5 * 28)] = Point<3>(-0.1, 14.0, -14.0 + i*1.0);
-            sensor_points[i + (6 * 28)] = Point<3>(-0.1, 14.0 - i*1.0, 14.0);
-            sensor_points[i + (7 * 28)] = Point<3>(-0.1, -14.0, 14.0 - i*1.0);
-        }
-        break;
-    default:
-        throw std::runtime_error(
-            "ObservationOperatorType is unknown."
-        );
+    double y_spatial_resolution = spatial_resolution[1];
+    double z_spatial_resolution = spatial_resolution[2];
+    
+    AssertThrow(y_spatial_resolution == z_spatial_resolution,
+             ExcMessage("y and z spatial resolutions must be equal"));
+    AssertThrow(std::fmod(y_spatial_resolution, 2.0) == 0.0,
+             ExcMessage("y_spatial_resolution must be divisible by 2"));
+    AssertThrow(std::fmod(z_spatial_resolution, 2.0) == 0.0,
+             ExcMessage("z_spatial_resolution must be divisible by 2"));
+
+    double delta_y = 30.0 / y_spatial_resolution;
+    double delta_z = 30.0 / z_spatial_resolution;
+    
+    double y_start = -15.0 + delta_y;
+    double z_start = -15.0 + delta_z;
+    
+    double y_end = 15.0 - delta_y;
+    double z_end = 15.0 - delta_z;
+
+    size_t sensor_per_edge = static_cast<size_t>(y_spatial_resolution) - 2;
+    sensor_points.resize(8 * sensor_per_edge);
+
+    for (unsigned int i = 0; i < sensor_per_edge; ++i)
+    {
+        double y_pos = y_start + i * frequence * delta_y;
+        double z_pos = z_start + i * frequence * delta_z;
+
+        sensor_points[i + (0 * sensor_per_edge)] = Point<3>( 0.1, y_pos, z_start);
+        sensor_points[i + (1 * sensor_per_edge)] = Point<3>( 0.1, y_pos, z_end);
+        sensor_points[i + (2 * sensor_per_edge)] = Point<3>( 0.1, y_start, z_pos);
+        sensor_points[i + (3 * sensor_per_edge)] = Point<3>( 0.1, y_end, z_pos);
+        sensor_points[i + (4 * sensor_per_edge)] = Point<3>(-0.1, y_pos, z_start);
+        sensor_points[i + (5 * sensor_per_edge)] = Point<3>(-0.1, y_pos, z_end);
+        sensor_points[i + (6 * sensor_per_edge)] = Point<3>(-0.1, y_start, z_pos);
+        sensor_points[i + (7 * sensor_per_edge)] = Point<3>(-0.1, y_end, z_pos);
     }
+
+    
     return sensor_points;
 }

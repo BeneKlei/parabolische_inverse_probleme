@@ -270,7 +270,10 @@ def build_InstationaryModelIP(setup : Dict,
     )
 
     ############################### Cost ###############################
-    material_model.assemble_observation_operator_matrix(setup['observation_operator']['type'])
+    material_model.assemble_observation_operator_matrix(
+        setup['observation_operator']['type'],
+        setup['observation_operator']['hyperparameter']
+    )
     C = DealIIMatrixOperator(matrix = material_model.observation_operator)
     C_continuity_constant = 1.0
 
