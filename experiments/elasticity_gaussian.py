@@ -226,21 +226,24 @@ for sigma in sigmas:
     FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
     TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
 
+    _EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_)
+    _EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_)
+
     TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
     TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
     TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
     TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'HaPOD_tol': 1e-1}
-    _EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter__)
-    _EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter__)
+    #_EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter__)
+    #_EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter__)
     #----------------------------------------------------------------------------------------
     TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
     TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
-    _EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter__)
-    _EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter__)
+    #_EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter__)
+    #_EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter__)
     #----------------------------------------------------------------------------------------
     TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-    _EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
-    _EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter__)
+    #_EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
+    #_EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter__)
     #----------------------------------------------------------------------------------------
     TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
     TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_krylov_directions'] = \
@@ -248,8 +251,8 @@ for sigma in sigmas:
         'n' : 5,
         'inital_direction' : 'ones'
     }
-    _EXPERIMENTS['TR_sensors_krylov'] = (setup_sensors, TR_optimizer_parameter__)
-    _EXPERIMENTS['TR_identity_krylov'] = (setup_identity, TR_optimizer_parameter__)
+    #_EXPERIMENTS['TR_sensors_krylov'] = (setup_sensors, TR_optimizer_parameter__)
+    #_EXPERIMENTS['TR_identity_krylov'] = (setup_identity, TR_optimizer_parameter__)
 
     prefix = f'gaussian_{sigma}'
     _EXPERIMENTS = {f"{prefix}_{k}": v for k, v in _EXPERIMENTS.items()}

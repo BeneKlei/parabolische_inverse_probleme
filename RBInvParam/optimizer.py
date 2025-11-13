@@ -1528,6 +1528,8 @@ class QrVrROMOptimizer(Optimizer):
             assert basis in ['parameter_basis', 'state_basis', 'adjoint_basis']
             assert enrichment[basis]
 
+            # print(basis)
+            # print(enrichment[basis]['compression'])
             if enrichment[basis]['compression']['keep_last_n']:
                 assert not enrichment[basis]['compression']['overwrite_every_n']
                 assert isinstance(enrichment[basis]['compression']['keep_last_n'], int)

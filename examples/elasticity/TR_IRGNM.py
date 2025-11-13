@@ -269,11 +269,11 @@ def main():
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
-        'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
         'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region 
+        'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
         #####################
         'use_error_estimator' : False,
-        'use_adjoint_space' : True,
+        'use_adjoint_space' : False,
         'offline_parallel' : False,
         'reg_AGC_step' : False,
         #'TR_enforcement' : 'check_error',
@@ -282,8 +282,8 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-            #'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
-            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
@@ -319,7 +319,7 @@ def main():
                 },
                 'compression' : {                
                     'sample_every_n_th' : None,
-                    'normalize' : True,
+                    #'normalize' : True,
                     # 'HaPOD' : {
                     #     'HaPOD_tol': 1e-3,    
                     # },
@@ -330,8 +330,21 @@ def main():
                 }
             },
             'adjoint_basis' : {
-                'additional_snapshots' : {},
-                'compression' : {}
+                'additional_snapshots' :{
+                    'include_lins' : False,
+                    'include_krylov_sensitivites' : False,
+                },
+                'compression' : {                
+                    'sample_every_n_th' : None,
+                    # 'normalize' : True,
+                    # 'HaPOD' : {
+                    #     'HaPOD_tol': 1e-3,    
+                    # },
+                    'normalize' : None,
+                    'HaPOD' : None,
+                    'overwrite_every_n' : None,
+                    'keep_last_n': None
+                }
             }
         },
         'error_estimator_types' : {

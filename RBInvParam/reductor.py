@@ -737,7 +737,13 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                                  setup: Dict) -> Dict:
 
         if self.use_adjoint_space:
-            raise NotImplementedError
+            return {
+                'state_error_estimator' : None,
+                'adjoint_error_estimator' : None,
+                'objective_error_estimator' : None,
+                'model_constants' : None,
+            }
+
 
         assert isinstance(A_r, LincombOperator)
         if self.use_adjoint_space:

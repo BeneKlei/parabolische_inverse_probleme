@@ -515,8 +515,8 @@ class InstationaryModelIP(ImmutableObject):
                                                     'implicit_euler_rhs' : False
                                                 })
         
-        p = self.V.empty(reserve=(self.nt + 1))
-        p_dot = self.V.empty(reserve=(self.nt + 1))
+        p = self.V_ad.empty(reserve=(self.nt + 1))
+        p_dot = self.V_ad.empty(reserve=(self.nt + 1))
         for p_n, p_dot_n,  _ in iterator:
             p.append(p_n)
             p_dot.append(p_dot_n)
@@ -637,8 +637,8 @@ class InstationaryModelIP(ImmutableObject):
                                                     'implicit_euler_rhs' : True
                                                 })
             
-        lin_p = self.V.empty(reserve=(self.nt + 1))
-        lin_p_dot = self.V.empty(reserve=(self.nt + 1))
+        lin_p = self.V_ad.empty(reserve=(self.nt + 1))
+        lin_p_dot = self.V_ad.empty(reserve=(self.nt + 1))
         for lin_p_n, lin_p_dot_n,  _ in iterator:
             lin_p.append(lin_p_n)
             lin_p_dot.append(lin_p_dot_n)

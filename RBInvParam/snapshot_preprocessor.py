@@ -190,7 +190,7 @@ class SnapshotPreprocessor(BasicObject):
                     lin_p = lin_p
                 )
             elif basis == 'adjoint_basis':
-                adjoint_snapshots = lin_p
+                adjoint_snapshots = self.FOM.V.empty()
             else:
                 raise ValueError
             
