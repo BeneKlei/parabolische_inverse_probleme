@@ -35,11 +35,6 @@ setup = {
     'body_force' : {
         # 'type' : mm.BodyForceType.CenterExcite,
         # 'hyperparameter' : {}
-        # 'type' : mm.BodyForceType.CenterExcite,
-        # 'hyperparameter' : {
-        #     'center': [-0.1,0,0],
-        #     'sigma' : 1.0,
-        # }
         'type' : mm.BodyForceType.Gaussian,
         'hyperparameter' : {
             'center': [-0.1,0.0,0.0],
@@ -55,8 +50,10 @@ setup = {
         }
     },
     'observation_operator': {
-        'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
-        'hyperparameter' : {}
+        'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+        'hyperparameter' : {
+            'spatial_resolution' : [4,y_res,z_res]
+        }
     },
     'dims' : {
         'nt': nt,                                     # Number of time steps
@@ -80,7 +77,7 @@ setup = {
     'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
     'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
     'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
-    'riesz_rep_hess' : False,
+    'riesz_rep_hess': False,                       # Use Riesz representative for gradient in optimization
     'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
     'save_path' : None,
     'time_stepper' : {
@@ -136,6 +133,7 @@ TR_optimizer_parameter = {
     'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
     'TR_armijo_max_iter': 10,                                     # Max iterations Armijo condition to enforce the trust-region 
     #####################
+    'use_error_estimator' : False,
     'use_adjoint_space' : False,
     'offline_parallel' : False,
     'reg_AGC_step' : False,
@@ -156,25 +154,17 @@ TR_optimizer_parameter = {
     #     'atol': 1e-12,                                         # Absolute convergence tolerance
     #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
     # },
-    'enrichment': {
+        'enrichment': {
         'parameter_basis' : {
             'reduced_basis' : True,
-            'additional_snapshots' : {
+            'additional_snapshots' :{
                 'include_each_time_step' : False,
                 'include_lin_grad' : False,
-                'include_krylov_directions' : 
-                {
-                    'n' : 5,
-                    'inital_direction' : 'ones'
-                },
+                'include_krylov_directions' : False,
             },
             'compression' : {
                 'sample_every_n_th' : None,
-                # 'normalize' : True,
-                # 'HaPOD' : {
-                #     'HaPOD_tol': 1e-1,    
-                # },
-                'normalize' : True,
+                'normalize' : None,
                 'HaPOD' : None,
                 'overwrite_every_n' : None,
                 'keep_last_n': None
@@ -189,39 +179,27 @@ TR_optimizer_parameter = {
                 'sample_every_n_th' : None,
                 'normalize' : True,
                 'HaPOD' : {
-                    'HaPOD_tol': 1e-6,    
+                    'HaPOD_tol': 1e-3,    
                 },
-                # 'normalize' : None,
-                # 'HaPOD' : None,
                 'overwrite_every_n' : None,
                 'keep_last_n': None
             }
         },
         'adjoint_basis' : {
             'additional_snapshots' : {},
-            'compression' : {
-                'sample_every_n_th' : None,
-                'normalize' : True,
-                'HaPOD' : {
-                    'HaPOD_tol': 1e-6,    
-                },
-                # 'normalize' : None,
-                # 'HaPOD' : None,
-                'overwrite_every_n' : None,
-                'keep_last_n': None
-            }
+            'compression' : {}
         }
     },
     'error_estimator_types' : {
-        'state' : StateErrorEstimatorType.NONE,
+        'state' : StateErrorEstimatorType.HYPERBOLIC,
         'adjoint' : AdjointErrorEstimatorType.NONE,
-        'objective' : ObjectiveErrorEstimatorType.NONE,
+        'objective' : ObjectiveErrorEstimatorType.NAIVE,
     },
     #####################
     'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
     'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
     #####################
-    'eta0': 1e-2,                                                # Initial trust region tolerance
+    'eta0': 0.05,                                                # Initial trust region tolerance
     'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
     'eta_min' : 1e-5,
     'eta_max' : 0.15,
@@ -229,13 +207,13 @@ TR_optimizer_parameter = {
     'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 
     'beta_3': 0.5                                                # Shrinking/Enlarging factor for the trust region.
 }
-
 EXPERIMENTS = {}
 
 ##########################################################################################
 
 sigmas = [1.0, 2.0, 5.0]
 for sigma in sigmas:
+    _EXPERIMENTS = {}
     setup_width = copy.deepcopy(setup)
     setup_width['body_force']['hyperparameter']['sigma'] = sigma
 
@@ -248,19 +226,31 @@ for sigma in sigmas:
     FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
     TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
 
-    # --------------------------------------------------------------------------
-    EXPERIMENTS[f'{sigma}_FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_)
-    EXPERIMENTS[f'{sigma}_FOM_identity'] = (setup_identity, FOM_optimizer_parameter_)
-    # --------------------------------------------------------------------------
     TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-    EXPERIMENTS[f'{sigma}_5_TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
-    EXPERIMENTS[f'{sigma}_5_TR_identity'] = (setup_identity, TR_optimizer_parameter__)
-
+    TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+    TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
+    TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'HaPOD_tol': 1e-1}
+    _EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter__)
+    _EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter__)
+    #----------------------------------------------------------------------------------------
     TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-    TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_krylov_directions']['n'] = 10
-    EXPERIMENTS[f'{sigma}_10_TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
-    EXPERIMENTS[f'{sigma}_10_TR_identity'] = (setup_identity, TR_optimizer_parameter__)
+    TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+    _EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter__)
+    _EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter__)
+    #----------------------------------------------------------------------------------------
+    TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+    _EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter__)
+    _EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter__)
+    #----------------------------------------------------------------------------------------
+    TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+    TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_krylov_directions'] = \
+    {
+        'n' : 5,
+        'inital_direction' : 'ones'
+    }
+    _EXPERIMENTS['TR_sensors_krylov'] = (setup_sensors, TR_optimizer_parameter__)
+    _EXPERIMENTS['TR_identity_krylov'] = (setup_identity, TR_optimizer_parameter__)
 
-
-prefix = 'gaussian_krylov_ones'
-EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}
+    prefix = f'gaussian_{sigma}'
+    _EXPERIMENTS = {f"{prefix}_{k}": v for k, v in _EXPERIMENTS.items()}
+    EXPERIMENTS.update(_EXPERIMENTS)

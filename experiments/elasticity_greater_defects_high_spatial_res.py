@@ -8,8 +8,8 @@ from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEst
 from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
 
 
-y_res = 30
-z_res = 30
+y_res = 40
+z_res = 40
 par_dim = (y_res + 1) * (z_res + 1) 
 T_initial = 0
 T_final = 5.0
@@ -270,5 +270,5 @@ EXPERIMENTS['TR_sensors_krylov'] = (setup_sensors, TR_optimizer_parameter__)
 EXPERIMENTS['TR_identity_krylov'] = (setup_identity, TR_optimizer_parameter__)
 
 
-prefix = 'greater_defect'
+prefix = 'elasticity_greater_defects_high_spatial_res'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}
