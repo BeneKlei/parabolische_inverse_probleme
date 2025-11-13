@@ -270,5 +270,5 @@ EXPERIMENTS['TR_sensors_krylov'] = (setup_sensors, TR_optimizer_parameter__)
 EXPERIMENTS['TR_identity_krylov'] = (setup_identity, TR_optimizer_parameter__)
 
 
-prefix = 'elasticity_greater_defects_high_spatial_res'
+prefix = 'greater_defects_high_spatial_res'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

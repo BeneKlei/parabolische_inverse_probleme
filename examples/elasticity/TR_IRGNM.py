@@ -51,8 +51,8 @@ set_defaults({})
 #########################################################################################''
 
 def main():
-    y_res = 40
-    z_res = 40
+    y_res = 30
+    z_res = 30
 
     #y_res = 8
     #z_res = 8
@@ -144,14 +144,14 @@ def main():
     setup = {
         'spatial_resolution' : [4,y_res,z_res],
         'body_force' : {
-            # 'type' : mm.BodyForceType.CenterExcite,
-            # 'hyperparameter' : {}
-            'type' : mm.BodyForceType.Gaussian,
-            'hyperparameter' : {
-                'center': [-0.1,0.0,0.0],
-                #'sigma' : 5.0,
-                'sigma' : 1.0,
-            }
+            'type' : mm.BodyForceType.CenterExcite,
+            'hyperparameter' : {}
+            # 'type' : mm.BodyForceType.Gaussian,
+            # 'hyperparameter' : {
+            #     'center': [-0.1,0.0,0.0],
+            #     #'sigma' : 5.0,
+            #     'sigma' : 1.0,
+            # }
         },
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
@@ -165,12 +165,12 @@ def main():
                 'surface' : 'left'
             }
         },
-        'observation_operator': {
-            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+        'observation_operator': {            
+            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {
-                'spatial_resolution' : [4,y_res,z_res]
+                #'spatial_resolution' : [4,y_res,z_res]
             }
         },
         'dims' : {
@@ -273,7 +273,7 @@ def main():
         'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region 
         #####################
         'use_error_estimator' : False,
-        'use_adjoint_space' : False,
+        'use_adjoint_space' : True,
         'offline_parallel' : False,
         'reg_AGC_step' : False,
         #'TR_enforcement' : 'check_error',
