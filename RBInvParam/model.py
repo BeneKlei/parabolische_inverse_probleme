@@ -10,7 +10,7 @@ from pymor.operators.interface import Operator
 from pymor.core.base import ImmutableObject
 
 from RBInvParam.evaluators import EvaluatorA, EvaluatorB
-from RBInvParam.timestepping import get_time_stepper
+from RBInvParam.timestepping import create_time_stepper
 
 from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimator
 from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimator
@@ -113,22 +113,6 @@ class InstationaryModelIP(ImmutableObject):
         self.q_time_dep = self.setup['q_time_dep']
         self.riesz_rep_grad = self.setup['riesz_rep_grad']
         self.riesz_rep_hess = self.setup['riesz_rep_hess']
-
-        assert self.setup['time_stepper']['name'] in ['implicit_euler', 'newman_second_order']
-
-        self.time_stepper = get_time_stepper(
-            nt = self.nt,
-            M = self.M,
-            A = self.A,
-            Q = self.Q,
-            V = self.V,
-            T_initial= self.T_initial,
-            T_final= self.T_final,
-            q_time_dep=self.q_time_dep,
-            time_stepper = self.setup['time_stepper'],
-            A_q_key = 'A_q',
-            key_prefix = 'time_stepper'
-        )
 
         self.solver_options = None
         
@@ -234,7 +218,7 @@ class InstationaryModelIP(ImmutableObject):
             self.linear_cost_term_ad = linear_cost_term
             self.bilinear_cost_term_ad = bilinear_cost_term
             self.V_ad = V
-            A_ad_q_key = self.time_stepper.A_q_key
+            A_ad_q_key = 'A_q'
 
             products_ad = {
                 'prod_H_ad' : self.products['prod_H'],
@@ -257,20 +241,43 @@ class InstationaryModelIP(ImmutableObject):
             assert self.linear_cost_term_ad in self.A_ad.range
             assert len(self.linear_cost_term_ad) == (self.nt + 1)
 
-        self.time_stepper_ad = get_time_stepper(
-            nt = self.nt,
-            M = self.M_ad,
-            A = self.A_ad,
-            Q = self.Q,
-            V = self.V_ad,
-            T_initial= self.T_initial,
-            T_final= self.T_final,
-            q_time_dep=self.q_time_dep,
-            time_stepper = self.setup['time_stepper'],
-            A_q_key = A_ad_q_key,
-            key_prefix = 'time_stepper_ad'
+        time_stepper_config = {
+            "nt" : self.nt,
+            "M" : self.M,
+            "A" : self.A,
+            "Q" : self.Q,
+            "V" : self.V,
+            "T_initial" : self.T_initial,
+            "T_final" : self.T_final,
+            "q_time_dep" :self.q_time_dep,
+            "A_q_key" : 'A_q',
+            "key_prefix" : 'time_stepper',
+            "config" : self.setup['time_stepper']['primal']['config']
+        }
+        
+        self.time_stepper = create_time_stepper(
+            self.setup['time_stepper']['primal']['type'],
+            **time_stepper_config
         )
 
+        time_stepper_ad_config = {
+            "nt" : self.nt,
+            "M" : self.M_ad,
+            "A" : self.A_ad,
+            "Q" : self.Q,
+            "V" : self.V_ad,
+            "T_initial" : self.T_initial,
+            "T_final" : self.T_final,
+            "q_time_dep" :self.q_time_dep,
+            "A_q_key" : A_ad_q_key,
+            "key_prefix" : 'time_stepper_ad',
+            "config" : self.setup['time_stepper']['adjoint']['config']
+        }
+
+        self.time_stepper_ad = create_time_stepper(
+            self.setup['time_stepper']['adjoint']['type'],
+            **time_stepper_ad_config
+        )
 
         self._cached_operators = {}
 
@@ -283,6 +290,7 @@ class InstationaryModelIP(ImmutableObject):
         self.reset_cached_operators(
             keys = keys
         )
+
      
 #%% cache methods
     def _cache_update_required(self,

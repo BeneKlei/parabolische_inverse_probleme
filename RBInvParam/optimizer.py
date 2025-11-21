@@ -715,6 +715,9 @@ class Optimizer(BasicObject):
 
 
         loop_terminated = False
+
+        x = np.zeros(shape=(model.V.dim,))
+        y = np.zeros(shape=(model.V.dim,))        
         
         while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"##############################################################################################################################")
@@ -929,11 +932,11 @@ class Optimizer(BasicObject):
                 # projector.pre_compute(center=q)
                 # next_q = projector.project_domain(q, d)
             
-            # u = self.FOM.solve_state(
-            #     q = self.FOM_projector.project_domain(center=
-            #         self.reductor.reconstruct(q, basis='parameter_basis')
-            #     )
-            # )
+            u = self.FOM.solve_state(
+                q = self.FOM_projector.project_domain(center=
+                    self.reductor.reconstruct(q, basis='parameter_basis')
+                )
+            )
 
             # _u_r = model.solve_state(q)
             # u_r = self.reductor.reconstruct(_u_r, basis='state_basis')
@@ -1458,8 +1461,8 @@ class QrVrROMOptimizer(Optimizer):
         else:
             self.reduced_bases = ['parameter_basis','state_basis']
         
-        if not optimizer_parameter['enrichment']['parameter_basis']['reduced_basis']:
-            self.reduced_bases = self.reduced_bases[1:]
+        # if not optimizer_parameter['enrichment']['parameter_basis']['reduced_basis']:
+        #     self.reduced_bases = self.reduced_bases[1:]
 
 
         self.QrVrROM = None
@@ -1916,9 +1919,12 @@ class QrVrROMOptimizer(Optimizer):
         # print("!!!!!!!!!!!!!!!!!!!!!!!!!!")
         # print(self.reductor.reconstruct(lin_p_r, basis=_basis).to_numpy())
 
+        high_fid_snapshots = self.FOM.V.empty()
+        high_fid_snapshots.append(u)
+        high_fid_snapshots.append(p)
 
-        # import sys
-        # sys.exit()
+        high_fid_param_snapshots = self.FOM.Q.empty()
+
 
         while not convergence_criterium and i<i_max:            
             outer_loop_start_time = timer()
@@ -2443,6 +2449,56 @@ class QrVrROMOptimizer(Optimizer):
             convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
             self.statistics['flags']['rejected'].append(rejected)
 
+            # high_fid_snapshots.append(u)
+            # high_fid_snapshots.append(p)
+
+            # norms = high_fid_snapshots.norm(self.FOM.products['prod_V'])
+            # norms[norms <= 1e-16] = 1
+            # high_fid_snapshots.scal(1/norms)
+            # snapshots, svals, snap_count = inc_vectorarray_hapod(steps=len(high_fid_snapshots), 
+            #                                                      U=high_fid_snapshots, 
+            #                                                      eps=1e-32,
+            #                                                      omega=0.1,                
+            #                                                      product=self.FOM.products['prod_V'])
+            # print(".................................")
+            # print(svals)
+            # import matplotlib.pyplot as plt
+            # plt.figure(figsize=(6,4))
+            # plt.plot(svals, marker='o')
+            # plt.yscale('log')              # log-scale on y-axis
+            # plt.xlabel("Index")
+            # plt.ylabel("Singular Value (log scale)")
+            # plt.title("SVD Singular Values")
+            # plt.grid(True)
+
+            # plt.savefig(self.save_path / f"singular_values_{self.I}.png", dpi=300, bbox_inches='tight')
+            # plt.close()
+
+            # high_fid_param_snapshots.append(time_step_nabla_J)
+
+            # norms = high_fid_param_snapshots.norm(self.FOM.products['prod_Q'])
+            # norms[norms <= 1e-16] = 1
+            # high_fid_param_snapshots.scal(1/norms)
+            # snapshots, svals, snap_count = inc_vectorarray_hapod(steps=100, 
+            #                                                      U=high_fid_param_snapshots, 
+            #                                                      eps=1e-32,
+            #                                                      omega=0.1,                
+            #                                                      product=self.FOM.products['prod_V'])
+            # print(".................................")
+            # print(svals)
+            # import matplotlib.pyplot as plt
+            # plt.figure(figsize=(6,4))
+            # plt.plot(svals, marker='o')
+            # plt.yscale('log')              # log-scale on y-axis
+            # plt.xlabel("Index")
+            # plt.ylabel("Singular Value (log scale)")
+            # plt.title("SVD Singular Values")
+            # plt.grid(True)
+
+            # plt.savefig(self.save_path / f"singular_values_param_{self.I}.png", dpi=300, bbox_inches='tight')
+            # plt.close()
+
+
             if not rejected:
                 delta = delta
                 
@@ -2485,7 +2541,13 @@ class QrVrROMOptimizer(Optimizer):
                         use_cached_operators = use_cached_operators,
                     )
 
-                    
+                    # self.reductor.delete_cached_operators()
+                    # self.reductor.bases = {
+                    #     'parameter_basis' : self.reductor.bases['parameter_basis'],
+                    #     'state_basis' : self.FOM.V.empty(),
+                    #     'adjoint_basis' : self.FOM.V.empty()
+                    # }
+
 
                     if enrichment['parameter_basis']['reduced_basis']:
                         self.logger.debug(f"Extending Qr-snapshots")            

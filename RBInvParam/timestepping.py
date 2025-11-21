@@ -1,6 +1,8 @@
 
 from abc import ABC, abstractmethod
 from typing import Union, List, Dict, Generator, Tuple
+from enum import Enum
+
 import numpy as np
 
 from pymor.operators.interface import Operator
@@ -13,6 +15,11 @@ from RBInvParam.evaluators import EvaluatorA
 import pymor_dealii_bindings as pd2
 from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator
 
+class TimeStepperType(Enum):
+    ImplicitEulerTimeStepper = "ImplicitEulerTimeStepper"
+    SecondOrderCrankNicolson = "SecondOrderCrankNicolson"
+    SecondOrderCrankNicolsonAdjointDTO = "SecondOrderCrankNicolsonAdjointDTO"
+
 class TimeStepper(ABC):
     def __init__(self, 
                 nt : int, 
@@ -24,7 +31,8 @@ class TimeStepper(ABC):
                 T_final: float,
                 q_time_dep: Dict,
                 A_q_key: str = 'A_q',
-                key_prefix : str = ''):
+                key_prefix : str = '',
+                config : Dict = {}):
     
         self.nt = nt
         self.M = M 
@@ -37,6 +45,7 @@ class TimeStepper(ABC):
         self.required_cache_keys : List[str] = []
         self.A_q_key = A_q_key
         self.key_prefix = key_prefix
+        self.config = config
 
         assert isinstance(self.M, Operator)
         assert isinstance(self.A, EvaluatorA)
@@ -179,9 +188,13 @@ class ImplicitEulerTimeStepper(TimeStepper):
                 num_ret_values += 1
                 yield U, t
 
-class NewmanSecondOrder(TimeStepper):
-    def __init__(self, *, zeta, **kwargs):
+class SecondOrderCrankNicolson(TimeStepper):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        assert 'zeta' in self.config.keys()
+        zeta = self.config['zeta']
+
         assert 0 <= zeta <= 1 
         self.zeta = zeta
         self.required_cache_keys = [
@@ -201,8 +214,6 @@ class NewmanSecondOrder(TimeStepper):
 
         zeta = self.zeta 
         dt = (self.T_final - self.T_initial) / self.nt
-        #rho = 2.7 * 1e3
-        #rho = 1
 
         if target == (self.key_prefix + '_' +'S_zeta'):
             return self.M + dt**2 * zeta**2 * A_q
@@ -325,8 +336,7 @@ class NewmanSecondOrder(TimeStepper):
 
             #print(np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())))
             assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
-            
-    
+                
             # --------------------------------------------------------------
             M_U_dot_cur = M_U_dot_pre
             _U = zeta * U_cur + (1 - zeta) * U_pre
@@ -337,47 +347,130 @@ class NewmanSecondOrder(TimeStepper):
 
             yield U_cur, U_dot_cur, t
 
+class SecondOrderCrankNicolsonAdjointDTO(SecondOrderCrankNicolson):
+    def iterate(self,                               
+            initial_data : dict, 
+            q : Union[VectorArray, List[VectorArray]], 
+            rhs : VectorArray,
+            use_cached_operators: bool = False,
+            cached_operators: Dict = None,
+            config: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
+        
+        ################################### Prepare ###################################
+        assert isinstance(rhs, VectorArray)
+        assert len(rhs) in (self.nt + 1, 1)
 
-def get_time_stepper(
-        nt : int,
-        M : Operator,
-        A : EvaluatorA,
-        Q : VectorSpace,
-        V : VectorSpace,
-        T_initial : float,
-        T_final : float,
-        q_time_dep : bool,
-        time_stepper : dict,
-        A_q_key: str,
-        key_prefix: str = None) -> TimeStepper:
+        if len(rhs) == 1:
+            rhs_time_dep = False
+        else:
+            rhs_time_dep = True
+
+        assert isinstance(q, (VectorArray, np.ndarray))
+        assert q in self.Q
+
+        for key in ['zeroth_order', 'first_order']:
+            self._check_initial_data(initial_data, key)
+
+        if use_cached_operators:
+            self._check_cache(
+               keys = self.required_cache_keys,
+               q = q,
+               cached_operators = cached_operators
+            )
+                
+        num_values = self.nt + 1
+        dt = (self.T_final - self.T_initial) / self.nt
+        DT = (self.T_final - self.T_initial) / (num_values - 1)
+
+        zeta = self.zeta
+
+        ################################### First step ###################################
+
+        U_cur = initial_data['zeroth_order']
+        U_dot_cur = initial_data['first_order']
+        M_U_dot_cur = self.M.apply(U_dot_cur)
+
+        t = self.T_initial
+        yield U_cur, U_dot_cur, t
+
+        U_pre = U_cur.copy()
+        M_U_dot_pre = M_U_dot_cur.copy()
+
+        rhs_pre = rhs[0].copy()
+        rhs_cur = rhs[0].copy()
+
+        if use_cached_operators:
+            A_q = cached_operators[self.A_q_key][0]
+            S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][0]
+            S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][0]
+        else:
+            A_q = self.A(q[0])
+            S_zeta = self.M + dt**2 * zeta**2 * A_q
+            S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
+
+
+        A_q = A_q.assemble()
+        S_zeta = S_zeta.assemble()
+        S_zeta_minus_one = S_zeta_minus_one.assemble()
+        
+        if not rhs_time_dep:
+            dt_R = dt * rhs
+
+        ################################### Stepping ###################################
+
+        for n in range(1,self.nt+1):
+            t += dt
+            U_pre = U_cur
+            M_U_dot_pre = M_U_dot_cur
+            U_dot_pre = U_dot_cur
+
+            if rhs_time_dep:
+                rhs_pre = rhs_cur
+            
+            if self.q_time_dep:
+                # Otherwise the values set above are never updated
+                if use_cached_operators:
+                    A_q = cached_operators[self.A_q_key][n]
+                    S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][n]
+                    S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][n]
+                else:
+                    A_q = self.A(q[n])
+                    S_zeta = self.M + dt**2 * zeta**2 * A_q
+                    S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
+
+            if rhs_time_dep:
+                dt_R = rhs[n]              
+                dt_R *= dt
+
+            # --------------------------------------------------------------
+
+            M_U_dot_cur = M_U_dot_pre
+            M_U_dot_cur += dt * self.M.apply(U_pre)
+            U_dot_cur = self.M.apply_inverse(M_U_dot_cur)
+
+            # --------------------------------------------------------------
+            _U_dot = zeta * U_dot_cur + (1 - zeta) * U_dot_pre
+
+            _lhs = S_zeta
+            _rhs = S_zeta_minus_one.apply(U_pre)
+            _rhs += (-1) * dt * A_q.apply(_U_dot)
+            _rhs += dt_R
+
+            U_cur = _lhs.apply_inverse(_rhs)
+
+            assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12   
+
+            yield U_cur, U_dot_cur, t
+
+
+def create_time_stepper(time_stepper_type: TimeStepperType,
+                        **kwargs) -> TimeStepper:
+    if time_stepper_type == TimeStepperType.ImplicitEulerTimeStepper:
+        return ImplicitEulerTimeStepper(**kwargs)
+    elif time_stepper_type == TimeStepperType.SecondOrderCrankNicolson:
+        return SecondOrderCrankNicolson(**kwargs)
+    elif time_stepper_type == TimeStepperType.SecondOrderCrankNicolsonAdjointDTO:
+        return SecondOrderCrankNicolsonAdjointDTO(**kwargs)
     
-    if time_stepper['name'] == 'implicit_euler':
-        return ImplicitEulerTimeStepper(
-            nt = nt,
-            M = M,
-            A = A,
-            Q = Q,
-            V = V,
-            T_initial= T_initial,
-            T_final= T_final,
-            q_time_dep=q_time_dep,
-            A_q_key = A_q_key,
-            key_prefix = key_prefix
-        )
+    raise ValueError(f"Unsupported time stepper type: {time_stepper_type}")
 
-    elif time_stepper['name'] == 'newman_second_order':
-        return NewmanSecondOrder(
-            nt = nt,
-            M = M,
-            A = A,
-            Q = Q,
-            V = V,
-            T_initial= T_initial,
-            T_final= T_final,
-            q_time_dep=q_time_dep,
-            zeta=time_stepper['zeta'],
-            A_q_key = A_q_key,
-            key_prefix = key_prefix
-        )
-    else:
-        raise ValueError

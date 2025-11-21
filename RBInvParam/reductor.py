@@ -808,11 +808,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         else:
             L = self.FOM.L
 
-        if setup['time_stepper']['name'] == 'newman_second_order':
-            zeta = setup['time_stepper']['zeta']
-        else:
-            zeta = 1.0
-
         projected_state_quantities = {
             'M' : M,
             'A' : A,
@@ -824,7 +819,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'products': self.FOM.products,
             'setup' : setup,
             'bases' : bases,
-            'zeta' : zeta
+            'zeta' : self.FOM.time_stepper.zeta
         }
 
         projected_adjoint_quantities = {

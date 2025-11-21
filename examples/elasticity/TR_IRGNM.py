@@ -22,6 +22,8 @@ from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimat
 from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimatorType
 from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
 
+from RBInvParam.timestepping import TimeStepperType
+
 #########################################################################################
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -54,8 +56,8 @@ def main():
     y_res = 30
     z_res = 30
 
-    #y_res = 8
-    #z_res = 8
+    # y_res = 8
+    # z_res = 8
 
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
@@ -166,11 +168,11 @@ def main():
             }
         },
         'observation_operator': {            
-            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {
-                #'spatial_resolution' : [4,y_res,z_res]
+                'spatial_resolution' : [4,y_res,z_res]
             }
         },
         'dims' : {
@@ -201,8 +203,19 @@ def main():
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
         'save_path' : save_path,
         'time_stepper' : {
-            'name' : 'newman_second_order',
-            'zeta' : 0.5
+            'primal' : {
+                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                'config' : {
+                    'zeta' : 0.5
+                }
+            },
+            'adjoint' : {
+                #'type' : TimeStepperType.SecondOrderCrankNicolson,
+                'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
+                'config' : {
+                    'zeta' : 0.5
+                }
+            },
         }
     }
 
@@ -273,7 +286,8 @@ def main():
         'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
         #####################
         'use_error_estimator' : False,
-        'use_adjoint_space' : False,
+        #'use_adjoint_space' : False,
+        'use_adjoint_space' : True,
         'offline_parallel' : False,
         'reg_AGC_step' : False,
         #'TR_enforcement' : 'check_error',
@@ -302,12 +316,12 @@ def main():
                 },
                 'compression' : {
                     'sample_every_n_th' : None,
-                    # 'normalize' : True,
-                    # 'HaPOD' : {
-                    #     'HaPOD_tol': 1e-1,    
-                    # },
-                    'normalize' : None,
-                    'HaPOD' : None,
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'HaPOD_tol': 1e-1,    
+                    },
+                    #'normalize' : None,
+                    #'HaPOD' : None,
                     'overwrite_every_n' : None,
                     'keep_last_n': None
                 }
@@ -319,12 +333,12 @@ def main():
                 },
                 'compression' : {                
                     'sample_every_n_th' : None,
-                    #'normalize' : True,
-                    # 'HaPOD' : {
-                    #     'HaPOD_tol': 1e-3,    
-                    # },
-                    'normalize' : None,
-                    'HaPOD' : None,
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'HaPOD_tol': 1e-3,
+                    },
+                    # 'normalize' : None,
+                    # 'HaPOD' : None,
                     'overwrite_every_n' : None,
                     'keep_last_n': None
                 }
