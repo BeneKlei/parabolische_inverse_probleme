@@ -286,8 +286,8 @@ def main():
         'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
         #####################
         'use_error_estimator' : False,
-        #'use_adjoint_space' : False,
-        'use_adjoint_space' : True,
+        'use_adjoint_space' : False,
+        #'use_adjoint_space' : True,
         'offline_parallel' : False,
         'reg_AGC_step' : False,
         #'TR_enforcement' : 'check_error',
@@ -323,7 +323,8 @@ def main():
                     #'normalize' : None,
                     #'HaPOD' : None,
                     'overwrite_every_n' : None,
-                    'keep_last_n': None
+                    'keep_last_n': None,
+                    'post_HaPOD' : None
                 }
             },
             'state_basis' : {
@@ -335,12 +336,13 @@ def main():
                     'sample_every_n_th' : None,
                     'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-3,
+                        'HaPOD_tol': 1e-9,
                     },
                     # 'normalize' : None,
                     # 'HaPOD' : None,
                     'overwrite_every_n' : None,
-                    'keep_last_n': None
+                    'keep_last_n': None,
+                    'post_HaPOD' : None
                 }
             },
             'adjoint_basis' : {
@@ -357,7 +359,8 @@ def main():
                     'normalize' : None,
                     'HaPOD' : None,
                     'overwrite_every_n' : None,
-                    'keep_last_n': None
+                    'keep_last_n': None,
+                    'post_HaPOD' : None
                 }
             }
         },

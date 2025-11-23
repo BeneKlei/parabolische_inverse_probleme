@@ -209,19 +209,19 @@ class SnapshotPreprocessor(BasicObject):
         self._logger.debug("Starting snapshot preprocesssing")
 
         if config['sample_every_n_th']:
-            self._logger.debug(f"    Apply 'sample_every_n_th' with n = {config['sample_every_n_th']}")
+            self._logger.debug(f"    Applying 'sample_every_n_th' with n = {config['sample_every_n_th']}")
             snapshots = snapshots[::config['sample_every_n_th']]
                     
         if config['normalize']:
-            self._logger.debug(f"    Apply 'normalize'")
+            self._logger.debug(f"    Applying 'normalize'")
             norms = snapshots.norm(product)
             norms[norms <= 1e-16] = 1
             snapshots.scal(1/norms)
 
         if config['HaPOD']:
-            self._logger.debug(f"    Apply 'HaPOD' for tolerance {config['HaPOD']['HaPOD_tol']}")
+            self._logger.debug(f"    Applying 'HaPOD' for tolerance {config['HaPOD']['HaPOD_tol']}")
 
-            snapshots, svals, snap_count  = self._HaPOD(
+            snapshots, svals, snap_count = self._HaPOD(
                 snapshots = snapshots,
                 product = product,
                 **config['HaPOD']
