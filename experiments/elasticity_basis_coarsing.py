@@ -180,7 +180,8 @@ TR_optimizer_parameter = {
                 'normalize' : None,
                 'HaPOD' : None,
                 'overwrite_every_n' : None,
-                'keep_last_n': None
+                'keep_last_n': None,
+                'post_HaPOD' : None
             }
         },
         'state_basis' : {
@@ -195,13 +196,26 @@ TR_optimizer_parameter = {
                     'HaPOD_tol': 1e-3,    
                 },
                 'overwrite_every_n' : None,
-                'keep_last_n': None
+                'keep_last_n': None,
+                'post_HaPOD' : None
             }
         },
         'adjoint_basis' : {
-            'additional_snapshots' : {},
-            'compression' : {}
-        }
+            'additional_snapshots' :{
+                'include_lins' : False,
+                'include_krylov_sensitivites' : False,
+            },
+            'compression' : {                
+                'sample_every_n_th' : None,
+                'normalize' : True,
+                'HaPOD' : {
+                    'HaPOD_tol': 1e-3,    
+                },
+                'overwrite_every_n' : None,
+                'keep_last_n': None,
+                'post_HaPOD' : None
+            }
+        },
     },
     'error_estimator_types' : {
         'state' : StateErrorEstimatorType.HYPERBOLIC,
