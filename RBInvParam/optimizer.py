@@ -29,6 +29,10 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 MACHINE_EPS = 1e-16
 STAGNATION_TOL = 1e-6
 
+import matplotlib.pyplot as plt
+fig_1, ax_1 = plt.subplots(figsize=(6,4))
+fig_2, ax_2 = plt.subplots(figsize=(6,4))
+
 class Optimizer(BasicObject):
     def __init__(self, 
                  optimizer_parameter: Dict, 
@@ -717,7 +721,75 @@ class Optimizer(BasicObject):
         loop_terminated = False
 
         x = np.zeros(shape=(model.V.dim,))
-        y = np.zeros(shape=(model.V.dim,))        
+        y = np.zeros(shape=(model.V.dim,))
+
+
+        # _u = self.FOM.solve_state(q = self.reductor.reconstruct(q, basis='parameter_basis'))
+        # _p = self.FOM.solve_adjoint(q = self.reductor.reconstruct(q, basis='parameter_basis'), u = _u)
+
+
+        # e_curr = np.nan
+        # basis = 'state_basis'
+        # _basis = self.reductor.bases[basis]
+        # es = []
+        # diff_e = []
+        # for j in range(len(_basis)):
+        #     if len(_basis) > 0:
+        #         projected_u = _basis[0:j].lincomb(
+        #             _u.inner(_basis[0:j], self.reductor.products[basis])
+        #         )
+        #         x = _u + (-1) * projected_u
+                
+        #         e_pre = e_curr
+        #         e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
+        #         es.append(e_curr)
+        #         diff_e.append((e_pre - e_curr) / e_curr)
+                
+                            
+        #     #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
+
+        # es = np.array(es)
+        # diff_e = np.array(diff_e)
+
+        
+        # # print(np.sum(np.where(diff_e > 5 * 1e-2, 1 ,0)))
+
+        # import matplotlib.pyplot as plt
+        # ax_1.plot(es)
+        # # plt.plot(diff_e)
+        # # plt.axhline(5 * 1e-2)
+        # #plt.yscale("log")
+        # #plt.savefig(self.save_path / "_u_plot.pdf")
+
+        # e_curr = np.nan
+        # basis = 'state_basis'
+        # _basis = self.reductor.bases[basis]
+        # es = []
+        # diff_e = []
+        # for j in range(len(_basis)):
+        #     if len(_basis) > 0:
+        #         projected_p = _basis[0:j].lincomb(
+        #             _p.inner(_basis[0:j], self.reductor.products[basis])
+        #         )
+        #         x = _p + (-1) * projected_p
+                
+        #         e_pre = e_curr
+        #         e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
+        #         es.append(e_curr)
+        #         diff_e.append((e_pre - e_curr) / e_curr)
+                
+                            
+        #     #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
+
+        # es = np.array(es)
+        # diff_e = np.array(diff_e)
+        # #print(np.sum(np.where(diff_e > 5 * 1e-2, 1 ,0)))
+        # import matplotlib.pyplot as plt
+        # ax_1.plot(es)
+        # #plt.plot(diff_e)
+        # #plt.axhline(5 * 1e-2)
+        # ax_1.set_yscale("log")
+        # fig_1.savefig(self.save_path / "_p_plot.pdf")        
         
         while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"##############################################################################################################################")
@@ -799,6 +871,7 @@ class Optimizer(BasicObject):
                 self.logger.info(f"Searching for alpha:") 
 
             loop_terminated = False
+            
             while (not regularization_qualification) and (count < reg_loop_max):
                 count += 1
 
@@ -859,6 +932,12 @@ class Optimizer(BasicObject):
                 break
                 
             ########################################### Armijo ###########################################
+
+            # u_prev = self.FOM.solve_state(
+            #     q = self.FOM_projector.project_domain(center=
+            #         self.reductor.reconstruct(q, basis='parameter_basis')
+            #     )
+            # )
             
             TR_max_iter_cond = False
             model_unsufficent = False
@@ -934,11 +1013,11 @@ class Optimizer(BasicObject):
                 # projector.pre_compute(center=q)
                 # next_q = projector.project_domain(q, d)
             
-            # u = self.FOM.solve_state(
-            #     q = self.FOM_projector.project_domain(center=
-            #         self.reductor.reconstruct(q, basis='parameter_basis')
-            #     )
-            # )
+            u = self.FOM.solve_state(
+                q = self.FOM_projector.project_domain(center=
+                    self.reductor.reconstruct(q, basis='parameter_basis')
+                )
+            )
 
             # _u_r = model.solve_state(q)
             # u_r = self.reductor.reconstruct(_u_r, basis='state_basis')
@@ -950,7 +1029,7 @@ class Optimizer(BasicObject):
             #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
             # )
 
-            # self.I += 1
+            #self.I += 1
             # diff = u - u_r
             # self.FOM.A.material_model.save_time_series(
             #     [v.real_part.impl for v in diff.vectors],
@@ -958,6 +1037,15 @@ class Optimizer(BasicObject):
             #     str(self.save_path),
             #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
             # )
+
+            # delta = u - u_prev
+            # self.FOM.A.material_model.save_time_series(
+            #     [v.real_part.impl for v in delta.vectors],
+            #     str(f'delta_u_{self.I}'),
+            #     str(self.save_path),
+            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            # )
+
 
             # self.FOM.A.material_model.save_time_series(
             #     [v.real_part.impl for v in u.vectors],
@@ -1041,14 +1129,14 @@ class Optimizer(BasicObject):
             # diff_e = np.array(diff_e)
 
             
-            # print(np.sum(np.where(diff_e > 5 * 1e-2, 1 ,0)))
+            # # print(np.sum(np.where(diff_e > 5 * 1e-2, 1 ,0)))
 
             # import matplotlib.pyplot as plt
-            # plt.plot(es)
+            # ax_1.plot(es)
             # # plt.plot(diff_e)
             # # plt.axhline(5 * 1e-2)
-            # plt.yscale("log")
-            # plt.savefig(self.save_path / "_u_plot.pdf")
+            # #plt.yscale("log")
+            # #plt.savefig(self.save_path / "_u_plot.pdf")
 
             # e_curr = np.nan
             # basis = 'state_basis'
@@ -1072,13 +1160,13 @@ class Optimizer(BasicObject):
 
             # es = np.array(es)
             # diff_e = np.array(diff_e)
-            # print(np.sum(np.where(diff_e > 5 * 1e-2, 1 ,0)))
+            # #print(np.sum(np.where(diff_e > 5 * 1e-2, 1 ,0)))
             # import matplotlib.pyplot as plt
-            # plt.plot(es)
+            # ax_1.plot(es)
             # #plt.plot(diff_e)
             # #plt.axhline(5 * 1e-2)
-            # plt.yscale("log")
-            # plt.savefig(self.save_path / "_p_plot.pdf")
+            # ax_1.set_yscale("log")
+            # fig_1.savefig(self.save_path / "_p_plot.pdf")
 
 
 
@@ -1764,7 +1852,8 @@ class QrVrROMOptimizer(Optimizer):
                                                        return_per_time_step = True)
         
         if enrichment['state_basis']['additional_snapshots']['include_lins'] or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
-            lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
+            direction = -nabla_J
+            lin_u = self.FOM.solve_linearized_state(q, direction, u, use_cached_operators=use_cached_operators)
             lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
         if enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
@@ -2013,66 +2102,66 @@ class QrVrROMOptimizer(Optimizer):
 
         high_fid_param_snapshots = self.FOM.Q.empty()
 
-        e_curr = np.nan
-        basis = 'state_basis'
-        _basis = self.reductor.bases[basis]
-        es = []
-        diff_e = []
-        for j in range(len(_basis)):
-            if len(_basis) > 0:
-                projected_u = _basis[0:j].lincomb(
-                    u.inner(_basis[0:j], self.reductor.products[basis])
-                )
-                x = u + (-1) * projected_u
+        # e_curr = np.nan
+        # basis = 'state_basis'
+        # _basis = self.reductor.bases[basis]
+        # es = []
+        # diff_e = []
+        # for j in range(len(_basis)):
+        #     if len(_basis) > 0:
+        #         projected_u = _basis[0:j].lincomb(
+        #             u.inner(_basis[0:j], self.reductor.products[basis])
+        #         )
+        #         x = u + (-1) * projected_u
                 
-                e_pre = e_curr
-                e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
-                es.append(e_curr)
-                diff_e.append((e_pre - e_curr) / e_curr)
-                
-                            
-            #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
-
-        es = np.array(es)
-        diff_e = np.array(diff_e)
-        print(np.sum(np.where(diff_e > 5 * 1e-2, 1 ,0)))
-
-        import matplotlib.pyplot as plt
-        plt.plot(es)
-        # plt.plot(diff_e)
-        # plt.axhline(5 * 1e-2)
-        plt.yscale("log")
-        plt.savefig(self.save_path / "u_plot.pdf")
-
-        e_curr = np.nan
-        basis = 'state_basis'
-        _basis = self.reductor.bases[basis]
-        es = []
-        diff_e = []
-        for j in range(len(_basis)):
-            if len(_basis) > 0:
-                projected_p = _basis[0:j].lincomb(
-                    p.inner(_basis[0:j], self.reductor.products[basis])
-                )
-                x = p + (-1) * projected_p
-                
-                e_pre = e_curr
-                e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
-                es.append(e_curr)
-                diff_e.append((e_pre - e_curr) / e_curr)
+        #         e_pre = e_curr
+        #         e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
+        #         es.append(e_curr)
+        #         diff_e.append((e_pre - e_curr) / e_curr)
                 
                             
-            #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
+        #     #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
 
-        es = np.array(es)
-        diff_e = np.array(diff_e)
-        print(np.sum(np.where(diff_e > 5 * 1e-2, 1 ,0)))
-        import matplotlib.pyplot as plt
-        plt.plot(es)
-        #plt.plot(diff_e)
-        #plt.axhline(5 * 1e-2)
-        plt.yscale("log")
-        plt.savefig(self.save_path / "p_plot.pdf")
+        # es = np.array(es)
+        # diff_e = np.array(diff_e)
+        # print(np.sum(np.where(diff_e > 5 * 1e-2, 1 ,0)))
+
+        # import matplotlib.pyplot as plt
+        # plt.plot(es)
+        # # plt.plot(diff_e)
+        # # plt.axhline(5 * 1e-2)
+        # plt.yscale("log")
+        # plt.savefig(self.save_path / "u_plot.pdf")
+
+        # e_curr = np.nan
+        # basis = 'state_basis'
+        # _basis = self.reductor.bases[basis]
+        # es = []
+        # diff_e = []
+        # for j in range(len(_basis)):
+        #     if len(_basis) > 0:
+        #         projected_p = _basis[0:j].lincomb(
+        #             p.inner(_basis[0:j], self.reductor.products[basis])
+        #         )
+        #         x = p + (-1) * projected_p
+                
+        #         e_pre = e_curr
+        #         e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
+        #         es.append(e_curr)
+        #         diff_e.append((e_pre - e_curr) / e_curr)
+                
+                            
+        #     #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
+
+        # es = np.array(es)
+        # diff_e = np.array(diff_e)
+        # print(np.sum(np.where(diff_e > 5 * 1e-2, 1 ,0)))
+        # import matplotlib.pyplot as plt
+        # plt.plot(es)
+        # #plt.plot(diff_e)
+        # #plt.axhline(5 * 1e-2)
+        # plt.yscale("log")
+        # plt.savefig(self.save_path / "p_plot.pdf")
 
 
 
@@ -2128,13 +2217,13 @@ class QrVrROMOptimizer(Optimizer):
             # lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
             # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in u.vectors],
+            #     [v.real_part.impl for v in lin_u.vectors],
             #     str(f'lin_u_snapshot_{self.I}'),
             #     str(self.save_path),
             #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
             # )
             # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in p.vectors],
+            #     [v.real_part.impl for v in lin_p.vectors],
             #     str(f'lin_p_snapshot_{self.I}'),
             #     str(self.save_path),
             #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
@@ -2507,7 +2596,10 @@ class QrVrROMOptimizer(Optimizer):
                     
 
                     if enrichment['state_basis']['additional_snapshots']['include_lins'] or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
-                        lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
+                        direction = -nabla_J
+                        #direction = q - self.statistics["q"][-1]
+
+                        lin_u = self.FOM.solve_linearized_state(q, direction, u, use_cached_operators=use_cached_operators)
                         lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
                     if enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
@@ -2571,7 +2663,10 @@ class QrVrROMOptimizer(Optimizer):
                         norm_nabla_J = norm_nabla_J_
 
                         if enrichment['state_basis']['additional_snapshots']['include_lins'] or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
-                            lin_u = self.FOM.solve_linearized_state(q, nabla_J, u, use_cached_operators=use_cached_operators)
+                            direction = -nabla_J
+                            #direction = q - self.statistics["q"][-1]
+
+                            lin_u = self.FOM.solve_linearized_state(q, direction, u, use_cached_operators=use_cached_operators)
                             lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
                         if enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
@@ -2731,22 +2826,24 @@ class QrVrROMOptimizer(Optimizer):
 
 
 
+                    tol_y = 1e-3
+                    basis = 'state_basis'
+                    _basis = self.reductor.bases[basis]
+                    y = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    y = y / np.max(y)
+                    print(y)
+                    idxes_u = np.argwhere(y >= tol_y)
+                    print(len(idxes_u))
+                    y = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    y = y / np.max(y)
+                    print(y)
+                    idxes_p = np.argwhere(y >= tol_y)
+                    print(len(idxes_p))
 
-                    # basis = 'state_basis'
-                    # _basis = self.reductor.bases[basis]
-                    # y = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # y = y / np.max(y)
-                    # print(y)
-                    # idxes_u = np.argwhere(y >= 1e-3)
-                    # y = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # y = y / np.max(y)
-                    # print(y)
-                    # idxes_p = np.argwhere(y >= 1e-3)
-
-                    # idxes = np.concatenate([idxes_u, idxes_p])
-                    # idxes = np.unique(idxes)
-                    # self.reductor.bases[basis] = _basis[idxes].copy()
-                    # self.reductor.delete_cached_operators()
+                    idxes = np.concatenate([idxes_u, idxes_p])
+                    idxes = np.unique(idxes)
+                    self.reductor.bases[basis] = _basis[idxes].copy()
+                    self.reductor.delete_cached_operators()
 
                     if enrichment['parameter_basis']['reduced_basis']:
                         self.logger.debug(f"Extending Qr-snapshots")            
@@ -2772,63 +2869,63 @@ class QrVrROMOptimizer(Optimizer):
                         additional_state_snapshots
                     )
 
-                    e_curr = np.nan
-                    basis = 'state_basis'
-                    _basis = self.reductor.bases[basis]
-                    es = []
-                    diff_e = []
-                    for j in range(len(_basis)):
-                        if len(_basis) > 0:
-                            projected_u = _basis[0:j].lincomb(
-                                u.inner(_basis[0:j], self.reductor.products[basis])
-                            )
-                            x = u + (-1) * projected_u
+                    # e_curr = np.nan
+                    # basis = 'state_basis'
+                    # _basis = self.reductor.bases[basis]
+                    # es = []
+                    # diff_e = []
+                    # for j in range(len(_basis)):
+                    #     if len(_basis) > 0:
+                    #         projected_u = _basis[0:j].lincomb(
+                    #             u.inner(_basis[0:j], self.reductor.products[basis])
+                    #         )
+                    #         x = u + (-1) * projected_u
                             
-                            e_pre = e_curr
-                            e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
-                            es.append(e_curr)
-                            diff_e.append((e_pre - e_curr) / e_curr)
+                    #         e_pre = e_curr
+                    #         e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
+                    #         es.append(e_curr)
+                    #         diff_e.append((e_pre - e_curr) / e_curr)
                             
                                         
-                        #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
+                    #     #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
 
-                    es = np.array(es)
-                    diff_e = np.array(diff_e)
+                    # es = np.array(es)
+                    # diff_e = np.array(diff_e)
 
-                    idxes_u = np.argwhere(diff_e > 0.5 * 1e-16).flatten()
+                    # idxes_u = np.argwhere(diff_e > 0.5 * 1e-16).flatten()
                     
-                    # print(np.sum(np.where(diff_e > 0.5 * 1e-2, 1 ,0)))
+                    # # print(np.sum(np.where(diff_e > 0.5 * 1e-2, 1 ,0)))
 
-                    # import matplotlib.pyplot as plt
-                    # plt.plot(es)
-                    # # # plt.plot(diff_e)
-                    # # # plt.axhline(5 * 1e-2)
-                    # # plt.yscale("log")
-                    # plt.savefig(self.save_path / "u_plot.pdf")
+                    # # import matplotlib.pyplot as plt
+                    # # plt.plot(es)
+                    # # # # plt.plot(diff_e)
+                    # # # # plt.axhline(5 * 1e-2)
+                    # # # plt.yscale("log")
+                    # # plt.savefig(self.save_path / "u_plot.pdf")
 
-                    e_curr = np.nan
-                    basis = 'state_basis'
-                    _basis = self.reductor.bases[basis]
-                    es = []
-                    diff_e = []
-                    for j in range(len(_basis)):
-                        if len(_basis) > 0:
-                            projected_p = _basis[0:j].lincomb(
-                                p.inner(_basis[0:j], self.reductor.products[basis])
-                            )
-                            x = p + (-1) * projected_p
+                    # e_curr = np.nan
+                    # basis = 'state_basis'
+                    # _basis = self.reductor.bases[basis]
+                    # es = []
+                    # diff_e = []
+                    # for j in range(len(_basis)):
+                    #     if len(_basis) > 0:
+                    #         projected_p = _basis[0:j].lincomb(
+                    #             p.inner(_basis[0:j], self.reductor.products[basis])
+                    #         )
+                    #         x = p + (-1) * projected_p
                             
-                            e_pre = e_curr
-                            e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
-                            es.append(e_curr)
-                            diff_e.append((e_pre - e_curr) / e_curr)
+                    #         e_pre = e_curr
+                    #         e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
+                    #         es.append(e_curr)
+                    #         diff_e.append((e_pre - e_curr) / e_curr)
                             
                                         
-                        #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
+                    #     #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
 
-                    es = np.array(es)
-                    diff_e = np.array(diff_e)
-                    idxes_p = np.argwhere(diff_e > 0.5 * 1e-16).flatten()
+                    # es = np.array(es)
+                    # diff_e = np.array(diff_e)
+                    # idxes_p = np.argwhere(diff_e > 0.5 * 1e-16).flatten()
                     
 
 
@@ -2850,80 +2947,111 @@ class QrVrROMOptimizer(Optimizer):
                         i = i
                     )
 
-                    basis = 'state_basis'
-                    # _basis = self.reductor.bases[basis].to_numpy() 
-                    # _basis = _basis[idxes]
-                    # _basis = self.FOM.V.make_array(_basis)
-
+                    # e_curr = np.nan
+                    # basis = 'state_basis'
                     # _basis = self.reductor.bases[basis]
-                    # _basis = _basis.to_numpy()[diff_e > 5 * 1e-2]
-                    # _basis = self.FOM.V.make_array(_basis)
-                    es = []
-                    diff_e = []
-                    for j in range(len(_basis)):
-                        if len(_basis) > 0:
-                            projected_u = _basis[0:j].lincomb(
-                                u.inner(_basis[0:j], self.reductor.products[basis])
-                            )
-                            x = u + (-1) * projected_u
+                    # # _basis = self.reductor.bases[basis].to_numpy() 
+                    # # _basis = _basis[idxes]
+                    # # _basis = self.FOM.V.make_array(_basis)
+
+                    # # _basis = self.reductor.bases[basis]
+                    # # _basis = _basis.to_numpy()[diff_e > 5 * 1e-2]
+                    # # _basis = self.FOM.V.make_array(_basis)
+                    # es = []
+                    # diff_e = []
+                    # for j in range(len(_basis)):
+                    #     if len(_basis) > 0:
+                    #         projected_u = _basis[0:j].lincomb(
+                    #             u.inner(_basis[0:j], self.reductor.products[basis])
+                    #         )
+                    #         x = u + (-1) * projected_u
                             
-                            e_pre = e_curr
-                            e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
-                            es.append(e_curr)
-                            diff_e.append((e_pre - e_curr) / e_curr)
+                    #         e_pre = e_curr
+                    #         e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
+                    #         es.append(e_curr)
+                    #         diff_e.append((e_pre - e_curr) / e_curr)
                             
                                         
-                        #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
+                    #     #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
 
-                    es = np.array(es)
-                    print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-                    print(es)
-                    diff_e = np.array(diff_e)
+                    # es = np.array(es)
+                    # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+                    # print(es)
+                    # diff_e = np.array(diff_e)
 
                     
-                    print(np.sum(np.where(diff_e > 0.5 * 1e-2, 1 ,0)))
+                    # print(np.sum(np.where(diff_e > 0.5 * 1e-2, 1 ,0)))
+                    # ax_2.plot(es)
+                    # # plt.plot(diff_e)
+                    # # plt.axhline(5 * 1e-2)
+                    # # plt.yscale("log")
+                    # # plt.savefig(self.save_path / "u_plot.pdf")
 
-                    import matplotlib.pyplot as plt
-                    plt.plot(es)
-                    # plt.plot(diff_e)
-                    # plt.axhline(5 * 1e-2)
-                    # plt.yscale("log")
-                    # plt.savefig(self.save_path / "u_plot.pdf")
-
-                    e_curr = np.nan
-                    basis = 'state_basis'
-                    _basis = self.reductor.bases[basis]
+                    # e_curr = np.nan
+                    # basis = 'state_basis'
+                    # _basis = self.reductor.bases[basis]
 
 
-                    es = []
-                    diff_e = []
-                    for j in range(len(_basis)):
-                        if len(_basis) > 0:
-                            projected_p = _basis[0:j].lincomb(
-                                p.inner(_basis[0:j], self.reductor.products[basis])
-                            )
-                            x = p + (-1) * projected_p
+                    # es = []
+                    # diff_e = []
+                    # for j in range(len(_basis)):
+                    #     if len(_basis) > 0:
+                    #         projected_p = _basis[0:j].lincomb(
+                    #             p.inner(_basis[0:j], self.reductor.products[basis])
+                    #         )
+                    #         x = p + (-1) * projected_p
                             
-                            e_pre = e_curr
-                            e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
-                            es.append(e_curr)
-                            diff_e.append((e_pre - e_curr) / e_curr)
+                    #         e_pre = e_curr
+                    #         e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
+                    #         es.append(e_curr)
+                    #         diff_e.append((e_pre - e_curr) / e_curr)
                             
                                         
-                        #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
+                    #     #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
 
-                    es = np.array(es)
-                    print(es)
-                    diff_e = np.array(diff_e)
-                    print(np.sum(np.where(diff_e > 0.5 * 1e-2, 1 ,0)))
+                    # es = np.array(es)
+                    # print(es)
+                    # diff_e = np.array(diff_e)
+                    # print(np.sum(np.where(diff_e > 0.5 * 1e-2, 1 ,0)))
 
 
-                    import matplotlib.pyplot as plt
-                    plt.plot(es)
-                    #plt.plot(diff_e)
-                    #plt.axhline(5 * 1e-2)
-                    plt.yscale("log")
-                    plt.savefig(self.save_path / "__p_plot.pdf")
+                    # ax_2.plot(es)
+                    # #plt.plot(diff_e)
+                    # #plt.axhline(5 * 1e-2)
+                    # e_curr = np.nan
+                    # basis = 'state_basis'
+                    # _basis = self.reductor.bases[basis]
+
+
+                    # es = []
+                    # diff_e = []
+                    # lin_u = self.FOM.solve_linearized_state(q, -nabla_J, u, use_cached_operators=use_cached_operators)
+                    # for j in range(len(_basis)):
+                    #     if len(_basis) > 0:
+                    #         projected_lin_u = _basis[0:j].lincomb(
+                    #             lin_u.inner(_basis[0:j], self.reductor.products[basis])
+                    #         )
+                    #         x = lin_u + (-1) * projected_lin_u
+                            
+                    #         e_pre = e_curr
+                    #         e_curr = np.sqrt(np.sum(self.reductor.products[basis].pairwise_apply2(x,x)))
+                    #         es.append(e_curr)
+                    #         diff_e.append((e_pre - e_curr) / e_curr)
+                            
+                                        
+                    #     #print(f"i = {i}: {e_curr} | {e_pre / e_curr }")
+
+                    # es = np.array(es)
+                    # print(es)
+                    # diff_e = np.array(diff_e)
+                    # print(np.sum(np.where(diff_e > 0.5 * 1e-2, 1 ,0)))
+
+
+                    # import matplotlib.pyplot as plt
+                    # ax_2.plot(es)
+
+                    # ax_2.set_yscale("log")
+                    # fig_2.savefig(self.save_path / "__p_plot.pdf")
 
                     # self.reductor.bases[basis] = _basis[idxes].copy()
                     # self.reductor.delete_cached_operators()
@@ -3006,9 +3134,13 @@ class QrVrROMOptimizer(Optimizer):
                     # import sys
                     # sys.exit()
 
-
-
-                    
+                    # _basis = self.reductor.bases['state_basis']
+                    # self.FOM.A.material_model.save_time_series(
+                    #     [v.real_part.impl for v in _basis.vectors],
+                    #     str('state_basis'),
+                    #     str(self.save_path),
+                    #     np.linspace(0, len(_basis), len(_basis))
+                    # )
 
                     q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
                     q_r = self.QrVrROM.Q.make_array(q_r)

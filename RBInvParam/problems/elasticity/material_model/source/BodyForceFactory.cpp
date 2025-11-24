@@ -63,6 +63,7 @@ void CenterExciteBodyForce::vector_value(const Point<3> &p, Vector<double> &valu
     // values(1) = 0;
     // values(2) = ft*fx*fy*fz;
 
+    
     values(0) = ft*fx*fy*fz;
     values(1) = 0;
     values(2) = 0;
