@@ -86,33 +86,33 @@ def main():
     # q_exact[0,200] = 2
     # q_exact[0,300] = 3
 
-    # q_exact[0,200] = 2
-    # q_exact[0,300] = 3
+    q_exact[0,200] = 2
+    q_exact[0,300] = 3
 
-    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    q_exact[9,21] = 3
-    q_exact[8,21] = 3
-    q_exact[7,21] = 3
-    q_exact[9,22] = 3
-    q_exact[8,22] = 3
-    q_exact[7,22] = 3
-    q_exact[9,20] = 3
-    q_exact[8,20] = 3
-    q_exact[7,20] = 3
+    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    # q_exact[9,21] = 3
+    # q_exact[8,21] = 3
+    # q_exact[7,21] = 3
+    # q_exact[9,22] = 3
+    # q_exact[8,22] = 3
+    # q_exact[7,22] = 3
+    # q_exact[9,20] = 3
+    # q_exact[8,20] = 3
+    # q_exact[7,20] = 3
 
 
-    q_exact[7,14] = 2
-    q_exact[6,14] = 2
-    q_exact[5,14] = 2
-    q_exact[7,13] = 2
-    q_exact[6,13] = 2
-    q_exact[5,13] = 2
-    q_exact[7,15] = 2
-    q_exact[6,15] = 2
-    q_exact[5,15] = 2
+    # q_exact[7,14] = 2
+    # q_exact[6,14] = 2
+    # q_exact[5,14] = 2
+    # q_exact[7,13] = 2
+    # q_exact[6,13] = 2
+    # q_exact[5,13] = 2
+    # q_exact[7,15] = 2
+    # q_exact[6,15] = 2
+    # q_exact[5,15] = 2
 
-    q_exact = q_exact.flatten()
-    q_exact = np.array([q_exact])
+    # q_exact = q_exact.flatten()
+    # q_exact = np.array([q_exact])
 
     
 
@@ -168,11 +168,11 @@ def main():
             }
         },
         'observation_operator': {            
-            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {
-                'spatial_resolution' : [4,y_res,z_res]
+                #'spatial_resolution' : [4,y_res,z_res]
             }
         },
         'dims' : {
@@ -318,7 +318,8 @@ def main():
                     'sample_every_n_th' : None,
                     'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-1,    
+                        #'HaPOD_tol': 1e-1,    
+                        'HaPOD_tol': 1e-3,
                     },
                     #'normalize' : None,
                     #'HaPOD' : None,
@@ -336,7 +337,7 @@ def main():
                     'sample_every_n_th' : None,
                     'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-12,
+                        'HaPOD_tol': 1e-6,
                     },
                     # 'normalize' : None,
                     # 'HaPOD' : None,
