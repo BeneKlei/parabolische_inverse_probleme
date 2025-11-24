@@ -185,7 +185,7 @@ TR_optimizer_parameter = {
         },
         'state_basis' : {
             'additional_snapshots' :{
-                'include_lins' : False,
+                'include_lins' : True,
                 'include_krylov_sensitivites' : False,
             },
             'compression' : {                
@@ -258,5 +258,5 @@ EXPERIMENTS['TR_sensors_HaPOD_1e-6'] = (setup_sensors, TR_optimizer_parameter__)
 EXPERIMENTS['TR_identity_HaPOD_1e-6'] = (setup_identity, TR_optimizer_parameter__)
 
 
-prefix = 'basis_coarsing'
+prefix = 'basis_coarsing_include_lins'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

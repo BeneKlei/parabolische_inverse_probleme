@@ -318,8 +318,8 @@ def main():
                     'sample_every_n_th' : None,
                     'normalize' : True,
                     'HaPOD' : {
-                        #'HaPOD_tol': 1e-1,    
-                        'HaPOD_tol': 1e-3,
+                        'HaPOD_tol': 1e-1,    
+                        #'HaPOD_tol': 1e-3,
                     },
                     #'normalize' : None,
                     #'HaPOD' : None,
@@ -337,7 +337,7 @@ def main():
                     'sample_every_n_th' : None,
                     'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-6,
+                        'HaPOD_tol': 1e-3,
                     },
                     # 'normalize' : None,
                     # 'HaPOD' : None,
