@@ -78,7 +78,7 @@ def main():
     # T_final = 5.0
     # nt = 50
 
-    T_final = 5.0
+    T_final = 10.0
     nt = 50
 
     # T_final = 10.0

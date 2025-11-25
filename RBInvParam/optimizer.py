@@ -2507,11 +2507,15 @@ class QrVrROMOptimizer(Optimizer):
                     # self.reductor.bases[basis] = _basis[idxes].copy()
                     # self.reductor.delete_cached_operators()
 
-                    # self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
-                    #     bases=self.reduced_bases,
-                    #     enrichment=enrichment,
-                    #     i = i
-                    # )
+                    ############################################################
+
+                    self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                        bases=self.reduced_bases,
+                        enrichment=enrichment,
+                        i = i
+                    )
+
+                    ############################################################
 
                     # basis = 'state_basis'
                     # _basis = self.reductor.bases[basis]
