@@ -299,5 +299,5 @@ EXPERIMENTS['TR_sensors_krylov'] = (setup_sensors, TR_optimizer_parameter_sensor
 EXPERIMENTS['TR_identity_krylov'] = (setup_identity, TR_optimizer_parameter_identity)
 
 
-prefix = 'new_baseline'
+prefix = 'longer_time_horizon'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

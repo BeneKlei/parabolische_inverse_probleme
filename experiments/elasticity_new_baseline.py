@@ -223,7 +223,7 @@ setup_identity = copy.deepcopy(setup)
 setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
 setup_identity['noise_level'] = 5 * 1e-5
 
-identity_lin_solver_tol = 1e-8
+identity_lin_solver_tol = 5 * 1e-9
 ##########################################################################################
 FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
 TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
