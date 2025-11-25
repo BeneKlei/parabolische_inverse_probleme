@@ -176,7 +176,6 @@ TR_optimizer_parameter = {
                 'include_krylov_directions' : False,
             },
             'compression' : {
-                'sample_every_n_th' : None,
                 'normalize' : None,
                 'HaPOD' : None,
                 'overwrite_every_n' : None,
@@ -190,7 +189,6 @@ TR_optimizer_parameter = {
                 'include_krylov_sensitivites' : False,
             },
             'compression' : {                
-                'sample_every_n_th' : None,
                 'normalize' : True,
                 'HaPOD' : {
                     'HaPOD_tol': 1e-3,    

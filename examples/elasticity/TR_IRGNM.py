@@ -42,7 +42,15 @@ set_log_levels({
     'pymor' : 'WARN'
 })
 
-set_defaults({})
+
+
+
+# set_defaults({
+#     'pymor.algorithms.gram_schmidt.gram_schmidt.atol': 1e-16,
+#     'pymor.algorithms.gram_schmidt.gram_schmidt.rtol': 1e-16,
+#     'pymor.algorithms.gram_schmidt.gram_schmidt.check_tol': 1e-6,
+# })
+
 
 #########################################################################################''
 # from pymor.core.cache import clear_caches
@@ -210,8 +218,8 @@ def main():
                 }
             },
             'adjoint' : {
-                #'type' : TimeStepperType.SecondOrderCrankNicolson,
-                'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
+                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
                 'config' : {
                     'zeta' : 0.5
                 }
@@ -264,7 +272,6 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized            
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
@@ -315,7 +322,6 @@ def main():
                     # },
                 },
                 'compression' : {
-                    'sample_every_n_th' : None,
                     'normalize' : True,
                     'HaPOD' : {
                         'HaPOD_tol': 1e-1,    
@@ -323,27 +329,20 @@ def main():
                     },
                     #'normalize' : None,
                     #'HaPOD' : None,
-                    'overwrite_every_n' : None,
-                    'keep_last_n': None,
-                    'post_HaPOD' : None
                 }
             },
             'state_basis' : {
                 'additional_snapshots' :{
-                    'include_lins' : True,
+                    'include_lins' : False,
                     'include_krylov_sensitivites' : False,
                 },
                 'compression' : {                
-                    'sample_every_n_th' : None,
                     'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-3,
+                        'HaPOD_tol': 1e-12,
                     },
                     # 'normalize' : None,
                     # 'HaPOD' : None,
-                    'overwrite_every_n' : None,
-                    'keep_last_n': None,
-                    'post_HaPOD' : None
                 }
             },
             'adjoint_basis' : {
@@ -352,16 +351,12 @@ def main():
                     'include_krylov_sensitivites' : False,
                 },
                 'compression' : {                
-                    'sample_every_n_th' : None,
                     # 'normalize' : True,
                     # 'HaPOD' : {
                     #     'HaPOD_tol': 1e-3,    
                     # },
                     'normalize' : None,
                     'HaPOD' : None,
-                    'overwrite_every_n' : None,
-                    'keep_last_n': None,
-                    'post_HaPOD' : None
                 }
             }
         },

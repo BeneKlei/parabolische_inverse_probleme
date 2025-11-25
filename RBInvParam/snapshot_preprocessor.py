@@ -207,10 +207,6 @@ class SnapshotPreprocessor(BasicObject):
         assert isinstance(snapshots, VectorArray) 
 
         self._logger.debug("Starting snapshot preprocesssing")
-
-        if config['sample_every_n_th']:
-            self._logger.debug(f"    Applying 'sample_every_n_th' with n = {config['sample_every_n_th']}")
-            snapshots = snapshots[::config['sample_every_n_th']]
                     
         if config['normalize']:
             self._logger.debug(f"    Applying 'normalize'")
