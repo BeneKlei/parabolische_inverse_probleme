@@ -13,7 +13,7 @@ y_res = 30
 z_res = 30
 par_dim = (y_res + 1) * (z_res + 1) 
 T_initial = 0
-T_final = 5.0
+T_final = 10.0
 nt = 50
 
 delta_t = (T_final - T_initial) / nt
@@ -21,6 +21,9 @@ delta_t = (T_final - T_initial) / nt
 assert T_final > T_initial
 q_circ = np.ones((1, par_dim))
 q_exact = np.ones((1,par_dim))
+
+q_exact[0,200] = 2
+q_exact[0,300] = 3
 
 q_circ[0,:] = 1.0
 
@@ -96,8 +99,8 @@ setup = {
 }
 
 q_start = q_circ
-lin_solver_tol = 1e-12
-tau = 1.25
+lin_solver_tol = 5 * 1e-9
+tau = 1.00
 
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
@@ -167,16 +170,14 @@ TR_optimizer_parameter = {
         'enrichment': {
         'parameter_basis' : {
             'reduced_basis' : True,
-            'additional_snapshots' : {
-                'include_each_time_step' : True,
+            'additional_snapshots' :{
+                'include_each_time_step' : False,
                 'include_lin_grad' : False,
                 'include_krylov_directions' : False,
             },
             'compression' : {
-                'normalize' : True,
-                'HaPOD' : {
-                    'HaPOD_tol': 1e-1
-                },
+                'normalize' : None,
+                'HaPOD' : None,
             }
         },
         'state_basis' : {
@@ -216,57 +217,12 @@ TR_optimizer_parameter = {
 
 EXPERIMENTS = {}
 
-##########################################################################################
-
-y_poses = [15,12,10,7,5,2]
-for y_pos in y_poses:
-    _EXPERIMENTS = {}
-
-    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    q_exact[15,y_pos] = 3
-
-    q_exact = q_exact.flatten()
-    q_exact = np.array([q_exact])
-
-    setup_ = copy.deepcopy(setup)
-    setup_['q_exact'] = q_exact
-
-    _EXPERIMENTS['TR_sensors_time_step'] = (setup_, TR_optimizer_parameter)
-
-    prefix = f'defect_position_ypos_{y_pos}'
-    _EXPERIMENTS = {f"{prefix}_{k}": v for k, v in _EXPERIMENTS.items()}
-    EXPERIMENTS.update(_EXPERIMENTS)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 setup_sensors = copy.deepcopy(setup)
 setup_identity = copy.deepcopy(setup)
 
 setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
-setup_identity['noise_level'] = 5 * 1e-5
-
-identity_lin_solver_tol = 1e-8
+#setup_identity['noise_level'] = 5 * 1e-5
+#identity_lin_solver_tol = 1e-8
 ##########################################################################################
 FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
 TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
@@ -276,22 +232,71 @@ TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
 FOM_optimizer_parameter_sensors = copy.deepcopy(FOM_optimizer_parameter_)
 FOM_optimizer_parameter_identity = copy.deepcopy(FOM_optimizer_parameter_)
 
-FOM_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
+#FOM_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+#FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
-#EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
-#EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
+EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
+EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'HaPOD_tol': 1e-1}
+
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
-
+TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
 EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
-#EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
 
+#----------------------------------------------------------------------------------------
+
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+
+TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
+
+TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
+
+EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
+EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
+
+#----------------------------------------------------------------------------------------
+
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+
+TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
+
+TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
+
+EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
+EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
+
+#----------------------------------------------------------------------------------------
+
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_krylov_directions'] = \
+{
+    'n' : 5,
+    'inital_direction' : 'ones'
+}
+TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
+
+TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
+
+EXPERIMENTS['TR_sensors_krylov'] = (setup_sensors, TR_optimizer_parameter_sensors)
+EXPERIMENTS['TR_identity_krylov'] = (setup_identity, TR_optimizer_parameter_identity)
 
 
 prefix = 'new_baseline'
