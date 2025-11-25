@@ -7,6 +7,7 @@ from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimat
 from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimatorType
 from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
 
+from RBInvParam.timestepping import TimeStepperType
 
 y_res = 30
 z_res = 30
@@ -81,8 +82,19 @@ setup = {
     'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
     'save_path' : None,
     'time_stepper' : {
-        'name' : 'newman_second_order',
-        'zeta' : 0.5
+        'primal' : {
+            'type' : TimeStepperType.SecondOrderCrankNicolson,
+            'config' : {
+                'zeta' : 0.5
+            }
+        },
+        'adjoint' : {
+            'type' : TimeStepperType.SecondOrderCrankNicolson,
+            #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
+            'config' : {
+                'zeta' : 0.5
+            }
+        },
     }
 }
 
