@@ -14,7 +14,7 @@ z_res = 30
 par_dim = (y_res + 1) * (z_res + 1) 
 T_initial = 0
 T_final = 10.0
-nt = 50
+nt = 100
 
 delta_t = (T_final - T_initial) / nt
 

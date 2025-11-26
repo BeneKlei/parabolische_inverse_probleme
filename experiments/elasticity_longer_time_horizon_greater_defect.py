@@ -312,5 +312,5 @@ EXPERIMENTS['TR_sensors_time_step_HaPOD_1e-12'] = (setup_sensors, TR_optimizer_p
 
 
 
-prefix = 'longer_time_horizon'
+prefix = 'longer_time_horizon_greater_defect'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}
