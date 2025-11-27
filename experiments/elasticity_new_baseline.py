@@ -137,8 +137,8 @@ TR_optimizer_parameter = {
     'tau': tau,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
     'theta': 0.4,
-    #'Theta': 1.95,                                               # Upper bound for step acceptance condition
-    'Theta': 1.50,                                               # Upper bound for step acceptance condition
+    'Theta': 1.95,                                               # Upper bound for step acceptance condition
+    #'Theta': 1.50,                                               # Upper bound for step acceptance condition
     'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
     #####################
     'i_max': 75,                                                 # Max number of outer optimization iterations
@@ -171,7 +171,7 @@ TR_optimizer_parameter = {
         'enrichment': {
         'parameter_basis' : {
             'reduced_basis' : True,
-            'additional_snapshots' :{
+            'additional_snapshots' : {
                 'include_each_time_step' : False,
                 'include_lin_grad' : False,
                 'include_krylov_directions' : False,

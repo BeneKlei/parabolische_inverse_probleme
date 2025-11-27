@@ -29,13 +29,21 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 MACHINE_EPS = 1e-16
 STAGNATION_TOL = 1e-6
 
-error_estimate_targets = ['J']
-#error_estimate_targets = ['J', 'nabla_J']
-#error_estimate_targets = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
+error_estimate_targets_outer = ['J']
+error_estimate_targets_inner = ['J']
+
+#error_estimate_targets_outer = ['J', 'nabla_J']
+#error_estimate_targets_inner = ['J', 'nabla_J']
+
+#error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
 
 import matplotlib.pyplot as plt
 fig_1, ax_1 = plt.subplots(figsize=(6,4))
 fig_2, ax_2 = plt.subplots(figsize=(6,4))
+
+import itertools
+import matplotlib.pyplot as plt
+cmap = plt.cm.get_cmap('viridis', 30) 
 
 class Optimizer(BasicObject):
     def __init__(self, 
@@ -119,7 +127,7 @@ class Optimizer(BasicObject):
                                use_cached_operators: bool = False,
                                projector: SimpleBoundDomainProjector = None,
                                alpha: float = 0.0,
-                               use_error_estimator: bool = False) -> Tuple[NumpyVectorArray, float, bool]:
+                               use_error_estimator: bool = False) -> Tuple[NumpyVectorArray, float, bool, Dict]:
 
         assert 0 <= beta < 1
         assert 0 < eta
@@ -164,19 +172,21 @@ class Optimizer(BasicObject):
 
         armijo_condition = lhs >= rhs
         if current_J > 0:
-            _, _, _, _, abs_est_error_J_r, abs_est_error_nabla_J_r, _, _ = \
+            errors = \
             self.estimate_errors(
                 model = model,
                 q_r = current_q,
+                d_r = (current_q - previous_q),
                 u_r = u,
                 p_r = p,
                 u_dot_r = u_dot,
                 p_dot_r = p_dot,
                 J_r = current_J,
-                targets=error_estimate_targets,
+                targets=error_estimate_targets_inner,
                 use_cached_operators=use_cached_operators,
                 use_error_estimator = use_error_estimator
             )
+            abs_est_error_J_r = errors['err_J']
             J_rel_error = abs_est_error_J_r / current_J
         else:
             J_rel_error = np.inf
@@ -243,19 +253,21 @@ class Optimizer(BasicObject):
             armijo_condition = lhs >= rhs
 
             if current_J > 0:
-                _, _, _, _, abs_est_error_J_r, _, _, _ = \
+                errors = \
                 self.estimate_errors(
                     model = model,
                     q_r = current_q,
+                    d_r = (current_q - previous_q),
                     u_r = u,
                     p_r = p,
                     u_dot_r = u_dot,
                     p_dot_r = p_dot,
                     J_r = current_J,
-                    targets=error_estimate_targets,
+                    targets=error_estimate_targets_inner,
                     use_cached_operators=use_cached_operators,
                     use_error_estimator=use_error_estimator
                 )                
+                abs_est_error_J_r = errors['err_J']
                 J_rel_error = abs_est_error_J_r / current_J
             else:
                 J_rel_error = np.inf
@@ -294,7 +306,7 @@ class Optimizer(BasicObject):
         else:
             self.logger.debug(f"Armijo backtracking does terminate normally with step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
 
-        return (current_q, current_J, model_unsufficent, TR_max_iter_cond, step_size)
+        return (current_q, current_J, model_unsufficent, TR_max_iter_cond, step_size, errors)
 
     def estimate_errors(self,
                         model: InstationaryModelIP,
@@ -309,7 +321,7 @@ class Optimizer(BasicObject):
                         J_r: float = None,
                         targets : str | List[str] = 'all',
                         use_error_estimator: bool = True,
-                        use_cached_operators: bool = True) -> Tuple[float,float,float,float,float,float,float,float]:
+                        use_cached_operators: bool = True) -> Dict:
 
         if id(model) == id(self.FOM):
             return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
@@ -355,7 +367,7 @@ class Optimizer(BasicObject):
                         J_r: float = None,
                         targets : str | List[str] = 'all',
                         use_error_estimator: bool = True,
-                        use_cached_operators: bool = True) -> Tuple[float,float,float,float,float,float,float,float]:
+                        use_cached_operators: bool = True) -> Dict:
 
         ordered_targets = ['u', 'p', 'lin_u', 'lin_p', 'J', 'nabla_J', 'lin_J', 'nabla_lin_J']
         implemented_targets = ['J']
@@ -365,13 +377,23 @@ class Optimizer(BasicObject):
 
         assert set(targets).issubset(implemented_targets)
         est_err_u = np.nan
+        rel_est_err_u = np.nan
         est_err_p = np.nan
+        rel_est_err_p = np.nan
         est_err_lin_u = np.nan
+        rel_est_err_lin_u = np.nan
         est_err_lin_p = np.nan
+        rel_est_err_lin_p = np.nan
         est_err_J = np.nan
+        rel_est_err_J = np.nan
         est_err_nabla_J = np.nan
+        rel_est_err_nabla_J = np.nan
         est_err_lin_J = np.nan
+        rel_est_err_lin_J = np.nan
         est_err_nabla_lin_J = np.nan
+        rel_est_err_nabla_lin_J = np.nan
+
+        
 
         for target in targets:
             if target == 'J':
@@ -396,16 +418,24 @@ class Optimizer(BasicObject):
                 
             raise ValueError
 
-        return (
-            est_err_u,
-            est_err_p,
-            est_err_lin_u,
-            est_err_lin_p,
-            est_err_J,
-            est_err_nabla_J,
-            est_err_lin_J,
-            est_err_nabla_lin_J,
-        )
+        return {
+            'err_u' : est_err_u,
+            'rel_est_err_u' : rel_est_err_u,
+            'err_p' : est_err_p,
+            'rel_est_err_p' : rel_est_err_p,
+            'err_lin_u' : est_err_lin_u,
+            'rel_est_err_lin_u' : rel_est_err_lin_u,
+            'err_lin_p' : est_err_lin_p,
+            'rel_est_err_lin_p' : rel_est_err_lin_p,
+            'err_J' : est_err_J,
+            'rel_est_err_J' : rel_est_err_J,
+            'err_nabla_J' : est_err_nabla_J,
+            'rel_est_err_nabla_J' : rel_est_err_nabla_J,
+            'err_lin_J' : est_err_lin_J,
+            'rel_est_err_lin_J' : rel_est_err_lin_J,
+            'err_nabla_lin_J' : est_err_nabla_lin_J,
+            'rel_est_err_nabla_lin_J' : rel_est_err_nabla_lin_J
+        }
 
     def _calc_errors(self,
                      model: InstationaryModelIP,
@@ -416,7 +446,7 @@ class Optimizer(BasicObject):
                      lin_u_r : VectorArray = None,
                      lin_p_r : VectorArray = None,
                      targets : str | List[str] = 'all',
-                     use_cached_operators: bool = True) -> Tuple[float,float,float,float,float,float,float,float]:
+                     use_cached_operators: bool = True) -> Dict:
 
         
                 
@@ -434,13 +464,21 @@ class Optimizer(BasicObject):
             assert d_r is not None
 
         err_u = np.nan
+        rel_err_u = np.nan
         err_p = np.nan
+        rel_err_p = np.nan
         err_lin_u = np.nan
+        rel_err_lin_u = np.nan
         err_lin_p = np.nan
+        rel_err_lin_p = np.nan
         err_J = np.nan
+        rel_err_J = np.nan
         err_nabla_J = np.nan
+        rel_err_nabla_J = np.nan
         err_lin_J = np.nan
+        rel_err_lin_J = np.nan
         err_nabla_lin_J = np.nan
+        rel_err_nabla_lin_J = np.nan
 
         q = self.reductor.reconstruct(q_r, basis='parameter_basis')
         if d_r is not None:
@@ -546,6 +584,7 @@ class Optimizer(BasicObject):
                 norm_lin_p = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(lin_p, lin_p))[0,0]
                 rel_err_lin_p = err_lin_p / norm_lin_p
                 self._logger.debug(f'Actual rel_err_lin_p = {rel_err_lin_p:3.4e}')
+                continue
             
             if required_quantity == 'J':
                 if J_r is None:
@@ -611,20 +650,28 @@ class Optimizer(BasicObject):
                 rel_err_nabla_lin_J = err_nabla_lin_J / norm_nabla_lin_J
                 self._logger.debug(f'Actual rel_err_nabla_lin_J = {rel_err_nabla_lin_J:3.4e}')
                 continue
-            
+                    
             raise ValueError
         
-        return (
-            err_u,
-            err_p,
-            err_lin_u,
-            err_lin_p,
-            err_J,
-            err_nabla_J,
-            err_lin_J,
-            err_nabla_lin_J,
-        )
-        
+        return {
+            'err_u' : err_u,
+            'rel_err_u' : rel_err_u,
+            'err_p' : err_p,
+            'rel_err_p' : rel_err_p,
+            'err_lin_u' : err_lin_u,
+            'rel_err_lin_u' : rel_err_lin_u,
+            'err_lin_p' : err_lin_p,
+            'rel_err_lin_p' : rel_err_lin_p,
+            'err_J' : err_J,
+            'rel_err_J' : rel_err_J,
+            'err_nabla_J' : err_nabla_J,
+            'rel_err_nabla_J' : rel_err_nabla_J,
+            'err_lin_J' : err_lin_J,
+            'rel_err_lin_J' : rel_err_lin_J,
+            'err_nabla_lin_J' : err_nabla_lin_J,
+            'rel_err_nabla_lin_J' : rel_err_nabla_lin_J
+        }
+    
     def IRGNM(self,
               model: InstationaryModelIP,
               q_0: VectorArray,
@@ -660,19 +707,36 @@ class Optimizer(BasicObject):
         else:
             method_name = 'IRGNM'
 
-        stagnation_flag = False
         self.IRGNM_statistics = {
             'IRGNM_idx' : self.IRGNM_idx,
             "q" : [],
-            'time_steps' : [],
             "alpha" : [],
             "J" : [],
             "norm_nabla_J" : [],
             "total_runtime" : [],
             "stagnation_flag" : False,
             "FOM_num_calls" : {},
-            "counts" : {}
+            "counts" : {},
+            "errors" : {
+                'err_u' : [],
+                'rel_err_u' : [],
+                'err_p' : [],
+                'rel_err_p' : [],
+                'err_lin_u' : [],
+                'rel_err_lin_u' : [],
+                'err_lin_p' : [],
+                'rel_err_lin_p' : [],
+                'err_J' : [],
+                'rel_err_J' : [],
+                'err_nabla_J' : [],
+                'rel_err_nabla_J' : [],
+                'err_lin_J' : [],
+                'rel_err_lin_J' : [],
+                'err_nabla_lin_J' : [],
+                'rel_err_nabla_lin_J' : []
+            }
         }
+        
         counts = {
             'IRGNM_loop_iter' : -1,
             'reg_loop_iter' : [],
@@ -680,6 +744,8 @@ class Optimizer(BasicObject):
             'loop_terminated' : []
         }
 
+        stagnation_flag = False
+        
         start_time = timer()
         i = 0
         model_unsufficent = False
@@ -706,6 +772,7 @@ class Optimizer(BasicObject):
         self.IRGNM_statistics["J"].append(J)
         self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
         self.IRGNM_statistics["alpha"].append(alpha)
+        self.IRGNM_statistics["total_runtime"].append(timer() - start_time)
 
         self.logger.debug("Running IRGNM: ")
         self.logger.debug(f"  J : {J:3.4e}")
@@ -839,7 +906,7 @@ class Optimizer(BasicObject):
 
             if TR_enforcement == 'backtracking':
                 self.logger.info(f"Enforcing TR condition using 'backtracking'.")
-                q_TR, _, model_unsufficent, TR_max_iter_cond, step_size = self._armijo_TR_line_serach(
+                q_TR, _, model_unsufficent, TR_max_iter_cond, step_size, errors = self._armijo_TR_line_serach(
                     model = model,
                     previous_q = q,
                     previous_J = J,
@@ -869,19 +936,21 @@ class Optimizer(BasicObject):
                 next_J = model.objective(u=u,q=next_q)
 
                 if next_J > 0:
-                    _, _, _, _, abs_est_error_J_r, _, _, _ = \
+                    errors = \
                     self.estimate_errors(
                         model = model,
                         q_r = next_q,
+                        d_r = d,
                         u_r = u,
                         p_r = p,
                         u_dot_r = u_dot,
                         p_dot_r = p_dot,
                         J_r = J,
-                        targets = ['J'],
+                        targets = error_estimate_targets_inner,
                         use_cached_operators=use_cached_operators,
                         use_error_estimator=use_error_estimator
                     )
+                    abs_est_error_J_r = errors['err_J']
                     J_rel_error = abs_est_error_J_r / next_J
                 else:
                     J_rel_error = np.inf
@@ -996,25 +1065,28 @@ class Optimizer(BasicObject):
             #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
             # )
 
+
             # _u = self.FOM.solve_state(q = self.reductor.reconstruct(q, basis='parameter_basis'))
             # _p = self.FOM.solve_adjoint(q = self.reductor.reconstruct(q, basis='parameter_basis'), u = _u)
 
-
             # basis = 'state_basis'
             # _basis = self.reductor.bases[basis]
+
+            # import itertools
+            # import matplotlib.pyplot as plt
+            
             # coeff_u = np.sum((_u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
             # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(_u,_u)) - np.cumsum(coeff_u)
             
             # coeff_p = np.sum((_p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
             # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(_p,_p)) - np.cumsum(coeff_p)
 
-            # ax_1.semilogy(err_i_u)
-            # ax_1.semilogy(err_i_p)
-            # ax_1.set_ylim([1e-16, 1e4])
+            # color = cmap(i)
+            # ax_1.semilogy(err_i_u, color=color)
+            # ax_1.semilogy(err_i_p, color=color, linestyle="--")
+            # ax_1.set_ylim([1e-18, 1e4])
+            # ax_1.grid()
 
-            # print("§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§")
-            # print(np.sum(np.abs(d.to_numpy())))
-            
             # fig_1.savefig(self.save_path / "inner_plot.pdf")
 
             # _u_r = model.solve_state(q)
@@ -1042,6 +1114,9 @@ class Optimizer(BasicObject):
             self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
             self.IRGNM_statistics["alpha"].append(alpha)
 
+            for key, val in errors.items():
+                self.IRGNM_statistics["errors"][key].append(val)
+
             #stagnation check
             if i > 3:
                 buffer = self.IRGNM_statistics["J"][-3:]
@@ -1051,7 +1126,6 @@ class Optimizer(BasicObject):
                     stagnation_flag = True
                     break
 
-            self.IRGNM_statistics['time_steps'].append((timer()- start_time))
             self.logger.info(f'Statistics {method_name} iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             i += 1
             if not(np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max):
@@ -1388,19 +1462,19 @@ class QrFOMOptimizer(Optimizer):
             self.IRGNM_idx += 1
             
             inner_loop_start_time = timer()
-            q_r, IRGNM_statistic = self.IRGNM(model = self.QrFOM,
-                                              q_0 = q_r,
-                                              alpha_0 = alpha,
-                                              tol = tol,
-                                              tau = tau,
-                                              noise_level = delta,
-                                              i_max = i_max_inner,
-                                              theta = theta,
-                                              Theta = Theta,
-                                              reg_loop_max = reg_loop_max,
-                                              lin_solver_parms = lin_solver_parms,
-                                              use_cached_operators = use_cached_operators,
-                                              use_error_estimator=False)
+            q_r, IRGNM_statistic_ = self.IRGNM(model = self.QrFOM,
+                                               q_0 = q_r,
+                                               alpha_0 = alpha,
+                                               tol = tol,
+                                               tau = tau,
+                                               noise_level = delta,
+                                               i_max = i_max_inner,
+                                               theta = theta,
+                                               Theta = Theta,
+                                               reg_loop_max = reg_loop_max,
+                                               lin_solver_parms = lin_solver_parms,
+                                               use_cached_operators = use_cached_operators,
+                                               use_error_estimator=False)
             
             q = self.reductor.reconstruct(q_r, basis='parameter_basis')
             assert self.FOM_projector.project_domain(center=q) == q
@@ -1828,7 +1902,7 @@ class QrVrROMOptimizer(Optimizer):
         #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
         # )
 
-        _, _, _, _, abs_est_error_J_r, abs_est_error_nabla_J_r, _, _ = \
+        errors = \
         self.estimate_errors(
             model=self.QrVrROM,
             q_r = q_r,
@@ -1837,17 +1911,19 @@ class QrVrROMOptimizer(Optimizer):
             u_dot_r = u_dot_r,
             p_dot_r = p_dot_r,
             J_r = J,
-            targets = ['J'],
+            targets = error_estimate_targets_outer,
             use_cached_operators=use_cached_operators,
             use_error_estimator=use_error_estimator
         )
 
         if J_r > 0:
+            abs_est_error_J_r = errors['err_J']
             rel_est_error_J_r = abs_est_error_J_r / J_r
         else:
             rel_est_error_J_r = np.inf
 
         if norm_nabla_J_r > 0:
+            abs_est_error_nabla_J_r = errors['err_nabla_J']
             rel_est_error_nabla_J_r = abs_est_error_nabla_J_r / norm_nabla_J_r
         else:
             rel_est_error_nabla_J_r = np.inf
@@ -1868,7 +1944,8 @@ class QrVrROMOptimizer(Optimizer):
         convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
         AGC_jump_back = False
         last_inner_alpha = None
-        
+        IRGNM_statistics = {}
+
         # u_r = self.reductor.reconstruct(u_r, basis='state_basis')
         # print(u_r.to_numpy())
         # self.FOM.A.material_model.save_time_series(
@@ -1906,7 +1983,6 @@ class QrVrROMOptimizer(Optimizer):
         # print(self.reductor.reconstruct(lin_u_r, basis='state_basis').to_numpy())
         # print("!!!!!!!!!!!!!!!!!!!!!!!!!!")
         # print(self.reductor.reconstruct(lin_p_r, basis=_basis).to_numpy())
-
 
         while not convergence_criterium and i<i_max:            
             outer_loop_start_time = timer()
@@ -1963,7 +2039,7 @@ class QrVrROMOptimizer(Optimizer):
             
             nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
             
-            _, _, _, _, abs_est_error_J_r, abs_est_error_nabla_J_r, _, _ = \
+            errors = \
             self.estimate_errors(
                 model = self.QrVrROM,
                 q_r = q_r,
@@ -1972,22 +2048,16 @@ class QrVrROMOptimizer(Optimizer):
                 u_dot_r = u_dot_r,
                 p_dot_r = p_dot_r,
                 J_r = J,
-                targets=error_estimate_targets,
+                targets=error_estimate_targets_outer,
                 use_cached_operators=use_cached_operators,
                 use_error_estimator=use_error_estimator)
             
             if J_r > 0:
+                abs_est_error_J_r = errors['err_J']
                 rel_est_error_J_r = abs_est_error_J_r / J_r
             else:
                 rel_est_error_J_r = np.inf
 
-            print("---------------------")
-            print(rel_est_error_J_r)
-            print('abs_est_error_J_r:')
-            print(abs_est_error_J_r)
-            print(J_r)
-            print(J)
-            print("---------------------")
 
             if eta <= eta_min:
                 self.statistics["stagnation_flag"] = True
@@ -2061,7 +2131,7 @@ class QrVrROMOptimizer(Optimizer):
                 nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
                 norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
 
-                _, _, _, _, abs_est_error_J_r, _, _, _ = \
+                errors = \
                 self.estimate_errors(
                     model = self.QrVrROM,
                     q_r = q_r,
@@ -2070,11 +2140,12 @@ class QrVrROMOptimizer(Optimizer):
                     u_dot_r = u_dot_r,
                     p_dot_r = p_dot_r,
                     J_r = J,
-                    targets=error_estimate_targets,
+                    targets=error_estimate_targets_outer,
                     use_cached_operators=use_cached_operators,
                     use_error_estimator=use_error_estimator)
                 
                 if J_r > 0:
+                    abs_est_error_J_r = errors['err_J']
                     rel_est_error_J_r = abs_est_error_J_r / J_r
                 else:
                     rel_est_error_J_r = np.inf
@@ -2086,7 +2157,6 @@ class QrVrROMOptimizer(Optimizer):
             print(eta)
             assert (rel_est_error_J_r - 1e-14) <= eta 
 
-            IRGNM_statistic = {}
             projector = SimpleBoundDomainProjector(
                 model = self.QrVrROM,
                 bounds = self.FOM.bounds,
@@ -2123,7 +2193,7 @@ class QrVrROMOptimizer(Optimizer):
 
             self.logger.warning(f"Using AGC_alpha = {AGC_alpha}.")
 
-            q_agc, J_r_AGC, model_unsufficent, AGC_max_iter_cond, _ = self._armijo_TR_line_serach(
+            q_agc, J_r_AGC, model_unsufficent, AGC_max_iter_cond, _, errors = self._armijo_TR_line_serach(
                 model = self.QrVrROM,
                 previous_q = q_r,
                 previous_J = previous_J,
@@ -2256,7 +2326,7 @@ class QrVrROMOptimizer(Optimizer):
                 nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
                 norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
 
-                _, _, _, _, abs_est_error_J_r, abs_est_error_nabla_J_r, _, _ = \
+                errors = \
                 self.estimate_errors(
                     model = self.QrVrROM,
                     q_r = q_r,
@@ -2265,12 +2335,13 @@ class QrVrROMOptimizer(Optimizer):
                     u_dot_r = u_dot_r,
                     p_dot_r = p_dot_r,
                     J_r = J,
-                    targets = ['J'],
+                    targets = error_estimate_targets_outer,
                     use_cached_operators=use_cached_operators,
                     use_error_estimator=use_error_estimator
                 )
                 
                 if J_r > 0:
+                    abs_est_error_J_r = errors['err_J']
                     rel_est_error_J_r = abs_est_error_J_r / J_r
                 else:
                     rel_est_error_J_r = np.inf
@@ -2339,8 +2410,6 @@ class QrVrROMOptimizer(Optimizer):
                         self.logger.info(f"    rho = {rho:3.4e} is greater than beta_2 = {beta_2:3.4e}; updating eta to {eta:3.4e}.")
                     else:
                         self.logger.info(f"    rho = {rho:3.4e} is smaller than beta_2 = {beta_2:3.4e}; keeping eta at {eta:3.4e}.")
-
-
                 elif not necessary_condition:
                     self.logger.info(f"    Reject q.")
                     rejected = True
@@ -2525,19 +2594,26 @@ class QrVrROMOptimizer(Optimizer):
                     # basis = 'state_basis'
                     # _basis = self.reductor.bases[basis]
 
-
                     # coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
                     # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
                     
                     # coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
                     # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
 
-                    # ax_2.semilogy(err_i_u)
-                    # ax_2.semilogy(err_i_p)
-                    # ax_2.set_ylim([1e-16, 1e4])
+                    # err_i_u = err_i_u[err_i_u > 0]
+                    # err_i_p = err_i_p[err_i_p > 0]
                     
+                    # print(err_i_u)
+                    # print(err_i_p)
 
-                    # fig_2.savefig(self.save_path / "__p_plot.pdf")
+                    # color = cmap(i)
+                    # ax_2.semilogy(err_i_u, color=color)
+                    # ax_2.semilogy(err_i_p, color=color, linestyle="--")
+                    # ax_2.set_ylim([1e-18, 1e4])
+                    # ax_2.grid()
+                    
+                    # fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
+
 
 
                     # _basis = self.reductor.bases['state_basis']
