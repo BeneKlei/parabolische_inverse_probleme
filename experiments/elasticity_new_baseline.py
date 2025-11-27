@@ -137,7 +137,8 @@ TR_optimizer_parameter = {
     'tau': tau,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
     'theta': 0.4,
-    'Theta': 1.95,                                               # Upper bound for step acceptance condition
+    #'Theta': 1.95,                                               # Upper bound for step acceptance condition
+    'Theta': 1.50,                                               # Upper bound for step acceptance condition
     'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
     #####################
     'i_max': 75,                                                 # Max number of outer optimization iterations
@@ -221,9 +222,9 @@ setup_sensors = copy.deepcopy(setup)
 setup_identity = copy.deepcopy(setup)
 
 setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
-setup_identity['noise_level'] = 5 * 1e-5
+setup_identity['noise_level'] = 2.5 * 1e-4
 
-identity_lin_solver_tol = 5 * 1e-9
+identity_lin_solver_tol = 5 * 1e-8
 ##########################################################################################
 FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
 TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)

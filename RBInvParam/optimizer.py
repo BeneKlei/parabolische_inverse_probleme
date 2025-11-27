@@ -29,6 +29,10 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 MACHINE_EPS = 1e-16
 STAGNATION_TOL = 1e-6
 
+error_estimate_targets = ['J']
+#error_estimate_targets = ['J', 'nabla_J']
+#error_estimate_targets = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
+
 import matplotlib.pyplot as plt
 fig_1, ax_1 = plt.subplots(figsize=(6,4))
 fig_2, ax_2 = plt.subplots(figsize=(6,4))
@@ -169,7 +173,7 @@ class Optimizer(BasicObject):
                 u_dot_r = u_dot,
                 p_dot_r = p_dot,
                 J_r = current_J,
-                targets=['J'],
+                targets=error_estimate_targets,
                 use_cached_operators=use_cached_operators,
                 use_error_estimator = use_error_estimator
             )
@@ -248,7 +252,7 @@ class Optimizer(BasicObject):
                     u_dot_r = u_dot,
                     p_dot_r = p_dot,
                     J_r = current_J,
-                    targets=['J'],
+                    targets=error_estimate_targets,
                     use_cached_operators=use_cached_operators,
                     use_error_estimator=use_error_estimator
                 )                
@@ -1968,7 +1972,7 @@ class QrVrROMOptimizer(Optimizer):
                 u_dot_r = u_dot_r,
                 p_dot_r = p_dot_r,
                 J_r = J,
-                targets=['J'],
+                targets=error_estimate_targets,
                 use_cached_operators=use_cached_operators,
                 use_error_estimator=use_error_estimator)
             
@@ -2066,7 +2070,7 @@ class QrVrROMOptimizer(Optimizer):
                     u_dot_r = u_dot_r,
                     p_dot_r = p_dot_r,
                     J_r = J,
-                    targets=['J'],
+                    targets=error_estimate_targets,
                     use_cached_operators=use_cached_operators,
                     use_error_estimator=use_error_estimator)
                 
@@ -2329,12 +2333,13 @@ class QrVrROMOptimizer(Optimizer):
                     else:
                         rho = np.inf
 
-                    print("rho = ")
-                    print(rho)
-
                     if rho > beta_2:
                         eta = 1/ beta_3 * eta
                         eta = np.min([eta, eta_max])
+                        self.logger.info(f"    rho = {rho:3.4e} is greater than beta_2 = {beta_2:3.4e}; updating eta to {eta:3.4e}.")
+                    else:
+                        self.logger.info(f"    rho = {rho:3.4e} is smaller than beta_2 = {beta_2:3.4e}; keeping eta at {eta:3.4e}.")
+
 
                 elif not necessary_condition:
                     self.logger.info(f"    Reject q.")
