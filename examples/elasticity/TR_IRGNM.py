@@ -176,11 +176,11 @@ def main():
             }
         },
         'observation_operator': {            
-            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {
-                'spatial_resolution' : [4,y_res,z_res]
+                #'spatial_resolution' : [4,y_res,z_res]
             }
         },
         'dims' : {
@@ -338,13 +338,13 @@ def main():
                     'include_krylov_sensitivites' : False,
                 },
                 'compression' : {                
-                    'normalize' : True,
-                    'HaPOD' : {
-                        'eps': 1e-3,
-                        'omega' : 0.1,
-                    },
-                    # 'normalize' : None,
-                    # 'HaPOD' : None,
+                    # 'normalize' : True,
+                    # 'HaPOD' : {
+                    #     'eps': 1e-3,
+                    #     'omega' : 0.1,
+                    # },
+                    'normalize' : None,
+                    'HaPOD' : None,
                 }
             },
             'adjoint_basis' : {

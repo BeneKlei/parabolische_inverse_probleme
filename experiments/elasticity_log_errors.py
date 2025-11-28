@@ -100,7 +100,7 @@ setup = {
 
 q_start = q_circ
 lin_solver_tol = 1e-12
-tau = 1.25
+tau = 1.00
 
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',

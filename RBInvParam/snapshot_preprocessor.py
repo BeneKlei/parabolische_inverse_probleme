@@ -38,22 +38,26 @@ class SnapshotPreprocessor(BasicObject):
         assert isinstance(snapshots, VectorArray) 
         assert product.source == product.range == snapshots.space
 
-
-        # return \
-        # inc_vectorarray_hapod(steps=len(snapshots)/2, 
-        #                       U=snapshots, 
-        #                       eps=HaPOD_tol,
-        #                       omega=0.1,                
-        #                       product=product)
-
         return \
-        inc_vectorarray_hapod(steps=2 * len(snapshots), 
+        inc_vectorarray_hapod(steps=len(snapshots) / 2, 
                               U=snapshots, 
                               eps=config['eps'],
                               omega=config['omega'],  
                               product=product)
 
         
+
+        # from pymor.algorithms.pod import pod
+        # snapshots, svals = pod(
+        #     snapshots,
+        #     product=product,
+        #     l2_err = config['eps'],
+        #     atol=1e-16,
+        #     rtol=1e-16,
+        #     orth_tol = 1e-14
+        # )
+
+        # return snapshots, svals, None         
 
     def _compute_krylov(self,
                         config: Dict,
@@ -224,7 +228,6 @@ class SnapshotPreprocessor(BasicObject):
 
         if config['HaPOD']:
             self._logger.debug(f"    Applying 'HaPOD' with eps = {config['HaPOD']['eps']} and omega = {config['HaPOD']['omega']}")
-
             snapshots, svals, snap_count = self._HaPOD(
                 snapshots = snapshots,
                 product = product,
