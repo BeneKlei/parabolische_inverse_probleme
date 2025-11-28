@@ -168,7 +168,7 @@ TR_optimizer_parameter = {
     #     'atol': 1e-12,                                         # Absolute convergence tolerance
     #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
     # },
-        'enrichment': {
+    'enrichment': {
         'parameter_basis' : {
             'reduced_basis' : True,
             'additional_snapshots' : {
@@ -249,6 +249,25 @@ TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normal
 TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1}
 HaPOD_eps = 1e-3
 TR_optimizer_parameter__['enrichment']['state_basis']['compression']['HaPOD'] = {'eps': HaPOD_eps}
+TR_optimizer_parameter__['enrichment']['state_basis']['additional_snapshots']['include_lins'] = True
+
+TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
+
+TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
+
+EXPERIMENTS[f'TR_sensors_{HaPOD_eps}_include_lins'] = (setup_sensors, TR_optimizer_parameter_sensors)
+EXPERIMENTS['TR_identity_include_lins'] = (setup_identity, TR_optimizer_parameter_identity)
+
+#----------------------------------------------------------------------------------------
+
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1}
+HaPOD_eps = 1e-3
+TR_optimizer_parameter__['enrichment']['state_basis']['compression']['HaPOD'] = {'eps': HaPOD_eps}
 
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
@@ -257,7 +276,7 @@ TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
 EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
-EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
@@ -275,7 +294,7 @@ TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
 EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
-EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
@@ -293,7 +312,7 @@ TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
 EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
-EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
@@ -311,9 +330,8 @@ TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
 EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
-EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
 
 
-
-prefix = 'new_baseline'
+prefix = 'log_errors'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}
