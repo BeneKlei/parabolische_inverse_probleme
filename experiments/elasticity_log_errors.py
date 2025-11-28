@@ -257,7 +257,7 @@ TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
 EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
-#EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
@@ -275,7 +275,7 @@ TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
 EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
-#EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
@@ -293,7 +293,7 @@ TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
 EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
-#EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
@@ -311,7 +311,7 @@ TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
 EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
-#EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
 
 
 
