@@ -238,8 +238,8 @@ FOM_optimizer_parameter_identity = copy.deepcopy(FOM_optimizer_parameter_)
 FOM_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
-EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
-EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
+# EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
+# EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
@@ -247,6 +247,8 @@ TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
 TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
 TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
 TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1}
+HaPOD_eps = 1e-3
+TR_optimizer_parameter__['enrichment']['state_basis']['compression']['HaPOD'] = {'eps': HaPOD_eps}
 
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
@@ -254,13 +256,17 @@ TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
-#EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
+EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
 #EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
 TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1}
+HaPOD_eps = 1e-6
+TR_optimizer_parameter__['enrichment']['state_basis']['compression']['HaPOD'] = {'eps': HaPOD_eps}
 
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
@@ -268,12 +274,17 @@ TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
-#EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
-#EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
+#EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1}
+HaPOD_eps = 1e-9
+TR_optimizer_parameter__['enrichment']['state_basis']['compression']['HaPOD'] = {'eps': HaPOD_eps}
 
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
@@ -281,25 +292,27 @@ TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
-#EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
-#EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
+#EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_krylov_directions'] = \
-{
-    'n' : 5,
-    'inital_direction' : 'ones'
-}
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1}
+HaPOD_eps = 1e-12
+TR_optimizer_parameter__['enrichment']['state_basis']['compression']['HaPOD'] = {'eps': HaPOD_eps}
+
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
 TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
-#EXPERIMENTS['TR_sensors_krylov'] = (setup_sensors, TR_optimizer_parameter_sensors)
-#EXPERIMENTS['TR_identity_krylov'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS[f'TR_sensors_{HaPOD_eps}'] = (setup_sensors, TR_optimizer_parameter_sensors)
+#EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+
 
 
 prefix = 'new_baseline'

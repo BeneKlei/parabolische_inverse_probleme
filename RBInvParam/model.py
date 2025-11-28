@@ -743,6 +743,7 @@ class InstationaryModelIP(ImmutableObject):
         out = 0.5 * self.delta_t * np.sum(self.bilinear_cost_term.pairwise_apply2(u,u)
                                           + (-2) * self.linear_cost_term.pairwise_inner(u) 
                                           + self.constant_cost_term)
+
         if alpha > 0:
             assert q is not None
             # add regularization term if alpha >0

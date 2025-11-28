@@ -281,8 +281,8 @@ def main():
         'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
-        #'Theta': 1.95,                                               # Upper bound for step acceptance condition
-        'Theta': 1.50,                                               # Upper bound for step acceptance condition
+        'Theta': 1.95,                                               # Upper bound for step acceptance condition
+        #'Theta': 1.50,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
@@ -324,7 +324,8 @@ def main():
                 'compression' : {
                     'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-1,    
+                        'eps': 1e-1,   
+                        'omega' : 0.1, 
                         #'HaPOD_tol': 1e-3,
                     },
                     #'normalize' : None,
@@ -339,7 +340,8 @@ def main():
                 'compression' : {                
                     'normalize' : True,
                     'HaPOD' : {
-                        'HaPOD_tol': 1e-12,
+                        'eps': 1e-3,
+                        'omega' : 0.1,
                     },
                     # 'normalize' : None,
                     # 'HaPOD' : None,

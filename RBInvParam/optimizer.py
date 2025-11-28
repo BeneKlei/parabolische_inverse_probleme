@@ -29,21 +29,30 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 MACHINE_EPS = 1e-16
 STAGNATION_TOL = 1e-6
 
-error_estimate_targets_outer = ['J']
-error_estimate_targets_inner = ['J']
+#######################################################################
+
+# error_estimate_targets_outer = ['J']
+# error_estimate_targets_inner = ['J']
 
 #error_estimate_targets_outer = ['J', 'nabla_J']
 #error_estimate_targets_inner = ['J', 'nabla_J']
 
-#error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
+error_estimate_targets_outer = ['J', 'nabla_J']
+error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
+
+#######################################################################
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 fig_1, ax_1 = plt.subplots(figsize=(6,4))
 fig_2, ax_2 = plt.subplots(figsize=(6,4))
 
-import itertools
-import matplotlib.pyplot as plt
-cmap = plt.cm.get_cmap('viridis', 30) 
+#cmap = plt.cm.get_cmap('viridis', 30) 
+cmap = plt.cm.get_cmap('tab10')
+colors = cmap.colors * 5   # repeat 5 times
+cmap = ListedColormap(colors)
+
+#######################################################################
 
 class Optimizer(BasicObject):
     def __init__(self, 
@@ -748,7 +757,9 @@ class Optimizer(BasicObject):
         
         start_time = timer()
         i = 0
+
         model_unsufficent = False
+        
         
         # if not q_0 in self.FOM.Q:
         #     q_ = self.reductor.reconstruct(q_0, basis='parameter_basis')
@@ -1066,33 +1077,35 @@ class Optimizer(BasicObject):
             # )
 
 
-            # _u = self.FOM.solve_state(q = self.reductor.reconstruct(q, basis='parameter_basis'))
-            # _p = self.FOM.solve_adjoint(q = self.reductor.reconstruct(q, basis='parameter_basis'), u = _u)
+            _u = self.FOM.solve_state(q = self.reductor.reconstruct(q, basis='parameter_basis'))
+            _p = self.FOM.solve_adjoint(q = self.reductor.reconstruct(q, basis='parameter_basis'), u = _u)
 
-            # basis = 'state_basis'
-            # _basis = self.reductor.bases[basis]
+            basis = 'state_basis'
+            _basis = self.reductor.bases[basis]
 
-            # import itertools
-            # import matplotlib.pyplot as plt
+            import itertools
+            import matplotlib.pyplot as plt
             
-            # coeff_u = np.sum((_u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-            # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(_u,_u)) - np.cumsum(coeff_u)
+            coeff_u = np.sum((_u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+            err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(_u,_u)) - np.cumsum(coeff_u)
             
-            # coeff_p = np.sum((_p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-            # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(_p,_p)) - np.cumsum(coeff_p)
+            coeff_p = np.sum((_p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+            err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(_p,_p)) - np.cumsum(coeff_p)
 
-            # color = cmap(i)
-            # ax_1.semilogy(err_i_u, color=color)
-            # ax_1.semilogy(err_i_p, color=color, linestyle="--")
-            # ax_1.set_ylim([1e-18, 1e4])
-            # ax_1.grid()
+            self.I += 1
+            #color = cmap(self.I)
+            color = cmap(i)
+            ax_1.semilogy(err_i_u, color=color)
+            ax_1.semilogy(err_i_p, color=color, linestyle="--")
+            ax_1.set_ylim([1e-8, 1e3])
+            ax_1.grid(True)
 
-            # fig_1.savefig(self.save_path / "inner_plot.pdf")
+            fig_1.savefig(self.save_path / "inner_plot.pdf")
 
             # _u_r = model.solve_state(q)
             # u_r = self.reductor.reconstruct(_u_r, basis='state_basis')
 
-            # self.I += 1
+            #self.I += 1
             # diff_u = _u - u_r
             # self.FOM.A.material_model.save_time_series(
             #     [v.real_part.impl for v in diff_u.vectors],
@@ -1115,7 +1128,10 @@ class Optimizer(BasicObject):
             self.IRGNM_statistics["alpha"].append(alpha)
 
             for key, val in errors.items():
-                self.IRGNM_statistics["errors"][key].append(val)
+                if TR_enforcement is not None:
+                    self.IRGNM_statistics["errors"][key].append(val)
+                else:
+                    self.IRGNM_statistics["errors"][key].append(np.nan)
 
             #stagnation check
             if i > 3:
@@ -1858,9 +1874,33 @@ class QrVrROMOptimizer(Optimizer):
             i = i
         )
 
-        # state_basis = self.reductor.bases['state_basis']
-        # error_matrix = state_basis.inner(state_basis, self.FOM.products['prod_V'])
-        # print(error_matrix)
+        ############################################################
+
+        basis = 'state_basis'
+        _basis = self.reductor.bases[basis]
+
+        coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+        err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
+        
+        coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+        err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
+
+        # err_i_u = err_i_u[err_i_u > 0]
+        # err_i_p = err_i_p[err_i_p > 0]
+        
+        print(err_i_u)
+        print(err_i_p)
+
+        color = cmap(i)
+        ax_2.semilogy(err_i_u, color=color)
+        ax_2.semilogy(err_i_p, color=color, linestyle="--")
+        ax_2.set_ylim([1e-18, 1e3])
+        ax_2.grid(True)
+        
+        fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
+
+        ############################################################
+
 
         q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
         q_r = self.QrVrROM.Q.make_array(q_r)
@@ -2558,28 +2598,6 @@ class QrVrROMOptimizer(Optimizer):
                         additional_state_snapshots
                     )
 
-                    ############################################################
-
-                    # np.set_printoptions(threshold=np.inf)
-                    # rel_tol_coeff_u = 1e-2
-                    # rel_tol_coeff_p = rel_tol_coeff_u
-
-                    # basis = 'state_basis'
-                    # _basis = self.reductor.bases[basis]
-
-
-                    # coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
-                    # idxes_u = np.argwhere((coeff_u / np.max(coeff_u)) >= rel_tol_coeff_u)
-                    
-                    # coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
-                    # idxes_p = np.argwhere((coeff_p / np.max(coeff_p)) >= rel_tol_coeff_p) 
-                    
-                    # idxes = np.concatenate([idxes_u, idxes_p])
-                    # idxes = np.unique(idxes)
-                    # self.reductor.bases[basis] = _basis[idxes].copy()
-                    # self.reductor.delete_cached_operators()
 
                     ############################################################
 
@@ -2591,28 +2609,28 @@ class QrVrROMOptimizer(Optimizer):
 
                     ############################################################
 
-                    # basis = 'state_basis'
-                    # _basis = self.reductor.bases[basis]
+                    basis = 'state_basis'
+                    _basis = self.reductor.bases[basis]
 
-                    # coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
+                    coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
                     
-                    # coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
+                    coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
 
                     # err_i_u = err_i_u[err_i_u > 0]
                     # err_i_p = err_i_p[err_i_p > 0]
                     
-                    # print(err_i_u)
-                    # print(err_i_p)
+                    print(err_i_u)
+                    print(err_i_p)
 
-                    # color = cmap(i)
-                    # ax_2.semilogy(err_i_u, color=color)
-                    # ax_2.semilogy(err_i_p, color=color, linestyle="--")
-                    # ax_2.set_ylim([1e-18, 1e4])
-                    # ax_2.grid()
+                    color = cmap(i+1)
+                    ax_2.semilogy(err_i_u, color=color)
+                    ax_2.semilogy(err_i_p, color=color, linestyle="--")
+                    ax_2.set_ylim([1e-18, 1e3])
+                    ax_2.grid(True)
                     
-                    # fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
+                    fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
 
 
 

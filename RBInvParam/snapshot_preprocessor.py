@@ -33,19 +33,27 @@ class SnapshotPreprocessor(BasicObject):
     def _HaPOD(self,
                snapshots: VectorArray,
                product: Operator,
-               HaPOD_tol: float = 1e-16) -> Tuple[VectorArray, List[float], int]:
+               config: Dict) -> Tuple[VectorArray, List[float], int]:
     
         assert isinstance(snapshots, VectorArray) 
-        assert HaPOD_tol > 0
         assert product.source == product.range == snapshots.space
 
 
+        # return \
+        # inc_vectorarray_hapod(steps=len(snapshots)/2, 
+        #                       U=snapshots, 
+        #                       eps=HaPOD_tol,
+        #                       omega=0.1,                
+        #                       product=product)
+
         return \
-        inc_vectorarray_hapod(steps=len(snapshots)/2, 
+        inc_vectorarray_hapod(steps=2 * len(snapshots), 
                               U=snapshots, 
-                              eps=HaPOD_tol,
-                              omega=0.1,                
+                              eps=config['eps'],
+                              omega=config['omega'],  
                               product=product)
+
+        
 
     def _compute_krylov(self,
                         config: Dict,
@@ -215,12 +223,12 @@ class SnapshotPreprocessor(BasicObject):
             snapshots.scal(1/norms)
 
         if config['HaPOD']:
-            self._logger.debug(f"    Applying 'HaPOD' for tolerance {config['HaPOD']['HaPOD_tol']}")
+            self._logger.debug(f"    Applying 'HaPOD' with eps = {config['HaPOD']['eps']} and omega = {config['HaPOD']['omega']}")
 
             snapshots, svals, snap_count = self._HaPOD(
                 snapshots = snapshots,
                 product = product,
-                **config['HaPOD']
+                config = config['HaPOD']
             )
 
             self._logger.debug(f"    HaPOD returned {len(snapshots)} modes from {snap_count}, with singular values = {svals}")
