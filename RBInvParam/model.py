@@ -642,7 +642,7 @@ class InstationaryModelIP(ImmutableObject):
                                                 use_cached_operators=use_cached_operators,
                                                 cached_operators=self._cached_operators,
                                                 config={
-                                                    'implicit_euler_rhs' : True
+                                                    'implicit_euler_rhs' : False
                                                 })
             
         lin_p = self.V_ad.empty(reserve=(self.nt + 1))
@@ -650,6 +650,7 @@ class InstationaryModelIP(ImmutableObject):
         for lin_p_n, lin_p_dot_n,  _ in iterator:
             lin_p.append(lin_p_n)
             lin_p_dot.append(lin_p_dot_n)
+        
 
         lin_p = self.A_ad.flip_vector_array(lin_p)
         lin_p_dot = self.A_ad.flip_vector_array(lin_p_dot)

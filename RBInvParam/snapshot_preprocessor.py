@@ -54,10 +54,10 @@ class SnapshotPreprocessor(BasicObject):
         #     l2_err = config['eps'],
         #     atol=1e-16,
         #     rtol=1e-16,
-        #     orth_tol = 1e-14
+        #     orth_tol = 1e-16
         # )
 
-        # return snapshots, svals, None         
+        return snapshots, svals, None         
 
     def _compute_krylov(self,
                         config: Dict,
