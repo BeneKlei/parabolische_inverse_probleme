@@ -994,43 +994,43 @@ class Optimizer(BasicObject):
             _p = self.FOM.solve_adjoint(q = self.reductor.reconstruct(q, basis='parameter_basis'), u = _u)
 
 
-            # u_r = self.reductor.reconstruct(u, basis='state_basis')        
-            # p_r = self.reductor.reconstruct(p, basis='state_basis')
+            u_r = self.reductor.reconstruct(u, basis='state_basis')        
+            p_r = self.reductor.reconstruct(p, basis='state_basis')
             
 
-            # self.I += 1
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in u_r.vectors],
-            #     str(f'u_r_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
+            self.I += 1
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in u_r.vectors],
+                str(f'u_r_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
 
-            # diff = _u - u_r
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in diff.vectors],
-            #     str(f'diff_u_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
+            diff = _u - u_r
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in diff.vectors],
+                str(f'diff_u_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
 
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in p_r.vectors],
-            #     str(f'p_r_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in p_r.vectors],
+                str(f'p_r_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
 
-            # diff = _p -p_r
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in diff.vectors],
-            #     str(f'diff_p_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
+            diff = _p -p_r
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in diff.vectors],
+                str(f'diff_p_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
 
-            # import sys
-            # sys.exit()
+            import sys
+            sys.exit()
 
 
      

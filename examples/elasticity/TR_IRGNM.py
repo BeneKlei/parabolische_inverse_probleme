@@ -79,8 +79,9 @@ def main():
     # nt = 50
 
     T_final = 5.0
-    nt = 50
+    nt = 100
 
+    
     # T_final = 10.0
     # nt = 100
 
@@ -176,11 +177,11 @@ def main():
             }
         },
         'observation_operator': {            
-            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {
-                #'spatial_resolution' : [4,y_res,z_res]
+                'spatial_resolution' : [4,y_res,z_res]
             }
         },
         'dims' : {
@@ -303,8 +304,8 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
-            #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
@@ -338,13 +339,13 @@ def main():
                     'include_krylov_sensitivites' : False,
                 },
                 'compression' : {                
-                    # 'normalize' : True,
-                    # 'HaPOD' : {
-                    #     'eps': 1e-3,
-                    #     'omega' : 0.1,
-                    # },
-                    'normalize' : None,
-                    'HaPOD' : None,
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'eps': 1e-3,
+                        'omega' : 0.1,
+                    },
+                    # 'normalize' : None,
+                    # 'HaPOD' : None,
                 }
             },
             'adjoint_basis' : {

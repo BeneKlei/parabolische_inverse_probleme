@@ -334,7 +334,6 @@ class SecondOrderCrankNicolson(TimeStepper):
 
             U_cur = _lhs.apply_inverse(_rhs)
 
-            #print(np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())))
             assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
                 
             # --------------------------------------------------------------
