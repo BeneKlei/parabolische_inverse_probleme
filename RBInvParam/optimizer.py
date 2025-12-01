@@ -185,6 +185,7 @@ class Optimizer(BasicObject):
             errors = \
             self.estimate_errors(
                 model = model,
+                reductor=self.reductor,
                 q_r = current_q,
                 d_r = (current_q - previous_q),
                 u_r = u,
@@ -266,6 +267,7 @@ class Optimizer(BasicObject):
                 errors = \
                 self.estimate_errors(
                     model = model,
+                    reductor=self.reductor,
                     q_r = current_q,
                     d_r = (current_q - previous_q),
                     u_r = u,
@@ -320,6 +322,7 @@ class Optimizer(BasicObject):
 
     def estimate_errors(self,
                         model: InstationaryModelIP,
+                        reductor : InstationaryModelIPReductor,
                         q_r : VectorArray,
                         d_r : VectorArray = None,
                         u_r : VectorArray = None,
@@ -354,6 +357,7 @@ class Optimizer(BasicObject):
         else:
             return self._calc_errors(
                 model = model,
+                reductor = reductor,
                 q_r = q_r,
                 d_r = d_r,
                 u_r = u_r,
@@ -449,6 +453,7 @@ class Optimizer(BasicObject):
 
     def _calc_errors(self,
                      model: InstationaryModelIP,
+                     reductor : InstationaryModelIPReductor,
                      q_r : VectorArray,
                      d_r : VectorArray = None,
                      u_r : VectorArray = None,
@@ -490,9 +495,9 @@ class Optimizer(BasicObject):
         err_nabla_lin_J = np.nan
         rel_err_nabla_lin_J = np.nan
 
-        q = self.reductor.reconstruct(q_r, basis='parameter_basis')
+        q = reductor.reconstruct(q_r, basis='parameter_basis')
         if d_r is not None:
-            d = self.reductor.reconstruct(d_r, basis='parameter_basis')
+            d = reductor.reconstruct(d_r, basis='parameter_basis')
 
         u = None
         p = None
@@ -535,7 +540,7 @@ class Optimizer(BasicObject):
                 if u_r is None:
                     u_r = model.solve_state(q_r, use_cached_operators=use_cached_operators)
                 
-                _u_r = self.reductor.reconstruct(u_r, basis='state_basis')
+                _u_r = reductor.reconstruct(u_r, basis='state_basis')
                 u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
 
 
@@ -552,7 +557,7 @@ class Optimizer(BasicObject):
                 if p_r is None:
                     p_r = model.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
                 
-                _p_r = self.reductor.reconstruct(p_r, basis='state_basis')
+                _p_r = reductor.reconstruct(p_r, basis='state_basis')
                 p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
                 
                 diff = p - _p_r
@@ -568,7 +573,7 @@ class Optimizer(BasicObject):
                 if lin_u_r is None:
                     lin_u_r = model.solve_linearized_state(q_r, d_r, u_r, use_cached_operators=use_cached_operators)
                 
-                _lin_u_r = self.reductor.reconstruct(lin_u_r, basis='state_basis')
+                _lin_u_r = reductor.reconstruct(lin_u_r, basis='state_basis')
                 lin_u = self.FOM.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
 
                 diff = lin_u - _lin_u_r
@@ -584,7 +589,7 @@ class Optimizer(BasicObject):
                 if lin_p_r is None:
                     lin_p_r = model.solve_linearized_adjoint(q_r, u_r, lin_u_r, use_cached_operators=use_cached_operators)
                 
-                _lin_p_r = self.reductor.reconstruct(lin_p_r, basis='state_basis')
+                _lin_p_r = reductor.reconstruct(lin_p_r, basis='state_basis')
                 lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
                 diff = lin_p - _lin_p_r
@@ -614,7 +619,7 @@ class Optimizer(BasicObject):
                 if nabla_J_r is None:
                     nabla_J_r = model.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
                 
-                _nabla_J_r = self.reductor.reconstruct(nabla_J_r, basis='parameter_basis')
+                _nabla_J_r = reductor.reconstruct(nabla_J_r, basis='parameter_basis')
                 nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
                 
                 diff = nabla_J - _nabla_J_r
@@ -646,7 +651,7 @@ class Optimizer(BasicObject):
                 if nabla_lin_J_r is None:
                     nabla_lin_J_r = model.linearized_gradient(q_r, d_r, u_r, lin_p_r, 0.0, use_cached_operators=use_cached_operators)
                 
-                _nabla_lin_J_r = self.reductor.reconstruct(nabla_lin_J_r, basis='parameter_basis')
+                _nabla_lin_J_r = reductor.reconstruct(nabla_lin_J_r, basis='parameter_basis')
                 nabla_lin_J = self.FOM.linearized_gradient(q, d, u, lin_u, 0.0, use_cached_operators=use_cached_operators)
 
                 diff = nabla_lin_J - _nabla_lin_J_r
@@ -952,6 +957,7 @@ class Optimizer(BasicObject):
                     errors = \
                     self.estimate_errors(
                         model = model,
+                        reductor=self.reductor,
                         q_r = next_q,
                         d_r = d,
                         u_r = u,
@@ -1904,6 +1910,7 @@ class QrVrROMOptimizer(Optimizer):
         errors = \
         self.estimate_errors(
             model=self.QrVrROM,
+            reductor=self.reductor,
             q_r = q_r,
             u_r = u_r,
             p_r = p_r,
@@ -2041,6 +2048,7 @@ class QrVrROMOptimizer(Optimizer):
             errors = \
             self.estimate_errors(
                 model = self.QrVrROM,
+                reductor=self.reductor,
                 q_r = q_r,
                 u_r = u_r,
                 p_r = p_r,
@@ -2133,6 +2141,7 @@ class QrVrROMOptimizer(Optimizer):
                 errors = \
                 self.estimate_errors(
                     model = self.QrVrROM,
+                    reductor=self.reductor,
                     q_r = q_r,
                     u_r = u_r,
                     p_r = p_r,
@@ -2329,6 +2338,7 @@ class QrVrROMOptimizer(Optimizer):
                 errors = \
                 self.estimate_errors(
                     model = self.QrVrROM,
+                    reductor=self.reductor,
                     q_r = q_r,
                     u_r = u_r,
                     p_r = p_r,

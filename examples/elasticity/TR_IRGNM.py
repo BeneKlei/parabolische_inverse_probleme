@@ -32,7 +32,7 @@ os.mkdir(save_path)
 logfile_path= save_path / 'TR_IRGNM.log'
 
 logger = get_default_logger(logger_name='TR_IRGNM',
-                            logfile_path=logfile_path, 
+                            logfile_path=logfile_path,
                             use_timestemp=False)
 logger.setLevel(logging.DEBUG)
 
@@ -61,27 +61,29 @@ set_log_levels({
 #########################################################################################''
 
 def main():
-    # y_res = 30
-    # z_res = 30
+    y_res = 30
+    z_res = 30
 
-    y_res = 8
-    z_res = 8
+    # y_res = 8
+    # z_res = 8
 
-    par_dim = (y_res + 1) * (z_res + 1) 
+    par_dim = (y_res + 1) * (z_res + 1)
     #* 5 * 3
     #par_dim = 3
     T_initial = 0
     #T_final = 10.0
-    # T_final = 5.0
-    # nt = 50
-
-    # T_final = 5.0
-    # nt = 50
-
     T_final = 5.0
     nt = 50
 
-    
+
+
+    #T_final = 5.0
+    #T_final = 10.0
+
+    # T_final = 5.0
+    # nt = 50
+
+
     # T_final = 10.0
     # nt = 100
 
@@ -98,32 +100,32 @@ def main():
     # q_exact[0,200] = 2
     # q_exact[0,300] = 3
 
-    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    # q_exact[9,21] = 3
-    # q_exact[8,21] = 3
-    # q_exact[7,21] = 3
-    # q_exact[9,22] = 3
-    # q_exact[8,22] = 3
-    # q_exact[7,22] = 3
-    # q_exact[9,20] = 3
-    # q_exact[8,20] = 3
-    # q_exact[7,20] = 3
+    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    q_exact[9,21] = 3
+    q_exact[8,21] = 3
+    q_exact[7,21] = 3
+    q_exact[9,22] = 3
+    q_exact[8,22] = 3
+    q_exact[7,22] = 3
+    q_exact[9,20] = 3
+    q_exact[8,20] = 3
+    q_exact[7,20] = 3
 
 
-    # q_exact[7,14] = 2
-    # q_exact[6,14] = 2
-    # q_exact[5,14] = 2
-    # q_exact[7,13] = 2
-    # q_exact[6,13] = 2
-    # q_exact[5,13] = 2
-    # q_exact[7,15] = 2
-    # q_exact[6,15] = 2
-    # q_exact[5,15] = 2
+    q_exact[7,14] = 2
+    q_exact[6,14] = 2
+    q_exact[5,14] = 2
+    q_exact[7,13] = 2
+    q_exact[6,13] = 2
+    q_exact[5,13] = 2
+    q_exact[7,15] = 2
+    q_exact[6,15] = 2
+    q_exact[5,15] = 2
 
-    # q_exact = q_exact.flatten()
-    # q_exact = np.array([q_exact])
+    q_exact = q_exact.flatten()
+    q_exact = np.array([q_exact])
 
-    
+
 
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
@@ -138,13 +140,13 @@ def main():
 
 
 
-    #q_exact[0,:] = 3    
+    #q_exact[0,:] = 3
 
     # q_exact[0,450] = 2
     # q_exact[0,470] = 3
 
-    
-    q_exact[0,50] = 2
+
+    #q_exact[0,50] = 2
     q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
@@ -160,8 +162,7 @@ def main():
             # 'type' : mm.BodyForceType.Gaussian,
             # 'hyperparameter' : {
             #     'center': [-0.1,0.0,0.0],
-            #     #'sigma' : 5.0,
-            #     'sigma' : 1.0,
+            #     'sigma' : 2.0,
             # }
         },
         'system_matrix' : {
@@ -169,14 +170,14 @@ def main():
             'hyperparameter' : {
                 'lambda' : 1e1,
                 'mu' : 1e1,
-                # 'lambda' : 1e2,
-                # 'mu' : 1e2,
+                # 'lambda' : 1e3,
+                # 'mu' : 1e3,
                 'nu' : 1e-3,
                 #'nu' : 1e-1,
                 'surface' : 'left'
             }
         },
-        'observation_operator': {            
+        'observation_operator': {
             #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
@@ -206,7 +207,7 @@ def main():
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
-        'q_time_dep': False,                          # Whether parameter is time-dependent (bool)        
+        'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
         'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
         'riesz_rep_hess': False,                       # Use Riesz representative for gradient in optimization
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
@@ -276,9 +277,9 @@ def main():
     )
 
     optimizer_parameter = {
-        'q_0': q_start,                                              # Initial guess for the parameter to be optimized            
-        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
-        #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)        
+        'q_0': q_start,                                              # Initial guess for the parameter to be optimized
+        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
+        #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
@@ -292,7 +293,7 @@ def main():
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
-        'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region 
+        'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region
         'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
         #####################
         'use_error_estimator' : False,
@@ -327,8 +328,8 @@ def main():
                 'compression' : {
                     'normalize' : True,
                     'HaPOD' : {
-                        'eps': 1e-1,   
-                        'omega' : 0.1, 
+                        'eps': 1e-1,
+                        'omega' : 0.1,
                         #'HaPOD_tol': 1e-3,
                     },
                     #'normalize' : None,
@@ -340,7 +341,7 @@ def main():
                     'include_lins' : False,
                     'include_krylov_sensitivites' : False,
                 },
-                'compression' : {                
+                'compression' : {
                     'normalize' : True,
                     'HaPOD' : {
                         'eps': 1e-3,
@@ -355,10 +356,10 @@ def main():
                     'include_lins' : False,
                     'include_krylov_sensitivites' : False,
                 },
-                'compression' : {                
+                'compression' : {
                     # 'normalize' : True,
                     # 'HaPOD' : {
-                    #     'HaPOD_tol': 1e-3,    
+                    #     'HaPOD_tol': 1e-3,
                     # },
                     'normalize' : None,
                     'HaPOD' : None,
@@ -382,17 +383,17 @@ def main():
         #'eta_max' : 500.00,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.80,                                              # Trust region edge tolerance.
-        'beta_2': 3/4,                                               # Tolerance for the trustworthiness. 
+        'beta_2': 3/4,                                               # Tolerance for the trustworthiness.
         'beta_3': 0.5                                                # Shrinking/Enlarging factor for the trust region.
     }
 
     logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
-    save_dict_to_pkl(path=save_path / 'setup.pkl', 
+    save_dict_to_pkl(path=save_path / 'setup.pkl',
                      data = setup,
                      use_timestamp=False)
-        
+
     logger.info(f"Dumping model optimizer_parameter to {save_path / 'optimizer_parameter.pkl'}.")
-    save_dict_to_pkl(path=save_path / 'optimizer_parameter.pkl', 
+    save_dict_to_pkl(path=save_path / 'optimizer_parameter.pkl',
                         data = optimizer_parameter,
                         use_timestamp=False)
 

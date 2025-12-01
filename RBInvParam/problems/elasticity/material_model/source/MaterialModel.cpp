@@ -170,6 +170,24 @@ void MaterialModel::setup_BC_constraints()
   //   m_BC_constraints
   // );
 
+  // boundary_id = 1;
+
+  // VectorTools::interpolate_boundary_values(
+  //   m_dof_handler, 
+  //   boundary_id, 
+  //   dirichlet_bc_function, 
+  //   m_BC_constraints
+  // );
+
+  // boundary_id = 2;
+
+  // VectorTools::interpolate_boundary_values(
+  //   m_dof_handler, 
+  //   boundary_id, 
+  //   dirichlet_bc_function, 
+  //   m_BC_constraints
+  // );
+
   m_BC_constraints.close();
 }
 
