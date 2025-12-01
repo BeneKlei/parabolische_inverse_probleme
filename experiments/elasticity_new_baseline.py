@@ -238,8 +238,8 @@ FOM_optimizer_parameter_identity = copy.deepcopy(FOM_optimizer_parameter_)
 FOM_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
-EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
-EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
+#EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
+#EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
 
 #----------------------------------------------------------------------------------------
 
