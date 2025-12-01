@@ -61,11 +61,11 @@ set_log_levels({
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    # y_res = 30
+    # z_res = 30
 
-    # y_res = 8
-    # z_res = 8
+    y_res = 8
+    z_res = 8
 
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
@@ -79,7 +79,7 @@ def main():
     # nt = 50
 
     T_final = 5.0
-    nt = 100
+    nt = 50
 
     
     # T_final = 10.0
@@ -95,8 +95,8 @@ def main():
     # q_exact[0,200] = 2
     # q_exact[0,300] = 3
 
-    q_exact[0,200] = 2
-    q_exact[0,300] = 3
+    # q_exact[0,200] = 2
+    # q_exact[0,300] = 3
 
     # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
     # q_exact[9,21] = 3
@@ -144,7 +144,7 @@ def main():
     # q_exact[0,470] = 3
 
     
-    #q_exact[0,50] = 2
+    q_exact[0,50] = 2
     q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
@@ -215,14 +215,16 @@ def main():
             'primal' : {
                 'type' : TimeStepperType.SecondOrderCrankNicolson,
                 'config' : {
-                    'zeta' : 0.5
+                    #'zeta' : 0.5
+                    'zeta' : 1.0
                 }
             },
             'adjoint' : {
                 'type' : TimeStepperType.SecondOrderCrankNicolson,
                 #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
                 'config' : {
-                    'zeta' : 0.5
+                    #'zeta' : 0.5
+                    'zeta' : 1.0
                 }
             },
         }
