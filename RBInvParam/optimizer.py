@@ -996,63 +996,63 @@ class Optimizer(BasicObject):
                 # projector.pre_compute(center=q)
                 # next_q = projector.project_domain(q, d)
             
-            # _u = self.FOM.solve_state(q = self.reductor.reconstruct(q, basis='parameter_basis'))
-            # _p = self.FOM.solve_adjoint(q = self.reductor.reconstruct(q, basis='parameter_basis'), u = _u)
+            _u = self.FOM.solve_state(q = self.reductor.reconstruct(q, basis='parameter_basis'))
+            _p = self.FOM.solve_adjoint(q = self.reductor.reconstruct(q, basis='parameter_basis'), u = _u)
 
 
-            # u_r = self.reductor.reconstruct(u, basis='state_basis')        
-            # p_r = self.reductor.reconstruct(p, basis='state_basis')
+            u_r = self.reductor.reconstruct(u, basis='state_basis')        
+            p_r = self.reductor.reconstruct(p, basis='state_basis')
             
 
-            # self.I += 1
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in u_r.vectors],
-            #     str(f'u_r_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
+            self.I += 1
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in u_r.vectors],
+                str(f'u_r_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
 
-            # diff = _u - u_r
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in diff.vectors],
-            #     str(f'diff_u_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
+            diff = _u - u_r
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in diff.vectors],
+                str(f'diff_u_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
 
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in p_r.vectors],
-            #     str(f'p_r_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in p_r.vectors],
+                str(f'p_r_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
 
-            # diff = _p -p_r
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in diff.vectors],
-            #     str(f'diff_p_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
+            diff = _p -p_r
+            self.FOM.A.material_model.save_time_series(
+                [v.real_part.impl for v in diff.vectors],
+                str(f'diff_p_{self.I}'),
+                str(self.save_path),
+                np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+            )
      
-            # basis = 'state_basis'
-            # _basis = self.reductor.bases[basis]
+            basis = 'state_basis'
+            _basis = self.reductor.bases[basis]
             
-            # coeff_u = np.sum((_u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-            # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(_u,_u)) - np.cumsum(coeff_u)
+            coeff_u = np.sum((_u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+            err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(_u,_u)) - np.cumsum(coeff_u)
             
-            # coeff_p = np.sum((_p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-            # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(_p,_p)) - np.cumsum(coeff_p)
+            coeff_p = np.sum((_p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+            err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(_p,_p)) - np.cumsum(coeff_p)
 
-            # self.I += 1
-            # #color = cmap(self.I)
-            # color = cmap(i)
-            # ax_1.semilogy(err_i_u, color=color)
-            # ax_1.semilogy(err_i_p, color=color, linestyle="--")
-            # ax_1.set_ylim([1e-8, 1e3])
-            # ax_1.grid(True)
+            self.I += 1
+            #color = cmap(self.I)
+            color = cmap(i)
+            ax_1.semilogy(err_i_u, color=color)
+            ax_1.semilogy(err_i_p, color=color, linestyle="--")
+            ax_1.set_ylim([1e-8, 1e3])
+            ax_1.grid(True)
 
-            # fig_1.savefig(self.save_path / "inner_plot.pdf")
+            fig_1.savefig(self.save_path / "inner_plot.pdf")
 
 
             # _u_r = model.solve_state(q)
@@ -1214,13 +1214,11 @@ class Optimizer(BasicObject):
             if basis in ['state_basis', 'adjoint_basis']:
                 _basis = statistics['reduced_bases'][basis]
                 statistics['reduced_bases'][basis] = dealii_vector_space_to_numpy(_basis)
-
-            
+     
             if basis in ['state_basis', 'adjoint_basis']:
                 snapshots = statistics['snapshots'][basis]
                 statistics['snapshots'][basis] = dealii_vector_space_to_numpy(snapshots)
             
-                
         return statistics
           
 class FOMOptimizer(Optimizer):
@@ -1595,10 +1593,10 @@ class QrVrROMOptimizer(Optimizer):
                                          bases: List[str],
                                          enrichment : Dict,
                                          i: int = -1) -> InstationaryModelIP:
-        
+            
+
         for basis in self.snapshots.keys():
             self.all_snapshots[basis].append(self.snapshots[basis])
-        
         
         for basis in bases:
             extend_start_time = timer()
@@ -1650,7 +1648,8 @@ class QrVrROMOptimizer(Optimizer):
         print(self.statistics["outer_loop_runtime"]['reduce_runtime'][-1])
         print(timer() - reduce_start_time)
         self.statistics["outer_loop_runtime"]['reduce_runtime'][-1] += (timer() - reduce_start_time)
-        
+
+
         return QrVrROM    
     
     def _reset_snapshots(self) -> None:
@@ -1844,25 +1843,25 @@ class QrVrROMOptimizer(Optimizer):
         
         ############################################################
 
-        # basis = 'state_basis'
-        # _basis = self.reductor.bases[basis]
+        basis = 'state_basis'
+        _basis = self.reductor.bases[basis]
 
-        # coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-        # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
+        coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+        err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
         
-        # coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-        # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
+        coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+        err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
 
-        # # err_i_u = err_i_u[err_i_u > 0]
-        # # err_i_p = err_i_p[err_i_p > 0]
+        # err_i_u = err_i_u[err_i_u > 0]
+        # err_i_p = err_i_p[err_i_p > 0]
 
-        # color = cmap(i)
-        # ax_2.semilogy(err_i_u, color=color)
-        # ax_2.semilogy(err_i_p, color=color, linestyle="--")
-        # ax_2.set_ylim([1e-18, 1e3])
-        # ax_2.grid(True)
+        color = cmap(i)
+        ax_2.semilogy(err_i_u, color=color)
+        ax_2.semilogy(err_i_p, color=color, linestyle="--")
+        ax_2.set_ylim([1e-18, 1e3])
+        ax_2.grid(True)
         
-        # fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
+        fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
 
         ############################################################
 
@@ -2595,28 +2594,28 @@ class QrVrROMOptimizer(Optimizer):
 
                     ############################################################
 
-                    # basis = 'state_basis'
-                    # _basis = self.reductor.bases[basis]
+                    basis = 'state_basis'
+                    _basis = self.reductor.bases[basis]
 
-                    # coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
+                    coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
                     
-                    # coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
+                    coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
 
-                    # # err_i_u = err_i_u[err_i_u > 0]
-                    # # err_i_p = err_i_p[err_i_p > 0]
+                    # err_i_u = err_i_u[err_i_u > 0]
+                    # err_i_p = err_i_p[err_i_p > 0]
                     
-                    # print(err_i_u[-1])
-                    # print(err_i_p[-1])
+                    print(err_i_u[-1])
+                    print(err_i_p[-1])
 
-                    # color = cmap(i+1)
-                    # ax_2.semilogy(err_i_u, color=color)
-                    # ax_2.semilogy(err_i_p, color=color, linestyle="--")
-                    # ax_2.set_ylim([1e-18, 1e3])
-                    # ax_2.grid(True)
+                    color = cmap(i+1)
+                    ax_2.semilogy(err_i_u, color=color)
+                    ax_2.semilogy(err_i_p, color=color, linestyle="--")
+                    ax_2.set_ylim([1e-18, 1e3])
+                    ax_2.grid(True)
                     
-                    # fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
+                    fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
 
 
 

@@ -61,8 +61,8 @@ set_log_levels({
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    y_res = 50
+    z_res = 50
 
     # y_res = 8
     # z_res = 8
@@ -94,39 +94,34 @@ def main():
     q_exact = np.ones((1,par_dim)) * 1
 
 
-    # q_exact[0,200] = 2
-    # q_exact[0,300] = 3
+    q_exact[0,200] = 2
+    q_exact[0,300] = 3
 
-    # q_exact[0,200] = 2
-    # q_exact[0,300] = 3
-
-    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    q_exact[9,21] = 3
-    q_exact[8,21] = 3
-    q_exact[7,21] = 3
-    q_exact[9,22] = 3
-    q_exact[8,22] = 3
-    q_exact[7,22] = 3
-    q_exact[9,20] = 3
-    q_exact[8,20] = 3
-    q_exact[7,20] = 3
+    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    # q_exact[9,21] = 3
+    # q_exact[8,21] = 3
+    # q_exact[7,21] = 3
+    # q_exact[9,22] = 3
+    # q_exact[8,22] = 3
+    # q_exact[7,22] = 3
+    # q_exact[9,20] = 3
+    # q_exact[8,20] = 3
+    # q_exact[7,20] = 3
 
 
-    q_exact[7,14] = 2
-    q_exact[6,14] = 2
-    q_exact[5,14] = 2
-    q_exact[7,13] = 2
-    q_exact[6,13] = 2
-    q_exact[5,13] = 2
-    q_exact[7,15] = 2
-    q_exact[6,15] = 2
-    q_exact[5,15] = 2
+    # q_exact[7,14] = 2
+    # q_exact[6,14] = 2
+    # q_exact[5,14] = 2
+    # q_exact[7,13] = 2
+    # q_exact[6,13] = 2
+    # q_exact[5,13] = 2
+    # q_exact[7,15] = 2
+    # q_exact[6,15] = 2
+    # q_exact[5,15] = 2
 
-    q_exact = q_exact.flatten()
-    q_exact = np.array([q_exact])
-
-
-
+    # q_exact = q_exact.flatten()
+    # q_exact = np.array([q_exact])
+    
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
     #q_exact[0,:] = 3
@@ -216,16 +211,16 @@ def main():
             'primal' : {
                 'type' : TimeStepperType.SecondOrderCrankNicolson,
                 'config' : {
-                    #'zeta' : 0.5
-                    'zeta' : 1.0
+                    'zeta' : 0.5
+                    #'zeta' : 1.0
                 }
             },
             'adjoint' : {
                 'type' : TimeStepperType.SecondOrderCrankNicolson,
                 #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
                 'config' : {
-                    #'zeta' : 0.5
-                    'zeta' : 1.0
+                    'zeta' : 0.5
+                    #'zeta' : 1.0
                 }
             },
         }
@@ -330,7 +325,6 @@ def main():
                     'HaPOD' : {
                         'eps': 1e-1,
                         'omega' : 0.1,
-                        #'HaPOD_tol': 1e-3,
                     },
                     #'normalize' : None,
                     #'HaPOD' : None,
@@ -343,12 +337,12 @@ def main():
                 },
                 'compression' : {
                     'normalize' : True,
-                    'HaPOD' : {
-                        'eps': 1e-3,
-                        'omega' : 0.1,
-                    },
-                    # 'normalize' : None,
-                    # 'HaPOD' : None,
+                    # 'HaPOD' : {
+                    #     'eps': 1e-3,
+                    #     'omega' : 0.1,
+                    # },
+                    'normalize' : None,
+                    'HaPOD' : None,
                 }
             },
             'adjoint_basis' : {
