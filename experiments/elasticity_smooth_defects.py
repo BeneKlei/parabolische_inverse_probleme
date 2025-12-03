@@ -260,8 +260,8 @@ for sigma in sigmas:
     #FOM_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
     #FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
-    EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
-    EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
+    _EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
+    _EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
 
     #----------------------------------------------------------------------------------------
 
@@ -276,8 +276,8 @@ for sigma in sigmas:
     #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
     #TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
-    EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
-    EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+    _EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
+    _EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
 
     #----------------------------------------------------------------------------------------
 
@@ -290,8 +290,8 @@ for sigma in sigmas:
     #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
     #TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
-    EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
-    EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
+    _EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
+    _EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
     
     prefix = f'gaussian_{sigma}'
     _EXPERIMENTS = {f"{prefix}_{k}": v for k, v in _EXPERIMENTS.items()}

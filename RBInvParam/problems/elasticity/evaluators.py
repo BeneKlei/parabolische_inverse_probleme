@@ -79,7 +79,6 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         self.system_matrix = self.material_model.system_matrix
         return DealIIMatrixOperator(self.system_matrix)
 
-
 class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
     def __init__(self,
                  source : VectorSpace,

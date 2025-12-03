@@ -63,8 +63,8 @@ set_log_levels({
 #########################################################################################''
 
 def main():
-    y_res = 50
-    z_res = 50
+    y_res = 30
+    z_res = 30
 
     # y_res = 8
     # z_res = 8
@@ -77,8 +77,8 @@ def main():
     # T_final = 5.0
     # nt = 50
 
-    T_final = 10.0
-    nt = 100
+    T_final = 5.0
+    nt = 50
 
     #T_final = 5.0
     #T_final = 10.0
@@ -131,7 +131,8 @@ def main():
     #add_constant_patch(q_exact, center=(8, 21), value=3.0, half_size=1)
     #add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=1)
 
-    add_gaussian_patch(q_exact, center=(8, 30), sigma=2.0, amp=2.0, half_size=3)
+    #add_gaussian_patch(q_exact, center=(8, 30), sigma=2.0, amp=2.0, half_size=3)
+    add_gaussian_patch(q_exact, center=(20, 20), sigma=2.0, amp=2.0, half_size=3)
     add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
     
     q_exact = q_exact.flatten()
