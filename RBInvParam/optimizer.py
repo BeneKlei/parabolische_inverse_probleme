@@ -1035,24 +1035,24 @@ class Optimizer(BasicObject):
                 np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
             )
      
-            basis = 'state_basis'
-            _basis = self.reductor.bases[basis]
+            # basis = 'state_basis'
+            # _basis = self.reductor.bases[basis]
             
-            coeff_u = np.sum((_u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-            err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(_u,_u)) - np.cumsum(coeff_u)
+            # coeff_u = np.sum((_u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+            # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(_u,_u)) - np.cumsum(coeff_u)
             
-            coeff_p = np.sum((_p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-            err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(_p,_p)) - np.cumsum(coeff_p)
+            # coeff_p = np.sum((_p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+            # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(_p,_p)) - np.cumsum(coeff_p)
 
-            self.I += 1
-            #color = cmap(self.I)
-            color = cmap(i)
-            ax_1.semilogy(err_i_u, color=color)
-            ax_1.semilogy(err_i_p, color=color, linestyle="--")
-            ax_1.set_ylim([1e-8, 1e3])
-            ax_1.grid(True)
+            # self.I += 1
+            # #color = cmap(self.I)
+            # color = cmap(i)
+            # ax_1.semilogy(err_i_u, color=color)
+            # ax_1.semilogy(err_i_p, color=color, linestyle="--")
+            # ax_1.set_ylim([1e-8, 1e3])
+            # ax_1.grid(True)
 
-            fig_1.savefig(self.save_path / "inner_plot.pdf")
+            # fig_1.savefig(self.save_path / "inner_plot.pdf")
 
 
             # _u_r = model.solve_state(q)
@@ -1844,24 +1844,24 @@ class QrVrROMOptimizer(Optimizer):
         ############################################################
 
         basis = 'state_basis'
-        _basis = self.reductor.bases[basis]
+        # _basis = self.reductor.bases[basis]
 
-        coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-        err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
+        # coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+        # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
         
-        coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-        err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
+        # coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+        # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
 
-        # err_i_u = err_i_u[err_i_u > 0]
-        # err_i_p = err_i_p[err_i_p > 0]
+        # # err_i_u = err_i_u[err_i_u > 0]
+        # # err_i_p = err_i_p[err_i_p > 0]
 
-        color = cmap(i)
-        ax_2.semilogy(err_i_u, color=color)
-        ax_2.semilogy(err_i_p, color=color, linestyle="--")
-        ax_2.set_ylim([1e-18, 1e3])
-        ax_2.grid(True)
+        # color = cmap(i)
+        # ax_2.semilogy(err_i_u, color=color)
+        # ax_2.semilogy(err_i_p, color=color, linestyle="--")
+        # ax_2.set_ylim([1e-18, 1e3])
+        # ax_2.grid(True)
         
-        fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
+        # fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
 
         ############################################################
 
@@ -2594,28 +2594,28 @@ class QrVrROMOptimizer(Optimizer):
 
                     ############################################################
 
-                    basis = 'state_basis'
-                    _basis = self.reductor.bases[basis]
+                    # basis = 'state_basis'
+                    # _basis = self.reductor.bases[basis]
 
-                    coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
+                    # coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
                     
-                    coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
+                    # coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
 
-                    # err_i_u = err_i_u[err_i_u > 0]
-                    # err_i_p = err_i_p[err_i_p > 0]
+                    # # err_i_u = err_i_u[err_i_u > 0]
+                    # # err_i_p = err_i_p[err_i_p > 0]
                     
-                    print(err_i_u[-1])
-                    print(err_i_p[-1])
+                    # print(err_i_u[-1])
+                    # print(err_i_p[-1])
 
-                    color = cmap(i+1)
-                    ax_2.semilogy(err_i_u, color=color)
-                    ax_2.semilogy(err_i_p, color=color, linestyle="--")
-                    ax_2.set_ylim([1e-18, 1e3])
-                    ax_2.grid(True)
+                    # color = cmap(i+1)
+                    # ax_2.semilogy(err_i_u, color=color)
+                    # ax_2.semilogy(err_i_p, color=color, linestyle="--")
+                    # ax_2.set_ylim([1e-18, 1e3])
+                    # ax_2.grid(True)
                     
-                    fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
+                    # fig_2.savefig(self.save_path / "coeffs_after_enrich.pdf")
 
 
 

@@ -24,6 +24,8 @@ from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErro
 
 from RBInvParam.timestepping import TimeStepperType
 
+from RBInvParam.utils.create_q_exact import *
+
 #########################################################################################
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -72,10 +74,11 @@ def main():
     #par_dim = 3
     T_initial = 0
     #T_final = 10.0
-    T_final = 5.0
-    nt = 50
+    # T_final = 5.0
+    # nt = 50
 
-
+    T_final = 10.0
+    nt = 100
 
     #T_final = 5.0
     #T_final = 10.0
@@ -94,8 +97,8 @@ def main():
     q_exact = np.ones((1,par_dim)) * 1
 
 
-    q_exact[0,200] = 2
-    q_exact[0,300] = 3
+    # q_exact[0,200] = 2
+    # q_exact[0,300] = 3
 
     # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
     # q_exact[9,21] = 3
@@ -121,6 +124,19 @@ def main():
 
     # q_exact = q_exact.flatten()
     # q_exact = np.array([q_exact])
+
+
+    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+
+    #add_constant_patch(q_exact, center=(8, 21), value=3.0, half_size=1)
+    #add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=1)
+
+    add_gaussian_patch(q_exact, center=(8, 30), sigma=2.0, amp=2.0, half_size=3)
+    add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
+    
+    q_exact = q_exact.flatten()
+    q_exact = np.array([q_exact])
+
     
     #q_exact[0,100:300] = 3
     #q_exact[0,:] = 3
@@ -152,13 +168,13 @@ def main():
     setup = {
         'spatial_resolution' : [4,y_res,z_res],
         'body_force' : {
-            'type' : mm.BodyForceType.CenterExcite,
-            'hyperparameter' : {}
-            # 'type' : mm.BodyForceType.Gaussian,
-            # 'hyperparameter' : {
-            #     'center': [-0.1,0.0,0.0],
-            #     'sigma' : 2.0,
-            # }
+            #'type' : mm.BodyForceType.CenterExcite,
+            #'hyperparameter' : {}
+            'type' : mm.BodyForceType.Gaussian,
+            'hyperparameter' : {
+                'center': [-0.1,0.0,0.0],
+                'sigma' : 2.0,
+            }
         },
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
@@ -230,6 +246,13 @@ def main():
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
+    FOM.A.material_model.save_time_series(
+        [v for v in FOM.A.material_model.force_list],
+        str('rhs'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
+
     u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
 
     FOM.A.material_model.save_time_series(
@@ -270,6 +293,7 @@ def main():
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
     )
+
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
@@ -321,13 +345,13 @@ def main():
                     # },
                 },
                 'compression' : {
-                    'normalize' : True,
-                    'HaPOD' : {
-                        'eps': 1e-1,
-                        'omega' : 0.1,
-                    },
-                    #'normalize' : None,
-                    #'HaPOD' : None,
+                    # 'normalize' : True,
+                    # 'HaPOD' : {
+                    #     'eps': 1e-1,
+                    #     'omega' : 0.1,
+                    # },
+                    'normalize' : None,
+                    'HaPOD' : None,
                 }
             },
             'state_basis' : {
@@ -336,7 +360,7 @@ def main():
                     'include_krylov_sensitivites' : False,
                 },
                 'compression' : {
-                    'normalize' : True,
+                    # 'normalize' : True,
                     # 'HaPOD' : {
                     #     'eps': 1e-3,
                     #     'omega' : 0.1,
