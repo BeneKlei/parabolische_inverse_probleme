@@ -128,12 +128,16 @@ def main():
 
     q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
-    #add_constant_patch(q_exact, center=(8, 21), value=3.0, half_size=1)
+    #add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=1)
     #add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=1)
 
-    #add_gaussian_patch(q_exact, center=(8, 30), sigma=2.0, amp=2.0, half_size=3)
-    add_gaussian_patch(q_exact, center=(20, 20), sigma=2.0, amp=2.0, half_size=3)
+    add_gaussian_patch(q_exact, center=(20, 15), sigma=2.0, amp=2.0, half_size=3)
     add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
+
+    # import matplotlib.pyplot as plt
+    # plt.imshow(q_exact)
+    # plt.colorbar()
+    # plt.show()
     
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
@@ -165,7 +169,6 @@ def main():
     bounds[:,0] = 1e-20
     bounds[:,1] = 1e20
 
-
     setup = {
         'spatial_resolution' : [4,y_res,z_res],
         'body_force' : {
@@ -194,7 +197,10 @@ def main():
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
             'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {
-                'spatial_resolution' : [4,y_res,z_res]
+                'spatial_resolution' : [4,y_res,z_res],
+                #'radius' : 2.0,
+                'radius' : 0.001,
+                'second_row' : False 
             }
         },
         'dims' : {
@@ -295,7 +301,6 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
@@ -305,8 +310,8 @@ def main():
         'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
-        'Theta': 1.95,                                               # Upper bound for step acceptance condition
-        #'Theta': 1.50,                                               # Upper bound for step acceptance condition
+        #'Theta': 1.95,                                               # Upper bound for step acceptance condition
+        'Theta': 1.50,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
@@ -327,8 +332,8 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-            #'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
-            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
@@ -346,13 +351,13 @@ def main():
                     # },
                 },
                 'compression' : {
-                    # 'normalize' : True,
-                    # 'HaPOD' : {
-                    #     'eps': 1e-1,
-                    #     'omega' : 0.1,
-                    # },
-                    'normalize' : None,
-                    'HaPOD' : None,
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'eps': 1e-2,
+                        'omega' : 0.1,
+                    },
+                    # 'normalize' : None,
+                    # 'HaPOD' : None,
                 }
             },
             'state_basis' : {
@@ -361,13 +366,13 @@ def main():
                     'include_krylov_sensitivites' : False,
                 },
                 'compression' : {
-                    # 'normalize' : True,
-                    # 'HaPOD' : {
-                    #     'eps': 1e-3,
-                    #     'omega' : 0.1,
-                    # },
-                    'normalize' : None,
-                    'HaPOD' : None,
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'eps': 1e-6,
+                        'omega' : 0.1,
+                    },
+                    # 'normalize' : None,
+                    # 'HaPOD' : None,
                 }
             },
             'adjoint_basis' : {
@@ -376,12 +381,12 @@ def main():
                     'include_krylov_sensitivites' : False,
                 },
                 'compression' : {
-                    # 'normalize' : True,
-                    # 'HaPOD' : {
-                    #     'HaPOD_tol': 1e-3,
-                    # },
-                    'normalize' : None,
-                    'HaPOD' : None,
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'HaPOD_tol': 1e-3,
+                    },
+                    # 'normalize' : None,
+                    # 'HaPOD' : None,
                 }
             }
         },
@@ -394,12 +399,12 @@ def main():
         'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
-        'eta0': 0.05,                                                # Initial trust region tolerance
+        # 'eta0': 0.05,                                                # Initial trust region tolerance
+        # 'eta_min' : 1e-5,
+        # 'eta_max' : 0.15,
+        'eta0': 0.10,                                                # Initial trust region tolerance
         'eta_min' : 1e-5,
-        'eta_max' : 0.15,
-        #'eta0': 100.00,                                                # Initial trust region tolerance
-        #s'eta_min' : 1e-5,
-        #'eta_max' : 500.00,
+        'eta_max' : 0.30,
         'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
         'beta_1': 0.80,                                              # Trust region edge tolerance.
         'beta_2': 3/4,                                               # Tolerance for the trustworthiness.

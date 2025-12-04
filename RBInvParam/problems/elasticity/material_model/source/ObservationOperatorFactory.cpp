@@ -88,9 +88,9 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp) const
 {      
-    const Number tol  = 1e-3;
-    //const Number tol  = 1e0;
-    const Number tol2 = tol * tol;
+    
+    double radius = std::get<double>(ctx.hyperparameter.at("radius"));
+    const double tol2 = radius * radius;
 
     SparseMatrix<Number> G;
     SparseMatrix<Number> boundary_mass_matrix;
@@ -166,8 +166,21 @@ std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_poi
 {   
     AssertDimension(dim, 3);
     std::vector<Point<dim>> sensor_points;
+    double delta_y;
+    double delta_z;
+    
+    double y_start;
+    double z_start;
+    
+    double y_end;
+    double z_end;
+
+    double y_pos;
+    double z_pos;
     
     std::vector<double> spatial_resolution = std::get<std::vector<double>>(ctx.hyperparameter.at("spatial_resolution"));
+    bool second_row = std::get<bool>(ctx.hyperparameter.at("second_row"));    
+    
     //double frequence  = std::get<double>(ctx.hyperparameter.at("frequence"));
     double frequence = 1.0;
 
@@ -181,22 +194,22 @@ std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_poi
     AssertThrow(std::fmod(z_spatial_resolution, 2.0) == 0.0,
              ExcMessage("z_spatial_resolution must be divisible by 2"));
 
-    double delta_y = 30.0 / y_spatial_resolution;
-    double delta_z = 30.0 / z_spatial_resolution;
+    delta_y = 30.0 / y_spatial_resolution;
+    delta_z = 30.0 / z_spatial_resolution;
+
+    y_start = -15.0 + delta_y;
+    z_start = -15.0 + delta_z;
     
-    double y_start = -15.0 + delta_y;
-    double z_start = -15.0 + delta_z;
-    
-    double y_end = 15.0 - delta_y;
-    double z_end = 15.0 - delta_z;
+    y_end = 15.0 - delta_y;
+    z_end = 15.0 - delta_z;
 
     size_t sensor_per_edge = static_cast<size_t>(y_spatial_resolution) - 2;
     sensor_points.resize(8 * sensor_per_edge);
 
     for (unsigned int i = 0; i < sensor_per_edge; ++i)
     {
-        double y_pos = y_start + i * frequence * delta_y;
-        double z_pos = z_start + i * frequence * delta_z;
+        y_pos = y_start + i * frequence * delta_y;
+        z_pos = z_start + i * frequence * delta_z;
 
         sensor_points[i + (0 * sensor_per_edge)] = Point<3>( 0.1, y_pos, z_start);
         sensor_points[i + (1 * sensor_per_edge)] = Point<3>( 0.1, y_pos, z_end);
@@ -208,6 +221,34 @@ std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_poi
         sensor_points[i + (7 * sensor_per_edge)] = Point<3>(-0.1, y_end, z_pos);
     }
 
+    if (!second_row) {
+        return sensor_points;
+    }
+
+    y_start = -7.0;
+    z_start = -7.0;
     
+    y_end = 7.0;
+    z_end = 7.0;
+
+    sensor_per_edge = 14;
+    
+    sensor_points.resize(sensor_points.size() + 8 * sensor_per_edge);
+
+    for (unsigned int i = 0; i < sensor_per_edge; ++i)
+    {
+        y_pos = y_start + i * frequence * delta_y;
+        z_pos = z_start + i * frequence * delta_z;
+
+        sensor_points[i + (0 * sensor_per_edge)] = Point<3>( 0.1, y_pos, z_start);
+        sensor_points[i + (1 * sensor_per_edge)] = Point<3>( 0.1, y_pos, z_end);
+        sensor_points[i + (2 * sensor_per_edge)] = Point<3>( 0.1, y_start, z_pos);
+        sensor_points[i + (3 * sensor_per_edge)] = Point<3>( 0.1, y_end, z_pos);
+        sensor_points[i + (4 * sensor_per_edge)] = Point<3>(-0.1, y_pos, z_start);
+        sensor_points[i + (5 * sensor_per_edge)] = Point<3>(-0.1, y_pos, z_end);
+        sensor_points[i + (6 * sensor_per_edge)] = Point<3>(-0.1, y_start, z_pos);
+        sensor_points[i + (7 * sensor_per_edge)] = Point<3>(-0.1, y_end, z_pos);
+    }
+
     return sensor_points;
 }

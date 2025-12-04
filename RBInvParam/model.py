@@ -850,7 +850,7 @@ class InstationaryModelIP(ImmutableObject):
                             d: VectorArray,
                             u: VectorArray,
                             lin_p: VectorArray,
-                            alpha : float,
+                            alpha : float = 0.0,
                             use_cached_operators: bool = False) -> VectorArray:
         
         if self.q_time_dep:

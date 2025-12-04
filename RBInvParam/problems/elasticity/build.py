@@ -278,7 +278,7 @@ def build_InstationaryModelIP(setup : Dict,
     C_continuity_constant = 1.0
 
     building_blocks['C'] = C
-    
+
     # -------------------------------------------------------------------- 
     _str_to_enum_map_observation_space = {
         'euclid' : mm.ObservationSpaceProductType.EUCLID, 

@@ -18,7 +18,7 @@ enum class ObservationOperatorType {
 };
 
 
-typedef std::variant<int, double, std::string, std::vector<double>> ObservationOperatorHyperparameterType;
+typedef std::variant<bool, int, double, std::string, std::vector<double>> ObservationOperatorHyperparameterType;
 typedef std::map<std::string, ObservationOperatorHyperparameterType>  ObservationOperatorHyperparameter;
 
 template <int dim, typename Number>
