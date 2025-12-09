@@ -249,8 +249,9 @@ setup_sensors_grid = copy.deepcopy(setup)
 setup_identity = copy.deepcopy(setup)
 
 setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
+setup_identity['observation_operator']['hyperparameter'] = {}
 
-setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.SensorsGrid
+setup_sensors_grid['observation_operator']['type'] = mm.ObservationOperatorType.SensorsGrid
 setup_sensors_grid['observation_operator']['hyperparameter'] = {
     'radius' : 0.001,
     'grid_sizes' : [2,8,8]
