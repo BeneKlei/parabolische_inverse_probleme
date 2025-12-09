@@ -195,14 +195,14 @@ def main():
         'observation_operator': {
             #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.SensorsGrid,                                   
+            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.SensorsGrid,                                   
             'hyperparameter' : {
                 'spatial_resolution' : [4,y_res,z_res],
                 # # #'radius' : 2.0,
                 'radius' : 0.001,
                 # # 'second_row' : False 
-                'grid_sizes' : [2,8,8]
+                #'grid_sizes' : [2,8,8]
                 #'grid_sizes' : [5,11,11]
             }
         },

@@ -64,6 +64,7 @@ setup = {
         'hyperparameter' : {
             'spatial_resolution' : [4,y_res,z_res],
             'radius' : 0.001,
+            'second_row' : False 
         }
     },
     'dims' : {
@@ -250,7 +251,7 @@ setup_identity = copy.deepcopy(setup)
 setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
 
 setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.SensorsGrid
-setup_identity['observation_operator']['hyperparameter'] = {
+setup_sensors_grid['observation_operator']['hyperparameter'] = {
     'radius' : 0.001,
     'grid_sizes' : [2,8,8]
 }
