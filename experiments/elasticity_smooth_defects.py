@@ -198,7 +198,7 @@ TR_optimizer_parameter = {
             'compression' : {                
                 'normalize' : True,
                 'HaPOD' : {
-                    'eps': 1e-9,
+                    'eps': 1e-3,
                     'omega' : 0.1,    
                 },
             }
@@ -230,7 +230,8 @@ EXPERIMENTS = {}
 
 # setup_identity['noise_level'] = 2.5 * 1e-4
 
-# identity_lin_solver_tol = 5 * 1e-8
+identity_lin_solver_tol = 1e-6
+sensors_grid_lin_solver_tol = 1e-6
 # 
 # 
 
@@ -248,6 +249,7 @@ for sigma in sigmas:
     setup_width['body_force']['hyperparameter']['sigma'] = sigma
 
     setup_sensors = copy.deepcopy(setup_width)
+    setup_sensors_grid = copy.deepcopy(setup_width)
     setup_identity = copy.deepcopy(setup_width)
 
     setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
@@ -258,7 +260,7 @@ for sigma in sigmas:
     FOM_optimizer_parameter_identity = copy.deepcopy(FOM_optimizer_parameter_)
 
     #FOM_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-    #FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
+    FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
     _EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
     _EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
@@ -274,7 +276,7 @@ for sigma in sigmas:
     TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
     #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-    #TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
+    TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
     _EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
     _EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
@@ -288,7 +290,7 @@ for sigma in sigmas:
     TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
     #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-    #TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
+    TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 
     _EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
     _EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
