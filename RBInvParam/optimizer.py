@@ -37,8 +37,8 @@ error_estimate_targets_inner = ['J']
 #error_estimate_targets_outer = ['J', 'nabla_J']
 #error_estimate_targets_inner = ['J', 'nabla_J']
 
-# error_estimate_targets_outer = ['J', 'nabla_J']
-# error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
+#error_estimate_targets_outer = ['J', 'nabla_J']
+#error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
 
 #######################################################################
 
@@ -2585,6 +2585,28 @@ class QrVrROMOptimizer(Optimizer):
 
 
                     ############################################################
+                    
+                    # np.set_printoptions(threshold=np.inf)
+                    # rel_tol_coeff_u = 1e-2
+                    # rel_tol_coeff_p = rel_tol_coeff_u
+
+                    # basis = 'state_basis'
+                    # _basis = self.reductor.bases[basis]
+
+
+                    # coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
+                    # idxes_u = np.argwhere((coeff_u / np.max(coeff_u)) >= rel_tol_coeff_u)
+                    
+                    # coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
+                    # idxes_p = np.argwhere((coeff_p / np.max(coeff_p)) >= rel_tol_coeff_p) 
+                    
+                    # idxes = np.concatenate([idxes_u, idxes_p])
+                    # idxes = np.unique(idxes)
+                    # self.reductor.bases[basis] = _basis[idxes].copy()
+                    # self.reductor.delete_cached_operators()
+
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.reduced_bases,
@@ -2593,6 +2615,20 @@ class QrVrROMOptimizer(Optimizer):
                     )
 
                     ############################################################
+
+                    # q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
+                    # q_r = self.QrVrROM.Q.make_array(q_r)
+                    
+                    # errors = \
+                    # self.estimate_errors(
+                    #     model = self.QrVrROM,
+                    #     reductor=self.reductor,
+                    #     q_r = q_r,
+                    #     d_r = self.QrVrROM.Q.zeros(),
+                    #     targets=error_estimate_targets_outer,
+                    #     use_cached_operators=use_cached_operators,
+                    #     use_error_estimator=use_error_estimator)
+
 
                     # basis = 'state_basis'
                     # _basis = self.reductor.bases[basis]

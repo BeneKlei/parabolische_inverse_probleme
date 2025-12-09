@@ -484,3 +484,4 @@ void MaterialModel::save_time_series(const std::vector<Vector<double>> &v,
     pvd << "  </Collection>\n";
     pvd << "</VTKFile>\n";
 }
+

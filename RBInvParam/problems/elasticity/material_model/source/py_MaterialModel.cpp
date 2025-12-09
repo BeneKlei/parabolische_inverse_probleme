@@ -76,6 +76,7 @@ PYBIND11_MODULE(material_model, m) {
          .value("Identity", ObservationOperatorType::Identity)
          .value("Boundary", ObservationOperatorType::Boundary)
          .value("Sensors", ObservationOperatorType::Sensors)
+         .value("SensorsGrid", ObservationOperatorType::SensorsGrid)         
          .export_values();
 
       py::enum_<StateProductType>(m, "StateProductType")

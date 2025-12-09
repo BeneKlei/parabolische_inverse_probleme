@@ -195,12 +195,15 @@ def main():
         'observation_operator': {
             #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.SensorsGrid,                                   
             'hyperparameter' : {
                 'spatial_resolution' : [4,y_res,z_res],
-                #'radius' : 2.0,
+                # # #'radius' : 2.0,
                 'radius' : 0.001,
-                'second_row' : False 
+                # # 'second_row' : False 
+                'grid_sizes' : [2,8,8]
+                #'grid_sizes' : [5,11,11]
             }
         },
         'dims' : {
@@ -301,6 +304,9 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
+    # import sys
+    # sys.exit()
+
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
@@ -332,7 +338,8 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 1e3,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
             #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
@@ -368,7 +375,7 @@ def main():
                 'compression' : {
                     'normalize' : True,
                     'HaPOD' : {
-                        'eps': 1e-6,
+                        'eps': 1e-3,
                         'omega' : 0.1,
                     },
                     # 'normalize' : None,

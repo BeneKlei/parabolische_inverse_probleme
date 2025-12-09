@@ -15,6 +15,7 @@ enum class ObservationOperatorType {
     Identity,
     Boundary,
     Sensors,
+    SensorsGrid
 };
 
 
@@ -57,12 +58,18 @@ public:
     void assemble_sensors_observation(
         const ObservationOperatorFactoryContext<dim, Number> ctx,
         SparseMatrix<Number>& observation_operator_matrix,
-        SparsityPattern& observation_operator_sp
+        SparsityPattern& observation_operator_sp,
+        std::vector<Point<dim>> sensor_points
     ) const;
+
 
     // ---------------------------- utils funcs ----------------------------
     
-    std::vector<Point<dim>> _get_sensor_points(
+    std::vector<Point<dim>> _get_sensor_edges(
+        const ObservationOperatorFactoryContext<dim, Number> ctx
+    ) const;
+
+    std::vector<Point<dim>> _get_sensor_grids(
         const ObservationOperatorFactoryContext<dim, Number> ctx
     ) const;
 

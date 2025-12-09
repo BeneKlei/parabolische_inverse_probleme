@@ -14,6 +14,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp) const
 {
+  std::vector<Point<dim>> sensor_points;
   switch (ctx.observation_operator_type)
   {
   case ObservationOperatorType::Identity:
@@ -30,13 +31,22 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
         observation_operator_sp
     );
     break;
-//   case ObservationOperatorType::SensorsR8d:
-//   case ObservationOperatorType::SensorsR9d:
   case ObservationOperatorType::Sensors:
+    sensor_points = this->_get_sensor_edges(ctx);
     ObservationOperatorFactory::assemble_sensors_observation(
         ctx,
         observation_operator_matrix,
-        observation_operator_sp
+        observation_operator_sp,
+        sensor_points
+    );
+    break;
+  case ObservationOperatorType::SensorsGrid:
+    sensor_points = this->_get_sensor_grids(ctx);
+    ObservationOperatorFactory::assemble_sensors_observation(
+        ctx,
+        observation_operator_matrix,
+        observation_operator_sp,
+        sensor_points
     );
     break;
   default:
@@ -86,7 +96,8 @@ template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
     const ObservationOperatorFactoryContext<dim, Number> ctx,
     SparseMatrix<Number>& observation_operator_matrix,
-    SparsityPattern& observation_operator_sp) const
+    SparsityPattern& observation_operator_sp,
+    std::vector<Point<dim>> sensor_points) const
 {      
     
     double radius = std::get<double>(ctx.hyperparameter.at("radius"));
@@ -106,7 +117,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
         boundary_mass_ctx,
         boundary_mass_matrix
     );
-    const std::vector<Point<dim>> sensor_points = this->_get_sensor_points(ctx);    
+    //const std::vector<Point<dim>> sensor_points = this->_get_sensor_points(ctx);    
     const unsigned int L = ctx.dof_handler.n_dofs();
     const unsigned int l = sensor_points.size();
     std::vector<std::vector<types::global_dof_index>> rows(l);
@@ -154,13 +165,14 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
     // ----------------------------------------------------
 
     observation_operator_sp.copy_from(utils::make_product_sparsity_AB(G, boundary_mass_matrix));
+    //observation_operator_sp.copy_from(sp_G);
     observation_operator_matrix.reinit(observation_operator_sp);
     
     G.mmult(observation_operator_matrix, boundary_mass_matrix);
 }
 
 template <int dim, typename Number>
-std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_points(
+std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_edges(
     const ObservationOperatorFactoryContext<dim, Number> ctx
 ) const
 {   
@@ -249,6 +261,51 @@ std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_poi
         sensor_points[i + (6 * sensor_per_edge)] = Point<3>(-0.1, y_start, z_pos);
         sensor_points[i + (7 * sensor_per_edge)] = Point<3>(-0.1, y_end, z_pos);
     }
+
+    return sensor_points;
+}
+
+
+template <int dim, typename Number>
+std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_grids(
+    const ObservationOperatorFactoryContext<dim, Number> ctx
+) const
+{   
+    AssertDimension(dim, 3);
+    std::vector<Point<dim>> sensor_points;
+    size_t idx;
+
+    double x_coord;
+    double y_coord;
+    double z_coord;
+
+    //std::vector<double> spatial_resolution = std::get<std::vector<double>>(ctx.hyperparameter.at("spatial_resolution"));
+    std::vector<double> grid_sizes = std::get<std::vector<double>>(ctx.hyperparameter.at("grid_sizes"));
+    
+    sensor_points.resize(grid_sizes[0] * grid_sizes[1] * grid_sizes[2]);    
+    idx = 0;
+
+    for (unsigned int i = 0; i < grid_sizes[0]; i++) {
+        x_coord = -0.1 + 0 + i * (0.2 / (grid_sizes[0] - 1));
+        
+        for (unsigned int j = 0; j < grid_sizes[1]; j++) {
+            y_coord = -15.0 + 1 + j * (28.0 / (grid_sizes[1] - 1));
+            //y_coord = -15.0 + j * (30.0 / (grid_sizes[1] - 1));
+            
+            for (unsigned int k = 0; k < grid_sizes[2]; k++) {
+                z_coord = -15.0 + 1 + k * (28.0 / (grid_sizes[2] - 1));
+                //z_coord = -15.0 + k * (30.0 / (grid_sizes[2] - 1));
+                
+                sensor_points[idx] = Point<3>(x_coord, y_coord, z_coord);
+                idx++;
+
+                // std::cout << "----------------------------------------" << std::endl;
+                // std::cout << x_coord << std::endl;
+                // std::cout << y_coord << std::endl;
+                // std::cout << z_coord << std::endl;
+            }
+        }
+    }   
 
     return sensor_points;
 }
