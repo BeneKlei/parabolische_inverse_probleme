@@ -1213,12 +1213,12 @@ class Optimizer(BasicObject):
 
         for basis in statistics['reduced_bases'].keys():
             if basis in ['state_basis', 'adjoint_basis']:
-                if statistics['reduced_bases'][basis] is not None:
+                if statistics['reduced_bases'] is not None:
                     _basis = statistics['reduced_bases'][basis]
                     statistics['reduced_bases'][basis] = dealii_vector_space_to_numpy(_basis)
      
             if basis in ['state_basis', 'adjoint_basis']:
-                if statistics['snapshots'][basis] is not None:
+                if statistics['snapshots'] is not None:
                     snapshots = statistics['snapshots'][basis]
                     statistics['snapshots'][basis] = dealii_vector_space_to_numpy(snapshots)
             

@@ -83,7 +83,7 @@ setup = {
     'T_final': T_final,                           # End time of the simulation
     'delta_t': delta_t,                           # Time step size
     'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-    'noise_level': 1e-4,                      # Absolute noise magnitude added to data
+    'noise_level': 5  * 1e-5,                      # Absolute noise magnitude added to data
     'q_circ': q_circ,                             # Backgroundlevel for the parameter
     'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
     'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -111,7 +111,7 @@ setup = {
 
 q_start = q_circ
 lin_solver_tol = 1e-12
-tau = 3.5
+tau = 1.25
 
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
@@ -325,5 +325,5 @@ EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
 EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
 
-prefix = 'smooth_defects'
+prefix = 'new_baseline'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

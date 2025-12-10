@@ -128,11 +128,11 @@ def main():
 
     q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
-    #add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    #add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
-    add_gaussian_patch(q_exact, center=(20, 15), sigma=2.0, amp=2.0, half_size=3)
-    add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
+    #add_gaussian_patch(q_exact, center=(20, 15), sigma=2.0, amp=2.0, half_size=3)
+    #add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
 
     # import matplotlib.pyplot as plt
     # plt.imshow(q_exact)
@@ -196,15 +196,15 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsGrid,                                   
             'hyperparameter' : {
                 'spatial_resolution' : [4,y_res,z_res],
                 # # #'radius' : 2.0,
                 'radius' : 0.001,
-                # # 'second_row' : False 
+                'second_row' : False 
                 #'grid_sizes' : [2,8,8]
                 #'grid_sizes' : [5,11,11]
             }
@@ -316,7 +316,7 @@ def main():
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 3.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
         #'Theta': 1.95,                                               # Upper bound for step acceptance condition
