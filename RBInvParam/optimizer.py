@@ -1210,14 +1210,17 @@ class Optimizer(BasicObject):
         save_dict_to_pkl(path=save_path, data=data, use_timestamp=False)
     
     def dump_prepare_statistics(self, statistics: Dict) -> Dict:
+
         for basis in statistics['reduced_bases'].keys():
             if basis in ['state_basis', 'adjoint_basis']:
-                _basis = statistics['reduced_bases'][basis]
-                statistics['reduced_bases'][basis] = dealii_vector_space_to_numpy(_basis)
+                if statistics['reduced_bases'][basis] is not None:
+                    _basis = statistics['reduced_bases'][basis]
+                    statistics['reduced_bases'][basis] = dealii_vector_space_to_numpy(_basis)
      
             if basis in ['state_basis', 'adjoint_basis']:
-                snapshots = statistics['snapshots'][basis]
-                statistics['snapshots'][basis] = dealii_vector_space_to_numpy(snapshots)
+                if statistics['snapshots'][basis] is not None:
+                    snapshots = statistics['snapshots'][basis]
+                    statistics['snapshots'][basis] = dealii_vector_space_to_numpy(snapshots)
             
         return statistics
           

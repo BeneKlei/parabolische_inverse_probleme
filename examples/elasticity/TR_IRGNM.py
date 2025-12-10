@@ -128,8 +128,8 @@ def main():
 
     q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
-    #add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=1)
-    #add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=1)
+    #add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    #add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
     add_gaussian_patch(q_exact, center=(20, 15), sigma=2.0, amp=2.0, half_size=3)
     add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
@@ -137,7 +137,10 @@ def main():
     # import matplotlib.pyplot as plt
     # plt.imshow(q_exact)
     # plt.colorbar()
-    # plt.show()
+    # plt.savefig('./q_exact.pdf')
+
+    # import sys
+    # sys.exit()
     
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])

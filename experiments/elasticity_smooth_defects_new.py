@@ -29,7 +29,7 @@ q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 #add_constant_patch(q_exact, center=(8, 21), value=3.0, half_size=1)
 #add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=1)
 
-add_gaussian_patch(q_exact, center=(8, 30), sigma=2.0, amp=2.0, half_size=3)
+add_gaussian_patch(q_exact, center=(20, 15), sigma=2.0, amp=2.0, half_size=3)
 add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
 
 q_exact = q_exact.flatten()
@@ -233,7 +233,7 @@ EXPERIMENTS = {}
 # setup_identity['noise_level'] = 2.5 * 1e-4
 
 identity_lin_solver_tol = 1e-7
-sensors_grid_lin_solver_tol = 1e-7
+grid_lin_solver_tol = 1e-7
 # 
 # 
 
@@ -245,14 +245,14 @@ TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
 ##########################################################################################
 
 setup_sensors = copy.deepcopy(setup)
-setup_sensors_grid = copy.deepcopy(setup)
+setup_grid = copy.deepcopy(setup)
 setup_identity = copy.deepcopy(setup)
 
 setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
 setup_identity['observation_operator']['hyperparameter'] = {}
 
-setup_sensors_grid['observation_operator']['type'] = mm.ObservationOperatorType.SensorsGrid
-setup_sensors_grid['observation_operator']['hyperparameter'] = {
+setup_grid['observation_operator']['type'] = mm.ObservationOperatorType.SensorsGrid
+setup_grid['observation_operator']['hyperparameter'] = {
     'radius' : 0.001,
     'grid_sizes' : [2,8,8]
 }
@@ -260,16 +260,16 @@ setup_sensors_grid['observation_operator']['hyperparameter'] = {
 #----------------------------------------------------------------------------------------
 
 FOM_optimizer_parameter_sensors = copy.deepcopy(FOM_optimizer_parameter_)
-FOM_optimizer_parameter_sensors_grid = copy.deepcopy(FOM_optimizer_parameter_)
+FOM_optimizer_parameter_grid = copy.deepcopy(FOM_optimizer_parameter_)
 FOM_optimizer_parameter_identity = copy.deepcopy(FOM_optimizer_parameter_)
 
 #FOM_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
-FOM_optimizer_parameter_sensors_grid['lin_solver_parms']['lin_solver_tol'] = sensors_grid_lin_solver_tol
+FOM_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
 
 EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
 EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
-EXPERIMENTS['FOM_sensors_grid'] = (setup_sensors_grid, FOM_optimizer_parameter_sensors_grid)
+EXPERIMENTS['FOM_grid'] = (setup_grid, FOM_optimizer_parameter_grid)
 
 #----------------------------------------------------------------------------------------
 
@@ -279,16 +279,16 @@ TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normal
 TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1, 'omega' : 0.1}
 
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
-TR_optimizer_parameter_sensors_grid = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
 #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
-TR_optimizer_parameter_sensors_grid['lin_solver_parms']['lin_solver_tol'] = sensors_grid_lin_solver_tol
+TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
 
 EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
-EXPERIMENTS['TR_sensors_grid_time_step'] = (setup_sensors_grid, TR_optimizer_parameter_sensors_grid)
+EXPERIMENTS['TR_grid_time_step'] = (setup_grid, TR_optimizer_parameter_grid)
 
 
 #----------------------------------------------------------------------------------------
@@ -297,16 +297,16 @@ TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
 TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
 
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
-TR_optimizer_parameter_sensors_grid = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
 #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
-TR_optimizer_parameter_sensors_grid['lin_solver_parms']['lin_solver_tol'] = sensors_grid_lin_solver_tol
+TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
 
 EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
-EXPERIMENTS['TR_sensors_grid_time_step_full'] = (setup_sensors_grid, TR_optimizer_parameter_sensors_grid)
+EXPERIMENTS['TR_grid_time_step_full'] = (setup_grid, TR_optimizer_parameter_grid)
 
 
 #----------------------------------------------------------------------------------------
@@ -314,14 +314,16 @@ EXPERIMENTS['TR_sensors_grid_time_step_full'] = (setup_sensors_grid, TR_optimize
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
 
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
-TR_optimizer_parameter_sensors_grid = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
 #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
-TR_optimizer_parameter_sensors_grid['lin_solver_parms']['lin_solver_tol'] = sensors_grid_lin_solver_tol
+TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
 
 EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
-EXPERIMENTS['TR_sensors_grid'] = (setup_sensors_grid, TR_optimizer_parameter_sensors_grid)
+EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
 
+prefix = 'smooth_defects'
+EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}
