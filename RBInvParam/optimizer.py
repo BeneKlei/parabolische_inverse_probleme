@@ -1309,7 +1309,7 @@ class FOMOptimizer(Optimizer):
                                         projector=self.FOM_projector)
 
         self.statistics["q"] = IRGNM_statistic["q"]
-        self.statistics['time_steps'] = IRGNM_statistic['time_steps']
+        #self.statistics['time_steps'] = IRGNM_statistic['time_steps']
         self.statistics["alpha"] = IRGNM_statistic["alpha"]
         self.statistics["J"] = IRGNM_statistic["J"]
         self.statistics["norm_nabla_J"] = IRGNM_statistic["norm_nabla_J"]

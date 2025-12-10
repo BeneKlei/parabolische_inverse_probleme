@@ -233,7 +233,7 @@ EXPERIMENTS = {}
 # setup_identity['noise_level'] = 2.5 * 1e-4
 
 identity_lin_solver_tol = 1e-7
-grid_lin_solver_tol = 1e-7
+grid_lin_solver_tol = 5 * 1e-9
 # 
 # 
 

@@ -110,7 +110,7 @@ setup = {
 }
 
 q_start = q_circ
-lin_solver_tol = 1e-12
+lin_solver_tol = 5 * 1e-9
 tau = 1.25
 
 FOM_optimizer_parameter = {
@@ -232,8 +232,8 @@ EXPERIMENTS = {}
 
 # setup_identity['noise_level'] = 2.5 * 1e-4
 
-identity_lin_solver_tol = 1e-7
-grid_lin_solver_tol = 1e-7
+identity_lin_solver_tol = 5 * 1e-9
+grid_lin_solver_tol = 5 * 1e-9
 # 
 # 
 
