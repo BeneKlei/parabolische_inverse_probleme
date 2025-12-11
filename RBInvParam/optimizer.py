@@ -2589,26 +2589,26 @@ class QrVrROMOptimizer(Optimizer):
 
                     ############################################################
                     
-                    # np.set_printoptions(threshold=np.inf)
-                    # rel_tol_coeff_u = 1e-2
-                    # rel_tol_coeff_p = rel_tol_coeff_u
+                    np.set_printoptions(threshold=np.inf)
+                    rel_tol_coeff_u = 5 * 1e-3
+                    rel_tol_coeff_p = rel_tol_coeff_u
 
-                    # basis = 'state_basis'
-                    # _basis = self.reductor.bases[basis]
+                    basis = 'state_basis'
+                    _basis = self.reductor.bases[basis]
 
 
-                    # coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
-                    # idxes_u = np.argwhere((coeff_u / np.max(coeff_u)) >= rel_tol_coeff_u)
+                    coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
+                    idxes_u = np.argwhere((coeff_u / np.max(coeff_u)) >= rel_tol_coeff_u)
                     
-                    # coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
-                    # idxes_p = np.argwhere((coeff_p / np.max(coeff_p)) >= rel_tol_coeff_p) 
+                    coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
+                    idxes_p = np.argwhere((coeff_p / np.max(coeff_p)) >= rel_tol_coeff_p) 
                     
-                    # idxes = np.concatenate([idxes_u, idxes_p])
-                    # idxes = np.unique(idxes)
-                    # self.reductor.bases[basis] = _basis[idxes].copy()
-                    # self.reductor.delete_cached_operators()
+                    idxes = np.concatenate([idxes_u, idxes_p])
+                    idxes = np.unique(idxes)
+                    self.reductor.bases[basis] = _basis[idxes].copy()
+                    self.reductor.delete_cached_operators()
 
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
