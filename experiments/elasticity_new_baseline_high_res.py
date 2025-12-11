@@ -110,7 +110,7 @@ setup = {
 }
 
 q_start = q_circ
-lin_solver_tol = 1e-12
+lin_solver_tol = 5 * 1e-9
 tau = 1.25
 
 FOM_optimizer_parameter = {
