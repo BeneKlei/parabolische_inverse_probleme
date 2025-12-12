@@ -1,7 +1,7 @@
 import copy
 import numpy as np
 from types import SimpleNamespace
-from typing import List
+from typing import List, Dict
 
 import pymor_dealii_bindings as pd2
 
@@ -15,9 +15,9 @@ from pymor.vectorarrays.list import ListVectorArray
 from pymor.vectorarrays.numpy import NumpyVectorArray
 
 
-from RBInvParam.evaluators import FOMEvaluatorA, FOMEvaluatorB, BU
+from RBInvParam.evaluators import FOMEvaluatorA, FOMEvaluatorB, B_u
 from RBInvParam.problems.elasticity.material_model import MaterialModel
-from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator
+from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator, DealIISymmetricMatrixOperator
 from RBInvParam.problems.elasticity.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
 
 
@@ -35,15 +35,18 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         self.system_matrix = None
         #self.sparsity_pattern = self.material_model.system_matrix_sp
     
-    def __call__(self, q: VectorArray) -> Operator:
+    def __call__(self, q: VectorArray, u: VectorArray = None) -> Dict:
         assert q in self.Q
         
         #self.system_matrix.reinit(self.sparsity_pattern)
         self.material_model.m_q[:] = q.to_numpy()
         self.material_model.assemble_system_matrix()
         self.system_matrix = self.material_model.system_matrix
-        return DealIIMatrixOperator(self.system_matrix)
-            
+        return {
+            'A_q' : DealIISymmetricMatrixOperator(self.system_matrix),
+            'partial_q_A_q_u' : None,
+            'partial_u_A_q_u' : DealIISymmetricMatrixOperator(self.system_matrix),
+        }
     
     def clear_rhs_boundary_dofs(self, 
                                 rhs: VectorArray,
@@ -94,7 +97,7 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
 
     def __call__(self, 
                  u: ListVectorArray,
-                 parameter_basis_idx: int) -> BU:
+                 parameter_basis_idx: int) -> B_u:
         assert u in self.V
         # TODO Check how this function can be vectorized
         assert len(u) == 1

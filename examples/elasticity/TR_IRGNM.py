@@ -63,11 +63,11 @@ set_log_levels({
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    #y_res = 30
+    #z_res = 30
 
-    # y_res = 8
-    # z_res = 8
+    y_res = 8
+    z_res = 8
 
     par_dim = (y_res + 1) * (z_res + 1)
     #* 5 * 3
@@ -126,10 +126,10 @@ def main():
     # q_exact = np.array([q_exact])
 
 
-    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    #q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
-    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
     #add_gaussian_patch(q_exact, center=(20, 15), sigma=2.0, amp=2.0, half_size=3)
     #add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
@@ -142,8 +142,8 @@ def main():
     # import sys
     # sys.exit()
     
-    q_exact = q_exact.flatten()
-    q_exact = np.array([q_exact])
+    # q_exact = q_exact.flatten()
+    # q_exact = np.array([q_exact])
 
     
     #q_exact[0,100:300] = 3
@@ -165,7 +165,7 @@ def main():
     # q_exact[0,470] = 3
 
 
-    #q_exact[0,50] = 2
+    q_exact[0,50] = 2
     q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
@@ -237,11 +237,10 @@ def main():
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
         'save_path' : save_path,
         'time_stepper' : {
-            'primal' : {
+            'state' : {
                 'type' : TimeStepperType.SecondOrderCrankNicolson,
                 'config' : {
                     'zeta' : 0.5
-                    #'zeta' : 1.0
                 }
             },
             'adjoint' : {
@@ -249,7 +248,19 @@ def main():
                 #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
                 'config' : {
                     'zeta' : 0.5
-                    #'zeta' : 1.0
+                }
+            },
+            'lin_state' : {
+                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                'config' : {
+                    'zeta' : 0.5
+                }
+            },
+            'lin_adjoint' : {
+                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
+                'config' : {
+                    'zeta' : 0.5
                 }
             },
         }

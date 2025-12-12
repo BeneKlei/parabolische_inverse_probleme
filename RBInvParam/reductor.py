@@ -819,7 +819,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'products': self.FOM.products,
             'setup' : setup,
             'bases' : bases,
-            'zeta' : self.FOM.time_stepper.zeta
+            'zeta' : self.FOM.state_time_stepper.zeta
         }
 
         projected_adjoint_quantities = {

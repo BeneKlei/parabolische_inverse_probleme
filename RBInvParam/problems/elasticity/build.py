@@ -15,7 +15,7 @@ import pymor_dealii_bindings as pd2
 import RBInvParam.problems.elasticity.material_model as mm
 
 from RBInvParam.problems.elasticity.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
-from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator
+from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator, DealIISymmetricMatrixOperator
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.discretization import construct_noise_data, process_product_names
 from RBInvParam.model import InstationaryModelIP
@@ -173,7 +173,7 @@ def build_InstationaryModelIP(setup : Dict,
     }
     
     material_model.assemble_mass_matrix()
-    M = DealIIMatrixOperator(
+    M = DealIISymmetricMatrixOperator(
         matrix = material_model.mass_matrix
     )
     L = V_h.make_array(material_model.force_list)

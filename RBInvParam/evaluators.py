@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List
 from abc import ABC, abstractmethod
-from typing import Protocol, Callable, runtime_checkable
+from typing import Protocol, Callable, runtime_checkable, Dict
 from types import SimpleNamespace
 
 from pymor.operators.interface import Operator
@@ -10,6 +10,12 @@ from pymor.vectorarrays.interface import VectorSpace, VectorArray
 from pymor.vectorarrays.numpy import NumpyVectorArray
 
 from RBInvParam.utils.discretization import Struct, build_projection
+
+
+@runtime_checkable
+class B_u(Protocol):
+    B_u: Callable[[VectorArray], VectorArray]
+    B_u_ad: Callable[[VectorArray], VectorArray]
 
 class EvaluatorA(ABC):
     def __init__(self,
@@ -27,7 +33,7 @@ class EvaluatorA(ABC):
         self.translation_operator = translation_operator
 
     @abstractmethod
-    def __call__(self, q: VectorArray) -> Operator:
+    def __call__(self, q: VectorArray) -> Dict:
         pass
 
     def get_parameter_names(self) -> List[str] | None:
@@ -57,11 +63,6 @@ class EvaluatorB(ABC):
     def __call__(self, u: VectorArray) -> Struct:
         pass
 
-@runtime_checkable
-class BU(Protocol):
-    B_u: Callable[[VectorArray], VectorArray]
-    B_u_ad: Callable[[VectorArray], VectorArray]
-
 class FOMEvaluatorA(EvaluatorA):
     def __init__(self,
                  source : VectorSpace,
@@ -85,7 +86,6 @@ class FOMEvaluatorA(EvaluatorA):
     def flip_vector_array(self, vector_array: VectorArray) -> VectorArray:
         pass
 
-
 class FOMEvaluatorB(EvaluatorB):
     def __init__(self,
                  source : VectorSpace,
@@ -97,7 +97,7 @@ class FOMEvaluatorB(EvaluatorB):
             
 
     @abstractmethod
-    def __call__(self, u: VectorArray) -> Struct:
+    def __call__(self, u: VectorArray) -> B_u:
         pass
 
 class ROMEvaluatorA(EvaluatorA):
@@ -125,7 +125,7 @@ class ROMEvaluatorA(EvaluatorA):
         assert parameter_names
         super().__init__(source, range, Q, parameter_names, translation_operator)
 
-    def __call__(self, q: VectorArray) -> NumpyMatrixOperator:
+    def __call__(self, q: VectorArray) -> Dict:
         assert q in self.Q
         # TODO Can _assemble_A_q be vectorized?
         assert len(q) == 1
@@ -133,9 +133,15 @@ class ROMEvaluatorA(EvaluatorA):
         q_as_par = self.parameters.parse(q.to_numpy()[0])
 
         if self.translation_operator:
-            return self.parameteric_operator.assemble(q_as_par) + self.translation_operator
+            system_matrix_op = self.parameteric_operator.assemble(q_as_par) + self.translation_operator
         else:
-            return self.parameteric_operator.assemble(q_as_par)
+            system_matrix_op = self.parameteric_operator.assemble(q_as_par)
+        
+        return {
+            'A_q' : system_matrix_op,
+            'partial_q_A_q_u' : None,
+            'partial_u_A_q_u' : system_matrix_op
+        }
 
     def get_translation_operator(self) -> Operator | None:
         return self.translation_operator
@@ -186,7 +192,7 @@ class ROMEvaluatorB(EvaluatorB):
                          Q = Q,
                          V = V)
 
-    def __call__(self, u: VectorArray, parameter_basis_idx: int) -> BU:
+    def __call__(self, u: VectorArray, parameter_basis_idx: int) -> B_u:
         assert u in self.V
         assert len(u) == 1
         if not self.parameteric_operator:
@@ -210,5 +216,5 @@ class ROMEvaluatorB(EvaluatorB):
             out = np.einsum("ti,i->t", B_u_mat, p_np)  # (T,)
             return out[None, :]     # (1, T)
 
-        # Return a simple object that satisfies the BU protocol
+        # Return a simple object that satisfies the B_u protocol
         return SimpleNamespace(B_u=_B_u, B_u_ad=_B_u_ad)

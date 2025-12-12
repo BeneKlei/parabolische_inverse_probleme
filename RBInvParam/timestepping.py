@@ -31,6 +31,7 @@ class TimeStepper(ABC):
                 T_final: float,
                 q_time_dep: Dict,
                 A_q_key: str = 'A_q',
+                apply_adjoint: bool = True,
                 key_prefix : str = '',
                 config : Dict = {}):
     
@@ -44,6 +45,7 @@ class TimeStepper(ABC):
         self.q_time_dep = q_time_dep
         self.required_cache_keys : List[str] = []
         self.A_q_key = A_q_key
+        self.apply_adjoint = apply_adjoint
         self.key_prefix = key_prefix
         self.config = config
 
@@ -266,7 +268,10 @@ class SecondOrderCrankNicolson(TimeStepper):
 
         U_cur = initial_data['zeroth_order']
         U_dot_cur = initial_data['first_order']
-        M_U_dot_cur = self.M.apply(U_dot_cur)
+        if not self.apply_adjoint:
+            M_U_dot_cur = self.M.apply(U_dot_cur)
+        else:
+            M_U_dot_cur = self.M.apply_adjoint(U_dot_cur)
 
         t = self.T_initial
         yield U_cur, U_dot_cur, t
@@ -282,7 +287,7 @@ class SecondOrderCrankNicolson(TimeStepper):
             S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][0]
             S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][0]
         else:
-            A_q = self.A(q[0])
+            A_q = self.A(q[0])[self.A_q_key]
             S_zeta = self.M + dt**2 * zeta**2 * A_q
             S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
 
@@ -327,21 +332,39 @@ class SecondOrderCrankNicolson(TimeStepper):
 
             # --------------------------------------------------------------
             _lhs = S_zeta
-            _rhs = S_zeta_minus_one.apply(U_pre)
+            if not self.apply_adjoint:
+                _rhs = S_zeta_minus_one.apply(U_pre)
+                
+            else:
+                _rhs = S_zeta_minus_one.apply_adjoint(U_pre)                
+
             _rhs += dt * M_U_dot_pre
             _rhs += zeta * dt_R
 
+            if not self.apply_adjoint:
+                U_cur = _lhs.apply_inverse(_rhs)
+                assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
+            else:
+                U_cur = _lhs.apply_inverse_adjoint(_rhs)
+                assert np.max(np.abs(_lhs.apply_adjoint(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
 
-            U_cur = _lhs.apply_inverse(_rhs)
 
-            assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
-                
             # --------------------------------------------------------------
             M_U_dot_cur = M_U_dot_pre
             _U = zeta * U_cur + (1 - zeta) * U_pre
-            M_U_dot_cur += (-1) * dt * A_q.apply(_U)
+            if not self.apply_adjoint:
+                A_q_U = A_q.apply(_U)
+            else:
+                A_q_U = A_q.apply_adjoint(_U)
+
+            M_U_dot_cur += (-1) * dt * A_q_U
             M_U_dot_cur += dt_R
-            U_dot_cur = self.M.apply_inverse(M_U_dot_cur)
+
+            if not self.apply_adjoint:
+                U_dot_cur = self.M.apply_inverse(M_U_dot_cur)
+            else:
+                U_dot_cur = self.M.apply_inverse_adjoint(M_U_dot_cur)
+
             # --------------------------------------------------------------
 
             yield U_cur, U_dot_cur, t
@@ -444,20 +467,38 @@ class SecondOrderCrankNicolsonAdjointDTO(SecondOrderCrankNicolson):
             # --------------------------------------------------------------
 
             M_U_dot_cur = M_U_dot_pre
-            M_U_dot_cur += dt * self.M.apply(U_pre)
-            U_dot_cur = self.M.apply_inverse(M_U_dot_cur)
+            if not self.apply_adjoint:
+                M_U_pre = self.M.apply(U_pre)
+            else:
+                M_U_pre = self.M.apply_adjoint(U_pre)
+
+            M_U_dot_cur += dt * M_U_pre
+            if not self.apply_adjoint:
+                U_dot_cur = self.M.apply_inverse(M_U_dot_cur)
+            else:
+                U_dot_cur = self.M.apply_inverse_adjoint(M_U_dot_cur)
 
             # --------------------------------------------------------------
             _U_dot = zeta * U_dot_cur + (1 - zeta) * U_dot_pre
 
             _lhs = S_zeta
-            _rhs = S_zeta_minus_one.apply(U_pre)
-            _rhs += (-1) * dt * A_q.apply(_U_dot)
+
+            if not self.apply_adjoint:
+                _rhs = S_zeta_minus_one.apply(U_pre)
+                A_q_U_dot = A_q.apply(_U_dot)
+            else:
+                _rhs = S_zeta_minus_one.apply_adjoint(U_pre)
+                A_q_U_dot = A_q.apply_adjoint(_U_dot)
+
+            _rhs += (-1) * dt * A_q_U_dot
             _rhs += dt_R
 
-            U_cur = _lhs.apply_inverse(_rhs)
-
-            assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12   
+            if not self.apply_adjoint:
+                U_cur = _lhs.apply_inverse(_rhs)
+                assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12   
+            else:
+                U_cur = _lhs.apply_inverse_adjoint(_rhs)
+                assert np.max(np.abs(_lhs.apply_adjoint(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12   
 
             yield U_cur, U_dot_cur, t
 

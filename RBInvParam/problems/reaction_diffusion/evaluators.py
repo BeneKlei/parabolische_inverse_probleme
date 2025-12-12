@@ -11,7 +11,7 @@ from pymor.operators.constructions import LincombOperator
 from pymor.vectorarrays.interface import VectorSpace, VectorArray
 
 from RBInvParam.utils.discretization import Struct, build_projection
-from RBInvParam.evaluators import FOMEvaluatorA, FOMEvaluatorB, BU
+from RBInvParam.evaluators import FOMEvaluatorA, FOMEvaluatorB, B_u
 
 
 LAGRANGE_SHAPE_FUNCTIONS = {1: [lambda X: (1 - X[..., 0]) * (1 - X[..., 1]),
@@ -201,7 +201,7 @@ class ReactionDiffusionFOMEvaluatorB(FOMEvaluatorB, UnAssembledEvaluator):
         out = csc_matrix(out).copy()
         return -out
     
-    def __call__(self, u: VectorArray) -> BU:
+    def __call__(self, u: VectorArray) -> B_u:
         assert u in self.V
         # TODO Check how this function can be vectorized
         assert len(u) == 1
