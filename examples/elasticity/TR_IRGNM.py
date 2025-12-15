@@ -11,7 +11,7 @@ os.environ["NUMEXPR_NUM_THREADS"] = "4"
 
 from pymor.basic import *
 
-import RBInvParam.problems.elasticity.material_model as mm
+import RBInvParam.problems.shared.material_model as mm
 
 from RBInvParam.optimizer import QrVrROMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl

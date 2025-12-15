@@ -13,7 +13,7 @@ from pymor.tools.floatcmp import float_cmp_all
 from RBInvParam.evaluators import EvaluatorA
 
 import pymor_dealii_bindings as pd2
-from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator
+from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIIMatrixOperator
 
 class TimeStepperType(Enum):
     ImplicitEulerTimeStepper = "ImplicitEulerTimeStepper"

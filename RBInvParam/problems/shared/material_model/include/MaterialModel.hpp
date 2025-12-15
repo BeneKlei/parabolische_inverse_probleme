@@ -101,9 +101,12 @@ public:
   // --------------------------------------------------
 
   SparseMatrix<Number> m_mass_matrix;
+  
   SparseMatrix<Number> m_system_matrix;
   // TODO Make them sparse!!
   std::vector<FullMatrix<Number>> m_system_matrix_derivatives;
+
+
   SparseMatrix<Number> m_observation_operator;
   SparseMatrix<Number> m_bilinear_cost_operator;
 

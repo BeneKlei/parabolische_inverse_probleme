@@ -16,9 +16,9 @@ from pymor.vectorarrays.numpy import NumpyVectorArray
 
 
 from RBInvParam.evaluators import FOMEvaluatorA, FOMEvaluatorB, B_u
-from RBInvParam.problems.elasticity.material_model import MaterialModel
-from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator, DealIISymmetricMatrixOperator
-from RBInvParam.problems.elasticity.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
+from RBInvParam.problems.shared.material_model import MaterialModel
+from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIIMatrixOperator, DealIISymmetricMatrixOperator
+from RBInvParam.problems.shared.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
 
 
 class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):

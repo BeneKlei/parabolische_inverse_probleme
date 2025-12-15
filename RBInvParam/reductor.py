@@ -33,8 +33,8 @@ from RBInvParam.error_estimators.objective_error_estimators import create_object
 from RBInvParam.error_estimators.residuals import StateResidualOperator, AdjointResidualOperator
 
 
-from RBInvParam.problems.elasticity.pymor_dealii_bindings.operator import DealIIMatrixOperator
-from RBInvParam.problems.elasticity.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
+from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIIMatrixOperator
+from RBInvParam.problems.shared.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
 
 class InstationaryModelIPReductor(ProjectionBasedReductor):
     def __init__(self,

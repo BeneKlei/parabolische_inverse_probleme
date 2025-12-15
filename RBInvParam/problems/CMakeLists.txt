@@ -37,5 +37,6 @@ find_package(pybind11 CONFIG REQUIRED)
 INCLUDE(dealii_macro.cmake)
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
 
-add_subdirectory(material_model)
-add_subdirectory(pymor_dealii_bindings)
+add_subdirectory(./shared/pymor_dealii_bindings)
+add_subdirectory(./shared/material_model)
+add_subdirectory(./elasticity/elasticity_model)
