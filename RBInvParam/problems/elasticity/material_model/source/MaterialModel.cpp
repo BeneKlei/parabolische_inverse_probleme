@@ -332,6 +332,8 @@ void MaterialModel::assemble_mass_matrix()
     m_system_matrix_sp    
   };
 
+  
+
   m_state_product_factory.assemble_state_product(
     ctx,
     m_mass_matrix

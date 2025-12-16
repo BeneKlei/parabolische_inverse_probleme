@@ -63,11 +63,8 @@ set_log_levels({
 #########################################################################################''
 
 def main():
-    y_res = 46
-    z_res = 46
-
-    # y_res = 8
-    # z_res = 8
+    y_res = 30
+    z_res = 30
 
     par_dim = (y_res + 1) * (z_res + 1)
     #* 5 * 3
@@ -77,7 +74,7 @@ def main():
     # T_final = 5.0
     # nt = 50
 
-    T_final = 5.0
+    T_final = 10.0
     nt = 50
 
     #T_final = 5.0
@@ -100,33 +97,33 @@ def main():
     # q_exact[0,200] = 2
     # q_exact[0,300] = 3
 
-    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    # q_exact[9,21] = 3
-    # q_exact[8,21] = 3
-    # q_exact[7,21] = 3
-    # q_exact[9,22] = 3
-    # q_exact[8,22] = 3
-    # q_exact[7,22] = 3
-    # q_exact[9,20] = 3
-    # q_exact[8,20] = 3
-    # q_exact[7,20] = 3
-
-
-    # q_exact[7,14] = 2
-    # q_exact[6,14] = 2
-    # q_exact[5,14] = 2
-    # q_exact[7,13] = 2
-    # q_exact[6,13] = 2
-    # q_exact[5,13] = 2
-    # q_exact[7,15] = 2
-    # q_exact[6,15] = 2
-    # q_exact[5,15] = 2
-
-    # q_exact = q_exact.flatten()
-    # q_exact = np.array([q_exact])
-
-
     q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    q_exact[9,21] = 3
+    q_exact[8,21] = 3
+    q_exact[7,21] = 3
+    q_exact[9,22] = 3
+    q_exact[8,22] = 3
+    q_exact[7,22] = 3
+    q_exact[9,20] = 3
+    q_exact[8,20] = 3
+    q_exact[7,20] = 3
+
+
+    q_exact[7,14] = 2
+    q_exact[6,14] = 2
+    q_exact[5,14] = 2
+    q_exact[7,13] = 2
+    q_exact[6,13] = 2
+    q_exact[5,13] = 2
+    q_exact[7,15] = 2
+    q_exact[6,15] = 2
+    q_exact[5,15] = 2
+
+    q_exact = q_exact.flatten()
+    q_exact = np.array([q_exact])
+
+
+    #q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
     # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
     # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
@@ -146,8 +143,8 @@ def main():
     # import sys
     # sys.exit()
     
-    q_exact = q_exact.flatten()
-    q_exact = np.array([q_exact])
+    # q_exact = q_exact.flatten()
+    # q_exact = np.array([q_exact])
 
     
     #q_exact[0,100:300] = 3
@@ -179,13 +176,13 @@ def main():
     setup = {
         'spatial_resolution' : [4,y_res,z_res],
         'body_force' : {
-            #'type' : mm.BodyForceType.CenterExcite,
-            #'hyperparameter' : {}
-            'type' : mm.BodyForceType.Gaussian,
-            'hyperparameter' : {
-                'center': [-0.1,0.0,0.0],
-                'sigma' : 2.0,
-            }
+            'type' : mm.BodyForceType.CenterExcite,
+            'hyperparameter' : {}
+            # 'type' : mm.BodyForceType.Gaussian,
+            # 'hyperparameter' : {
+            #     'center': [-0.1,0.0,0.0],
+            #     'sigma' : 2.0,
+            # }
         },
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
@@ -230,7 +227,9 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
+        'noise_level': 5 * 1e-3,                         # Absolute noise magnitude added to data
+        #'noise_level': 5 * 1e-5,                         # Absolute noise magnitude added to data
+        'y_delta' : None,
         #'noise_level': 0.0,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
@@ -303,7 +302,7 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-    diff = u_start - u_exact
+    diff = u_start - u_exact    
     FOM.A.material_model.save_time_series(
         [v.real_part.impl for v in diff.vectors],
         str('diff'),
@@ -311,20 +310,39 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-    # import sys
-    # sys.exit()
+    y_delta = FOM.C.range.from_numpy(setup['y_delta'])
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in y_delta.vectors],
+        str('y_delta'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )   
+
+    diff_y_delta = y_delta - FOM.C.apply(u_start)
+    FOM.A.material_model.save_time_series(
+        [v.real_part.impl for v in diff_y_delta.vectors],
+        str('diff_y_delta'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
+
+    _q_start = FOM.Q.make_array(q_start)
+    J = FOM.compute_objective(_q_start)
+    print(J)
+    print(np.sqrt(2 * J))
+
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'tau': 3.50,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
+        #'tau': 3.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
-        #'Theta': 1.95,                                               # Upper bound for step acceptance condition
-        'Theta': 1.50,                                               # Upper bound for step acceptance condition
+        'Theta': 1.95,                                               # Upper bound for step acceptance condition
+        #'Theta': 1.50,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
@@ -344,7 +362,7 @@ def main():
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
-            'max_iter': 1e3,                                         # Maximum iterations for the linear solver
+            'max_iter': 250,                                         # Maximum iterations for the linear solver
             'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver
             #'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
             #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver

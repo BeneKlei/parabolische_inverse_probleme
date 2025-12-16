@@ -309,34 +309,28 @@ def build_InstationaryModelIP(setup : Dict,
     )        
     # --------------------------------------------------------------------
 
-    y_delta, percentage = construct_noise_data(model = dummy_model, 
-                                               q_exact = q_exact,
-                                               C = C,
-                                               noise_level = setup['noise_level'],
-                                               product=products['bochner_prod_C'],
-                                               time_depend_noise=True)
+    y_delta, u_exact = construct_noise_data(model = dummy_model, 
+                                            q_exact = q_exact,
+                                            C = C,
+                                            noise_level = setup['noise_level'],
+                                            product=products['bochner_prod_C'],
+                                            time_depend_noise=True)
     
-
-    dummy_model.A.material_model.save_time_series(
-        [v.real_part.impl for v in y_delta.vectors],
-        str('y_delta'),
-        str(setup['save_path']),
-        np.linspace(dummy_model.T_initial, dummy_model.T_final, dummy_model.nt+1)
-    )
-
-    # diff_y = y_delta - dummy_model.solve_state(q_exact)
-    # dummy_model.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in diff_y.vectors],
-    #     str('diff_y'),
-    #     str(setup['save_path']),
-    #     np.linspace(dummy_model.T_initial, dummy_model.T_final, dummy_model.nt+1)
-    # )
+    setup['y_delta'] = y_delta.to_numpy()
 
     assert (len(y_delta) == setup['dims']['nt'] + 1)
     assert (y_delta.space == C.range) 
 
-    logger.debug(f'noise percentage is {percentage:3.4e}')
+    y = C.apply(u_exact)
+    diff_y = y_delta - y
+    norm_diff_y = np.sqrt(dummy_model.products['bochner_prod_C'].apply2(diff_y, diff_y))[0,0]
+
+    rel_noise_level_y = norm_diff_y / np.sqrt(dummy_model.products['bochner_prod_C'].apply2(y, y))[0,0]
+    rel_noise_level_u = norm_diff_y / np.sqrt(dummy_model.products['bochner_prod_V'].apply2(u_exact, u_exact))[0,0]
+
     logger.debug(f'noise_level is {setup["noise_level"]:3.4e}')    
+    logger.debug(f'rel_noise_level_y = {rel_noise_level_y:3.4e}')
+    logger.debug(f'rel_noise_level_u = {rel_noise_level_u:3.4e}')
 
     #--------------------------------------------------------
     constant_cost_term = y_delta.pairwise_inner(y_delta, product=products['prod_C'])
@@ -400,6 +394,7 @@ if __name__ == "__main__":
         'par_dim' : 2,
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
         'noise_level': 1e-5,                          # Absolute noise magnitude added to data
+        'y_delta' : None,
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
