@@ -2590,7 +2590,7 @@ class QrVrROMOptimizer(Optimizer):
                     ############################################################
                     
                     # np.set_printoptions(threshold=np.inf)
-                    # rel_tol_coeff_u = 1e-2
+                    # rel_tol_coeff_u = 5 * 1e-3
                     # rel_tol_coeff_p = rel_tol_coeff_u
 
                     # basis = 'state_basis'

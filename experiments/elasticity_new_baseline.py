@@ -41,7 +41,7 @@ bounds[:,0] = 1e-20
 bounds[:,1] = 1e20
 
 setup = {
-    'spatial_resolution' : [6,y_res,z_res],
+    'spatial_resolution' : [4,y_res,z_res],
     'body_force' : {
         'type' : mm.BodyForceType.CenterExcite,
         'hyperparameter' : {}

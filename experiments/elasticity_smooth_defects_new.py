@@ -41,7 +41,7 @@ bounds[:,0] = 1e-20
 bounds[:,1] = 1e20
 
 setup = {
-    'spatial_resolution' : [6,y_res,z_res],
+    'spatial_resolution' : [4,y_res,z_res],
     'body_force' : {
         'type' : mm.BodyForceType.CenterExcite,
         'hyperparameter' : {}
@@ -110,6 +110,7 @@ setup = {
 }
 
 q_start = q_circ
+#lin_solver_tol = 5 * 1e-9
 lin_solver_tol = 1e-12
 tau = 3.5
 
@@ -232,7 +233,8 @@ EXPERIMENTS = {}
 
 # setup_identity['noise_level'] = 2.5 * 1e-4
 
-identity_lin_solver_tol = 1e-7
+#identity_lin_solver_tol = 1e-7
+identity_lin_solver_tol = 5 * 1e-9
 grid_lin_solver_tol = 5 * 1e-9
 # 
 # 
