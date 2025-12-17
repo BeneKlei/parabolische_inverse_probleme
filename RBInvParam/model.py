@@ -380,7 +380,7 @@ class InstationaryModelIP(ImmutableObject):
         elif target in ['A_ad_q', 'partial_q_A_ad_q_u', 'partial_u_A_ad_q_u']:
             op_dict = self.A_ad(q[time_step], u[time_step])
             _target = target.replace('_ad', '')
-            self._cached_operators[_target][time_step] = op_dict[target]
+            self._cached_operators[target][time_step] = op_dict[_target]
         elif target in self.time_stepper_required_cache_keys:
             _time_stepper = next(
                 (time_stepper for time_stepper in self.time_stepper

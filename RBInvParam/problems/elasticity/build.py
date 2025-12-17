@@ -178,14 +178,14 @@ def build_InstationaryModelIP(setup : Dict,
     L = V_h.make_array(elasticity_model.force_list)
 
     A = ElasticitiyFOMEvaluatorA(
-        material_model = material_model,
+        material_model = elasticity_model,
         source = V_h,
         range = V_h,
         Q = Q_h,
         parameter_names = ['lambda', 'mu']
     )
     B = ElasticitiyFOMEvaluatorB(
-        material_model = material_model,
+        material_model = elasticity_model,
         source=Q_h,
         range=V_h,
         Q = Q_h,
