@@ -239,8 +239,8 @@ grid_lin_solver_tol = 5 * 1e-9
 
 #----------------------------------------------------------------------------------------
 
-FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
-TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
+# FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
+# TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
 
 ##########################################################################################
 
@@ -249,7 +249,6 @@ for noise_level in noise_levels:
     _EXPERIMENTS = {}
     setup_noise_level = copy.deepcopy(setup)
     setup_noise_level['noise_level'] = noise_level
-
 
     setup_sensors = copy.deepcopy(setup_noise_level)
     setup_grid = copy.deepcopy(setup_noise_level)
@@ -264,6 +263,13 @@ for noise_level in noise_levels:
         'grid_sizes' : [2,8,8]
     }
 
+
+    FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
+    TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
+
+    FOM_optimizer_parameter_['noise_level'] = noise_level
+    TR_optimizer_parameter_['noise_level'] = noise_level
+
     #----------------------------------------------------------------------------------------
 
     FOM_optimizer_parameter_sensors = copy.deepcopy(FOM_optimizer_parameter_)
@@ -273,7 +279,7 @@ for noise_level in noise_levels:
     #FOM_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
     FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
     FOM_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
-
+    
     # EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
     # EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
     _EXPERIMENTS['FOM_grid'] = (setup_grid, FOM_optimizer_parameter_grid)

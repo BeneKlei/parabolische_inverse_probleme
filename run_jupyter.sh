@@ -9,3 +9,9 @@ salloc --nodes 1 --cpus-per-task 36 --time 00:30:00 --constraint=skylake --parti
 module load palma/2024a GCCcore/13.3.0 Python/3.12.3 foss/2024a 
 export LD_LIBRARY_PATH="/home/b/b_klei15/software/dealii_skylake/lib/:$LD_LIBRARY_PATH"
 source ../venv/bin/activate 
+
+
+squeue -u $USER -t RUNNING -o "%i %j" \
+  | grep 'new_baseline_noise_level_' \
+  | awk '{print $1}' \
+  | xargs scancel
