@@ -14,8 +14,8 @@ class DealIIMatrixOperator(LinearComplexifiedListVectorArrayOperatorBase):
     def __init__(self, matrix, name=None):
         self.source = DealIIVectorSpace(matrix.n())
         self.range = DealIIVectorSpace(matrix.m())
-        #self.solver = pd2.SparseILU()
-        # self._solver = None
+        self._init_solver = False
+
         # self._solver_initialized = False
         self.__auto_init(locals())
 
@@ -23,6 +23,11 @@ class DealIIMatrixOperator(LinearComplexifiedListVectorArrayOperatorBase):
         r = self.range.real_zero_vector()
         self.matrix.vmult(r.impl, u.impl)
         return r
+    
+    def init_solver(self):
+        print("resetted")
+        self._solver = pd2.CGSolver(self.matrix, tol=1e-12, max_steps=20000, ssor_omega=1.2)
+        self._init_solver = True
 
     # def _real_apply_inverse_one_vector(
     #     self, v, mu=None, initial_guess=None, least_squares=False, prepare_data=None
@@ -38,13 +43,19 @@ class DealIIMatrixOperator(LinearComplexifiedListVectorArrayOperatorBase):
     #     self.solver.vmult(r.impl, v.impl)
     #     return r
     
-    def _real_apply_inverse_one_vector(
-        self, v, mu=None, initial_guess=None, least_squares=False, prepare_data=None
-    ):
+    def _real_apply_inverse_one_vector(self, v, mu=None, initial_guess=None, least_squares=False, prepare_data=None):
         if least_squares:
             raise NotImplementedError
-        r = self.source.real_zero_vector()
-        self.matrix.cg_solve(r.impl, v.impl)
+        if not self._init_solver:
+            raise NotImplementedError
+
+        r = self.source.real_zero_vector()  # output vector CG will modify
+
+        if initial_guess is not None:
+            # deep copy the underlying deal.II vector data into r.impl
+            r.impl = pd2.Vector(initial_guess.impl)  # uses C++ copy-ctor -> independent storage
+
+        self._solver.solve(r.impl, v.impl)
         return r
 
     # def _real_apply_inverse_one_vector(

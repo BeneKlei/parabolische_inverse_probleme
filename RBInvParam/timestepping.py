@@ -289,6 +289,12 @@ class SecondOrderCrankNicolson(TimeStepper):
         A_q = A_q.assemble()
         S_zeta = S_zeta.assemble()
         S_zeta_minus_one = S_zeta_minus_one.assemble()
+
+        try:
+            S_zeta.init_solver()
+            self.M.init_solver()
+        except:
+            pass
         
         if not rhs_time_dep:
             dt_R = dt * rhs
@@ -331,17 +337,34 @@ class SecondOrderCrankNicolson(TimeStepper):
             _rhs += dt * M_U_dot_pre
             _rhs += zeta * dt_R
 
+            x0_zero = _lhs.source.zeros(1)            # or however you create a zero VectorArray
+            r0_zero = (_rhs - _lhs.apply(x0_zero)).to_numpy().ravel()
+            r0_guess = (_rhs - _lhs.apply(U_pre)).to_numpy().ravel()
 
-            U_cur = _lhs.apply_inverse(_rhs)
+            print("---------------------------------------")
+            print("||r0||2 zero :", np.linalg.norm(r0_zero))
+            print("||r0||2 guess:", np.linalg.norm(r0_guess))
 
-            assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
-                
+            # import sys
+            # sys.exit()
+
+
+            U_cur = _lhs.apply_inverse(_rhs, initial_guess=U_pre)
+            #U_cur = _lhs.apply_inverse(_rhs)
+
+            print(np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())))
+
+            # import sys
+            # sys.exit()
+
+            #assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
+
             # --------------------------------------------------------------
             M_U_dot_cur = M_U_dot_pre
             _U = zeta * U_cur + (1 - zeta) * U_pre
             M_U_dot_cur += (-1) * dt * A_q.apply(_U)
             M_U_dot_cur += dt_R
-            U_dot_cur = self.M.apply_inverse(M_U_dot_cur)
+            U_dot_cur = self.M.apply_inverse(M_U_dot_cur, initial_guess=U_dot_cur)
             # --------------------------------------------------------------
 
             yield U_cur, U_dot_cur, t

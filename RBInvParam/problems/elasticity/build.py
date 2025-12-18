@@ -268,7 +268,6 @@ def build_InstationaryModelIP(setup : Dict,
     dummy_model = InstationaryModelIP(                 
         **building_blocks,
     )
-
     ############################### Cost ###############################
     material_model.assemble_observation_operator_matrix(
         setup['observation_operator']['type'],
@@ -298,7 +297,6 @@ def build_InstationaryModelIP(setup : Dict,
     products['prod_C'] = DealIIMatrixOperator(
         matrix = material_model.product_C
     )
-
     products['bochner_prod_C'] = BochnerProductOperator(
         product=DealIIMatrixOperator(
             matrix = material_model.product_C
@@ -306,9 +304,9 @@ def build_InstationaryModelIP(setup : Dict,
         delta_t=setup['delta_t'],
         space = C_h,
         nt = setup['dims']['nt']
-    )        
-    # --------------------------------------------------------------------
+    ) 
 
+    # --------------------------------------------------------------------
     y_delta, u_exact = construct_noise_data(model = dummy_model, 
                                             q_exact = q_exact,
                                             C = C,

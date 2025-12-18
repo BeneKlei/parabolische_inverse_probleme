@@ -16,6 +16,8 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
+#include <deal.II/base/timer.h>
+
 #include "utils.hpp"
 
 namespace py = pybind11;
@@ -352,12 +354,112 @@ void bind_sparsity_pattern(pybind11::module& module) {
 
 // }
 
+template <typename Number>
+class CGSolverWrapper
+{
+public:
+  using Matrix = dealii::SparseMatrix<Number>;
+  using Vector = dealii::Vector<Number>;
+
+  CGSolverWrapper(Matrix &A_,
+                  double tol = 1e-12,
+                  unsigned int max_steps = 20000,
+                  double ssor_omega = 1.2)
+    : A(&A_)
+    , tol_(tol)
+    , max_steps_(max_steps)
+    , omega_(ssor_omega)
+  {
+    rebuild_preconditioner();
+  }
+
+  void rebuild_preconditioner()
+  {
+    // (Re)build cached preconditioner from current matrix values
+    prec.initialize(*A, omega_);
+    prec_ready = true;
+  }
+
+  void set_ssor_omega(double omega)
+  {
+    omega_ = omega;
+    prec_ready = false; // force rebuild on next solve
+  }
+
+
+  void solve(Vector &x, const Vector &b)
+  {
+    if (!prec_ready)
+      rebuild_preconditioner();
+
+    dealii::SolverControl control(max_steps_, tol_);
+    dealii::SolverCG<> solver(control);
+
+    double cg_time = 0.0;
+
+    {
+      dealii::Timer timer;
+      timer.start();
+
+      solver.solve(*A, x, b, prec);
+
+      timer.stop();
+      cg_time = timer.wall_time();
+    }
+
+    std::cout << "CG iterations: " << control.last_step()
+              << ", CG time: " << cg_time << " s"
+              << ", final residual: " << control.last_value()
+              << std::endl;
+  }
+
+private:
+  Matrix *A; // non-owning; pybind keep_alive ensures lifetime
+  double tol_;
+  unsigned int max_steps_;
+  double omega_;
+  bool prec_ready = false;
+
+  dealii::PreconditionSSOR<Matrix> prec;
+};
+
+template <typename Number>
+void bind_cgsolver(pybind11::module& m)
+{
+  namespace py = pybind11;
+  using Matrix = dealii::SparseMatrix<Number>;
+  using Vector = dealii::Vector<Number>;
+  using CGS    = CGSolverWrapper<Number>;
+
+  py::class_<CGS>(m, "CGSolver")
+    .def(py::init<Matrix&, double, unsigned int, double>(),
+         py::arg("matrix"),
+         py::arg("tol") = 1e-12,
+         py::arg("max_steps") = 20000,
+         py::arg("ssor_omega") = 1.2,
+         py::keep_alive<1, 2>()   // solver keeps matrix alive
+    )
+    .def("solve", [](CGS &self, Vector &x, const Vector &b){
+        py::gil_scoped_release r;
+        self.solve(x, b);
+    })
+    .def("rebuild_preconditioner", [](CGS &self){
+        py::gil_scoped_release r;
+        self.rebuild_preconditioner();
+    })
+    .def("set_ssor_omega", &CGS::set_ssor_omega);
+}
+
+
+
+
 PYBIND11_MODULE(pymor_dealii_bindings, m) {
   m.doc() = "Python bindings for deal.II";
   bind_sparsity_pattern(m);
   bind_vector<double>(m);
   bind_full_matrix<double>(m);
   bind_sparse_matrix<double>(m);
+  bind_cgsolver<double>(m);
   //bind_ILU_solver<double>(m);
   //bind_cgsolver<double>(m);
 
