@@ -37,8 +37,8 @@ error_estimate_targets_inner = ['J']
 #error_estimate_targets_outer = ['J', 'nabla_J']
 #error_estimate_targets_inner = ['J', 'nabla_J']
 
-#error_estimate_targets_outer = ['J', 'nabla_J']
-#error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
+# error_estimate_targets_outer = ['J', 'nabla_J']
+# error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
 
 #######################################################################
 
@@ -1702,7 +1702,8 @@ class QrVrROMOptimizer(Optimizer):
         lin_u = None
         lin_p = None
         nabla_lin_J = None
-        time_step_nabla_J = None
+        time_steps_nabla_J = None
+        time_steps_nabla_lin_J = None
 
 
         start_time = timer()
@@ -1715,19 +1716,42 @@ class QrVrROMOptimizer(Optimizer):
         u = self.FOM.solve_state(q, use_cached_operators=False)        
         p = self.FOM.solve_adjoint(q, u, use_cached_operators=False)
         J = self.FOM.objective(u)
-        nabla_J, time_step_nabla_J = self.FOM.gradient(u, 
-                                                       p, 
-                                                       q, 
-                                                       use_cached_operators=use_cached_operators,
-                                                       return_per_time_step = True)
+        nabla_J, time_steps_nabla_J = self.FOM.gradient(u, 
+                                                        p, 
+                                                        q, 
+                                                        use_cached_operators=use_cached_operators,
+                                                        return_per_time_step = True)
         
-        if enrichment['state_basis']['additional_snapshots']['include_lins'] or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
-            direction = -nabla_J
+        lins_required = enrichment['state_basis']['additional_snapshots']['include_lins'] \
+                     or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad'] \
+                     or enrichment['parameter_basis']['additional_snapshots']['include_each_nabla_lin_J_time_step']
+
+        if lins_required:
+            #direction = -nabla_J
+            direction = self.FOM.Q.make_array(np.ones(self.FOM.Q.dim))
             lin_u = self.FOM.solve_linearized_state(q, direction, u, use_cached_operators=use_cached_operators)
             lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
-        if enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
-            nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
+        nabla_lin_J_required = enrichment['parameter_basis']['additional_snapshots']['include_lin_grad'] \
+                            or enrichment['parameter_basis']['additional_snapshots']['include_each_nabla_lin_J_time_step']
+
+        if nabla_lin_J_required:
+            nabla_lin_J, time_steps_nabla_lin_J = self.FOM.linearized_gradient(q, 
+                                                                               nabla_J, 
+                                                                               u, 
+                                                                               lin_p, 
+                                                                               alpha=0, 
+                                                                               use_cached_operators=use_cached_operators,
+                                                                               return_per_time_step = True)
+        
+
+        # print(u.to_numpy())
+        # print(p.to_numpy())
+        # print(time_steps_nabla_J.to_numpy())
+        # print("---------------------------------")
+        # print(lin_u.to_numpy())
+        # print(lin_p.to_numpy())
+        # print(time_steps_nabla_lin_J.to_numpy())
         
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
         self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
@@ -1794,7 +1818,8 @@ class QrVrROMOptimizer(Optimizer):
             lin_p = lin_p,
             nabla_J = nabla_J,
             nabla_lin_J = nabla_lin_J,
-            time_step_nabla_J = time_step_nabla_J,
+            time_steps_nabla_J = time_steps_nabla_J,
+            time_steps_nabla_lin_J = time_steps_nabla_lin_J,
             use_cached_operators = use_cached_operators,
         )
 
@@ -2387,22 +2412,33 @@ class QrVrROMOptimizer(Optimizer):
                     u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
                     p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
                     J = self.FOM.objective(u)
-                    nabla_J, time_step_nabla_J = self.FOM.gradient(u, 
+                    nabla_J, time_steps_nabla_J = self.FOM.gradient(u, 
                                                                    p, 
                                                                    q, 
                                                                    use_cached_operators=use_cached_operators,
                                                                    return_per_time_step = True)
                     
+                    lins_required = enrichment['state_basis']['additional_snapshots']['include_lins'] \
+                        or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad'] \
+                        or enrichment['parameter_basis']['additional_snapshots']['include_each_nabla_lin_J_time_step']
 
-                    if enrichment['state_basis']['additional_snapshots']['include_lins'] or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
-                        direction = -nabla_J
-                        #direction = q - self.statistics["q"][-1]
-
+                    if lins_required:
+                        #direction = -nabla_J
+                        direction = self.FOM.Q.make_array(np.ones(self.FOM.Q.dim))
                         lin_u = self.FOM.solve_linearized_state(q, direction, u, use_cached_operators=use_cached_operators)
                         lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
-                    if enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
-                        nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
+                    nabla_lin_J_required = enrichment['parameter_basis']['additional_snapshots']['include_lin_grad'] \
+                                        or enrichment['parameter_basis']['additional_snapshots']['include_each_nabla_lin_J_time_step']
+
+                    if nabla_lin_J_required:
+                        nabla_lin_J, time_steps_nabla_lin_J = self.FOM.linearized_gradient(q, 
+                                                                                        nabla_J, 
+                                                                                        u, 
+                                                                                        lin_p, 
+                                                                                        alpha=0, 
+                                                                                        use_cached_operators=use_cached_operators,
+                                                                                        return_per_time_step = True)
 
                     
                     norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
@@ -2457,18 +2493,30 @@ class QrVrROMOptimizer(Optimizer):
                         p = p_
                         J = J_
                         nabla_J = nabla_J_
-                        time_step_nabla_J = time_step_nabla_J_ 
+                        time_steps_nabla_J = time_step_nabla_J_ 
                         norm_nabla_J = norm_nabla_J_
 
-                        if enrichment['state_basis']['additional_snapshots']['include_lins'] or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
-                            direction = -nabla_J
-                            #direction = q - self.statistics["q"][-1]
+                        lins_required = enrichment['state_basis']['additional_snapshots']['include_lins'] \
+                        or enrichment['parameter_basis']['additional_snapshots']['include_lin_grad'] \
+                        or enrichment['parameter_basis']['additional_snapshots']['include_each_nabla_lin_J_time_step']
 
+                        if lins_required:
+                            #direction = -nabla_J
+                            direction = self.FOM.Q.make_array(np.ones(self.FOM.Q.dim))
                             lin_u = self.FOM.solve_linearized_state(q, direction, u, use_cached_operators=use_cached_operators)
                             lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
 
-                        if enrichment['parameter_basis']['additional_snapshots']['include_lin_grad']:
-                            nabla_lin_J = self.FOM.linearized_gradient(q, nabla_J, u, lin_p, alpha=0, use_cached_operators=use_cached_operators)
+                        nabla_lin_J_required = enrichment['parameter_basis']['additional_snapshots']['include_lin_grad'] \
+                                            or enrichment['parameter_basis']['additional_snapshots']['include_each_nabla_lin_J_time_step']
+
+                        if nabla_lin_J_required:
+                            nabla_lin_J, time_steps_nabla_lin_J = self.FOM.linearized_gradient(q, 
+                                                                                            nabla_J, 
+                                                                                            u, 
+                                                                                            lin_p, 
+                                                                                            alpha=0, 
+                                                                                            use_cached_operators=use_cached_operators,
+                                                                                            return_per_time_step = True)
                         
                         delta_J = self.statistics["J"][-1] - J
                         delta_J_r = self.statistics["J_r"][-1] - J_r
@@ -2501,7 +2549,7 @@ class QrVrROMOptimizer(Optimizer):
                 J = self.FOM.objective(u)
                 self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
 
-                nabla_J, time_step_nabla_J = self.FOM.gradient(u, 
+                nabla_J, time_steps_nabla_J = self.FOM.gradient(u, 
                                                                p, 
                                                                q, 
                                                                use_cached_operators=use_cached_operators,
@@ -2542,7 +2590,8 @@ class QrVrROMOptimizer(Optimizer):
                         lin_p = lin_p,
                         nabla_J = nabla_J,
                         nabla_lin_J = nabla_lin_J,
-                        time_step_nabla_J = time_step_nabla_J,
+                        time_steps_nabla_J = time_steps_nabla_J,
+                        time_steps_nabla_lin_J = time_steps_nabla_lin_J,
                         use_cached_operators = use_cached_operators,
                     )
 

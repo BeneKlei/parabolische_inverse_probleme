@@ -851,7 +851,8 @@ class InstationaryModelIP(ImmutableObject):
                             u: VectorArray,
                             lin_p: VectorArray,
                             alpha : float = 0.0,
-                            use_cached_operators: bool = False) -> VectorArray:
+                            use_cached_operators: bool = False,
+                            return_per_time_step : bool = False) -> NumpyVectorArray | Tuple[NumpyVectorArray, NumpyVectorArray]:
         
         if self.q_time_dep:
             assert len(q) == self.nt + 1
@@ -899,18 +900,22 @@ class InstationaryModelIP(ImmutableObject):
 
             # print(idx)
             # print(grad[idx])
-
+    
         if not self.q_time_dep:
-            grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
-
+            _grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
+        
         if self.riesz_rep_grad:
-            grad = self.products['prod_Q'].apply_inverse(grad) 
+            _grad = self.products['prod_Q'].apply_inverse(_grad) 
         
         if alpha > 0:
-            out = grad + alpha * self.linarized_gradient_regularization_term(q,d)
+            out = _grad + alpha * self.linarized_gradient_regularization_term(q,d)
         else:
-            out = grad
-        return out
+            out = _grad
+
+        if return_per_time_step:
+            return (out, grad)
+        else: 
+            return out
     
     def gauss_newton_hessian(self,
                              u: VectorArray,

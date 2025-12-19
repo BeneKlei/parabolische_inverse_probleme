@@ -74,7 +74,7 @@ def main():
     # T_final = 5.0
     # nt = 50
 
-    T_final = 10.0
+    T_final = 5.0
     nt = 50
 
     #T_final = 5.0
@@ -94,8 +94,8 @@ def main():
     q_exact = np.ones((1,par_dim)) * 1
 
 
-    # q_exact[0,200] = 2
-    # q_exact[0,300] = 3
+    q_exact[0,200] = 2
+    q_exact[0,300] = 3
 
     q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
     q_exact[9,21] = 3
@@ -123,25 +123,25 @@ def main():
     q_exact = np.array([q_exact])
 
 
-    #q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
     # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
     # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
-    #add_constant_patch(q_exact, center=(30, 20), value=3.0, half_size=1)
-    #add_constant_patch(q_exact, center=(10, 24), value=2.0, half_size=1)
+    # #add_constant_patch(q_exact, center=(30, 20), value=3.0, half_size=1)
+    # #add_constant_patch(q_exact, center=(10, 24), value=2.0, half_size=1)
 
-    #add_gaussian_patch(q_exact, center=(20, 15), sigma=2.0, amp=2.0, half_size=3)
-    #add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
+    # #add_gaussian_patch(q_exact, center=(20, 15), sigma=2.0, amp=2.0, half_size=3)
+    # #add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
 
-    # import matplotlib.pyplot as plt
-    # plt.imshow(q_exact)
-    # plt.colorbar()
-    # plt.show()
-    # #plt.savefig('./q_exact.pdf')
+    # # import matplotlib.pyplot as plt
+    # # plt.imshow(q_exact)
+    # # plt.colorbar()
+    # # plt.show()
+    # # #plt.savefig('./q_exact.pdf')
 
-    # import sys
-    # sys.exit()
+    # # import sys
+    # # sys.exit()
     
     # q_exact = q_exact.flatten()
     # q_exact = np.array([q_exact])
@@ -227,8 +227,8 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 5 * 1e-3,                         # Absolute noise magnitude added to data
-        #'noise_level': 5 * 1e-5,                         # Absolute noise magnitude added to data
+        #'noise_level': 5 * 1e-3,                         # Absolute noise magnitude added to data
+        'noise_level': 5 * 1e-5,                         # Absolute noise magnitude added to data
         'y_delta' : None,
         #'noise_level': 0.0,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
@@ -363,7 +363,7 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver            
             #'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
             #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
@@ -374,8 +374,9 @@ def main():
             'parameter_basis' : {
                 'reduced_basis' : True,
                 'additional_snapshots' :{
-                    'include_each_time_step' : True,
                     'include_lin_grad' : False,
+                    'include_each_nabla_J_time_step' : False,
+                    'include_each_nabla_lin_J_time_step' : True,
                     'include_krylov_directions' : False,
                     # {
                     #     'n' : 5,
