@@ -6,6 +6,7 @@ from abc import abstractmethod
 from typing import Dict, Union, Tuple, List
 from timeit import default_timer as timer
 from pathlib import Path
+from enum import Enum
 
 import pymor_dealii_bindings as pd2
 
@@ -31,14 +32,11 @@ STAGNATION_TOL = 1e-6
 
 #######################################################################
 
-error_estimate_targets_outer = ['J']
-error_estimate_targets_inner = ['J']
+class LoggerErrorChoice(Enum):
+    ALL = "all"
+    OBJECTIVE = "objective"
+    GRADIENT = "gradient"
 
-#error_estimate_targets_outer = ['J', 'nabla_J']
-#error_estimate_targets_inner = ['J', 'nabla_J']
-
-# error_estimate_targets_outer = ['J', 'nabla_J']
-# error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
 
 #######################################################################
 
@@ -83,6 +81,7 @@ class Optimizer(BasicObject):
         self.IRGNM_statistics = {}
 
         self.linear_solver_operator = None
+        self.last_update_q = None
  
         self.I = 0
         self.FOM_projector = SimpleBoundDomainProjector(
@@ -193,7 +192,7 @@ class Optimizer(BasicObject):
                 u_dot_r = u_dot,
                 p_dot_r = p_dot,
                 J_r = current_J,
-                targets=error_estimate_targets_inner,
+                targets=self.error_estimate_targets_inner,
                 use_cached_operators=use_cached_operators,
                 use_error_estimator = use_error_estimator
             )
@@ -275,7 +274,7 @@ class Optimizer(BasicObject):
                     u_dot_r = u_dot,
                     p_dot_r = p_dot,
                     J_r = current_J,
-                    targets=error_estimate_targets_inner,
+                    targets=self.error_estimate_targets_inner,
                     use_cached_operators=use_cached_operators,
                     use_error_estimator=use_error_estimator
                 )                
@@ -734,6 +733,7 @@ class Optimizer(BasicObject):
             "FOM_num_calls" : {},
             "counts" : {},
             "errors" : {
+                'norm_delta_q' : [],
                 'err_u' : [],
                 'rel_err_u' : [],
                 'err_p' : [],
@@ -780,6 +780,7 @@ class Optimizer(BasicObject):
 
         alpha = alpha_0
         q = q_0.copy()
+        norm_delta_q = np.sqrt(model.products['prod_Q'].apply2(q-self.last_update_q,q-self.last_update_q)[0,0])
         u = model.solve_state(q, use_cached_operators=use_cached_operators)
         p = model.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
         J = model.objective(u)
@@ -814,7 +815,7 @@ class Optimizer(BasicObject):
         while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
             self.logger.info(f"##############################################################################################################################")
             self.logger.warning(f"{method_name}: Iteration {i} | J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
-            self.logger.info(f'Start {method_name} iteration {i}: J = {J:3.4e}, norm_nabla_J = {model.compute_gradient_norm(nabla_J):3.4e}, alpha = {alpha:1.4e}')
+            self.logger.info(f'Start {method_name} iteration {i}: J = {J:3.4e}, norm_nabla_J = {model.compute_gradient_norm(nabla_J):3.4e}, alpha = {alpha:1.4e}, |q-q^(i)| = {norm_delta_q:3.4e}')
             self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
             self.logger.info(f"Try 1: test alpha = {alpha:3.4e}.")
 
@@ -965,7 +966,7 @@ class Optimizer(BasicObject):
                         u_dot_r = u_dot,
                         p_dot_r = p_dot,
                         J_r = J,
-                        targets = error_estimate_targets_inner,
+                        targets = self.error_estimate_targets_inner,
                         use_cached_operators=use_cached_operators,
                         use_error_estimator=use_error_estimator
                     )
@@ -1069,6 +1070,7 @@ class Optimizer(BasicObject):
 
             ########################################### Final ###########################################
 
+            norm_delta_q = np.sqrt(model.products['prod_Q'].apply2(q-self.last_update_q,q-self.last_update_q)[0,0])
             u = model.solve_state(q, use_cached_operators=use_cached_operators)
             p = model.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
             J = model.objective(u)
@@ -1080,7 +1082,11 @@ class Optimizer(BasicObject):
             self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
             self.IRGNM_statistics["alpha"].append(alpha)
 
+            self.IRGNM_statistics["errors"]['norm_delta_q'].append(norm_delta_q)
             for key in self.IRGNM_statistics["errors"].keys():
+                if key == 'norm_delta_q':
+                    continue
+
                 if TR_enforcement is not None:
                     self.IRGNM_statistics["errors"][key].append(errors[key])
                 else:
@@ -1265,8 +1271,9 @@ class FOMOptimizer(Optimizer):
         use_cached_operators = self.optimizer_parameter['use_cached_operators']
 
         dump_every_nth_loop = self.optimizer_parameter['dump_every_nth_loop']
-
+    
         q = self.FOM.Q.make_array(q_0)
+        self.last_update_q = q.copy()
         u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
         p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
         J = self.FOM.objective(u)
@@ -1592,6 +1599,20 @@ class QrVrROMOptimizer(Optimizer):
             }
         }
 
+        
+
+        if optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.OBJECTIVE:
+            self.error_estimate_targets_outer = ['J']
+            self.error_estimate_targets_inner = ['J']
+        elif optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.GRADIENT:
+            self.error_estimate_targets_outer = ['J', 'nabla_J']
+            self.error_estimate_targets_inner = ['J', 'nabla_J']
+        elif optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.ALL:
+            self.error_estimate_targets_outer = ['J', 'nabla_J']
+            self.error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
+        else:
+            raise ValueError
+
     def extend_bases_and_rebuild_QrVrROM(self,
                                          bases: List[str],
                                          enrichment : Dict,
@@ -1861,13 +1882,14 @@ class QrVrROMOptimizer(Optimizer):
 
         # print("qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq")
         # print(len(self.snapshots['state_basis']))
-    
-                
+
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             bases=self.reduced_bases,
             enrichment=enrichment, 
             i = i
         )
+        self.last_update_q = self.reductor.project_vectorarray(q.copy(), 'parameter_basis')
+        self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
         
         ############################################################
 
@@ -1944,7 +1966,7 @@ class QrVrROMOptimizer(Optimizer):
             u_dot_r = u_dot_r,
             p_dot_r = p_dot_r,
             J_r = J,
-            targets = error_estimate_targets_outer,
+            targets = self.error_estimate_targets_outer,
             use_cached_operators=use_cached_operators,
             use_error_estimator=use_error_estimator
         )
@@ -2082,7 +2104,7 @@ class QrVrROMOptimizer(Optimizer):
                 u_dot_r = u_dot_r,
                 p_dot_r = p_dot_r,
                 J_r = J,
-                targets=error_estimate_targets_outer,
+                targets=self.error_estimate_targets_outer,
                 use_cached_operators=use_cached_operators,
                 use_error_estimator=use_error_estimator)
             
@@ -2143,6 +2165,8 @@ class QrVrROMOptimizer(Optimizer):
                     enrichment=_enrichment,
                     i = i
                 )   
+                self.last_update_q = self.reductor.project_vectorarray(q.copy(), 'parameter_basis')
+                self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
 
                 # print("--------------------------------")                
                 # state_basis = self.reductor.bases['state_basis']
@@ -2175,7 +2199,7 @@ class QrVrROMOptimizer(Optimizer):
                     u_dot_r = u_dot_r,
                     p_dot_r = p_dot_r,
                     J_r = J,
-                    targets=error_estimate_targets_outer,
+                    targets=self.error_estimate_targets_outer,
                     use_cached_operators=use_cached_operators,
                     use_error_estimator=use_error_estimator)
                 
@@ -2289,6 +2313,8 @@ class QrVrROMOptimizer(Optimizer):
                     enrichment=_enrichment,
                     i = i
                 )     
+                self.last_update_q = self.reductor.project_vectorarray(q.copy(), 'parameter_basis')
+                self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
 
                 AGC_jump_back = True
                 print(eta)
@@ -2372,7 +2398,7 @@ class QrVrROMOptimizer(Optimizer):
                     u_dot_r = u_dot_r,
                     p_dot_r = p_dot_r,
                     J_r = J,
-                    targets = error_estimate_targets_outer,
+                    targets = self.error_estimate_targets_outer,
                     use_cached_operators=use_cached_operators,
                     use_error_estimator=use_error_estimator
                 )
@@ -2639,8 +2665,9 @@ class QrVrROMOptimizer(Optimizer):
                     ############################################################
                     
                     # np.set_printoptions(threshold=np.inf)
-                    # rel_tol_coeff_u = 5 * 1e-3
+                    # rel_tol_coeff_u = 1e-2
                     # rel_tol_coeff_p = rel_tol_coeff_u
+
 
                     # basis = 'state_basis'
                     # _basis = self.reductor.bases[basis]
@@ -2648,23 +2675,39 @@ class QrVrROMOptimizer(Optimizer):
 
                     # coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
                     # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
-                    # idxes_u = np.argwhere((coeff_u / np.max(coeff_u)) >= rel_tol_coeff_u)
+                    # relative_reduction = (err_i_u[:-1] - err_i_u[1:]) / err_i_u[:-1]
+                    # idxes_u = np.where(relative_reduction >= rel_tol_coeff_u)[0] + 1
                     
+                    # #idxes_u = np.argwhere((coeff_u / np.max(coeff_u)) >= rel_tol_coeff_u)
+
+                    # print('err_i_u:')
+                    # print(err_i_u)
+                    # print(len(idxes_u))
+
                     # coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
                     # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
-                    # idxes_p = np.argwhere((coeff_p / np.max(coeff_p)) >= rel_tol_coeff_p) 
+                    # relative_reduction = (err_i_p[:-1] - err_i_p[1:]) / err_i_p[:-1]
+                    # idxes_p = np.where(relative_reduction >= rel_tol_coeff_p)[0] + 1
                     
+                    # #idxes_p = np.argwhere((coeff_p / np.max(coeff_p)) >= rel_tol_coeff_p) 
+
+                    # print('err_i_p:')
+                    # print(err_i_p)
+                    # print(len(idxes_p))
+                    
+
                     # idxes = np.concatenate([idxes_u, idxes_p])
                     # idxes = np.unique(idxes)
                     # self.reductor.bases[basis] = _basis[idxes].copy()
                     # self.reductor.delete_cached_operators()
-
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.reduced_bases,
                         enrichment=enrichment,
                         i = i
                     )
+                    self.last_update_q = self.reductor.project_vectorarray(q.copy(), 'parameter_basis')
+                    self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
 
                     ############################################################
 
@@ -2677,7 +2720,7 @@ class QrVrROMOptimizer(Optimizer):
                     #     reductor=self.reductor,
                     #     q_r = q_r,
                     #     d_r = self.QrVrROM.Q.zeros(),
-                    #     targets=error_estimate_targets_outer,
+                    #     targets=self.error_estimate_targets_outer,
                     #     use_cached_operators=use_cached_operators,
                     #     use_error_estimator=use_error_estimator)
 

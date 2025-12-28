@@ -26,6 +26,8 @@ from RBInvParam.timestepping import TimeStepperType
 
 from RBInvParam.utils.create_q_exact import *
 
+from RBInvParam.optimizer import LoggerErrorChoice
+
 #########################################################################################
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -98,7 +100,7 @@ def main():
     # q_exact[0,300] = 3
 
     q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    q_exact[10:21,10:21] = 2
+    #q_exact[10:21,10:21] = 2
     # q_exact[9,21] = 3
     # q_exact[8,21] = 3
     # q_exact[7,21] = 3
@@ -126,8 +128,8 @@ def main():
 
     # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
-    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
     # #add_constant_patch(q_exact, center=(30, 20), value=3.0, half_size=1)
     # #add_constant_patch(q_exact, center=(10, 24), value=2.0, half_size=1)
@@ -387,7 +389,7 @@ def main():
                 'compression' : {
                     'normalize' : True,
                     'HaPOD' : {
-                        'eps': 1e-2,
+                        'eps': 1e-4,
                         'omega' : 0.1,
                     },
                     # 'normalize' : None,
@@ -428,6 +430,9 @@ def main():
             'state' : StateErrorEstimatorType.HYPERBOLIC,
             'adjoint' : AdjointErrorEstimatorType.NONE,
             'objective' : ObjectiveErrorEstimatorType.NAIVE,
+        },
+        'logging' : {
+            'errors' : LoggerErrorChoice.OBJECTIVE,
         },
         #####################
         'use_cached_operators': False,                               # Reuse previously assembled operators to save computation

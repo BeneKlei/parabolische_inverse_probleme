@@ -11,8 +11,10 @@ from RBInvParam.timestepping import TimeStepperType
 
 from RBInvParam.utils.create_q_exact import *
 
-y_res = 46
-z_res = 46
+from RBInvParam.optimizer import LoggerErrorChoice
+
+y_res = 42
+z_res = 42
 par_dim = (y_res + 1) * (z_res + 1) 
 T_initial = 0
 T_final = 5.0
@@ -214,6 +216,9 @@ TR_optimizer_parameter = {
         'state' : StateErrorEstimatorType.HYPERBOLIC,
         'adjoint' : AdjointErrorEstimatorType.NONE,
         'objective' : ObjectiveErrorEstimatorType.NAIVE,
+    },
+    'logging' : {
+        'errors' : LoggerErrorChoice.OBJECTIVE,
     },
     #####################
     'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
