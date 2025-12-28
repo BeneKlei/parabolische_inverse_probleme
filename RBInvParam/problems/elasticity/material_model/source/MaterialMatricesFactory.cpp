@@ -120,6 +120,7 @@ void MaterialMatricesFactory<dim, Number>::assemble_cosserat_system(
   }
 } 
 
+
 template <int dim, typename Number>
 void MaterialMatricesFactory<dim, Number>::assemble_cosserat_spatial_system(
   const MaterialMatricesFactoryContext<dim, Number>& ctx,
@@ -149,7 +150,7 @@ void MaterialMatricesFactory<dim, Number>::assemble_cosserat_spatial_system(
   }
   
   unsigned int n_vecticies = unique_vertices.size();
-  unsigned int n_matrices = 3 * n_vecticies;
+  unsigned int n_matrices = n_vecticies;
   system_matrices.m_matrices.resize(n_matrices);
   system_matrices.m_affine = false;
   system_matrices.m_param_space_dim = n_matrices;
@@ -160,8 +161,7 @@ void MaterialMatricesFactory<dim, Number>::assemble_cosserat_spatial_system(
     matrix = 0;
   }
 
-  std::vector<FullMatrix<Number>> cell_matrices(3, FullMatrix<Number>(dofs_per_cell, dofs_per_cell));
-  //FullMatrix<Number> cell_matrix = FullMatrix<Number>(dofs_per_cell, dofs_per_cell);
+  FullMatrix<Number> cell_matrix(dofs_per_cell, dofs_per_cell);
 
   for (const auto &cell : ctx.dof_handler.active_cell_iterators())
   {
@@ -171,8 +171,7 @@ void MaterialMatricesFactory<dim, Number>::assemble_cosserat_spatial_system(
     for (unsigned int v=0; v<GeometryInfo<3>::vertices_per_cell; ++v)
     {
       unsigned int vertex_idx = cell->vertex_index(v);
-      for (auto &cell_matrix : cell_matrices)
-        cell_matrix = 0;
+      cell_matrix = 0;
 
       unsigned int k_local = 0;
       for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -216,18 +215,16 @@ void MaterialMatricesFactory<dim, Number>::assemble_cosserat_spatial_system(
             
             const double spline_value = fe_values.shape_value(k_local, q_point);
             
-            cell_matrices[0](i, j) += spline_value * lambda * grad_i[component_i] * grad_j[component_j] * JxW;  
-            cell_matrices[1](i, j) += spline_value * mu * sym_term * JxW;
-            cell_matrices[2](i, j) += spline_value * nu * skew_term * JxW;
+            cell_matrix(i, j) += spline_value * lambda * grad_i[component_i] * grad_j[component_j] * JxW;  
+            cell_matrix(i, j) += spline_value * mu * sym_term * JxW;
+            cell_matrix(i, j) += spline_value * nu * skew_term * JxW;
           }
         }
       }
-      for (unsigned int m = 0; m < 3; ++m)
-      {
-        ctx.BC_constraints.distribute_local_to_global(cell_matrices[m],
-                                                      local_dof_indices,
-                                                      system_matrices.m_matrices[m * n_vecticies + vertex_idx]);
-      }
+      
+      ctx.BC_constraints.distribute_local_to_global(cell_matrix,
+                                                    local_dof_indices,
+                                                    system_matrices.m_matrices[vertex_idx]);
     }
   }
   // Final condense to enforce constraints
