@@ -49,7 +49,7 @@ setup = {
         # }
     },
     'system_matrix' : {
-        'type' : mm.SystemMatrixType.CosseratDelamination,
+        'type' : mm.SystemMatrixType.CosseratSpatial,
         'hyperparameter' : {
             'lambda' : 1e1,
             'mu' : 1e1,
@@ -346,5 +346,5 @@ TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_sol
 # EXPERIMENTS['TR_identity_time_step_lin'] = (setup_identity, TR_optimizer_parameter_identity)
 # EXPERIMENTS['TR_grid_time_step_lin'] = (setup_grid, TR_optimizer_parameter_grid)
 
-prefix = 'new_baseline'
+prefix = 'defect_inside_material'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}
