@@ -366,9 +366,9 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver            
+            #'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver            
             #'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
-            #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
@@ -389,7 +389,7 @@ def main():
                 'compression' : {
                     'normalize' : True,
                     'HaPOD' : {
-                        'eps': 1e-4,
+                        'eps': 1e-2,
                         'omega' : 0.1,
                     },
                     # 'normalize' : None,

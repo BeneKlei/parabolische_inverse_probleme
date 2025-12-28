@@ -185,8 +185,9 @@ TR_optimizer_parameter = {
         'parameter_basis' : {
             'reduced_basis' : True,
             'additional_snapshots' : {
-                'include_each_time_step' : False,
                 'include_lin_grad' : False,
+                'include_each_nabla_J_time_step' : False,
+                'include_each_nabla_lin_J_time_step' : False,
                 'include_krylov_directions' : False,
             },
             'compression' : {
