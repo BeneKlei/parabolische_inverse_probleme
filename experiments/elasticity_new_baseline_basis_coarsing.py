@@ -207,7 +207,10 @@ TR_optimizer_parameter = {
                     'omega' : 0.1,    
                 },
             },
-            'coarsing' : None,
+            'coarsing' : {
+                'rel_tol_coeff_u' : 1e-2,
+                'rel_tol_coeff_p' : 1e-2
+            }
         },
         'adjoint_basis' : {
             'additional_snapshots' : {},
@@ -243,8 +246,7 @@ EXPERIMENTS = {}
 # grid_lin_solver_tol = 5 * 1e-9
 
 identity_lin_solver_tol = lin_solver_tol
-grid_lin_solver_tol = lin_solver_tol
-
+grid_lin_solver_tol = lin_solver_tol 
 
 #----------------------------------------------------------------------------------------
 

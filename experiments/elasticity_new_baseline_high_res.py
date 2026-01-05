@@ -206,7 +206,8 @@ TR_optimizer_parameter = {
                     'eps': 1e-3,
                     'omega' : 0.1,    
                 },
-            }
+            },
+            'coarsing' : None,
         },
         'adjoint_basis' : {
             'additional_snapshots' : {},

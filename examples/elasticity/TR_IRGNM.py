@@ -379,7 +379,7 @@ def main():
                 'additional_snapshots' :{
                     'include_lin_grad' : False,
                     'include_each_nabla_J_time_step' : False,
-                    'include_each_nabla_lin_J_time_step' : True,
+                    'include_each_nabla_lin_J_time_step' : False,
                     'include_krylov_directions' : False,
                     # {
                     #     'n' : 5,
@@ -387,13 +387,13 @@ def main():
                     # },
                 },
                 'compression' : {
-                    'normalize' : True,
-                    'HaPOD' : {
-                        'eps': 1e-2,
-                        'omega' : 0.1,
-                    },
-                    # 'normalize' : None,
-                    # 'HaPOD' : None,
+                    # 'normalize' : True,
+                    # 'HaPOD' : {
+                    #     'eps': 1e-2,
+                    #     'omega' : 0.1,
+                    # },
+                    'normalize' : None,
+                    'HaPOD' : None,
                 }
             },
             'state_basis' : {
@@ -409,7 +409,12 @@ def main():
                     },
                     # 'normalize' : None,
                     # 'HaPOD' : None,
-                }
+                },
+                'coarsing' : None,
+                # 'coarsing' : {
+                #     'rel_tol_coeff_u' : 1e-2,
+                #     'rel_tol_coeff_p' : 1e-2
+                # }
             },
             'adjoint_basis' : {
                 'additional_snapshots' :{

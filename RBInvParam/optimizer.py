@@ -2117,7 +2117,7 @@ class QrVrROMOptimizer(Optimizer):
 
             if eta <= eta_min:
                 self.statistics["stagnation_flag"] = True
-                self.logger.info(f"Trust region tolerance eta = {eta} falls below eta_min = {eta_min}.")
+                self.logger.info(f"Trust region tolerance eta = {eta:3.4e} falls below eta_min = {eta_min:3.4e}.")
                 break
                     
             proj_q_in_tr = rel_est_error_J_r <= eta
@@ -2139,18 +2139,16 @@ class QrVrROMOptimizer(Optimizer):
 
                 _enrichment = copy.deepcopy(enrichment)
                 for basis in self.reduced_bases:
-                    _enrichment[basis]['compression']['sample_every_n_th'] = None
                     _enrichment[basis]['compression']['normalize'] = None
                     _enrichment[basis]['compression']['HaPOD'] = None
-                    _enrichment[basis]['compression']['keep_last_n'] = None
                 
                 self._reset_snapshots()
 
                 if enrichment['parameter_basis']['reduced_basis']:
                     self.logger.debug(f"Extending Qr-snapshots")
                     self.snapshots['parameter_basis'].append(nabla_J)
-                    self.snapshots['parameter_basis'].append(q)
-                    self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
+                    # self.snapshots['parameter_basis'].append(q)
+                    # self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
                                 
                 self.logger.debug(f"Extending Vr-snapshots")
                 if self.reductor.use_adjoint_space:
@@ -2288,10 +2286,8 @@ class QrVrROMOptimizer(Optimizer):
                 
                 _enrichment = copy.deepcopy(enrichment)
                 for basis in self.reduced_bases:
-                    _enrichment[basis]['compression']['sample_every_n_th'] = None
                     _enrichment[basis]['compression']['normalize'] = None
                     _enrichment[basis]['compression']['HaPOD'] = None
-                    _enrichment[basis]['compression']['keep_last_n'] = None
 
                 self._reset_snapshots()
 
@@ -2661,45 +2657,37 @@ class QrVrROMOptimizer(Optimizer):
                         additional_state_snapshots
                     )
 
-
                     ############################################################
                     
-                    # np.set_printoptions(threshold=np.inf)
-                    # rel_tol_coeff_u = 1e-2
-                    # rel_tol_coeff_p = rel_tol_coeff_u
+                    if enrichment['state_basis']['coarsing']:
+                        np.set_printoptions(threshold=np.inf)
+                        rel_tol_coeff_u = enrichment['state_basis']['coarsing']['rel_tol_coeff_u']
+                        rel_tol_coeff_p = enrichment['state_basis']['coarsing']['rel_tol_coeff_p']
+                        
+                        self.logger.info(f"Removing vectors from 'state_basis', using rel_tol_coeff_u = {rel_tol_coeff_u:3.4e}, rel_tol_coeff_p = {rel_tol_coeff_p:3.4e}")
+
+                        basis = 'state_basis'
+                        _basis = self.reductor.bases[basis]
 
 
-                    # basis = 'state_basis'
-                    # _basis = self.reductor.bases[basis]
+                        coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                        err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
+                        relative_reduction = (err_i_u[:-1] - err_i_u[1:]) / err_i_u[:-1]
+                        idxes_u = np.where(relative_reduction >= rel_tol_coeff_u)[0] + 1
+                        
+                        #idxes_u = np.argwhere((coeff_u / np.max(coeff_u)) >= rel_tol_coeff_u)
 
+                        coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                        err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
+                        relative_reduction = (err_i_p[:-1] - err_i_p[1:]) / err_i_p[:-1]
+                        idxes_p = np.where(relative_reduction >= rel_tol_coeff_p)[0] + 1
+                        
+                        #idxes_p = np.argwhere((coeff_p / np.max(coeff_p)) >= rel_tol_coeff_p) 
 
-                    # coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
-                    # relative_reduction = (err_i_u[:-1] - err_i_u[1:]) / err_i_u[:-1]
-                    # idxes_u = np.where(relative_reduction >= rel_tol_coeff_u)[0] + 1
-                    
-                    # #idxes_u = np.argwhere((coeff_u / np.max(coeff_u)) >= rel_tol_coeff_u)
-
-                    # print('err_i_u:')
-                    # print(err_i_u)
-                    # print(len(idxes_u))
-
-                    # coeff_p = np.sum((p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(p,p)) - np.cumsum(coeff_p)
-                    # relative_reduction = (err_i_p[:-1] - err_i_p[1:]) / err_i_p[:-1]
-                    # idxes_p = np.where(relative_reduction >= rel_tol_coeff_p)[0] + 1
-                    
-                    # #idxes_p = np.argwhere((coeff_p / np.max(coeff_p)) >= rel_tol_coeff_p) 
-
-                    # print('err_i_p:')
-                    # print(err_i_p)
-                    # print(len(idxes_p))
-                    
-
-                    # idxes = np.concatenate([idxes_u, idxes_p])
-                    # idxes = np.unique(idxes)
-                    # self.reductor.bases[basis] = _basis[idxes].copy()
-                    # self.reductor.delete_cached_operators()
+                        idxes = np.concatenate([idxes_u, idxes_p])
+                        idxes = np.unique(idxes)
+                        self.reductor.bases[basis] = _basis[idxes].copy()
+                        self.reductor.delete_cached_operators()
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.reduced_bases,
