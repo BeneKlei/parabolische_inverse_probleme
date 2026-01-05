@@ -40,8 +40,9 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     def __init__(self,
                  FOM: InstationaryModelIP,
                  error_estimator_types: Dict,
-                 check_orthonormality: bool =False,
-                 check_tol: float = 1e-3,
+                 check_orthonormality: bool = True,
+                 #check_tol: float = 1e-3,
+                 check_tol: float = 1e-9,
                  residual_image_basis_mode: str = 'none',
                  parallel: bool = False,
                  use_adjoint_space: bool = False,
@@ -115,6 +116,28 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         for target in targets:
             #del self._cached_operators[target]
             self._cached_operators[target] = None
+    
+    def calc_projection_residuum(self,
+                                 x: VectorArray,
+                                 basis: str,
+                                 normalize: bool = False) -> float:
+
+
+        assert isinstance(x, VectorArray)
+        assert basis in ['adjoint_basis', 'state_basis', 'parameter_basis']
+        _basis = self.bases[basis]
+
+        if normalize:
+            norms = x.norm(self.products[basis])
+            x.scal(1/norms)
+
+        if len(_basis) > 0:
+            projected_x = self.bases[basis].lincomb(
+                self.project_vectorarray(x, basis=basis)
+            )
+            x.axpy(-1,projected_x)
+
+        return x
 
     def calc_projection_error(self,
                               x: VectorArray,

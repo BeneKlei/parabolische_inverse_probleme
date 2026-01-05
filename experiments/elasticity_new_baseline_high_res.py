@@ -281,7 +281,7 @@ EXPERIMENTS['FOM_grid'] = (setup_grid, FOM_optimizer_parameter_grid)
 #----------------------------------------------------------------------------------------
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_nabla_J_time_step'] = True
 TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
 TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1, 'omega' : 0.1}
 
@@ -301,7 +301,7 @@ EXPERIMENTS['TR_grid_time_step'] = (setup_grid, TR_optimizer_parameter_grid)
 #----------------------------------------------------------------------------------------
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_nabla_J_time_step'] = True
 
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)

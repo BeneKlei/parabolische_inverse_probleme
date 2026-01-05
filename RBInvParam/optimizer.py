@@ -1617,11 +1617,12 @@ class QrVrROMOptimizer(Optimizer):
                                          bases: List[str],
                                          enrichment : Dict,
                                          i: int = -1) -> InstationaryModelIP:
-            
+
+        assert isinstance(bases, List)        
 
         for basis in self.snapshots.keys():
             self.all_snapshots[basis].append(self.snapshots[basis])
-        
+
         for basis in bases:
             extend_start_time = timer()
 
@@ -1647,8 +1648,19 @@ class QrVrROMOptimizer(Optimizer):
             try:
                 self.reductor.extend_basis(
                     U = snapshots,
-                    basis = basis
+                    basis = basis,
+                    method='gram_schmidt',
+                    copy_U = False
                 )
+                # print("Here")
+                # print(basis)
+                # U = self.reductor.bases[basis]
+                # product = self.reductor.products[basis]
+                # error_matrix = U.inner(U, product)
+                # error_matrix -= np.eye(len(U))
+                # print(error_matrix)
+                # print(np.max(np.abs(error_matrix)))
+                self.reductor._check_orthonormality(basis=basis)
                 
             except ExtensionError:
                 self._logger.warning(f"No new vectors were added to {basis}.")    
@@ -1854,8 +1866,6 @@ class QrVrROMOptimizer(Optimizer):
             )
         else:
             self.snapshots['parameter_basis'].append(nabla_J)
-            self.snapshots['parameter_basis'].append(q)
-            self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
             self.snapshots['parameter_basis'].append(
                 additional_parameter_snapshots
             )
@@ -1883,11 +1893,30 @@ class QrVrROMOptimizer(Optimizer):
         # print("qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq")
         # print(len(self.snapshots['state_basis']))
 
+        # _enrichment = copy.deepcopy(enrichment)
+        # _enrichment['parameter_basis']['compression']['normalize'] = None
+        # _enrichment['parameter_basis']['compression']['HaPOD'] = None
+
+
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             bases=self.reduced_bases,
             enrichment=enrichment, 
             i = i
         )
+
+        self._reset_snapshots()
+        self.snapshots['parameter_basis'].append(q)
+        self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
+
+        _enrichment = copy.deepcopy(enrichment)
+        _enrichment['parameter_basis']['compression']['normalize'] = True
+        _enrichment['parameter_basis']['compression']['HaPOD'] = None
+        self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+            bases=['parameter_basis'],
+            enrichment=_enrichment, 
+            i = i
+        )
+
         self.last_update_q = self.reductor.project_vectorarray(q.copy(), 'parameter_basis')
         self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
         
@@ -2139,22 +2168,32 @@ class QrVrROMOptimizer(Optimizer):
 
                 _enrichment = copy.deepcopy(enrichment)
                 for basis in self.reduced_bases:
-                    _enrichment[basis]['compression']['normalize'] = None
+                    _enrichment[basis]['compression']['normalize'] = True
                     _enrichment[basis]['compression']['HaPOD'] = None
                 
                 self._reset_snapshots()
 
                 if enrichment['parameter_basis']['reduced_basis']:
                     self.logger.debug(f"Extending Qr-snapshots")
+
+                    #nabla_J_res = self.reductor.calc_projection_residuum(nabla_J, basis='parameter_basis')
+                    #self.snapshots['parameter_basis'].append(nabla_J_res)
+
                     self.snapshots['parameter_basis'].append(nabla_J)
                     # self.snapshots['parameter_basis'].append(q)
                     # self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
                                 
                 self.logger.debug(f"Extending Vr-snapshots")
                 if self.reductor.use_adjoint_space:
+                    # u_res = self.reductor.calc_projection_residuum(u, basis='state_basis')
+                    # p_res = self.reductor.calc_projection_residuum(p, basis='adjoint_basis')
+
                     self.snapshots['state_basis'].append(u)
                     self.snapshots['adjoint_basis'].append(p)
                 else:
+                    # u_res = self.reductor.calc_projection_residuum(u, basis='state_basis')
+                    # p_res = self.reductor.calc_projection_residuum(p, basis='state_basis')
+                    
                     self.snapshots['state_basis'].append(u)
                     self.snapshots['state_basis'].append(p)
                     
@@ -2171,7 +2210,7 @@ class QrVrROMOptimizer(Optimizer):
                 # error_matrix = state_basis.inner(state_basis, self.FOM.products['prod_V'])
                 # print(error_matrix)
                  
-
+                self.FOM.reset_cached_operators()
                 q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
                 q_r = self.QrVrROM.Q.make_array(q_r)
                 u_r, u_dot_r = self.QrVrROM.solve_state(q_r, 
@@ -2183,7 +2222,6 @@ class QrVrROMOptimizer(Optimizer):
                                                           return_higher_orders=True)
                 
                 J_r = self.QrVrROM.objective(u_r)
-
                 nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
                 norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
 
@@ -2207,9 +2245,8 @@ class QrVrROMOptimizer(Optimizer):
                 else:
                     rel_est_error_J_r = np.inf
             
-            # print(rel_est_error_J_r)
-            # print(eta)
-            # print(proj_q_in_tr)
+            print(abs_est_error_J_r)
+            print(J_r)
             print(rel_est_error_J_r)
             print(eta)
             assert (rel_est_error_J_r - 1e-14) <= eta 
@@ -2286,23 +2323,35 @@ class QrVrROMOptimizer(Optimizer):
                 
                 _enrichment = copy.deepcopy(enrichment)
                 for basis in self.reduced_bases:
-                    _enrichment[basis]['compression']['normalize'] = None
+                    _enrichment[basis]['compression']['normalize'] = True
                     _enrichment[basis]['compression']['HaPOD'] = None
 
                 self._reset_snapshots()
 
                 if enrichment['parameter_basis']['reduced_basis']:
                     self.logger.debug(f"Extending Qr-snapshots")
-                    self.snapshots['parameter_basis'].append(nabla_J)                
+                    #nabla_J_res = self.reductor.calc_projection_residuum(nabla_J, basis='parameter_basis')
+                    #self.snapshots['parameter_basis'].append(nabla_J_res)
+
+                    self.snapshots['parameter_basis'].append(nabla_J)
                 
                 self.logger.debug(f"Extending Vr-snapshots")
+
+                u = self.FOM.solve_state(q, use_cached_operators=False)        
+                p = self.FOM.solve_adjoint(q, u, use_cached_operators=False)
+
                 if self.reductor.use_adjoint_space:
+                    # u_res = self.reductor.calc_projection_residuum(u, basis='state_basis')
+                    # p_res = self.reductor.calc_projection_residuum(p, basis='adjoint_basis')
+
                     self.snapshots['state_basis'].append(u)
                     self.snapshots['adjoint_basis'].append(p)
                 else:
+                    # u_res = self.reductor.calc_projection_residuum(u, basis='state_basis')
+                    # p_res = self.reductor.calc_projection_residuum(p, basis='state_basis')
+                    
                     self.snapshots['state_basis'].append(u)
                     self.snapshots['state_basis'].append(p)
-
 
                 self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                     bases=self.reduced_bases,
@@ -2313,9 +2362,7 @@ class QrVrROMOptimizer(Optimizer):
                 self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
 
                 AGC_jump_back = True
-                print(eta)
-                eta = beta_3 * eta
-                print(eta)
+                eta = beta_3 * eta 
                 continue
             
             if not reg_AGC_step:
@@ -2572,10 +2619,10 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
 
                 nabla_J, time_steps_nabla_J = self.FOM.gradient(u, 
-                                                               p, 
-                                                               q, 
-                                                               use_cached_operators=use_cached_operators,
-                                                               return_per_time_step = True)
+                                                                p, 
+                                                                q, 
+                                                                use_cached_operators=use_cached_operators,
+                                                                return_per_time_step = True)
                 
                 norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
                 eta = beta_3 * eta
@@ -2658,6 +2705,44 @@ class QrVrROMOptimizer(Optimizer):
                     )
 
                     ############################################################
+
+                    rel_tol_coeff_nabla_J = 1e-2
+
+                    basis = 'parameter_basis'
+                    _basis = self.reductor.bases[basis]
+
+                    coeff_nabla_J = np.sum((nabla_J.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                    err_i_nabla_J = np.sum(self.reductor.products[basis].pairwise_apply2(nabla_J,nabla_J)) - np.cumsum(coeff_nabla_J)
+                    relative_reduction = (err_i_nabla_J[:-1] - err_i_nabla_J[1:]) / err_i_nabla_J[:-1]
+                    idxes_nabla_J = np.where(relative_reduction >= rel_tol_coeff_nabla_J)[0] + 1
+
+                    # inner = nabla_J.inner(_basis, self.reductor.products[basis])
+                    # inner = np.asarray(inner, dtype=np.float64)
+                    # coeff_nabla_J = np.sum(inner * inner, axis=0, dtype=np.float64)
+                    # err_i_nabla_J = np.cumsum(coeff_nabla_J[::-1], dtype=np.float64)[::-1]
+                    # relative_reduction = (err_i_nabla_J[:-1] - err_i_nabla_J[1:]) / err_i_nabla_J[:-1]
+                    # idxes_nabla_J = np.where(relative_reduction >= rel_tol_coeff_nabla_J)[0] + 1
+
+                    print("Heeeeeeeeeeere123")
+                    print(err_i_nabla_J)
+                    print(relative_reduction)
+                    print(len(idxes_nabla_J))
+                    print(nabla_J.space)
+
+                    self.reductor.bases[basis] = _basis[idxes_nabla_J].copy()
+                    self.reductor.delete_cached_operators()
+
+                    self.snapshots['parameter_basis'].append(q.copy())
+
+                    # import matplotlib.pyplot as plt
+                    # plt.clf()
+                    # plt.plot(err_i_nabla_J)
+                    # plt.show()
+                    # import sys
+                    # sys.exit()
+
+
+                    ############################################################
                     
                     if enrichment['state_basis']['coarsing']:
                         np.set_printoptions(threshold=np.inf)
@@ -2668,7 +2753,6 @@ class QrVrROMOptimizer(Optimizer):
 
                         basis = 'state_basis'
                         _basis = self.reductor.bases[basis]
-
 
                         coeff_u = np.sum((u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
                         err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(u,u)) - np.cumsum(coeff_u)
@@ -2688,6 +2772,8 @@ class QrVrROMOptimizer(Optimizer):
                         idxes = np.unique(idxes)
                         self.reductor.bases[basis] = _basis[idxes].copy()
                         self.reductor.delete_cached_operators()
+                    
+                    ############################################################
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.reduced_bases,

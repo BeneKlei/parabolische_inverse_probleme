@@ -200,15 +200,15 @@ def main():
             }
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsGrid,                                   
             'hyperparameter' : {
                 'spatial_resolution' : [4,y_res,z_res],
                 # # #'radius' : 2.0,
-                'radius' : 0.001,
-                'second_row' : False 
+                # 'radius' : 0.001,
+                # 'second_row' : False 
                 #'grid_sizes' : [2,8,8]
                 #'grid_sizes' : [5,11,11]
             }
@@ -340,7 +340,7 @@ def main():
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         #'tau': 3.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
@@ -368,7 +368,8 @@ def main():
             'max_iter': 250,                                         # Maximum iterations for the linear solver
             #'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver            
             #'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
-            'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
@@ -378,7 +379,7 @@ def main():
                 'reduced_basis' : True,
                 'additional_snapshots' :{
                     'include_lin_grad' : False,
-                    'include_each_nabla_J_time_step' : False,
+                    'include_each_nabla_J_time_step' : True,
                     'include_each_nabla_lin_J_time_step' : False,
                     'include_krylov_directions' : False,
                     # {
@@ -387,13 +388,13 @@ def main():
                     # },
                 },
                 'compression' : {
-                    # 'normalize' : True,
-                    # 'HaPOD' : {
-                    #     'eps': 1e-2,
-                    #     'omega' : 0.1,
-                    # },
-                    'normalize' : None,
-                    'HaPOD' : None,
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'eps': 1e-1,
+                        'omega' : 0.1,
+                    },
+                    # 'normalize' : None,
+                    # 'HaPOD' : None,
                 }
             },
             'state_basis' : {
