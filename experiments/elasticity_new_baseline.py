@@ -154,7 +154,7 @@ TR_optimizer_parameter = {
     #'Theta': 1.50,                                               # Upper bound for step acceptance condition
     'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
     #####################
-    'i_max': 75,                                                 # Max number of outer optimization iterations
+    'i_max': 250,                                                 # Max number of outer optimization iterations
     'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
     'i_max_inner': 30,                                           # Max number of inner iterations
     'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC

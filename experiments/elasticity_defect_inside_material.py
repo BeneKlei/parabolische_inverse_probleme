@@ -13,8 +13,8 @@ from RBInvParam.utils.create_q_exact import *
 
 from RBInvParam.optimizer import LoggerErrorChoice
 
-y_res = 30
-z_res = 30
+y_res = 20
+z_res = 20
 par_dim = 5 * (y_res + 1) * (z_res + 1) 
 T_initial = 0
 T_final = 5.0
@@ -27,7 +27,7 @@ q_circ = np.ones((1, par_dim))
 q_exact = np.ones((1,par_dim))
 
 q_exact = q_exact[0,:].reshape(5, y_res+1,z_res+1)
-q_exact[1:4, 10:21,10:21] = 2
+q_exact[1:4, 5:16,5:16] = 2
 
 q_exact = q_exact.flatten()
 q_exact = np.array([q_exact])
@@ -107,7 +107,7 @@ setup = {
 }
 
 q_start = q_circ
-lin_solver_tol = 1e-6
+lin_solver_tol = 1e-8
 tau = 1.50
 
 FOM_optimizer_parameter = {
@@ -235,8 +235,8 @@ EXPERIMENTS = {}
 
 # setup_identity['noise_level'] = 2.5 * 1e-4
 
-identity_lin_solver_tol = 5 * 1e-9
-grid_lin_solver_tol = 5 * 1e-9
+identity_lin_solver_tol = lin_solver_tol
+grid_lin_solver_tol = lin_solver_tol
 # 
 # 
 
