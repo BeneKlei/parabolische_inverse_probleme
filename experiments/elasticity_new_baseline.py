@@ -11,6 +11,8 @@ from RBInvParam.timestepping import TimeStepperType
 
 from RBInvParam.utils.create_q_exact import *
 
+from RBInvParam.optimizer import LoggerErrorChoice
+
 y_res = 30
 z_res = 30
 par_dim = (y_res + 1) * (z_res + 1) 
@@ -111,7 +113,7 @@ setup = {
 
 q_start = q_circ
 lin_solver_tol = 5 * 1e-9
-tau = 1.25
+tau = 1.50
 
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
@@ -183,14 +185,16 @@ TR_optimizer_parameter = {
         'parameter_basis' : {
             'reduced_basis' : True,
             'additional_snapshots' : {
-                'include_each_time_step' : False,
                 'include_lin_grad' : False,
+                'include_each_nabla_J_time_step' : False,
+                'include_each_nabla_lin_J_time_step' : False,
                 'include_krylov_directions' : False,
             },
             'compression' : {
                 'normalize' : None,
                 'HaPOD' : None,
-            }
+            },
+            'coarsing' : None,
         },
         'state_basis' : {
             'additional_snapshots' :{
@@ -203,7 +207,8 @@ TR_optimizer_parameter = {
                     'eps': 1e-3,
                     'omega' : 0.1,    
                 },
-            }
+            },
+            'coarsing' : None,
         },
         'adjoint_basis' : {
             'additional_snapshots' : {},
@@ -214,6 +219,9 @@ TR_optimizer_parameter = {
         'state' : StateErrorEstimatorType.HYPERBOLIC,
         'adjoint' : AdjointErrorEstimatorType.NONE,
         'objective' : ObjectiveErrorEstimatorType.NAIVE,
+    },
+    'logging' : {
+        'errors' : LoggerErrorChoice.OBJECTIVE,
     },
     #####################
     'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
@@ -232,10 +240,12 @@ EXPERIMENTS = {}
 
 # setup_identity['noise_level'] = 2.5 * 1e-4
 
-identity_lin_solver_tol = 5 * 1e-9
-grid_lin_solver_tol = 5 * 1e-9
-# 
-# 
+# identity_lin_solver_tol = 5 * 1e-9
+# grid_lin_solver_tol = 5 * 1e-9
+
+identity_lin_solver_tol = lin_solver_tol
+grid_lin_solver_tol = lin_solver_tol
+
 
 #----------------------------------------------------------------------------------------
 
@@ -274,7 +284,7 @@ EXPERIMENTS['FOM_grid'] = (setup_grid, FOM_optimizer_parameter_grid)
 #----------------------------------------------------------------------------------------
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_nabla_J_time_step'] = True
 TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
 TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1, 'omega' : 0.1}
 
@@ -294,7 +304,7 @@ EXPERIMENTS['TR_grid_time_step'] = (setup_grid, TR_optimizer_parameter_grid)
 #----------------------------------------------------------------------------------------
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_nabla_J_time_step'] = True
 
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
@@ -324,6 +334,26 @@ TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_sol
 EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
 EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
+
+
+#----------------------------------------------------------------------------------------
+
+# TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+# TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_nabla_lin_J_time_step'] = True
+# TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
+# TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1, 'omega' : 0.1}
+
+# TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
+# TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
+# TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
+
+# #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+# TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
+# TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
+
+# EXPERIMENTS['TR_sensors_time_step_lin'] = (setup_sensors, TR_optimizer_parameter_sensors)
+# EXPERIMENTS['TR_identity_time_step_lin'] = (setup_identity, TR_optimizer_parameter_identity)
+# EXPERIMENTS['TR_grid_time_step_lin'] = (setup_grid, TR_optimizer_parameter_grid)
 
 prefix = 'new_baseline'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

@@ -26,6 +26,8 @@ from RBInvParam.timestepping import TimeStepperType
 
 from RBInvParam.utils.create_q_exact import *
 
+from RBInvParam.optimizer import LoggerErrorChoice
+
 #########################################################################################
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -74,7 +76,7 @@ def main():
     # T_final = 5.0
     # nt = 50
 
-    T_final = 10.0
+    T_final = 5.0
     nt = 50
 
     #T_final = 5.0
@@ -98,53 +100,54 @@ def main():
     # q_exact[0,300] = 3
 
     q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    q_exact[9,21] = 3
-    q_exact[8,21] = 3
-    q_exact[7,21] = 3
-    q_exact[9,22] = 3
-    q_exact[8,22] = 3
-    q_exact[7,22] = 3
-    q_exact[9,20] = 3
-    q_exact[8,20] = 3
-    q_exact[7,20] = 3
+    #q_exact[10:21,10:21] = 2
+    # q_exact[9,21] = 3
+    # q_exact[8,21] = 3
+    # q_exact[7,21] = 3
+    # q_exact[9,22] = 3
+    # q_exact[8,22] = 3
+    # q_exact[7,22] = 3
+    # q_exact[9,20] = 3
+    # q_exact[8,20] = 3
+    # q_exact[7,20] = 3
 
 
-    q_exact[7,14] = 2
-    q_exact[6,14] = 2
-    q_exact[5,14] = 2
-    q_exact[7,13] = 2
-    q_exact[6,13] = 2
-    q_exact[5,13] = 2
-    q_exact[7,15] = 2
-    q_exact[6,15] = 2
-    q_exact[5,15] = 2
+    # q_exact[7,14] = 2
+    # q_exact[6,14] = 2
+    # q_exact[5,14] = 2
+    # q_exact[7,13] = 2
+    # q_exact[6,13] = 2
+    # q_exact[5,13] = 2
+    # q_exact[7,15] = 2
+    # q_exact[6,15] = 2
+    # q_exact[5,15] = 2
 
-    q_exact = q_exact.flatten()
-    q_exact = np.array([q_exact])
+    # q_exact = q_exact.flatten()
+    # q_exact = np.array([q_exact])
 
 
-    #q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
-    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
-    #add_constant_patch(q_exact, center=(30, 20), value=3.0, half_size=1)
-    #add_constant_patch(q_exact, center=(10, 24), value=2.0, half_size=1)
+    # #add_constant_patch(q_exact, center=(30, 20), value=3.0, half_size=1)
+    # #add_constant_patch(q_exact, center=(10, 24), value=2.0, half_size=1)
 
-    #add_gaussian_patch(q_exact, center=(20, 15), sigma=2.0, amp=2.0, half_size=3)
-    #add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
+    # #add_gaussian_patch(q_exact, center=(20, 15), sigma=2.0, amp=2.0, half_size=3)
+    # #add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
 
     # import matplotlib.pyplot as plt
     # plt.imshow(q_exact)
     # plt.colorbar()
-    # plt.show()
-    # #plt.savefig('./q_exact.pdf')
+    # #plt.show()
+    # plt.savefig('./q_exact.pdf')
 
     # import sys
     # sys.exit()
     
-    # q_exact = q_exact.flatten()
-    # q_exact = np.array([q_exact])
+    q_exact = q_exact.flatten()
+    q_exact = np.array([q_exact])
 
     
     #q_exact[0,100:300] = 3
@@ -197,15 +200,15 @@ def main():
             }
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsGrid,                                   
             'hyperparameter' : {
                 'spatial_resolution' : [4,y_res,z_res],
                 # # #'radius' : 2.0,
-                'radius' : 0.001,
-                'second_row' : False 
+                # 'radius' : 0.001,
+                # 'second_row' : False 
                 #'grid_sizes' : [2,8,8]
                 #'grid_sizes' : [5,11,11]
             }
@@ -227,8 +230,8 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 5 * 1e-3,                         # Absolute noise magnitude added to data
-        #'noise_level': 5 * 1e-5,                         # Absolute noise magnitude added to data
+        #'noise_level': 5 * 1e-3,                         # Absolute noise magnitude added to data
+        'noise_level': 5 * 1e-5,                         # Absolute noise magnitude added to data
         'y_delta' : None,
         #'noise_level': 0.0,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
@@ -348,7 +351,7 @@ def main():
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         #'tau': 3.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
@@ -374,9 +377,10 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver            
             #'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
             #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
@@ -385,8 +389,9 @@ def main():
             'parameter_basis' : {
                 'reduced_basis' : True,
                 'additional_snapshots' :{
-                    'include_each_time_step' : True,
                     'include_lin_grad' : False,
+                    'include_each_nabla_J_time_step' : True,
+                    'include_each_nabla_lin_J_time_step' : False,
                     'include_krylov_directions' : False,
                     # {
                     #     'n' : 5,
@@ -396,11 +401,15 @@ def main():
                 'compression' : {
                     'normalize' : True,
                     'HaPOD' : {
-                        'eps': 1e-2,
+                        'eps': 1e-1,
                         'omega' : 0.1,
                     },
                     # 'normalize' : None,
                     # 'HaPOD' : None,
+                },
+                #'coarsing' : None,
+                'coarsing' : {
+                    'rel_tol_coeff_nabla_J' : 1e-2,
                 }
             },
             'state_basis' : {
@@ -416,7 +425,12 @@ def main():
                     },
                     # 'normalize' : None,
                     # 'HaPOD' : None,
-                }
+                },
+                'coarsing' : None,
+                # 'coarsing' : {
+                #     'rel_tol_coeff_u' : 1e-2,
+                #     'rel_tol_coeff_p' : 1e-2
+                # }
             },
             'adjoint_basis' : {
                 'additional_snapshots' :{
@@ -437,6 +451,9 @@ def main():
             'state' : StateErrorEstimatorType.HYPERBOLIC,
             'adjoint' : AdjointErrorEstimatorType.NONE,
             'objective' : ObjectiveErrorEstimatorType.NAIVE,
+        },
+        'logging' : {
+            'errors' : LoggerErrorChoice.OBJECTIVE,
         },
         #####################
         'use_cached_operators': False,                               # Reuse previously assembled operators to save computation

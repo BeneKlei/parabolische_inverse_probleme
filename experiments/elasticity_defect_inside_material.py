@@ -13,9 +13,9 @@ from RBInvParam.utils.create_q_exact import *
 
 from RBInvParam.optimizer import LoggerErrorChoice
 
-y_res = 42
-z_res = 42
-par_dim = (y_res + 1) * (z_res + 1) 
+y_res = 30
+z_res = 30
+par_dim = 5 * (y_res + 1) * (z_res + 1) 
 T_initial = 0
 T_final = 5.0
 nt = 50
@@ -26,13 +26,8 @@ assert T_final > T_initial
 q_circ = np.ones((1, par_dim))
 q_exact = np.ones((1,par_dim))
 
-q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-
-# add_gaussian_patch(q_exact, center=(20, 15), sigma=2.0, amp=2.0, half_size=3)
-# add_gaussian_patch(q_exact, center=(6, 14), sigma=2.0, amp=1.0, half_size=3)
-
-add_constant_patch(q_exact, center=(30, 20), value=3.0, half_size=1)
-add_constant_patch(q_exact, center=(10, 24), value=2.0, half_size=1)
+q_exact = q_exact[0,:].reshape(5, y_res+1,z_res+1)
+q_exact[1:4, 10:21,10:21] = 2
 
 q_exact = q_exact.flatten()
 q_exact = np.array([q_exact])
@@ -43,7 +38,7 @@ bounds[:,0] = 1e-20
 bounds[:,1] = 1e20
 
 setup = {
-    'spatial_resolution' : [6,y_res,z_res],
+    'spatial_resolution' : [4,y_res,z_res],
     'body_force' : {
         'type' : mm.BodyForceType.CenterExcite,
         'hyperparameter' : {}
@@ -54,7 +49,7 @@ setup = {
         # }
     },
     'system_matrix' : {
-        'type' : mm.SystemMatrixType.CosseratDelamination,
+        'type' : mm.SystemMatrixType.CosseratSpatial,
         'hyperparameter' : {
             'lambda' : 1e1,
             'mu' : 1e1,
@@ -64,7 +59,7 @@ setup = {
     'observation_operator': {
         'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
         'hyperparameter' : {
-            'spatial_resolution' : [6,y_res,z_res],
+            'spatial_resolution' : [4,y_res,z_res],
             'radius' : 0.001,
             'second_row' : False 
         }
@@ -112,8 +107,8 @@ setup = {
 }
 
 q_start = q_circ
-lin_solver_tol = 5 * 1e-9
-tau = 1.25
+lin_solver_tol = 1e-6
+tau = 1.50
 
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
@@ -261,7 +256,7 @@ setup_identity['observation_operator']['hyperparameter'] = {}
 
 setup_grid['observation_operator']['type'] = mm.ObservationOperatorType.SensorsGrid
 setup_grid['observation_operator']['hyperparameter'] = {
-    'radius' : 0.25,
+    'radius' : 0.001,
     'grid_sizes' : [2,8,8]
 }
 
@@ -333,5 +328,25 @@ EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
 EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
 
-prefix = 'new_baseline'
+
+#----------------------------------------------------------------------------------------
+
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_nabla_lin_J_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1, 'omega' : 0.1}
+
+TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
+
+#TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
+TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
+
+# EXPERIMENTS['TR_sensors_time_step_lin'] = (setup_sensors, TR_optimizer_parameter_sensors)
+# EXPERIMENTS['TR_identity_time_step_lin'] = (setup_identity, TR_optimizer_parameter_identity)
+# EXPERIMENTS['TR_grid_time_step_lin'] = (setup_grid, TR_optimizer_parameter_grid)
+
+prefix = 'defect_inside_material'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

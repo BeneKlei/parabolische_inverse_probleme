@@ -40,8 +40,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
     def __init__(self,
                  FOM: InstationaryModelIP,
                  error_estimator_types: Dict,
-                 check_orthonormality: bool =False,
-                 check_tol: float = 1e-3,
+                 check_orthonormality: bool = True,
+                 check_tol: float = 1e-9,
                  residual_image_basis_mode: str = 'none',
                  parallel: bool = False,
                  use_adjoint_space: bool = False,
@@ -85,8 +85,13 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'parameter_basis' : [0],
             'state_basis' : [0],
             'adjoint_basis' : [0],
-
         }
+
+        if use_adjoint_space:
+            self.bases_names = ['parameter_basis', 'state_basis', 'adjoint_basis']
+        else:
+            self.bases_names = ['parameter_basis', 'state_basis']
+        
 
         self.FOM = FOM
         self.parallel = parallel
@@ -116,6 +121,54 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             #del self._cached_operators[target]
             self._cached_operators[target] = None
 
+    def remove_basis_vectors(self,
+                             basis : str,
+                             idxes_remove : List[str]) -> None:
+        
+        assert basis in self.bases
+        assert np.all(0 <= idxes_remove < self.dims_history[basis])
+
+        all_idxes = np.arange(0, self.dims_history[basis])
+        idxes_keep = np.setdiff1d(all_idxes, idxes_remove)
+
+        self.logger.debug(f"Removing vectors from 'basis' = {basis}.")
+
+        if basis == 'parameter_basis':
+            cache_keys = self._cached_operators.keys()
+            for cache_key in cache_keys:
+                assert isinstance(self._cached_operators[cache_key], LincombOperator)
+
+                operators = self._cached_operators[cache_key].operators[idxes_keep]
+                coefficients = self._cached_operators[cache_key].coefficients[idxes_keep]
+
+                self._cached_operators[cache_key] = LincombOperator(operators, coefficients)
+            
+            self.dims_history[basis] = len(idxes_keep)
+        else:
+            raise NotImplementedError
+        
+    def calc_projection_residuum(self,
+                                 x: VectorArray,
+                                 basis: str,
+                                 normalize: bool = False) -> float:
+
+
+        assert isinstance(x, VectorArray)
+        assert basis in self.bases_names
+        _basis = self.bases[basis]
+
+        if normalize:
+            norms = x.norm(self.products[basis])
+            x.scal(1/norms)
+
+        if len(_basis) > 0:
+            projected_x = self.bases[basis].lincomb(
+                self.project_vectorarray(x, basis=basis)
+            )
+            x.axpy(-1,projected_x)
+
+        return x
+
     def calc_projection_error(self,
                               x: VectorArray,
                               basis: str,
@@ -123,7 +176,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
 
         assert isinstance(x, VectorArray)
-        assert basis in ['state_basis', 'parameter_basis']
+        assert basis in self.bases_names
         _basis = self.bases[basis]
 
         if normalize:
@@ -143,7 +196,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                             basis: str) -> np.ndarray:
 
         assert isinstance(x, VectorArray)
-        assert basis in ['state_basis', 'parameter_basis']
+        assert basis in self.bases_names
         _basis = self.bases[basis]
 
         if len(_basis) == 0:

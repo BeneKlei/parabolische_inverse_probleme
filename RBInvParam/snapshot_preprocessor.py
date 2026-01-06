@@ -111,16 +111,22 @@ class SnapshotPreprocessor(BasicObject):
                                         u : VectorArray = None,
                                         nabla_J : VectorArray = None,
                                         nabla_lin_J: VectorArray = None,
-                                        time_step_nabla_J: VectorArray = None,
+                                        time_steps_nabla_J: VectorArray = None,
+                                        time_steps_nabla_lin_J: VectorArray = None,
                                         use_cached_operators: bool = None) -> VectorArray:
 
         assert self.FOM is not None
         parameter_snapshots = self.FOM.Q.empty()
         
-        if config['include_each_time_step'] and not self.FOM.q_time_dep:
-            assert time_step_nabla_J is not None
+        if config['include_each_nabla_J_time_step'] and not self.FOM.q_time_dep:
+            assert time_steps_nabla_J is not None
             self.logger.debug('Include gradients for each time step as snapshots')
-            parameter_snapshots.append(time_step_nabla_J)
+            parameter_snapshots.append(time_steps_nabla_J)
+        
+        if config['include_each_nabla_lin_J_time_step'] and not self.FOM.q_time_dep:
+            assert time_steps_nabla_lin_J is not None
+            self.logger.debug('Include linearized gradients for each time step as snapshots')
+            parameter_snapshots.append(time_steps_nabla_lin_J)
         
         if config['include_lin_grad']:
             assert nabla_lin_J is not None
@@ -175,7 +181,8 @@ class SnapshotPreprocessor(BasicObject):
                              lin_p : VectorArray = None,
                              nabla_J : VectorArray = None,
                              nabla_lin_J : VectorArray = None,
-                             time_step_nabla_J : VectorArray = None,
+                             time_steps_nabla_J : VectorArray = None,
+                             time_steps_nabla_lin_J : VectorArray = None,
                              use_cached_operators : bool = None) -> Tuple[VectorArray,VectorArray, VectorArray]:
         
         assert self.FOM is not None
@@ -192,7 +199,8 @@ class SnapshotPreprocessor(BasicObject):
                     u = u,
                     nabla_J = nabla_J,
                     nabla_lin_J = nabla_lin_J,
-                    time_step_nabla_J = time_step_nabla_J,
+                    time_steps_nabla_J = time_steps_nabla_J,
+                    time_steps_nabla_lin_J = time_steps_nabla_lin_J,
                     use_cached_operators = use_cached_operators,
                 )
             elif basis == 'state_basis':
