@@ -2684,63 +2684,51 @@ class QrVrROMOptimizer(Optimizer):
                         self.snapshots['state_basis'].append(u)
                         self.snapshots['state_basis'].append(p)
 
-
-                        # # base parameter (example: all ones; replace with your actual q)
-                        # q_base = np.ones((1, 961))
-
-                        # # noise level (standard deviation)
-                        # sigma = 1.00  # 5% noise, tune as needed
-
-                        # # draw random _q close to q_base
-                        # _q = q_base + np.random.normal(loc=0.0, scale=sigma, size=q_base.shape)
-                        # _q = self.FOM.Q.make_array(_q)
-                        # _q = self.FOM_projector.project_domain(center=_q)
-                        # _u = self.FOM.solve_state(_q, use_cached_operators=False)        
-                        # _p = self.FOM.solve_adjoint(_q, _u, use_cached_operators=False)
-                        # self.snapshots['state_basis'].append(_u)
-                        # self.snapshots['state_basis'].append(_p)
-
                     self.snapshots['state_basis'].append(
                         additional_state_snapshots
                     )
 
                     ############################################################
 
-                    rel_tol_coeff_nabla_J = 1e-2
+                    if enrichment['parameter_basis']['coarsing']:
 
-                    basis = 'parameter_basis'
-                    _basis = self.reductor.bases[basis]
+                        rel_tol_coeff_nabla_J = 1e-2
 
-                    coeff_nabla_J = np.sum((nabla_J.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-                    err_i_nabla_J = np.sum(self.reductor.products[basis].pairwise_apply2(nabla_J,nabla_J)) - np.cumsum(coeff_nabla_J)
-                    relative_reduction = (err_i_nabla_J[:-1] - err_i_nabla_J[1:]) / err_i_nabla_J[:-1]
-                    idxes_nabla_J = np.where(relative_reduction >= rel_tol_coeff_nabla_J)[0] + 1
+                        basis = 'parameter_basis'
+                        _basis = self.reductor.bases[basis]
 
-                    # inner = nabla_J.inner(_basis, self.reductor.products[basis])
-                    # inner = np.asarray(inner, dtype=np.float64)
-                    # coeff_nabla_J = np.sum(inner * inner, axis=0, dtype=np.float64)
-                    # err_i_nabla_J = np.cumsum(coeff_nabla_J[::-1], dtype=np.float64)[::-1]
-                    # relative_reduction = (err_i_nabla_J[:-1] - err_i_nabla_J[1:]) / err_i_nabla_J[:-1]
-                    # idxes_nabla_J = np.where(relative_reduction >= rel_tol_coeff_nabla_J)[0] + 1
+                        nabla_J_ = nabla_J.copy()
+                        norms = nabla_J_.norm(self.reductor.products['parameter_basis'])
+                        assert np.all(norms > 1e-16)
+                        nabla_J_.scal(1/norms)
+                
+                        coeff_nabla_J = np.sum((nabla_J_.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                        err_i_nabla_J = np.sum(self.reductor.products[basis].pairwise_apply2(nabla_J_,nabla_J_)) - np.cumsum(coeff_nabla_J)
+                        relative_reduction = (err_i_nabla_J[:-1] - err_i_nabla_J[1:]) / err_i_nabla_J[:-1]
+                        idxes_nabla_J = np.where(relative_reduction >= rel_tol_coeff_nabla_J)[0] + 1
 
-                    print("Heeeeeeeeeeere123")
-                    print(err_i_nabla_J)
-                    print(relative_reduction)
-                    print(len(idxes_nabla_J))
-                    print(nabla_J.space)
+                        
+                        print("Heeeeeeeeeeere123")
+                        print(err_i_nabla_J)
+                        print(relative_reduction)
+                        print(len(idxes_nabla_J))
 
-                    self.reductor.bases[basis] = _basis[idxes_nabla_J].copy()
-                    self.reductor.delete_cached_operators()
+                        delta_q = q - self.statistics["q"][-1]
+                        coeff_delta_q = np.sum((delta_q.inner(_basis, self.reductor.products[basis]))**2, axis=0)
+                        err_i_delta_q = np.sum(self.reductor.products[basis].pairwise_apply2(delta_q,delta_q)) - np.cumsum(coeff_delta_q)
+                        relative_reduction = (err_i_delta_q[:-1] - err_i_delta_q[1:]) / err_i_delta_q[:-1]
+                        idxes_delta_q = np.where(relative_reduction >= rel_tol_coeff_nabla_J)[0] + 1
 
-                    self.snapshots['parameter_basis'].append(q.copy())
+                        print("----------------------------------------")
+                        print(err_i_delta_q)
+                        print(relative_reduction)
+                        print(len(idxes_delta_q))
 
-                    # import matplotlib.pyplot as plt
-                    # plt.clf()
-                    # plt.plot(err_i_nabla_J)
-                    # plt.show()
-                    # import sys
-                    # sys.exit()
 
+                        self.reductor.bases[basis] = _basis[idxes_nabla_J].copy()
+                        self.reductor.delete_cached_operators()
+
+                        self.snapshots['parameter_basis'].append(q.copy())
 
                     ############################################################
                     

@@ -41,7 +41,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                  FOM: InstationaryModelIP,
                  error_estimator_types: Dict,
                  check_orthonormality: bool = True,
-                 #check_tol: float = 1e-3,
                  check_tol: float = 1e-9,
                  residual_image_basis_mode: str = 'none',
                  parallel: bool = False,

@@ -395,6 +395,10 @@ def main():
                     },
                     # 'normalize' : None,
                     # 'HaPOD' : None,
+                },
+                #'coarsing' : None,
+                'coarsing' : {
+                    'rel_tol_coeff_nabla_J' : 1e-2,
                 }
             },
             'state_basis' : {
@@ -411,11 +415,11 @@ def main():
                     # 'normalize' : None,
                     # 'HaPOD' : None,
                 },
-                'coarsing' : None,
-                # 'coarsing' : {
-                #     'rel_tol_coeff_u' : 1e-2,
-                #     'rel_tol_coeff_p' : 1e-2
-                # }
+                #'coarsing' : None,
+                'coarsing' : {
+                    'rel_tol_coeff_u' : 1e-2,
+                    'rel_tol_coeff_p' : 1e-2
+                }
             },
             'adjoint_basis' : {
                 'additional_snapshots' :{

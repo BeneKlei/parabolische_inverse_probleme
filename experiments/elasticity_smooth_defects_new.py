@@ -194,7 +194,8 @@ TR_optimizer_parameter = {
             'compression' : {
                 'normalize' : None,
                 'HaPOD' : None,
-            }
+            },
+            'coarsing' : None,
         },
         'state_basis' : {
             'additional_snapshots' :{
