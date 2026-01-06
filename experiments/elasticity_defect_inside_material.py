@@ -189,7 +189,7 @@ TR_optimizer_parameter = {
                 'normalize' : None,
                 'HaPOD' : None,
             },
-            #'coarsing' : None,
+            'coarsing' : None,
         },
         'state_basis' : {
             'additional_snapshots' :{

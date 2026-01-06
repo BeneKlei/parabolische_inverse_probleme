@@ -2712,6 +2712,7 @@ class QrVrROMOptimizer(Optimizer):
                         print(err_i_nabla_J)
                         print(relative_reduction)
                         print(len(idxes_nabla_J))
+                        print(idxes_nabla_J)
 
                         delta_q = q - self.statistics["q"][-1]
                         coeff_delta_q = np.sum((delta_q.inner(_basis, self.reductor.products[basis]))**2, axis=0)
@@ -2723,6 +2724,7 @@ class QrVrROMOptimizer(Optimizer):
                         print(err_i_delta_q)
                         print(relative_reduction)
                         print(len(idxes_delta_q))
+                        print(idxes_delta_q)
 
 
                         self.reductor.bases[basis] = _basis[idxes_nabla_J].copy()
