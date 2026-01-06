@@ -4,10 +4,13 @@
 #include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/base/exceptions.h>
+#include <deal.II/lac/precondition.h>
 #include <deal.II/lac/solver_cg.h>
 
 #include <memory>
 #include <vector>
+
+#include "Operators.hpp"
 
 using namespace dealii;
 
@@ -20,8 +23,8 @@ public:
   using MatV = SparseMatrix<Number>;
 
   MatrixStack(
-    std::vector<MatV> matrices, 
-    SparsityPattern sp,
+    std::vector<MatV>&& matrices, 
+    const SparsityPattern& sp,
     bool affine = false
   );
 
@@ -36,12 +39,12 @@ public:
   void clear_cache() const;
   bool same_q(const Vector<Number> &q) const;
   bool has_cache() const;
-  const Vector<Number>& cached_q() const
-  std::shared_ptr<const MatV> cached_Aq() const
+  const Vector<Number>& cached_q() const;
+  std::shared_ptr<const MatV> cached_Aq() const;
 
 private:
   std::vector<MatV> m_A;
-  SparsityPattern m_sp;
+  const SparsityPattern& m_sp;
 
   bool m_affine;
 
@@ -79,6 +82,9 @@ public:
 
   bool has_inverse() const override;
   bool has_inverse_adjoint() const override;
+
+  std::size_t dim_source() const override;
+  std::size_t dim_range() const override;
 
 private:
   std::shared_ptr<const Stack> m_stack;

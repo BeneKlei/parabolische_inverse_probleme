@@ -12,6 +12,8 @@ target_include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+target_link_libraries(material_model_core PUBLIC material_model_operators)
+
 PYBIND11_DEAL_II_SETUP_TARGET(material_model_core)
 #install(TARGETS material_model LIBRARY DESTINATION .)
 

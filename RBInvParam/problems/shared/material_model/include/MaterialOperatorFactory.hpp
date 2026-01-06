@@ -6,12 +6,11 @@
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/dofs/dof_handler.h>
 
-#include "SystemMatrices.hpp"
 
 using namespace dealii;
 
 typedef std::variant<int, double, std::string> SystemMatrixHyperparameterType;
-typedef std::map<std::string, SystemMatrixHyperparameterType>  SystemMatrixHyperparameter;
+typedef std::map<std::string, SystemMatrixHyperparameterType>  SystemOperatorHyperparameter;
 
 template <typename T>
 constexpr const char* type_name() {
@@ -23,7 +22,7 @@ constexpr const char* type_name() {
 
 template <class T>
 inline void check_required_keys(
-    const SystemMatrixHyperparameter& params,
+    const SystemOperatorHyperparameter& params,
     const std::initializer_list<std::string>& required_keys) 
 {
     for (const auto& key : required_keys) {
@@ -39,44 +38,41 @@ inline void check_required_keys(
     }
 }
 
-enum class SystemMatrixType {
+enum class MaterialOperatorType {
     CosseratSpatial,
     CosseratDelamination,
     Cosserat
 };
 
 template <int dim, typename Number>
-struct MaterialMatricesFactoryContext {
-  const SystemMatrixType             &system_matrix_type;
+struct MaterialOperatorFactoryContext {
+  const MaterialOperatorType         &system_operator_type;
   const FiniteElement<dim>           &fe;
   const DoFHandler<dim>              &dof_handler;
   const AffineConstraints<Number>    &BC_constraints;
   const SparsityPattern              &sparsity_pattern;
-  const SystemMatrixHyperparameter   &hyperparameter;
+  const SystemOperatorHyperparameter   &hyperparameter;
 };
 
 template <int dim, typename Number>
-class MaterialMatricesFactory
+class MaterialOperatorFactory
 {
 public:
-    void assemble_system(
-        const MaterialMatricesFactoryContext<dim, Number>& ctx,
-        SystemMatrices<dim, Number> &system_matrices
-    ) const;
+  using SparseMatrix = dealii::SparseMatrix<double>;
+  // New-only API (what you want to call)
+  void assemble_system(const MaterialOperatorFactoryContext<dim, Number>& ctx,
+                       std::vector<SparseMatrix>& matrices,
+                       bool& affine) const;
 
-    void assemble_cosserat_system(
-        const MaterialMatricesFactoryContext<dim, Number>& ctx,
-        SystemMatrices<dim, Number> &system_matrices
-    ) const;
+  void assemble_cosserat_system(const MaterialOperatorFactoryContext<dim, Number>& ctx,
+                                std::vector<SparseMatrix>& matrices,
+                                bool& affine) const;
 
-    void assemble_cosserat_spatial_system(
-        const MaterialMatricesFactoryContext<dim, Number>& ctx,
-        SystemMatrices<dim, Number> &system_matrices
-    ) const;
+  void assemble_cosserat_spatial_system(const MaterialOperatorFactoryContext<dim, Number>& ctx,
+                                        std::vector<SparseMatrix>& matrices,
+                                        bool& affine) const;
 
-    void assemble_cosserat_delamination_system(
-        const MaterialMatricesFactoryContext<dim, Number>& ctx,
-        SystemMatrices<dim, Number> &system_matrices
-    ) const;
-
+  void assemble_cosserat_delamination_system(const MaterialOperatorFactoryContext<dim, Number>& ctx,
+                                             std::vector<SparseMatrix>& matrices,
+                                             bool& affine) const;
 };

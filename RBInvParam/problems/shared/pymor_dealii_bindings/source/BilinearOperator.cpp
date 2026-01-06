@@ -3,17 +3,20 @@
 
 #include <vector>
 
-#include "operators/BilinearOperator.hpp"
+#include "BilinearOperator.hpp"
+
+template class MatrixStack<double>;
+template class BilinearAqOp<double>;
 
 // ############################### MatrixStack ###############################
 
 template <class Number>
 MatrixStack<Number>::MatrixStack(
-    std::vector<MatV> matrices, 
-    SparsityPattern sp,
+    std::vector<MatV>&& matrices, 
+    const SparsityPattern& sp,
     bool affine) 
   : m_A(std::move(matrices))
-  , m_sp(std::move(sp))
+  , m_sp(sp)
   , m_affine(affine)
 {
   AssertThrow(!m_A.empty(), ExcMessage("MatrixStack: empty m_A."));
@@ -43,10 +46,10 @@ MatrixStack<Number>::A_i(const unsigned int i) const
 template <class Number>
 void MatrixStack<Number>::materialize(const Vector<Number> &q) const
 {
-    AssertThrow(q.size() == dim_Q(), ExcDimensionMismatch());
+    AssertThrow(q.size() == dim_Q(), ExcDimensionMismatch(q.size(), dim_Q()));
 
     if (m_has_cache && same_q(q))
-        return m_cached_Aq;
+        return;
 
     // Create/reinit cached matrix with same sparsity pattern as m_A[0]
     if (!m_cached_Aq)
@@ -56,9 +59,8 @@ void MatrixStack<Number>::materialize(const Vector<Number> &q) const
     }
 
     if (m_affine)
-    {
-        // A(q) = A0 + sum_{i>=1} q[i-1] * Ai
-        *m_cached_Aq = m_A[0];
+    {        
+        m_cached_Aq->add(1.0, m_A[0]);
 
         for (unsigned int i = 1; i < m_A.size(); ++i)
         if (q[i - 1] != Number(0))
@@ -67,6 +69,7 @@ void MatrixStack<Number>::materialize(const Vector<Number> &q) const
     else
     {
         // A(q) = sum_i q[i] * Ai
+        // BUG THis will not work
         *m_cached_Aq = Number(0);
 
         for (unsigned int i = 0; i < m_A.size(); ++i)
@@ -117,7 +120,7 @@ const Vector<Number>& MatrixStack<Number>::cached_q() const
 }
 
 template <class Number>
-std::shared_ptr<const MatV> MatrixStack<Number>::cached_Aq() const
+std::shared_ptr<const typename MatrixStack<Number>::MatV> MatrixStack<Number>::cached_Aq() const
 {
   AssertThrow(m_has_cache && m_cached_Aq, ExcNotDefined());
   return m_cached_Aq;
@@ -133,7 +136,6 @@ BilinearAqOp<Number>::BilinearAqOp(std::shared_ptr<const Stack> stack,
   , m_q(q)
 {
   AssertThrow(m_stack != nullptr, ExcNotDefined());
-  AssertThrow(m_Aq    != nullptr, ExcNotDefined());
 
   AssertDimension(m_q.size(), m_stack->dim_Q());
 
@@ -161,16 +163,14 @@ BilinearAqOp<Number>::BilinearAqOp(std::shared_ptr<const Stack> stack,
 }
 
 template <class Number>
-const Vector<Number> &
-BilinearAqOp<Number>::q() const
+const Vector<Number>& BilinearAqOp<Number>::q() const
 {
   return m_q;
 }
 
 template <class Number>
-void
-BilinearAqOp<Number>::apply(Vector<Number>       &y,
-                            const Vector<Number> &u) const
+void BilinearAqOp<Number>::apply(Vector<Number>       &y,
+                                 const Vector<Number> &u) const
 {
   AssertDimension(u.size(), m_stack->dim_V());
   y.reinit(m_stack->dim_V());
@@ -178,9 +178,8 @@ BilinearAqOp<Number>::apply(Vector<Number>       &y,
 }
 
 template <class Number>
-void
-BilinearAqOp<Number>::apply_adjoint(Vector<Number>       &y,
-                                    const Vector<Number> &w) const
+void BilinearAqOp<Number>::apply_adjoint(Vector<Number>       &y,
+                                         const Vector<Number> &w) const
 {
   AssertDimension(w.size(), m_stack->dim_V());
   y.reinit(m_stack->dim_V());
@@ -188,10 +187,10 @@ BilinearAqOp<Number>::apply_adjoint(Vector<Number>       &y,
 }
 
 template <class Number>
-void
-BilinearAqOp<Number>::apply_inverse(Vector<Number>       &y,
-                                    const Vector<Number> &f) const
+void BilinearAqOp<Number>::apply_inverse(Vector<Number>       &y,
+                                         const Vector<Number> &f) const
 {
+    std::cout << "Inner call" << std::endl;
     AssertDimension(f.size(), m_stack->dim_V());
     y.reinit(m_stack->dim_V());
     y = 0;
@@ -205,26 +204,35 @@ BilinearAqOp<Number>::apply_inverse(Vector<Number>       &y,
 
 
 template <class Number>
-void
-BilinearAqOp<Number>::apply_inverse_adjoint(Vector<Number>       &y,
-                                            const Vector<Number> &f) const
+void BilinearAqOp<Number>::apply_inverse_adjoint(Vector<Number>       &y,
+                                                 const Vector<Number> &f) const
 {
   AssertThrow(false, ExcNotDefined());
 }
 
 
 template <class Number>
-bool
-BilinearAqOp<Number>::has_inverse() const
+bool BilinearAqOp<Number>::has_inverse() const
 {
   return true;
 }
 
 
 template <class Number>
-bool
-BilinearAqOp<Number>::has_inverse_adjoint() const
+bool BilinearAqOp<Number>::has_inverse_adjoint() const
 {
   return false;
+}
+
+template <class Number>
+std::size_t BilinearAqOp<Number>::dim_source() const 
+{
+  return m_stack->dim_V();
+}
+
+template <class Number>
+std::size_t BilinearAqOp<Number>::dim_range() const 
+{
+  return m_stack->dim_V();
 }
 

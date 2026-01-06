@@ -65,8 +65,8 @@ set_log_levels({
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    y_res = 10
+    z_res = 10
 
     par_dim = (y_res + 1) * (z_res + 1)
     #* 5 * 3
@@ -128,8 +128,8 @@ def main():
 
     # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
-    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
     # #add_constant_patch(q_exact, center=(30, 20), value=3.0, half_size=1)
     # #add_constant_patch(q_exact, center=(10, 24), value=2.0, half_size=1)
@@ -165,7 +165,6 @@ def main():
 
     #q_exact[0,:] = 3
 
-    # q_exact[0,450] = 2
     # q_exact[0,470] = 3
 
 
@@ -187,8 +186,8 @@ def main():
             #     'sigma' : 2.0,
             # }
         },
-        'system_matrix' : {
-            'type' : mm.SystemMatrixType.CosseratDelamination,
+        'system_operator' : {
+            'type' : mm.MaterialOperatorType.CosseratDelamination,
             'hyperparameter' : {
                 'lambda' : 1e1,
                 'mu' : 1e1,
@@ -275,6 +274,11 @@ def main():
     FOM = build_InstationaryModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
+
+
+    import sys
+    sys.exit()
+
 
     FOM.A.material_model.save_time_series(
         [v for v in FOM.A.material_model.force_list],

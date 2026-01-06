@@ -35,24 +35,43 @@ def build_InstationaryModelIP(setup : Dict,
 
     logger.debug('Construct problem..')
 
-    material_model_config = mm.MaterialModelConfig()
-    material_model_config.nt = setup['dims']['nt']
-    material_model_config.T_initial = setup['T_initial']
-    material_model_config.T_final = setup['T_final']
-    material_model_config.delta_t = setup['delta_t']
-    material_model_config.spatial_resolution = setup['spatial_resolution']
+    elasticity_model_config = em.ElasticityModelConfig()
+    elasticity_model_config.nt = setup['dims']['nt']
+    elasticity_model_config.T_initial = setup['T_initial']
+    elasticity_model_config.T_final = setup['T_final']
+    elasticity_model_config.delta_t = setup['delta_t']
+    elasticity_model_config.spatial_resolution = setup['spatial_resolution']
 
-    material_model_config.system_matrix_type = setup['system_matrix']['type']
-    if setup['system_matrix']['hyperparameter']: 
-        material_model_config.system_matrix_hyperparameter = setup['system_matrix']['hyperparameter']
+    elasticity_model_config.system_operator_type = setup['system_operator']['type']
+    if setup['system_operator']['hyperparameter']: 
+        elasticity_model_config.system_operator_hyperparameter = setup['system_operator']['hyperparameter']
 
-    material_model_config.body_force_type = setup['body_force']['type']
+    elasticity_model_config.body_force_type = setup['body_force']['type']
     if setup['body_force']['hyperparameter']: 
-        material_model_config.body_force_hyperparameter = setup['body_force']['hyperparameter']
+        elasticity_model_config.body_force_hyperparameter = setup['body_force']['hyperparameter']
 
-    elasticity_model = em.ElasticityModel(material_model_config)
+    elasticity_model = em.ElasticityModel(elasticity_model_config)
+    #print(elasticity_model.m_base_config.spatial_resolution)
     elasticity_model.make_grid()
     elasticity_model.setup_system()
+    #TODO Call this in setup_system()
+    elasticity_model.setup_system_operator()
+
+    q_circ = setup['q_circ']
+    print(q_circ.shape)
+    elasticity_model.set_q(q_circ.flatten())
+    elasticity_model.assemble_system_operator()
+    
+    from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIISymmetricBilinearAqOperator, DealIISymmetricMatrixOperator
+    op = DealIISymmetricBilinearAqOperator(
+        op = elasticity_model.m_op
+    )
+    u = op.source.zeros(1)
+    v = op.apply_inverse(u)
+    print(v)
+
+    import sys
+    sys.exit()
 
     ############################### State and Param Space ###############################
 

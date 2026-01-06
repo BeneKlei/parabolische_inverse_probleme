@@ -25,13 +25,13 @@
 #include "MaterialModel.hpp"
 #include "utils.hpp"
 
-MaterialModel::MaterialModel(const MaterialModelConfig& config)
-  : m_config(config), 
+MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
+  : m_base_config(config), 
     m_fe(dealii::FE_Q<dim>(1), dim),
     m_dof_handler(m_triangulation)
 {
-  const double computed_nt = (m_config.T_final - m_config.T_initial) / m_config.delta_t;
-  if (std::abs(computed_nt - static_cast<double>(m_config.nt)) > 1e-8) {
+  const double computed_nt = (m_base_config.T_final - m_base_config.T_initial) / m_base_config.delta_t;
+  if (std::abs(computed_nt - static_cast<double>(m_base_config.nt)) > 1e-8) {
     throw std::runtime_error("Invalid time discretization: check T_final, T_initial, delta_t, and nt.");
   }
 }
@@ -43,7 +43,7 @@ void MaterialModel::make_grid()
 
     GridGenerator::subdivided_hyper_rectangle(
         m_triangulation, 
-        m_config.spatial_resolution, 
+        m_base_config.spatial_resolution, 
         ori, 
         dest
     ); 
@@ -82,17 +82,16 @@ void MaterialModel::setup_system()
 
   std::cout << "\t Setting up BC constraints." << std::endl;
   setup_BC_constraints();
-  std::cout << "\t Setting up system matrizies." << std::endl;
 
   // --------------------------------------------------
 
-  // MaterialMatricesFactoryContext<3, Number> ctx {
-  //   m_config.system_matrix_type,
+  // MaterialOperatorFactoryContext<3, Number> ctx {
+  //   m_base_config.system_matrix_type,
   //   m_fe,
   //   m_dof_handler,
   //   m_BC_constraints,
   //   m_system_matrix_sp,
-  //   m_config.system_matrix_hyperparameter
+  //   m_base_config.system_operator_hyperparameter
   // };
 
   // m_material_matrices_factory.assemble_system(
@@ -101,7 +100,7 @@ void MaterialModel::setup_system()
   // );
   // m_has_translation_operator = m_system_matrices.m_affine;
 
-  // m_system_matrix_derivatives.resize(m_config.nt + 1);
+  // m_system_matrix_derivatives.resize(m_base_config.nt + 1);
 
   // --------------------------------------------------
 
@@ -132,10 +131,10 @@ void MaterialModel::setup_system()
   // --------------------------------------------------
 
   BodyForceFactoryContext<3, Number> ctx_body_force {
-    m_config.body_force_type,
+    m_base_config.body_force_type,
     m_fe,
     m_dof_handler,
-    m_config.body_force_hyperparameter
+    m_base_config.body_force_hyperparameter
   };
 
 
@@ -145,16 +144,6 @@ void MaterialModel::setup_system()
 
   std::cout << "\t Assembling force list." << std::endl;
   assemble_force_list();
-
-  m_param_space_dim = m_system_matrices.get_param_space_dim();
-  m_q.reinit(m_param_space_dim);
-  m_state_space_dim = m_dof_handler.n_dofs();
-
-  std::cout << "\t ---------------------- " << std::endl;
-  std::cout << "\t #DoFs: " << m_state_space_dim  << std::endl;
-  std::cout << "\t #Parameter: " << m_param_space_dim  << std::endl;
-
-
 }
 
 void MaterialModel::setup_BC_constraints()
@@ -251,13 +240,13 @@ void MaterialModel::assemble_force(Vector<Number>& result, double time)
 void MaterialModel::assemble_force_list()
 {
   m_force_list.clear();
-  m_force_list.resize(m_config.nt+1);
+  m_force_list.resize(m_base_config.nt+1);
 
-  double time = m_config.T_initial;
-  for (uint32_t idx = 0; idx <= m_config.nt; idx++) {
+  double time = m_base_config.T_initial;
+  for (uint32_t idx = 0; idx <= m_base_config.nt; idx++) {
     m_force_list[idx].reinit(m_dof_handler.n_dofs());
     assemble_force(m_force_list[idx], time);
-    time += m_config.delta_t;
+    time += m_base_config.delta_t;
   }
 }
 
@@ -404,7 +393,7 @@ void MaterialModel::assemble_bilinear_cost_matrix()
 
 // TODO Make a body force factory
 // void MaterialModel::setup_body_force() {
-//   switch (m_config.body_force_type)
+//   switch (m_base_config.body_force_type)
 //   {
 //   case BodyForceType::CenterExcite:
 //     std::cout << "\t Using CenterExcite BodyForce" << std::endl;

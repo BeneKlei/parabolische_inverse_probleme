@@ -48,7 +48,7 @@ def dealii_vector_space_to_numpy(vector_array: ListVectorArray) -> NumpyVectorAr
         return NumpyVectorSpace(dim=vector_array.space.dim).empty()
 
 
-# def load_FOM_from_config(config : Dict,
+# def load_FOM_from_base_config(config : Dict,
 #                          logger: logging.Logger = None) -> InstationaryModelIP:
 
 #     analytical_problem, q_exact, N, problem_type, _, _ = whole_problem(**config['problem_parameter'])

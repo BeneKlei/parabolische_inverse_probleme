@@ -7,11 +7,12 @@
 #include <fstream>
 
 #include "MaterialModel.hpp"
-#include "MaterialMatricesFactory.hpp"
 #include "BodyForceFactory.hpp"
 #include "ObservationOperatorFactory.hpp"
 #include "StateProductFactory.hpp"
 #include "ObservationSpaceProductFactory.hpp"
+
+#include "MaterialOperatorFactory.hpp"
 
 // -------- PYTHON BINDINGS -----------------------------------------------------------------------
 
@@ -21,14 +22,14 @@ PYBIND11_MODULE(material_model, m) {
      py::module::import("pymor_dealii_bindings");
 
      py::class_<MaterialModel>(m, "MaterialModel")
-          .def(py::init<const MaterialModelConfig&>())
+          .def(py::init<const MaterialModelBaseConfig&>())
           .def("make_grid", &MaterialModel::make_grid)
           .def("setup_system", &MaterialModel::setup_system)
          
           .def_readonly("param_space_dim", &MaterialModel::m_param_space_dim)
           .def_readonly("state_space_dim", &MaterialModel::m_state_space_dim)
           .def_readonly("observation_space_dim", &MaterialModel::m_observation_space_dim)
-          .def_readonly("m_has_translation_operator", &MaterialModel::m_has_translation_operator)
+          //.def_readonly("m_has_translation_operator", &MaterialModel::m_has_translation_operator)
 
           .def_readonly("product_V", &MaterialModel::m_product_V)
           .def_readonly("product_H", &MaterialModel::m_product_H)
@@ -40,17 +41,17 @@ PYBIND11_MODULE(material_model, m) {
           .def("assemble_product_H", &MaterialModel::assemble_product_H)
           .def("assemble_product_C", &MaterialModel::assemble_product_C)
 
-          .def("assemble_system_matrix", &MaterialModel::assemble_system_matrix)
-          .def("assemble_parameteric_matrix", &MaterialModel::assemble_parameteric_matrix)
+          //.def("assemble_system_matrix", &MaterialModel::assemble_system_matrix)
+          //.def("assemble_parameteric_matrix", &MaterialModel::assemble_parameteric_matrix)
           .def("assemble_mass_matrix", &MaterialModel::assemble_mass_matrix)          
           .def("assemble_observation_operator_matrix", &MaterialModel::assemble_observation_operator_matrix, py::return_value_policy::reference_internal)
           .def("assemble_bilinear_cost_matrix", &MaterialModel::assemble_bilinear_cost_matrix, py::return_value_policy::reference_internal)
-          .def("assemble_system_matrix_derivative", &MaterialModel::assemble_system_matrix_derivative, py::return_value_policy::reference_internal)
+          //.def("assemble_system_matrix_derivative", &MaterialModel::assemble_system_matrix_derivative, py::return_value_policy::reference_internal)
   
           .def_readwrite("m_q", &MaterialModel::m_q)
           .def_readonly("mass_matrix", &MaterialModel::m_mass_matrix)
-          .def_readonly("system_matrix", &MaterialModel::m_system_matrix)
-          .def_readonly("system_matrix_derivatives", &MaterialModel::m_system_matrix_derivatives)
+          //.def_readonly("system_matrix", &MaterialModel::m_system_matrix)
+          //.def_readonly("system_matrix_derivatives", &MaterialModel::m_system_matrix_derivatives)
           .def_readonly("observation_operator", &MaterialModel::m_observation_operator)
           .def_readonly("bilinear_cost_operator", &MaterialModel::m_bilinear_cost_operator)
           .def_readonly("force_list", &MaterialModel::m_force_list)
@@ -61,10 +62,10 @@ PYBIND11_MODULE(material_model, m) {
           .def("save_state", &MaterialModel::save_state, py::return_value_policy::reference_internal)
           .def("save_time_series", &MaterialModel::save_time_series, py::return_value_policy::reference_internal);
 
-      py::enum_<SystemMatrixType>(m, "SystemMatrixType")
-         .value("Cosserat", SystemMatrixType::Cosserat)
-         .value("CosseratDelamination", SystemMatrixType::CosseratDelamination)
-         .value("CosseratSpatial", SystemMatrixType::CosseratSpatial)
+      py::enum_<MaterialOperatorType>(m, "MaterialOperatorType")
+         .value("Cosserat", MaterialOperatorType::Cosserat)
+         .value("CosseratDelamination", MaterialOperatorType::CosseratDelamination)
+         .value("CosseratSpatial", MaterialOperatorType::CosseratSpatial)
          .export_values();
       
       py::enum_<BodyForceType>(m, "BodyForceType")
@@ -100,16 +101,13 @@ PYBIND11_MODULE(material_model, m) {
          .value("STATE_H1_0", ObservationSpaceProductType::STATE_H1_0)
          .export_values();
 
-     py::class_<MaterialModelConfig>(m, "MaterialModelConfig")
+     py::class_<MaterialModelBaseConfig>(m, "MaterialModelBaseConfig")
           .def(py::init<>())
-          .def_readwrite("nt", &MaterialModelConfig::nt)
-          .def_readwrite("T_initial", &MaterialModelConfig::T_initial)
-          .def_readwrite("T_final", &MaterialModelConfig::T_final)
-          .def_readwrite("delta_t", &MaterialModelConfig::delta_t)
-          .def_readwrite("spatial_resolution", &MaterialModelConfig::spatial_resolution)
-          .def_readwrite("body_force_type", &MaterialModelConfig::body_force_type)
-          .def_readwrite("body_force_hyperparameter", &MaterialModelConfig::body_force_hyperparameter)
-          .def_readwrite("system_matrix_type", &MaterialModelConfig::system_matrix_type)
-          .def_readwrite("system_matrix_hyperparameter", &MaterialModelConfig::system_matrix_hyperparameter);
-          
+          .def_readwrite("nt", &MaterialModelBaseConfig::nt)
+          .def_readwrite("T_initial", &MaterialModelBaseConfig::T_initial)
+          .def_readwrite("T_final", &MaterialModelBaseConfig::T_final)
+          .def_readwrite("delta_t", &MaterialModelBaseConfig::delta_t)
+          .def_readwrite("spatial_resolution", &MaterialModelBaseConfig::spatial_resolution)
+          .def_readwrite("body_force_type", &MaterialModelBaseConfig::body_force_type)
+          .def_readwrite("body_force_hyperparameter", &MaterialModelBaseConfig::body_force_hyperparameter);
 }

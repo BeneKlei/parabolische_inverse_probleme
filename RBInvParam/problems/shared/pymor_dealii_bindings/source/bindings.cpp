@@ -16,7 +16,9 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
-#include "utils.hpp"
+//#include "utils.hpp"
+#include "Operators.hpp"
+#include "BilinearOperator.hpp"
 
 namespace py = pybind11;
 
@@ -190,8 +192,6 @@ void bind_sparse_matrix(pybind11::module& module) {
       .def("cg_solve", cg_solve);
 }
 
-
-
 template <typename Number>
 void bind_full_matrix(py::module &module)
 {
@@ -220,58 +220,6 @@ void bind_full_matrix(py::module &module)
           py::arg("dst"), 
           py::arg("src"), 
           py::arg("adding") = false);
-
-      // .def("vmult",
-      //     (void(Matrix::*)(Vector&, const Vector&, bool) const) & Matrix::template vmult<Number>
-      // )
-      // .def("Tvmult",
-      //     (void(Matrix::*)(Vector&, const Vector&, bool) const) & Matrix::template Tvmult<Number>
-      // );
-      
-
-
-      // // element access helpers
-      // .def("set",
-      //      [](Matrix &A, unsigned int i, unsigned int j, Number v) { A(i, j) = v; })
-      // .def("get",
-      //      [](const Matrix &A, unsigned int i, unsigned int j) { return A(i, j); })
-      // .def("add_to_entry",
-      //      [](Matrix &A, unsigned int i, unsigned int j, Number v) { A(i, j) += v; })
-
-      // // vector–matrix products (keep templates explicit like your sparse binding)
-      // // matrix–matrix products (in-place, 9.6.0 signatures)
-      // .def("mmult",
-      //      (void (Matrix::*)(Matrix &, const Matrix &, const bool) const)
-      //          & Matrix::mmult,
-      //      py::arg("C"), py::arg("B"), py::arg("add") = false)
-      // .def("Tmmult",
-      //      (void (Matrix::*)(Matrix &, const Matrix &, const bool) const)
-      //          & Matrix::Tmmult,
-      //      py::arg("C"), py::arg("B"), py::arg("add") = false)
-
-      // // BLAS-like ops
-      // .def("add",
-      //      (void (Matrix::*)(Number, const Matrix &)) & Matrix::template add<Number>,
-      //      py::arg("a"), py::arg("A"))
-
-      // // convenience: set whole row/column from a dealii::Vector
-      // .def("set_row",
-      //      [](Matrix &A, unsigned int i, const Vector &row) {
-      //        if (row.size() != A.n())
-      //          throw std::runtime_error("set_row: size mismatch");
-      //        for (unsigned int j = 0; j < A.n(); ++j) A(i, j) = row[j];
-      //      },
-      //      py::arg("i"), py::arg("row"))
-      // .def("set_column",
-      //      [](Matrix &A, unsigned int j, const Vector &col) {
-      //        if (col.size() != A.m())
-      //          throw std::runtime_error("set_column: size mismatch");
-      //        for (unsigned int i = 0; i < A.m(); ++i) A(i, j) = col[i];
-      //      },
-      //      py::arg("j"), py::arg("col"))
-
-      // // convenience: zero everything (handy “reset”)
-      // .def("set_to_zero", [](Matrix &A) { A = 0; });
 }
 
 template <typename Number>
@@ -308,49 +256,44 @@ void bind_sparsity_pattern(pybind11::module& module) {
     .def("max_entries_per_row", &dealii::SparsityPattern::max_entries_per_row);
 }
 
-// template <typename Number>
-// void bind_cgsolver(pybind11::module& module) {
-//   using Matrix = dealii::SparseMatrix<Number>;
-//   using Vector = dealii::Vector<Number>;
+template <class Number>
+void bind_operators(py::module_& m)
+{
+  using BaseOperator     = BaseOperator<Number>;
+  using BilinearAqOp = BilinearAqOp<Number>;
+  using Aq_op        = Aq_op<Number>;
+  using Vec          = dealii::Vector<Number>;
 
-//   class CGSolverWrapper
-//   {
-//   public:
-//     CGSolverWrapper(Matrix &A,
-//                     const double tol = 1e-12,
-//                     const unsigned int max_steps = 20000,
-//                     const double ssor_omega = 1.2)
-//         : matrix(A),
-//           solver_control(max_steps, tol),
-//           solver(solver_control)
-//     {
-//       preconditioner.initialize(matrix, ssor_omega);
-//     }
+  py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator")
+      .def("apply", &BaseOperator::apply, py::arg("y"), py::arg("x"))
+      .def("apply_adjoint", &BaseOperator::apply_adjoint, py::arg("y"), py::arg("x"))
+      .def("apply_inverse", &BaseOperator::apply_inverse, py::arg("y"), py::arg("x"))
+      .def("apply_inverse_adjoint", &BaseOperator::apply_inverse_adjoint, py::arg("y"), py::arg("x"))
+      .def("has_inverse", &BaseOperator::has_inverse)
+      .def("has_inverse_adjoint", &BaseOperator::has_inverse_adjoint)
+      .def("dim_source", &BaseOperator::dim_source)
+      .def("dim_range", &BaseOperator::dim_range);
 
-//     void solve(Vector &solution, const Vector &rhs)
-//     {
-//       solver.solve(matrix, solution, rhs, preconditioner);
-//       std::cout << "   " << solver_control.last_step()
-//                 << " CG iterations needed to obtain convergence."
-//                 << std::endl;
-//     }
+  py::class_<Aq_op, BaseOperator, std::shared_ptr<Aq_op>>(m, "Aq_op")
+      .def("q", &Aq_op::q, py::return_value_policy::reference_internal);
+  
+  py::class_<BilinearAqOp, Aq_op, std::shared_ptr<BilinearAqOp>>(m, "BilinearAqOp")
+      // DO NOT expose the constructor taking MatrixStack if you want MatrixStack hidden
+      // .def(py::init<std::shared_ptr<const typename Op::Stack>, const Vec&>())
 
-//   private:
-//     Matrix &matrix;
-//     dealii::SolverControl solver_control;
-//     dealii::SolverCG<> solver;
-//     dealii::PreconditionSSOR<> preconditioner;
-//   };
+      .def("q", &BilinearAqOp::q, py::return_value_policy::reference_internal)
 
-//   py::class_<CGSolverWrapper>(module, "CGSolver")
-//     .def(py::init<Matrix &, double, unsigned int, double>(),
-//           py::arg("matrix"),
-//           py::arg("tol") = 1e-12,
-//           py::arg("max_steps") = 20000,
-//           py::arg("ssor_omega") = 1.2)
-//     .def("solve", &CGSolverWrapper::solve);
+      .def("apply", &BilinearAqOp::apply, py::arg("y"), py::arg("u"))
+      .def("apply_adjoint", &BilinearAqOp::apply_adjoint, py::arg("y"), py::arg("w"))
+      .def("apply_inverse", &BilinearAqOp::apply_inverse, py::arg("y"), py::arg("f"))
+      .def("apply_inverse_adjoint", &BilinearAqOp::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
 
-// }
+      .def("has_inverse", &BilinearAqOp::has_inverse)
+      .def("has_inverse_adjoint", &BilinearAqOp::has_inverse_adjoint)
+
+      .def("dim_source", &BilinearAqOp::dim_source)
+      .def("dim_range", &BilinearAqOp::dim_range);
+}
 
 PYBIND11_MODULE(pymor_dealii_bindings, m) {
   m.doc() = "Python bindings for deal.II";
@@ -358,6 +301,7 @@ PYBIND11_MODULE(pymor_dealii_bindings, m) {
   bind_vector<double>(m);
   bind_full_matrix<double>(m);
   bind_sparse_matrix<double>(m);
+  bind_operators<double>(m);
   //bind_ILU_solver<double>(m);
   //bind_cgsolver<double>(m);
 

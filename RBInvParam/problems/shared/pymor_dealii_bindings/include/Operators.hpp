@@ -44,6 +44,10 @@ public:
 
   virtual bool has_inverse() const { return false; }
   virtual bool has_inverse_adjoint() const { return false; }
+
+  virtual std::size_t dim_source() const = 0;
+  virtual std::size_t dim_range() const = 0;
+
 };
 
 // Convenience aliases (storage is the same Vector<Number>; meaning is by convention)
@@ -71,7 +75,7 @@ public:
 
 
 template <class Number>
-class dA_dq_op : public OpQtoVdual<Number>
+class dAqu_dq_op : public OpQtoVdual<Number>
 {
 public:
   virtual ~dAqu_dq_op() = default;
@@ -81,7 +85,7 @@ public:
 };
 
 template <class Number>
-class dA_du_op : public OpVtoVdual<Number>
+class dAqu_du_op : public OpVtoVdual<Number>
 {
 public:
   virtual ~dAqu_du_op() = default;
@@ -89,7 +93,6 @@ public:
   virtual const Vector<Number> &q() const = 0;
   virtual const Vector<Number> &u() const = 0;
 };
-
 
 
 
