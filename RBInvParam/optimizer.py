@@ -2692,7 +2692,7 @@ class QrVrROMOptimizer(Optimizer):
 
                     if enrichment['parameter_basis']['coarsing']:
 
-                        rel_tol_coeff_nabla_J = 1e-2
+                        rel_tol_coeff_nabla_J = enrichment['parameter_basis']['coarsing']['rel_tol_coeff_nabla_J']
 
                         basis = 'parameter_basis'
                         _basis = self.reductor.bases[basis]
@@ -2729,8 +2729,6 @@ class QrVrROMOptimizer(Optimizer):
 
                         self.reductor.bases[basis] = _basis[idxes_nabla_J].copy()
                         self.reductor.delete_cached_operators()
-
-                        self.snapshots['parameter_basis'].append(q.copy())
 
                     ############################################################
                     
@@ -2770,6 +2768,22 @@ class QrVrROMOptimizer(Optimizer):
                         enrichment=enrichment,
                         i = i
                     )
+
+
+                    if enrichment['parameter_basis']['coarsing']:
+                        self._reset_snapshots()
+                        self.snapshots['parameter_basis'].append(q.copy())
+                        self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
+
+                        _enrichment = copy.deepcopy(enrichment)
+                        _enrichment['parameter_basis']['compression']['normalize'] = True
+                        _enrichment['parameter_basis']['compression']['HaPOD'] = None
+                        self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                            bases=['parameter_basis'],
+                            enrichment=_enrichment, 
+                            i = i
+                        )
+
                     self.last_update_q = self.reductor.project_vectorarray(q.copy(), 'parameter_basis')
                     self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
 
