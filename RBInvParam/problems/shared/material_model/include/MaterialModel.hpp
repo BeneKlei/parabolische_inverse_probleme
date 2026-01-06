@@ -65,8 +65,9 @@ public:
     const ObservationOperatorType observation_operator_type,
     const ObservationOperatorHyperparameter hyperparameter
   );
-  void assemble_system_matrix();
-  void assemble_parameteric_matrix();
+
+  void assemble_system_operator();
+  //void assemble_parameteric_matrix();
   void assemble_system_matrix_derivative(const Vector<Number>& state_DoFs, size_t parameter_basis_idx);
   void assemble_bilinear_cost_matrix();
 
@@ -91,11 +92,11 @@ public:
   size_t m_param_space_dim = 0;
   size_t m_state_space_dim = 0;
   size_t m_observation_space_dim = 0;
-  bool m_has_translation_operator = false;
+  //bool m_has_translation_operator = false;
 
   // --------------------------------------------------
 
-  Vector<Number> m_q;
+  //Vector<Number> m_q;
   std::vector<Vector<Number>> m_force_list;
 
   // --------------------------------------------------
@@ -104,7 +105,7 @@ public:
   
   SparseMatrix<Number> m_system_matrix;
   // TODO Make them sparse!!
-  std::vector<FullMatrix<Number>> m_system_matrix_derivatives;
+  //std::vector<FullMatrix<Number>> m_system_matrix_derivatives;
 
 
   SparseMatrix<Number> m_observation_operator;
@@ -131,16 +132,16 @@ private:
   FESystem<dim> m_fe;
   DoFHandler<dim> m_dof_handler;
 
-  MaterialMatricesFactory<dim, Number> m_material_matrices_factory = MaterialMatricesFactory<3, Number>();
+  //MaterialMatricesFactory<dim, Number> m_material_matrices_factory = MaterialMatricesFactory<3, Number>();
   ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
   ObservationSpaceProductFactory<dim, Number> m_observation_space_product_factory = ObservationSpaceProductFactory<3, Number>();
   BodyForceFactory<dim, Number> m_body_force_factory = BodyForceFactory<3, Number>();
 
-  SystemMatrices<dim, Number> m_system_matrices;
+  //SystemMatrices<dim, Number> m_system_matrices;
 
   AffineConstraints<Number> m_BC_constraints;
-  SparseILU<Number> m_solver;
+  //SparseILU<Number> m_solver;
 
   std::unique_ptr<BodyForce> m_body_force;
   

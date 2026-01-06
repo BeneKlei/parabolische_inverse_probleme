@@ -2727,7 +2727,7 @@ class QrVrROMOptimizer(Optimizer):
                         print(idxes_delta_q)
 
 
-                        self.reductor.bases[basis] = _basis[idxes_nabla_J].copy()
+                        self.reductor.bases[basis] = _basis[idxes_delta_q].copy()
                         self.reductor.delete_cached_operators()
 
                         self.snapshots['parameter_basis'].append(q.copy())

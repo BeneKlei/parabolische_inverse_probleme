@@ -61,8 +61,7 @@ public:
   using MatV  = typename Stack::MatV;
 
   BilinearAqOp(std::shared_ptr<const Stack> stack,
-               const Vector<Number>&        q,
-               bool                         materialize_matrix = false);
+               const Vector<Number>&        q);
 
   const Vector<Number> &q() const override;
 

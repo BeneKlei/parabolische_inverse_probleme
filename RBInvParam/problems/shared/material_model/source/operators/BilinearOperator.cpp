@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "operators/BilinearOperators.hpp"
+#include "operators/BilinearOperator.hpp"
 
 // ############################### MatrixStack ###############################
 
@@ -128,16 +128,18 @@ std::shared_ptr<const MatV> MatrixStack<Number>::cached_Aq() const
 
 template <class Number>
 BilinearAqOp<Number>::BilinearAqOp(std::shared_ptr<const Stack> stack,
-                                   const Vector<Number>        &q,
-                                   std::shared_ptr<const MatV>  Aq)
+                                   const Vector<Number>        &q)
   : m_stack(std::move(stack))
   , m_q(q)
-  , m_Aq(std::move(Aq))
 {
   AssertThrow(m_stack != nullptr, ExcNotDefined());
   AssertThrow(m_Aq    != nullptr, ExcNotDefined());
 
   AssertDimension(m_q.size(), m_stack->dim_Q());
+
+  m_stack->materialize(m_q);
+  m_Aq = m_stack->cached_Aq();
+  AssertThrow(m_Aq != nullptr, ExcNotDefined());
 
   // ---------------- Safeguards ----------------
   // The materialized matrix must come from the stack's cache for the same q.
@@ -154,6 +156,8 @@ BilinearAqOp<Number>::BilinearAqOp(std::shared_ptr<const Stack> stack,
   AssertDimension(cq.size(), m_q.size());
   for (unsigned int i = 0; i < m_q.size(); ++i)
     AssertThrow(cq[i] == m_q[i], ExcNotDefined());
+
+  
 }
 
 template <class Number>
@@ -162,7 +166,6 @@ BilinearAqOp<Number>::q() const
 {
   return m_q;
 }
-
 
 template <class Number>
 void

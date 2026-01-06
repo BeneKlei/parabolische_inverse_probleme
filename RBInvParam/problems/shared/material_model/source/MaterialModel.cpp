@@ -86,22 +86,22 @@ void MaterialModel::setup_system()
 
   // --------------------------------------------------
 
-  MaterialMatricesFactoryContext<3, Number> ctx {
-    m_config.system_matrix_type,
-    m_fe,
-    m_dof_handler,
-    m_BC_constraints,
-    m_system_matrix_sp,
-    m_config.system_matrix_hyperparameter
-  };
+  // MaterialMatricesFactoryContext<3, Number> ctx {
+  //   m_config.system_matrix_type,
+  //   m_fe,
+  //   m_dof_handler,
+  //   m_BC_constraints,
+  //   m_system_matrix_sp,
+  //   m_config.system_matrix_hyperparameter
+  // };
 
-  m_material_matrices_factory.assemble_system(
-    ctx,
-    m_system_matrices
-  );
-  m_has_translation_operator = m_system_matrices.m_affine;
+  // m_material_matrices_factory.assemble_system(
+  //   ctx,
+  //   m_system_matrices
+  // );
+  // m_has_translation_operator = m_system_matrices.m_affine;
 
-  m_system_matrix_derivatives.resize(m_config.nt + 1);
+  // m_system_matrix_derivatives.resize(m_config.nt + 1);
 
   // --------------------------------------------------
 
@@ -261,21 +261,21 @@ void MaterialModel::assemble_force_list()
   }
 }
 
-void MaterialModel::assemble_system_matrix()
-{
-  m_system_matrix.reinit(m_system_matrix_sp);
-  m_system_matrix = 0;
-  m_system_matrices.assemble(m_system_matrix, m_q);
-}
+// void MaterialModel::assemble_system_matrix()
+// {
+//   m_system_matrix.reinit(m_system_matrix_sp);
+//   m_system_matrix = 0;
+//   m_system_matrices.assemble(m_system_matrix, m_q);
+// }
 
-void MaterialModel::assemble_parameteric_matrix()
-{
-  this->assemble_system_matrix();
-  if (m_has_translation_operator)
-  {
-    m_system_matrix.add(-1.0, m_system_matrices.m_matrices[0]);
-  }
-}
+// void MaterialModel::assemble_parameteric_matrix()
+// {
+//   this->assemble_system_matrix();
+//   if (m_has_translation_operator)
+//   {
+//     m_system_matrix.add(-1.0, m_system_matrices.m_matrices[0]);
+//   }
+// }
 
 void MaterialModel::assemble_product_V(const StateProductType state_product_type) {
   StateProductFactoryContext<3, Number> ctx {
@@ -368,25 +368,25 @@ void MaterialModel::clear_rhs_boundary_dofs(Vector<Number>& v)
   m_BC_constraints.distribute(v);
 }
 
-void MaterialModel::assemble_system_matrix_derivative(const Vector<Number>& state_DoFs, size_t parameter_basis_idx)
-{    
-    m_system_matrix_derivatives[parameter_basis_idx].reinit(m_state_space_dim, m_param_space_dim);
-    m_system_matrix_derivatives[parameter_basis_idx] = 0;
-    assert(m_system_matrices.m_param_space_dim == m_param_space_dim &&
-       "Mismatch between system matrices count and parameter dimension");
+// void MaterialModel::assemble_system_matrix_derivative(const Vector<Number>& state_DoFs, size_t parameter_basis_idx)
+// {    
+//     m_system_matrix_derivatives[parameter_basis_idx].reinit(m_state_space_dim, m_param_space_dim);
+//     m_system_matrix_derivatives[parameter_basis_idx] = 0;
+//     assert(m_system_matrices.m_param_space_dim == m_param_space_dim &&
+//        "Mismatch between system matrices count and parameter dimension");
     
-    // m_system_matrix_derivative = 0;
-    unsigned int offset = m_system_matrices.m_affine ? 1 : 0;
-    Vector<Number> A_q_basis_u;
+//     // m_system_matrix_derivative = 0;
+//     unsigned int offset = m_system_matrices.m_affine ? 1 : 0;
+//     Vector<Number> A_q_basis_u;
     
-    for (size_t i = 0; i < m_param_space_dim; i++) {
-        A_q_basis_u.reinit(m_state_space_dim);
-        m_system_matrices.m_matrices[i + offset].vmult(A_q_basis_u, state_DoFs);
-        for (size_t j = 0; j < m_state_space_dim; j++) {
-          m_system_matrix_derivatives[parameter_basis_idx].set(j,i, A_q_basis_u[j]);
-        }        
-    }
-}
+//     for (size_t i = 0; i < m_param_space_dim; i++) {
+//         A_q_basis_u.reinit(m_state_space_dim);
+//         m_system_matrices.m_matrices[i + offset].vmult(A_q_basis_u, state_DoFs);
+//         for (size_t j = 0; j < m_state_space_dim; j++) {
+//           m_system_matrix_derivatives[parameter_basis_idx].set(j,i, A_q_basis_u[j]);
+//         }        
+//     }
+// }
 
 void MaterialModel::assemble_bilinear_cost_matrix()
 {
