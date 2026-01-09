@@ -73,7 +73,6 @@ public:
   virtual const Vector<Number> &q() const = 0;
 };
 
-
 template <class Number>
 class dAqu_dq_op : public OpQtoVdual<Number>
 {

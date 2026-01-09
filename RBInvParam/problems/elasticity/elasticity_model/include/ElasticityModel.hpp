@@ -19,10 +19,11 @@ public:
     explicit ElasticityModel(const ElasticityModelConfig& config);
     
     void setup_system_operator();
-    void assemble_system_operator();
+    void assemble_system_operators();
     void set_q(py::array_t<float, py::array::c_style | py::array::forcecast> q_np);
 
-    std::unique_ptr<Op> m_op;
+    std::unique_ptr<Op> m_A_q;
+    std::unique_ptr<Op> m_partial_u_A_q_u;
 
 private:
     const ElasticityModelConfig& m_elasticity_config;

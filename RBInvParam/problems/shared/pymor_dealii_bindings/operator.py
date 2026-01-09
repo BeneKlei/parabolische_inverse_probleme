@@ -103,7 +103,7 @@ class DealIISymmetricMatrixOperator(DealIIMatrixOperator):
         return DealIISymmetricMatrixOperator(matrix, name=name)
 
 
-class DealIISymmetricBilinearAqOperator(LinearComplexifiedListVectorArrayOperatorBase):
+class DealIIBaseOperator(LinearComplexifiedListVectorArrayOperatorBase):
     """Wraps a dealII matrix as an |Operator|."""
 
     def __init__(self, op, name=None):
@@ -124,7 +124,6 @@ class DealIISymmetricBilinearAqOperator(LinearComplexifiedListVectorArrayOperato
     def _real_apply_inverse_one_vector(
         self, v, mu=None, initial_guess=None, least_squares=False, prepare_data=None
     ):
-        print("Called")
         if least_squares:
             raise NotImplementedError
         r = self.source.real_zero_vector()

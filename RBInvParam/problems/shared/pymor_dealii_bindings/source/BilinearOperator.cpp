@@ -60,6 +60,7 @@ void MatrixStack<Number>::materialize(const Vector<Number> &q) const
 
     if (m_affine)
     {        
+        *m_cached_Aq = Number(0);
         m_cached_Aq->add(1.0, m_A[0]);
 
         for (unsigned int i = 1; i < m_A.size(); ++i)

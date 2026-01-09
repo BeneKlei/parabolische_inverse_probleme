@@ -57,22 +57,6 @@ def build_InstationaryModelIP(setup : Dict,
     #TODO Call this in setup_system()
     elasticity_model.setup_system_operator()
 
-    q_circ = setup['q_circ']
-    print(q_circ.shape)
-    elasticity_model.set_q(q_circ.flatten())
-    elasticity_model.assemble_system_operator()
-    
-    from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIISymmetricBilinearAqOperator, DealIISymmetricMatrixOperator
-    op = DealIISymmetricBilinearAqOperator(
-        op = elasticity_model.m_op
-    )
-    u = op.source.zeros(1)
-    v = op.apply_inverse(u)
-    print(v)
-
-    import sys
-    sys.exit()
-
     ############################### State and Param Space ###############################
 
     setup['dims']['par_dim'] = elasticity_model.param_space_dim
@@ -197,19 +181,19 @@ def build_InstationaryModelIP(setup : Dict,
     L = V_h.make_array(elasticity_model.force_list)
 
     A = ElasticitiyFOMEvaluatorA(
-        material_model = elasticity_model,
+        elasticity_model = elasticity_model,
         source = V_h,
         range = V_h,
-        Q = Q_h,
-        parameter_names = ['lambda', 'mu']
+        Q = Q_h    
     )
-    B = ElasticitiyFOMEvaluatorB(
-        material_model = elasticity_model,
-        source=Q_h,
-        range=V_h,
-        Q = Q_h,
-        V = V_h   
-    )
+    B = None
+    # B = ElasticitiyFOMEvaluatorB(
+    #     material_model = elasticity_model,
+    #     source=Q_h,
+    #     range=V_h,
+    #     Q = Q_h,
+    #     V = V_h   
+    # )
     ############################### Coercivity ###############################
 
     assert product_names['prod_V'] == 'h1_0_semi'
@@ -217,10 +201,10 @@ def build_InstationaryModelIP(setup : Dict,
     #A_coercivity_constant_estimator_function = lambda q: 1
 
     x = np.min([
-        2 * setup['system_matrix']['hyperparameter']['mu'],
-        2 * setup['system_matrix']['hyperparameter']['nu'],
-        2 * setup['system_matrix']['hyperparameter']['mu'] + \
-        3 * setup['system_matrix']['hyperparameter']['lambda']
+        2 * setup['system_operator']['hyperparameter']['mu'],
+        2 * setup['system_operator']['hyperparameter']['nu'],
+        2 * setup['system_operator']['hyperparameter']['mu'] + \
+        3 * setup['system_operator']['hyperparameter']['lambda']
     ])
 
     #A_coercivity_constant_estimator_function = lambda q: np.min(q.to_numpy()) * x

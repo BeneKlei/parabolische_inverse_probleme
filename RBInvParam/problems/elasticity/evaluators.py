@@ -16,36 +16,35 @@ from pymor.vectorarrays.numpy import NumpyVectorArray
 
 
 from RBInvParam.evaluators import FOMEvaluatorA, FOMEvaluatorB, B_u
-from RBInvParam.problems.shared.material_model import MaterialModel
-from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIIMatrixOperator, DealIISymmetricMatrixOperator
+from RBInvParam.problems.elasticity.elasticity_model import ElasticityModel
+from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIIBaseOperator, DealIIMatrixOperator
 from RBInvParam.problems.shared.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
 
 
 class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
     def __init__(self,
-                 material_model: MaterialModel,
+                 elasticity_model: ElasticityModel,
                  source : VectorSpace,
                  range : VectorSpace,
                  Q : VectorSpace,
-                 parameter_names: List[str] | None):
-        
+                 parameter_names: List[str] | None = None):
+        assert isinstance(elasticity_model, ElasticityModel)
+        self.elasticity_model = elasticity_model
         super().__init__(source, range, Q, parameter_names)
-
-        self.material_model = material_model
-        self.system_matrix = None
-        #self.sparsity_pattern = self.material_model.system_matrix_sp
+        
     
     def __call__(self, q: VectorArray, u: VectorArray = None) -> Dict:
         assert q in self.Q
+        assert len(q) == 1
+
+
+        self.elasticity_model.set_q(q.to_numpy().flatten())
+        self.elasticity_model.assemble_system_operators()
         
-        #self.system_matrix.reinit(self.sparsity_pattern)
-        self.material_model.m_q[:] = q.to_numpy()
-        self.material_model.assemble_system_matrix()
-        self.system_matrix = self.material_model.system_matrix
         return {
-            'A_q' : DealIISymmetricMatrixOperator(self.system_matrix),
+            'A_q' : DealIIBaseOperator(op = self.elasticity_model.m_A_q),
             'partial_q_A_q_u' : None,
-            'partial_u_A_q_u' : DealIISymmetricMatrixOperator(self.system_matrix),
+            'partial_u_A_q_u' : DealIIBaseOperator(op = self.elasticity_model.m_partial_u_A_q_u),
         }
     
     def clear_rhs_boundary_dofs(self, 
@@ -67,20 +66,22 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         return vector_array
 
     def get_translation_operator(self) -> Operator | None:
-        if self.material_model.m_has_translation_operator:
-            q = np.zeros((self.material_model.param_space_dim))
-            self.material_model.m_q[:] = q
-            self.material_model.assemble_system_matrix()
-            self.system_matrix = self.material_model.system_matrix
-            return DealIIMatrixOperator(self.system_matrix)
-        else:
-            return None
+        raise NotImplementedError
+        # if self.material_model.m_has_translation_operator:
+        #     q = np.zeros((self.material_model.param_space_dim))
+        #     self.material_model.m_q[:] = q
+        #     self.material_model.assemble_system_matrix()
+        #     self.system_matrix = self.material_model.system_matrix
+        #     return DealIIMatrixOperator(self.system_matrix)
+        # else:
+        #     return None
 
     def get_parameteric_operator(self, q: VectorArray) -> Operator:
-        self.material_model.m_q[:] = q.to_numpy()
-        self.material_model.assemble_parameteric_matrix()
-        self.system_matrix = self.material_model.system_matrix
-        return DealIIMatrixOperator(self.system_matrix)
+        raise NotImplementedError
+        # self.material_model.m_q[:] = q.to_numpy()
+        # self.material_model.assemble_parameteric_matrix()
+        # self.system_matrix = self.material_model.system_matrix
+        # return DealIIMatrixOperator(self.system_matrix)
 
 class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
     def __init__(self,
@@ -88,12 +89,12 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
                  range : VectorSpace,
                  Q : VectorSpace,
                  V : VectorSpace,
-                 material_model: MaterialModel):
+                 elasticity_model: ElasticityModel):
         
         super().__init__(source, range, Q, V)
 
-        self.Q_ = DealIIVectorSpace(Q.dim)
-        self.material_model = material_model
+        self._Q = DealIIVectorSpace(Q.dim)
+        self.elasticity_model = elasticity_model
 
     def __call__(self, 
                  u: ListVectorArray,
@@ -111,7 +112,7 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
 
         def _B_u(d: NumpyVectorArray) -> pd2.Vector:
             # TODO Move parameter space handling to C++ and use pd2.Vector
-            d_ = self.Q_.from_numpy(d.to_numpy())
+            d_ = self._Q.from_numpy(d.to_numpy())
             return B_u_op.apply(d_).vectors[0].real_part.impl
             
         def _B_u_ad(p: ListVectorArray) -> np.ndarray:

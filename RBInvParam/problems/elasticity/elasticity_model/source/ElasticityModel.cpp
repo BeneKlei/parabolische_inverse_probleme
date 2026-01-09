@@ -42,9 +42,14 @@ void ElasticityModel::setup_system_operator()
     std::cout << "\t #Parameter: " << m_param_space_dim  << std::endl;
 }
 
-void ElasticityModel::assemble_system_operator() 
+void ElasticityModel::assemble_system_operators() 
 {
-    m_op = std::make_unique<BilinearAqOp<Number>>(
+    m_A_q = std::make_unique<BilinearAqOp<Number>>(
+        m_matrix_stack,
+        m_q
+    );
+
+    m_partial_u_A_q_u = std::make_unique<BilinearAqOp<Number>>(
         m_matrix_stack,
         m_q
     );
