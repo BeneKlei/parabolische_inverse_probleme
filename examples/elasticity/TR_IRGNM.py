@@ -76,8 +76,10 @@ def main():
     # T_final = 5.0
     # nt = 50
 
-    T_final = 5.0
-    nt = 50
+    T_final = 2.0
+    nt = 20
+
+
 
     #T_final = 5.0
     #T_final = 10.0
@@ -333,7 +335,6 @@ def main():
     J = FOM.compute_objective(_q_start)
     print(J)
     print(np.sqrt(2 * J))
-
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized

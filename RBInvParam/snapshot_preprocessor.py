@@ -92,9 +92,9 @@ class SnapshotPreprocessor(BasicObject):
 
 
             krylov_direction = self.FOM.gauss_newton_hessian(u = u, 
-                                                                z = z, 
-                                                                q = q,
-                                                                use_cached_operators=use_cached_operators)
+                                                             z = z, 
+                                                             q = q,
+                                                             use_cached_operators=use_cached_operators)
             
             self.krylov_directions.append(krylov_direction)
             
