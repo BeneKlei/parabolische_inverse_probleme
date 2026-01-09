@@ -50,12 +50,12 @@ public:
 
 };
 
-// Convenience aliases (storage is the same Vector<Number>; meaning is by convention)
-template <class Number>
-using OpVtoVdual = BaseOperator<Number>; // V -> V' (V' represented in V)
+// // Convenience aliases (storage is the same Vector<Number>; meaning is by convention)
+// template <class Number>
+// using OpVtoVdual = BaseOperator<Number>; // V -> V' (V' represented in V)
 
-template <class Number>
-using OpQtoVdual = BaseOperator<Number>; // Q -> V' (V' represented in V)
+// template <class Number>
+// using OpQtoVdual = BaseOperator<Number>; // Q -> V' (V' represented in V)
 
 
 // ============================================================================
@@ -65,33 +65,33 @@ using OpQtoVdual = BaseOperator<Number>; // Q -> V' (V' represented in V)
 // - dA_du_op(q,u): operator in du, i.e. du ↦ ∂_uA(q,u)[du] (V -> V')
 // ============================================================================
 
-template <class Number>
-class Aq_op : public OpVtoVdual<Number>
-{
-public:
-  virtual ~Aq_op() = default;
-  virtual const Vector<Number> &q() const = 0;
-};
+// template <class Number>
+// class Aq_op : public OpVtoVdual<Number>
+// {
+// public:
+//   virtual ~Aq_op() = default;
+//   virtual const Vector<Number> &q() const = 0;
+// };
 
-template <class Number>
-class dAqu_dq_op : public OpQtoVdual<Number>
-{
-public:
-  virtual ~dAqu_dq_op() = default;
+// template <class Number>
+// class dAqu_dq_op : public OpQtoVdual<Number>
+// {
+// public:
+//   virtual ~dAqu_dq_op() = default;
 
-  virtual const Vector<Number> &q() const = 0;
-  virtual const Vector<Number> &u() const = 0;
-};
+//   virtual const Vector<Number> &q() const = 0;
+//   virtual const Vector<Number> &u() const = 0;
+// };
 
-template <class Number>
-class dAqu_du_op : public OpVtoVdual<Number>
-{
-public:
-  virtual ~dAqu_du_op() = default;
+// template <class Number>
+// class dAqu_du_op : public OpVtoVdual<Number>
+// {
+// public:
+//   virtual ~dAqu_du_op() = default;
 
-  virtual const Vector<Number> &q() const = 0;
-  virtual const Vector<Number> &u() const = 0;
-};
+//   virtual const Vector<Number> &q() const = 0;
+//   virtual const Vector<Number> &u() const = 0;
+// };
 
 
 

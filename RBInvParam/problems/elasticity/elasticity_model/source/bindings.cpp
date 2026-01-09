@@ -19,19 +19,29 @@ PYBIND11_MODULE(elasticity_model, m) {
     py::module::import("pymor_dealii_bindings");
     py::class_<ElasticityModel, MaterialModel>(m, "ElasticityModel")
         .def(py::init<const ElasticityModelConfig&>())
-        .def("assemble_system_operators", &ElasticityModel::assemble_system_operators)
         .def("setup_system_operator", &ElasticityModel::setup_system_operator)
-        .def("set_q", &ElasticityModel::set_q)
+
+        .def("assemble_A_q", &ElasticityModel::assemble_A_q)
+        // .def("assemble_partial_q_A_q_u", &ElasticityModel::assemble_partial_q_A_q_u)
+        // .def("assemble_partial_u_A_q_u", &ElasticityModel::assemble_partial_u_A_q_u)
+    
         .def_property_readonly(
             "m_A_q",
-            [](ElasticityModel &self) -> BilinearAqOp<double>* {
+            [](ElasticityModel &self) -> ElasticityModel::Op* {
                 return self.m_A_q.get();
             },
             py::return_value_policy::reference_internal
         )
         .def_property_readonly(
+            "m_partial_q_A_q_u",
+            [](ElasticityModel &self) -> ElasticityModel::Op* {
+                return self.m_partial_q_A_q_u.get();
+            },
+            py::return_value_policy::reference_internal
+        )
+        .def_property_readonly(
             "m_partial_u_A_q_u",
-            [](ElasticityModel &self) -> BilinearAqOp<double>* {
+            [](ElasticityModel &self) -> ElasticityModel::Op* {
                 return self.m_partial_u_A_q_u.get();
             },
             py::return_value_policy::reference_internal

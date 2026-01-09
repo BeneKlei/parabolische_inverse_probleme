@@ -18,7 +18,7 @@
 
 //#include "utils.hpp"
 #include "Operators.hpp"
-#include "BilinearOperator.hpp"
+#include "MatrixOperator.hpp"
 
 namespace py = pybind11;
 
@@ -259,10 +259,9 @@ void bind_sparsity_pattern(pybind11::module& module) {
 template <class Number>
 void bind_operators(py::module_& m)
 {
-  using BaseOperator     = BaseOperator<Number>;
-  using BilinearAqOp = BilinearAqOp<Number>;
-  using Aq_op        = Aq_op<Number>;
-  using Vec          = dealii::Vector<Number>;
+  using BaseOperator   = BaseOperator<Number>;
+  using MatrixOperator = MatrixOperator<Number>;
+  using Vec            = dealii::Vector<Number>;
 
   py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator")
       .def("apply", &BaseOperator::apply, py::arg("y"), py::arg("x"))
@@ -273,26 +272,18 @@ void bind_operators(py::module_& m)
       .def("has_inverse_adjoint", &BaseOperator::has_inverse_adjoint)
       .def("dim_source", &BaseOperator::dim_source)
       .def("dim_range", &BaseOperator::dim_range);
-
-  py::class_<Aq_op, BaseOperator, std::shared_ptr<Aq_op>>(m, "Aq_op")
-      .def("q", &Aq_op::q, py::return_value_policy::reference_internal);
   
-  py::class_<BilinearAqOp, Aq_op, std::shared_ptr<BilinearAqOp>>(m, "BilinearAqOp")
-      // DO NOT expose the constructor taking MatrixStack if you want MatrixStack hidden
-      // .def(py::init<std::shared_ptr<const typename Op::Stack>, const Vec&>())
+  py::class_<MatrixOperator, BaseOperator, std::shared_ptr<MatrixOperator>>(m, "MatrixOperator")
+      .def("apply", &MatrixOperator::apply, py::arg("y"), py::arg("u"))
+      .def("apply_adjoint", &MatrixOperator::apply_adjoint, py::arg("y"), py::arg("w"))
+      .def("apply_inverse", &MatrixOperator::apply_inverse, py::arg("y"), py::arg("f"))
+      .def("apply_inverse_adjoint", &MatrixOperator::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
 
-      .def("q", &BilinearAqOp::q, py::return_value_policy::reference_internal)
+      .def("has_inverse", &MatrixOperator::has_inverse)
+      .def("has_inverse_adjoint", &MatrixOperator::has_inverse_adjoint)
 
-      .def("apply", &BilinearAqOp::apply, py::arg("y"), py::arg("u"))
-      .def("apply_adjoint", &BilinearAqOp::apply_adjoint, py::arg("y"), py::arg("w"))
-      .def("apply_inverse", &BilinearAqOp::apply_inverse, py::arg("y"), py::arg("f"))
-      .def("apply_inverse_adjoint", &BilinearAqOp::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
-
-      .def("has_inverse", &BilinearAqOp::has_inverse)
-      .def("has_inverse_adjoint", &BilinearAqOp::has_inverse_adjoint)
-
-      .def("dim_source", &BilinearAqOp::dim_source)
-      .def("dim_range", &BilinearAqOp::dim_range);
+      .def("dim_source", &MatrixOperator::dim_source)
+      .def("dim_range", &MatrixOperator::dim_range);
 }
 
 PYBIND11_MODULE(pymor_dealii_bindings, m) {

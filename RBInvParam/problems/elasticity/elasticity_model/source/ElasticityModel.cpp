@@ -9,7 +9,7 @@ void ElasticityModel::setup_system_operator()
 {
     std::cout << "\t Setting up system matrizies." << std::endl;
 
-    MaterialOperatorFactoryContext<dim, Number> ctx{
+    MaterialOperatorFactoryContext<dim, Number> ctx {
         m_elasticity_config.system_operator_type,
         m_fe,
         m_dof_handler,
@@ -42,28 +42,81 @@ void ElasticityModel::setup_system_operator()
     std::cout << "\t #Parameter: " << m_param_space_dim  << std::endl;
 }
 
-void ElasticityModel::assemble_system_operators() 
-{
-    m_A_q = std::make_unique<BilinearAqOp<Number>>(
-        m_matrix_stack,
-        m_q
-    );
-
-    m_partial_u_A_q_u = std::make_unique<BilinearAqOp<Number>>(
-        m_matrix_stack,
-        m_q
-    );
-}
-
-void ElasticityModel::set_q(py::array_t<float, py::array::c_style | py::array::forcecast> q_np)
-{
+void ElasticityModel::assemble_A_q(py::array_t<float, py::array::c_style | py::array::forcecast> q_np) 
+{   
     if (q_np.ndim() != 1)
         throw std::runtime_error("q must be a 1D numpy array");
 
-    auto buf = q_np.request();
-    const auto n = static_cast<std::size_t>(buf.size);
-    const float* ptr = static_cast<float*>(buf.ptr);
+    const auto buf = q_np.request();
+    const std::size_t n = static_cast<std::size_t>(buf.size);
+    const auto *ptr = static_cast<const float *>(buf.ptr);
 
-    m_q.reinit(n);
-    std::copy(ptr, ptr + n, m_q.begin());   // one copy
+    AssertDimension(n, m_matrix_stack->dim_Q());
+
+    ArrayView<const float> q_view(ptr, n);
+
+    MatrixStack<Number>::MatV matrix;
+    m_matrix_stack->materialize(matrix, q_view);
+
+    m_A_q = std::make_unique<MatrixOperator<Number>>(
+        std::move(matrix),
+        m_system_matrix_sp
+    );
 }
+
+void ElasticityModel::assemble_partial_u_A_q_u(py::array_t<float, py::array::c_style | py::array::forcecast> q_np) 
+{   
+    if (q_np.ndim() != 1)
+        throw std::runtime_error("q must be a 1D numpy array");
+
+    const auto buf = q_np.request();
+    const std::size_t n = static_cast<std::size_t>(buf.size);
+    const auto *ptr = static_cast<const float *>(buf.ptr);
+
+    AssertDimension(n, m_matrix_stack->dim_Q());
+
+    ArrayView<const float> q_view(ptr, n);
+
+    MatrixStack<Number>::MatV matrix;
+    m_matrix_stack->materialize(matrix, q_view);
+
+    m_A_q = std::make_unique<MatrixOperator<Number>>(
+        std::move(matrix),
+        m_system_matrix_sp
+    );
+}
+
+void ElasticityModel::assemble_partial_u_A_q_u(py::array_t<float, py::array::c_style | py::array::forcecast> q_np) 
+{   
+    if (q_np.ndim() != 1)
+        throw std::runtime_error("q must be a 1D numpy array");
+
+    const auto buf = q_np.request();
+    const std::size_t n = static_cast<std::size_t>(buf.size);
+    const auto *ptr = static_cast<const float *>(buf.ptr);
+
+    AssertDimension(n, m_matrix_stack->dim_Q());
+
+    ArrayView<const float> q_view(ptr, n);
+
+    MatrixStack<Number>::MatV matrix;
+    m_matrix_stack->materialize(matrix, q_view);
+
+    m_A_q = std::make_unique<MatrixOperator<Number>>(
+        std::move(matrix),
+        m_system_matrix_sp
+    );
+}
+
+// void ElasticityModel::set_q(py::array_t<float, py::array::c_style | py::array::forcecast> q_np)
+// {
+//     if (q_np.ndim() != 1)
+//         throw std::runtime_error("q must be a 1D numpy array");
+
+//     auto buf = q_np.request();
+//     const auto n = static_cast<std::size_t>(buf.size);
+//     const float* ptr = static_cast<float*>(buf.ptr);
+
+//     m_q.reinit(n);
+//     std::copy(ptr, ptr + n, m_q.begin());   // one copy
+// }

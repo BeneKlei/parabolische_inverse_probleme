@@ -6,6 +6,7 @@
 #include <deal.II/base/exceptions.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/solver_cg.h>
+#include <deal.II/base/array_view.h>
 
 #include <memory>
 #include <vector>
@@ -33,14 +34,12 @@ public:
 
   const MatV &A_i(unsigned int i) const;
 
-  // Returns shared matrix for this q (cached). May assemble if not cached.
-  void materialize(const Vector<Number> &q) const;
 
-  void clear_cache() const;
-  bool same_q(const Vector<Number> &q) const;
-  bool has_cache() const;
-  const Vector<Number>& cached_q() const;
-  std::shared_ptr<const MatV> cached_Aq() const;
+  void materialize(MatV& matrix,
+                   ArrayView<const float>& q) const;
+  void apply_to_each_matrix(const Vector<Number> &v,
+                            std::vector<Vector<Number>> &result,
+                            const bool include_affine_base) const;
 
 private:
   std::vector<MatV> m_A;
@@ -49,24 +48,21 @@ private:
   bool m_affine;
 
   // cache (one-entry or multi-entry). Marked mutable since materialize() is logically const.
-  mutable std::shared_ptr<MatV> m_cached_Aq;
-  mutable Vector<Number>        m_cached_q;
-  mutable bool                  m_has_cache = false;
+  // mutable std::shared_ptr<MatV> m_cached_Aq;
+  // mutable Vector<Number>        m_cached_q;
+  // mutable bool                  m_has_cache = false;
 };
 
-// ############################### BilinearAqOp ###############################
+// ############################### MatrixOperator ###############################
 
 template <class Number>
-class BilinearAqOp : public Aq_op<Number>
+class MatrixOperator : public BaseOperator<Number>
 {
 public:
-  using Stack = MatrixStack<Number>;
-  using MatV  = typename Stack::MatV;
+  using MatV = SparseMatrix<Number>;
 
-  BilinearAqOp(std::shared_ptr<const Stack> stack,
-               const Vector<Number>&        q);
-
-  const Vector<Number> &q() const override;
+  MatrixOperator(MatV matrix,
+                 const SparsityPattern& sp);
 
   void apply(Vector<Number> &y,
              const Vector<Number> &u) const override;
@@ -87,7 +83,6 @@ public:
   std::size_t dim_range() const override;
 
 private:
-  std::shared_ptr<const Stack> m_stack;
-  Vector<Number>               m_q;
-  std::shared_ptr<const MatV>  m_Aq;
+  const MatV  m_matrix;
+  const SparsityPattern& m_sp;
 };

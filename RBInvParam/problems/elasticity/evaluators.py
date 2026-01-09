@@ -37,14 +37,13 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         assert q in self.Q
         assert len(q) == 1
 
-
-        self.elasticity_model.set_q(q.to_numpy().flatten())
-        self.elasticity_model.assemble_system_operators()
+        self.elasticity_model.assemble_A_q(q.to_numpy().flatten())
         
         return {
             'A_q' : DealIIBaseOperator(op = self.elasticity_model.m_A_q),
             'partial_q_A_q_u' : None,
-            'partial_u_A_q_u' : DealIIBaseOperator(op = self.elasticity_model.m_partial_u_A_q_u),
+            #'partial_u_A_q_u' : DealIIBaseOperator(op = self.elasticity_model.m_partial_u_A_q_u),
+            'partial_u_A_q_u' : None,
         }
     
     def clear_rhs_boundary_dofs(self, 

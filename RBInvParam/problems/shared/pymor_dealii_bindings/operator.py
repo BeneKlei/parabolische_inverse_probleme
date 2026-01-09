@@ -102,12 +102,11 @@ class DealIISymmetricMatrixOperator(DealIIMatrixOperator):
             matrix.add(c, op.matrix)
         return DealIISymmetricMatrixOperator(matrix, name=name)
 
-
 class DealIIBaseOperator(LinearComplexifiedListVectorArrayOperatorBase):
     """Wraps a dealII matrix as an |Operator|."""
 
     def __init__(self, op, name=None):
-        assert isinstance(op, pd2.BilinearAqOp)
+        assert isinstance(op, pd2.BaseOperator)
         
         self.source = DealIIVectorSpace(
             op.dim_source())

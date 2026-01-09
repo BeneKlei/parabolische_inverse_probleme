@@ -349,6 +349,7 @@ def main():
 
     _q_start = FOM.Q.make_array(q_start)
     J = FOM.compute_objective(_q_start)
+
     print(J)
     print(np.sqrt(2 * J))
 
