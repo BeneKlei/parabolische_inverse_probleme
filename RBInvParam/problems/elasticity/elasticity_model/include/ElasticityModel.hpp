@@ -2,6 +2,7 @@
 #include <pybind11/numpy.h>
 namespace py = pybind11;
 
+#include <deal.II/base/exceptions.h>
 #include <deal.II/base/array_view.h>
 
 #include "MaterialModel.hpp"
@@ -22,11 +23,11 @@ public:
     
     void setup_system_operator();
     void assemble_A_q(py::array_t<float, py::array::c_style | py::array::forcecast> q_np);
-    void assemble_partial_q_A_q_u(py::array_t<float, py::array::c_style | py::array::forcecast> q_np);
-    void assemble_partial_u_A_q_u(
+    void assemble_partial_q_A_q_u(
         py::array_t<float, py::array::c_style | py::array::forcecast> q_np,
-        
+        const Vector<Number>& u
     );
+    void assemble_partial_u_A_q_u(py::array_t<float, py::array::c_style | py::array::forcecast> q_np);
 
     
 
@@ -37,6 +38,13 @@ public:
     std::unique_ptr<Op> m_partial_u_A_q_u;
 
 private:
+    void _unpack_q_1d(
+        py::array_t<float, py::array::c_style | py::array::forcecast> q_np,
+        py::buffer_info &buffer,
+        ArrayView<const float> &q_view
+    ) const;
+
+
     const ElasticityModelConfig& m_elasticity_config;
 
     std::shared_ptr<const MatrixStack<Number>> m_matrix_stack;

@@ -44,16 +44,9 @@ void ElasticityModel::setup_system_operator()
 
 void ElasticityModel::assemble_A_q(py::array_t<float, py::array::c_style | py::array::forcecast> q_np) 
 {   
-    if (q_np.ndim() != 1)
-        throw std::runtime_error("q must be a 1D numpy array");
-
-    const auto buf = q_np.request();
-    const std::size_t n = static_cast<std::size_t>(buf.size);
-    const auto *ptr = static_cast<const float *>(buf.ptr);
-
-    AssertDimension(n, m_matrix_stack->dim_Q());
-
-    ArrayView<const float> q_view(ptr, n);
+    py::buffer_info buf;
+    ArrayView<const float> q_view;
+    _unpack_q_1d(std::move(q_np), buf, q_view);
 
     MatrixStack<Number>::MatV matrix;
     m_matrix_stack->materialize(matrix, q_view);
@@ -62,61 +55,61 @@ void ElasticityModel::assemble_A_q(py::array_t<float, py::array::c_style | py::a
         std::move(matrix),
         m_system_matrix_sp
     );
+}
+
+void ElasticityModel::assemble_partial_q_A_q_u(
+    py::array_t<float, py::array::c_style | py::array::forcecast> q_np,
+    const Vector<Number>& u) 
+{   
+    py::buffer_info buf;
+    ArrayView<const float> q_view;
+    _unpack_q_1d(std::move(q_np), buf, q_view);
+
+    AssertDimension(v.size(), m_matrix_stack->dim_V());
+
+    // Lorem Ipsum
+
+    // ArrayView<const float> q_view(ptr, n);
+    // std::vector<Vector<Number>> A_us;
+    // FullMatrix<Number>> ;
+
+
+    // m_matrix_stack->apply_to_each_matrix(u, A_us, false);
+
+    // m_partial_q_A_q_u = std::make_unique<MatrixOperator<Number>>(
+    //     std::move(matrix),
+    //     m_system_matrix_sp
+    // );
 }
 
 void ElasticityModel::assemble_partial_u_A_q_u(py::array_t<float, py::array::c_style | py::array::forcecast> q_np) 
 {   
-    if (q_np.ndim() != 1)
-        throw std::runtime_error("q must be a 1D numpy array");
-
-    const auto buf = q_np.request();
-    const std::size_t n = static_cast<std::size_t>(buf.size);
-    const auto *ptr = static_cast<const float *>(buf.ptr);
-
-    AssertDimension(n, m_matrix_stack->dim_Q());
-
-    ArrayView<const float> q_view(ptr, n);
+    py::buffer_info buf;
+    ArrayView<const float> q_view;
+    _unpack_q_1d(std::move(q_np), buf, q_view);
 
     MatrixStack<Number>::MatV matrix;
     m_matrix_stack->materialize(matrix, q_view);
 
-    m_A_q = std::make_unique<MatrixOperator<Number>>(
+    m_partial_u_A_q_u = std::make_unique<MatrixOperator<Number>>(
         std::move(matrix),
         m_system_matrix_sp
     );
 }
 
-void ElasticityModel::assemble_partial_u_A_q_u(py::array_t<float, py::array::c_style | py::array::forcecast> q_np) 
-{   
-    if (q_np.ndim() != 1)
-        throw std::runtime_error("q must be a 1D numpy array");
+void ElasticityModel::_unpack_q_1d(
+  py::array_t<float, py::array::c_style | py::array::forcecast> q_np,
+  py::buffer_info &buffer,
+  ArrayView<const float> &q_view) const
+{
+  if (q_np.ndim() != 1)
+    throw std::runtime_error("q must be a 1D numpy array");
 
-    const auto buf = q_np.request();
-    const std::size_t n = static_cast<std::size_t>(buf.size);
-    const auto *ptr = static_cast<const float *>(buf.ptr);
+  buffer = q_np.request();
 
-    AssertDimension(n, m_matrix_stack->dim_Q());
+  const std::size_t n = static_cast<std::size_t>(buffer.size);
+  AssertDimension(n, m_matrix_stack->dim_Q());
 
-    ArrayView<const float> q_view(ptr, n);
-
-    MatrixStack<Number>::MatV matrix;
-    m_matrix_stack->materialize(matrix, q_view);
-
-    m_A_q = std::make_unique<MatrixOperator<Number>>(
-        std::move(matrix),
-        m_system_matrix_sp
-    );
+  const auto *ptr = static_cast<const float *>(buffer.ptr);
+  q_view = ArrayView<const float>(ptr, n);
 }
-
-// void ElasticityModel::set_q(py::array_t<float, py::array::c_style | py::array::forcecast> q_np)
-// {
-//     if (q_np.ndim() != 1)
-//         throw std::runtime_error("q must be a 1D numpy array");
-
-//     auto buf = q_np.request();
-//     const auto n = static_cast<std::size_t>(buf.size);
-//     const float* ptr = static_cast<float*>(buf.ptr);
-
-//     m_q.reinit(n);
-//     std::copy(ptr, ptr + n, m_q.begin());   // one copy
-// }

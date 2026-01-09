@@ -46,7 +46,7 @@ MatrixStack<Number>::A_i(const unsigned int i) const
 template <class Number>
 void MatrixStack<Number>::materialize(MatV& matrix, ArrayView<const float>& q) const
 {
-    AssertThrow(q.size() == dim_Q(), ExcDimensionMismatch(q.size(), dim_Q()));
+    AssertDimension(q.size(), dim_Q());
 
     matrix.reinit(m_sp);
 
@@ -76,7 +76,7 @@ MatrixStack<Number>::apply_to_each_matrix(
   const bool include_affine_base) const
 {
   AssertThrow(dim_V() > 0, ExcInternalError());
-  AssertThrow(v.size() == dim_V(), ExcDimensionMismatch(v.size(), dim_V()));
+  AssertDimension(v.size(), dim_V());
 
   const unsigned int start =
     (m_affine && !include_affine_base) ? 1u : 0u;
@@ -110,8 +110,8 @@ template <class Number>
 void MatrixOperator<Number>::apply(Vector<Number>       &y,
                                    const Vector<Number> &u) const
 {
-  AssertDimension(u.size(), this->dim_source());
-  y.reinit(this->dim_range());
+  AssertDimension(u.size(), dim_source());
+  y.reinit(dim_range());
   m_matrix.vmult(y, u);
 }
 
@@ -119,8 +119,8 @@ template <class Number>
 void MatrixOperator<Number>::apply_adjoint(Vector<Number>       &y,
                                            const Vector<Number> &w) const
 {
-  AssertDimension(w.size(), this->dim_range());
-  y.reinit(this->dim_source());
+  AssertDimension(w.size(), dim_range());
+  y.reinit(dim_source());
   m_matrix.Tvmult(y, w);
 }
 
@@ -128,8 +128,8 @@ template <class Number>
 void MatrixOperator<Number>::apply_inverse(Vector<Number>       &y,
                                            const Vector<Number> &f) const
 {
-    AssertDimension(f.size(), this->dim_range());
-    y.reinit(this->dim_source());
+    AssertDimension(f.size(), dim_range());
+    y.reinit(dim_source());
     y = 0;
 
     SolverControl solver_control(20000, 1e-12);
