@@ -6,18 +6,18 @@
 #include "MatrixOperator.hpp"
 
 template class MatrixStack<double>;
-template class MatrixOperator<double>;
+template class MatrixOperator<double, SparseMatrix<double>>;
+template class MatrixOperator<double, FullMatrix<double>>;
 
 // ############################### MatrixStack ###############################
 
 template <class Number>
 MatrixStack<Number>::MatrixStack(
     std::vector<MatV>&& matrices, 
-    const SparsityPattern& sp,
-    bool affine) 
+    bool affine)     
   : m_A(std::move(matrices))
-  , m_sp(sp)
   , m_affine(affine)
+
 {
   AssertThrow(!m_A.empty(), ExcMessage("MatrixStack: empty m_A."));
 }
@@ -48,7 +48,7 @@ void MatrixStack<Number>::materialize(MatV& matrix, ArrayView<const float>& q) c
 {
     AssertDimension(q.size(), dim_Q());
 
-    matrix.reinit(m_sp);
+    matrix.reinit(m_A[0].get_sparsity_pattern());
 
     matrix = Number(0);
     if (m_affine)
@@ -100,73 +100,82 @@ MatrixStack<Number>::apply_to_each_matrix(
 
 // ############################### MatrixOperator ###############################
 
-template <class Number>
-MatrixOperator<Number>::MatrixOperator(MatrixOperator::MatV matrix, const SparsityPattern& sp)
+template <class Number, class MatrixType>
+MatrixOperator<Number, MatrixType>::MatrixOperator(MatrixOperator::MatV matrix)
   : m_matrix(std::move(matrix))
-  , m_sp(sp) {}
+  {}
 
 
-template <class Number>
-void MatrixOperator<Number>::apply(Vector<Number>       &y,
-                                   const Vector<Number> &u) const
+template <class Number, class MatrixType>
+void MatrixOperator<Number, MatrixType>::apply(Vector<Number>       &y,
+                                               const Vector<Number> &u) const
 {
   AssertDimension(u.size(), dim_source());
   y.reinit(dim_range());
   m_matrix.vmult(y, u);
 }
 
-template <class Number>
-void MatrixOperator<Number>::apply_adjoint(Vector<Number>       &y,
-                                           const Vector<Number> &w) const
+template <class Number, class MatrixType>
+void MatrixOperator<Number, MatrixType>::apply_adjoint(Vector<Number>       &y,
+                                                       const Vector<Number> &w) const
 {
   AssertDimension(w.size(), dim_range());
   y.reinit(dim_source());
   m_matrix.Tvmult(y, w);
 }
 
-template <class Number>
-void MatrixOperator<Number>::apply_inverse(Vector<Number>       &y,
-                                           const Vector<Number> &f) const
+template <class Number, class MatrixType>
+void MatrixOperator<Number, MatrixType>::apply_inverse(Vector<Number> &y,
+                                                       const Vector<Number> &f) const
 {
-    AssertDimension(f.size(), dim_range());
-    y.reinit(dim_source());
-    y = 0;
+  AssertDimension(f.size(), this->dim_range());
+  y.reinit(this->dim_source());
+  y = 0;
 
-    SolverControl solver_control(20000, 1e-12);
-    SolverCG<> solver(solver_control);
-    PreconditionSSOR<> preconditioner;
+  SolverControl solver_control(20000, 1e-12);
+  SolverCG<> solver(solver_control);
+
+  if constexpr (std::is_same_v<MatrixType, SparseMatrix<Number>>)
+  {
+    PreconditionSSOR<SparseMatrix<Number>> preconditioner;
     preconditioner.initialize(m_matrix, 1.2);
     solver.solve(m_matrix, y, f, preconditioner);
+  }
+  else
+  {
+    PreconditionIdentity preconditioner;
+    solver.solve(m_matrix, y, f, preconditioner);
+  }
 }
 
 
-template <class Number>
-void MatrixOperator<Number>::apply_inverse_adjoint(Vector<Number>       &y,
-                                                   const Vector<Number> &f) const
+template <class Number, class MatrixType>
+void MatrixOperator<Number, MatrixType>::apply_inverse_adjoint(Vector<Number>       &y,
+                                                               const Vector<Number> &f) const
 {
   AssertThrow(false, ExcNotDefined());
 }
 
-template <class Number>
-bool MatrixOperator<Number>::has_inverse() const
+template <class Number, class MatrixType>
+bool MatrixOperator<Number, MatrixType>::has_inverse() const
 {
   return true;
 }
 
-template <class Number>
-bool MatrixOperator<Number>::has_inverse_adjoint() const
+template <class Number, class MatrixType>
+bool MatrixOperator<Number, MatrixType>::has_inverse_adjoint() const
 {
   return false;
 }
 
-template <class Number>
-std::size_t MatrixOperator<Number>::dim_source() const 
+template <class Number, class MatrixType>
+std::size_t MatrixOperator<Number, MatrixType>::dim_source() const 
 {
   return m_matrix.m();
 }
 
-template <class Number>
-std::size_t MatrixOperator<Number>::dim_range() const 
+template <class Number, class MatrixType>
+std::size_t MatrixOperator<Number, MatrixType>::dim_range() const 
 {
   return m_matrix.n();
 }

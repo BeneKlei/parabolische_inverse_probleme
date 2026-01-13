@@ -256,34 +256,43 @@ void bind_sparsity_pattern(pybind11::module& module) {
     .def("max_entries_per_row", &dealii::SparsityPattern::max_entries_per_row);
 }
 
-template <class Number>
+template <typename Number>
 void bind_operators(py::module_& m)
 {
-  using BaseOperator   = BaseOperator<Number>;
-  using MatrixOperator = MatrixOperator<Number>;
-  using Vec            = dealii::Vector<Number>;
+  using BaseOp   = BaseOperator<Number>;
+  using SparseOp = SparseMatrixOperator<Number>;
+  using FullOp   = FullMatrixOperator<Number>;
+  using Vec      = dealii::Vector<Number>;
 
-  py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator")
-      .def("apply", &BaseOperator::apply, py::arg("y"), py::arg("x"))
-      .def("apply_adjoint", &BaseOperator::apply_adjoint, py::arg("y"), py::arg("x"))
-      .def("apply_inverse", &BaseOperator::apply_inverse, py::arg("y"), py::arg("x"))
-      .def("apply_inverse_adjoint", &BaseOperator::apply_inverse_adjoint, py::arg("y"), py::arg("x"))
-      .def("has_inverse", &BaseOperator::has_inverse)
-      .def("has_inverse_adjoint", &BaseOperator::has_inverse_adjoint)
-      .def("dim_source", &BaseOperator::dim_source)
-      .def("dim_range", &BaseOperator::dim_range);
-  
-  py::class_<MatrixOperator, BaseOperator, std::shared_ptr<MatrixOperator>>(m, "MatrixOperator")
-      .def("apply", &MatrixOperator::apply, py::arg("y"), py::arg("u"))
-      .def("apply_adjoint", &MatrixOperator::apply_adjoint, py::arg("y"), py::arg("w"))
-      .def("apply_inverse", &MatrixOperator::apply_inverse, py::arg("y"), py::arg("f"))
-      .def("apply_inverse_adjoint", &MatrixOperator::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
+  py::class_<BaseOp, std::shared_ptr<BaseOp>>(m, "BaseOperator")
+      .def("apply", &BaseOp::apply, py::arg("y"), py::arg("x"))
+      .def("apply_adjoint", &BaseOp::apply_adjoint, py::arg("y"), py::arg("x"))
+      .def("apply_inverse", &BaseOp::apply_inverse, py::arg("y"), py::arg("x"))
+      .def("apply_inverse_adjoint", &BaseOp::apply_inverse_adjoint, py::arg("y"), py::arg("x"))
+      .def("has_inverse", &BaseOp::has_inverse)
+      .def("has_inverse_adjoint", &BaseOp::has_inverse_adjoint)
+      .def("dim_source", &BaseOp::dim_source)
+      .def("dim_range", &BaseOp::dim_range);
 
-      .def("has_inverse", &MatrixOperator::has_inverse)
-      .def("has_inverse_adjoint", &MatrixOperator::has_inverse_adjoint)
+  py::class_<SparseOp, BaseOp, std::shared_ptr<SparseOp>>(m, "SparseMatrixOperator")
+      .def("apply", &SparseOp::apply, py::arg("y"), py::arg("u"))
+      .def("apply_adjoint", &SparseOp::apply_adjoint, py::arg("y"), py::arg("w"))
+      .def("apply_inverse", &SparseOp::apply_inverse, py::arg("y"), py::arg("f"))
+      .def("apply_inverse_adjoint", &SparseOp::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
+      .def("has_inverse", &SparseOp::has_inverse)
+      .def("has_inverse_adjoint", &SparseOp::has_inverse_adjoint)
+      .def("dim_source", &SparseOp::dim_source)
+      .def("dim_range", &SparseOp::dim_range);
 
-      .def("dim_source", &MatrixOperator::dim_source)
-      .def("dim_range", &MatrixOperator::dim_range);
+  py::class_<FullOp, BaseOp, std::shared_ptr<FullOp>>(m, "FullMatrixOperator")
+      .def("apply", &FullOp::apply, py::arg("y"), py::arg("u"))
+      .def("apply_adjoint", &FullOp::apply_adjoint, py::arg("y"), py::arg("w"))
+      .def("apply_inverse", &FullOp::apply_inverse, py::arg("y"), py::arg("f"))
+      .def("apply_inverse_adjoint", &FullOp::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
+      .def("has_inverse", &FullOp::has_inverse)
+      .def("has_inverse_adjoint", &FullOp::has_inverse_adjoint)
+      .def("dim_source", &FullOp::dim_source)
+      .def("dim_range", &FullOp::dim_range);
 }
 
 PYBIND11_MODULE(pymor_dealii_bindings, m) {

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/full_matrix.h>
+
 #include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/base/exceptions.h>
@@ -25,7 +27,6 @@ public:
 
   MatrixStack(
     std::vector<MatV>&& matrices, 
-    const SparsityPattern& sp,
     bool affine = false
   );
 
@@ -43,8 +44,6 @@ public:
 
 private:
   std::vector<MatV> m_A;
-  const SparsityPattern& m_sp;
-
   bool m_affine;
 
   // cache (one-entry or multi-entry). Marked mutable since materialize() is logically const.
@@ -54,15 +53,14 @@ private:
 };
 
 // ############################### MatrixOperator ###############################
-
-template <class Number>
+ 
+template <class Number,  class MatrixType>
 class MatrixOperator : public BaseOperator<Number>
 {
 public:
-  using MatV = SparseMatrix<Number>;
+  using MatV = MatrixType;
 
-  MatrixOperator(MatV matrix,
-                 const SparsityPattern& sp);
+  MatrixOperator(MatV matrix);
 
   void apply(Vector<Number> &y,
              const Vector<Number> &u) const override;
@@ -84,5 +82,11 @@ public:
 
 private:
   const MatV  m_matrix;
-  const SparsityPattern& m_sp;
 };
+
+
+template <class Number>
+using SparseMatrixOperator = MatrixOperator<Number, SparseMatrix<Number>>;
+
+template <class Number>
+using FullMatrixOperator   = MatrixOperator<Number, FullMatrix<Number>>;

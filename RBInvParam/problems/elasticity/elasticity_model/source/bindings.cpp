@@ -21,31 +21,38 @@ PYBIND11_MODULE(elasticity_model, m) {
         .def(py::init<const ElasticityModelConfig&>())
         .def("setup_system_operator", &ElasticityModel::setup_system_operator)
 
-        .def("assemble_A_q", &ElasticityModel::assemble_A_q)
+        .def("assemble_A_q", 
+             &ElasticityModel::assemble_A_q, 
+             py::arg("q_np"),
+             py::arg("time_step") = 0)
+     
+          .def("assemble_partial_q_A_q_u", 
+             &ElasticityModel::assemble_partial_q_A_q_u, 
+             py::arg("u"),
+             py::arg("time_step") = 0)
+
+          .def("assemble_partial_u_A_q_u", 
+             &ElasticityModel::assemble_partial_u_A_q_u, 
+             py::arg("q_np"),
+             py::arg("time_step") = 0)
+
         // .def("assemble_partial_q_A_q_u", &ElasticityModel::assemble_partial_q_A_q_u)
         // .def("assemble_partial_u_A_q_u", &ElasticityModel::assemble_partial_u_A_q_u)
     
-        .def_property_readonly(
-            "m_A_q",
-            [](ElasticityModel &self) -> ElasticityModel::Op* {
-                return self.m_A_q.get();
-            },
-            py::return_value_policy::reference_internal
-        )
-        .def_property_readonly(
-            "m_partial_q_A_q_u",
-            [](ElasticityModel &self) -> ElasticityModel::Op* {
-                return self.m_partial_q_A_q_u.get();
-            },
-            py::return_value_policy::reference_internal
-        )
-        .def_property_readonly(
-            "m_partial_u_A_q_u",
-            [](ElasticityModel &self) -> ElasticityModel::Op* {
-                return self.m_partial_u_A_q_u.get();
-            },
-            py::return_value_policy::reference_internal
-        );
+        .def("get_A_q",
+             &ElasticityModel::get_A_q,
+             py::arg("time_step") = 0,
+             py::return_value_policy::reference_internal)
+
+        .def("get_partial_q_A_q_u",
+             &ElasticityModel::get_partial_q_A_q_u,
+             py::arg("time_step") = 0,
+             py::return_value_policy::reference_internal)
+
+        .def("get_partial_u_A_q_u",
+             &ElasticityModel::get_partial_u_A_q_u,
+             py::arg("time_step") = 0,
+             py::return_value_policy::reference_internal);
 
     py::class_<ElasticityModelConfig, MaterialModelBaseConfig>(m, "ElasticityModelConfig")
          .def(py::init<>())

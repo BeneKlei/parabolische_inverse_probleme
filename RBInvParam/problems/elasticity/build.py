@@ -185,15 +185,14 @@ def build_InstationaryModelIP(setup : Dict,
         source = V_h,
         range = V_h,
         Q = Q_h    
+    )    
+    B = ElasticitiyFOMEvaluatorB(
+        elasticity_model = elasticity_model,
+        source=Q_h,
+        range=V_h,
+        Q = Q_h,
+        V = V_h   
     )
-    B = None
-    # B = ElasticitiyFOMEvaluatorB(
-    #     material_model = elasticity_model,
-    #     source=Q_h,
-    #     range=V_h,
-    #     Q = Q_h,
-    #     V = V_h   
-    # )
     ############################### Coercivity ###############################
 
     assert product_names['prod_V'] == 'h1_0_semi'

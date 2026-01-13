@@ -43,12 +43,14 @@ logger.setLevel(logging.DEBUG)
 #########################################################################################''
 
 set_log_levels({
-    'pymor' : 'WARN'
+    'pymor.operators.constructions.LincombOperator' : 'ERROR',
+    'pymor.operators.constructions.AdjointOperator' : 'ERROR'
 })
 
-logging.getLogger(
-    "pymor.operators.constructions.LincombOperator"
-).setLevel(logging.ERROR)
+# logging.getLogger(
+#     "pymor.operators.constructions.LincombOperator",
+#     "pymor.operators.constructions.AdjointOperator"
+# ).setLevel(logging.ERROR)
 
 
 
@@ -202,18 +204,11 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsGrid,                                   
-            'hyperparameter' : {
-                'spatial_resolution' : [4,y_res,z_res],
-                # # #'radius' : 2.0,
-                # 'radius' : 0.001,
-                # 'second_row' : False 
-                #'grid_sizes' : [2,8,8]
-                #'grid_sizes' : [5,11,11]
-            }
+            'hyperparameter' : {}
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps
@@ -299,13 +294,13 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-    # p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
-    # FOM.A.elasticity_model.save_time_series(
-    #     [v.real_part.impl for v in p_exact.vectors],
-    #     str('p_exact'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
+    FOM.A.elasticity_model.save_time_series(
+        [v.real_part.impl for v in p_exact.vectors],
+        str('p_exact'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
     u_start = FOM.solve_state(FOM.Q.make_array(q_start))
     FOM.A.elasticity_model.save_time_series(
@@ -315,13 +310,13 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-    # p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
-    # FOM.A.elasticity_model.save_time_series(
-    #     [v.real_part.impl for v in p_start.vectors],
-    #     str('p_start'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
+    FOM.A.elasticity_model.save_time_series(
+        [v.real_part.impl for v in p_start.vectors],
+        str('p_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
     diff = u_start - u_exact    
     FOM.A.elasticity_model.save_time_series(

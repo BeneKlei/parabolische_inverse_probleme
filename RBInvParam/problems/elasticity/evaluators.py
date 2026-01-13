@@ -37,13 +37,21 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         assert q in self.Q
         assert len(q) == 1
 
-        self.elasticity_model.assemble_A_q(q.to_numpy().flatten())
+        self.elasticity_model.assemble_A_q(
+            q.to_numpy().flatten()
+        )
+        # self.elasticity_model.assemble_partial_q_A_q_u(
+        #     q.to_numpy().flatten(),
+        #     u.vectors[0].real_part.impl
+        # )
+        self.elasticity_model.assemble_partial_u_A_q_u(
+            q.to_numpy().flatten()
+        )
         
         return {
-            'A_q' : DealIIBaseOperator(op = self.elasticity_model.m_A_q),
+            'A_q' : DealIIBaseOperator(op = self.elasticity_model.get_A_q()),
             'partial_q_A_q_u' : None,
-            #'partial_u_A_q_u' : DealIIBaseOperator(op = self.elasticity_model.m_partial_u_A_q_u),
-            'partial_u_A_q_u' : None,
+            'partial_u_A_q_u' : DealIIBaseOperator(op = self.elasticity_model.get_partial_u_A_q_u()),
         }
     
     def clear_rhs_boundary_dofs(self, 
@@ -52,7 +60,7 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         
         assert isinstance(rhs, ListVectorArray)        
         for v in rhs.vectors:
-            self.material_model.clear_rhs_boundary_dofs(v.real_part.impl)
+            self.elasticity_model.clear_rhs_boundary_dofs(v.real_part.impl)
 
         if flip:
             return self.flip_vector_array(rhs)
@@ -97,17 +105,20 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
 
     def __call__(self, 
                  u: ListVectorArray,
-                 parameter_basis_idx: int) -> B_u:
+                 time_step: int) -> B_u:
         assert u in self.V
         # TODO Check how this function can be vectorized
         assert len(u) == 1
         assert isinstance(u, ListVectorArray)
         
-        #parameter_basis_idx = 0
-        self.material_model.assemble_system_matrix_derivative(u.vectors[0].real_part.impl, parameter_basis_idx)
-        B_u_op = DealIIMatrixOperator(
-            matrix = self.material_model.system_matrix_derivatives[parameter_basis_idx]
+        self.elasticity_model.assemble_partial_q_A_q_u(
+            u.vectors[0].real_part.impl,
+            time_step = time_step
         )
+
+        B_u_op = DealIIBaseOperator(op = self.elasticity_model.get_partial_u_A_q_u(
+            time_step = time_step
+        )),
 
         def _B_u(d: NumpyVectorArray) -> pd2.Vector:
             # TODO Move parameter space handling to C++ and use pd2.Vector

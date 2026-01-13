@@ -1,8 +1,14 @@
 import numpy as np
 import logging
-import os
 from pathlib import Path
 from datetime import datetime
+
+import os
+os.environ["OMP_NUM_THREADS"] = "4"
+os.environ["OPENBLAS_NUM_THREADS"] = "4"
+os.environ["MKL_NUM_THREADS"] = "4"
+os.environ["NUMEXPR_NUM_THREADS"] = "4"
+
 
 from pymor.basic import *
 
@@ -13,6 +19,7 @@ from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.problems.elasticity.build import build_InstationaryModelIP
 
+from RBInvParam.utils.create_q_exact import *
 
 #########################################################################################''
 
@@ -32,7 +39,9 @@ set_log_levels({
     'pymor' : 'WARN'
 })
 
-set_defaults({})
+logging.getLogger(
+    "pymor.operators.constructions.LincombOperator"
+).setLevel(logging.ERROR)
 
 #########################################################################################''
 
@@ -58,9 +67,14 @@ def main():
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
+    
+    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
-    q_exact[0,200] = 2
-    q_exact[0,300] = 3
+        
+    q_exact = q_exact.flatten()
+    q_exact = np.array([q_exact])
     #q_exact[0,700] = 40
     q_circ[0,:] = 1.0
 
@@ -75,14 +89,24 @@ def main():
         'system_matrix' : {
             'type' : mm.SystemMatrixType.CosseratDelamination,
             'hyperparameter' : {
-                'lambda' : 1e2,
-                'mu' : 1e2,
+                'lambda' : 1e1,
+                'mu' : 1e1,
                 'nu' : 1e-3,
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.SensorsR28d,                       # Type of observation operator (e.g., identity = full state observed)
-            'hyperparameter' : {}
+            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.SensorsGrid,                                   
+            'hyperparameter' : {
+                'spatial_resolution' : [4,y_res,z_res],
+                # # #'radius' : 2.0,
+                # 'radius' : 0.001,
+                # 'second_row' : False 
+                #'grid_sizes' : [2,8,8]
+                #'grid_sizes' : [5,11,11]
+            }
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps
@@ -143,6 +167,15 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
+    _q_start = FOM.Q.make_array(q_start)
+    J = FOM.compute_objective(_q_start)
+
+    print(J)
+    print(np.sqrt(2 * J))
+
+    import sys
+    sys.exit()
+
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
         'alpha_0': 1e-5,                                          # Initial regularization parameter
@@ -184,22 +217,7 @@ def main():
         save_path=save_path
     )
     q_est = optimizer.solve()
-    u = FOM.solve_state(q_est)
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in u.vectors],
-        str('u_est'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
-
-    diff = u - u_exact
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in diff.vectors],
-        str('diff_est'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
-
+   
 
 
 if __name__ == '__main__':
