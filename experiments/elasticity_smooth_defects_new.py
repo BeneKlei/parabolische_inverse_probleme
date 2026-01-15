@@ -182,7 +182,7 @@ TR_optimizer_parameter = {
     #     'atol': 1e-12,                                         # Absolute convergence tolerance
     #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
     # },
-        'enrichment': {
+    'enrichment': {
         'parameter_basis' : {
             'reduced_basis' : True,
             'additional_snapshots' : {
@@ -277,14 +277,14 @@ FOM_optimizer_parameter_identity = copy.deepcopy(FOM_optimizer_parameter_)
 FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 FOM_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
 
-EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
-EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
-EXPERIMENTS['FOM_grid'] = (setup_grid, FOM_optimizer_parameter_grid)
+# EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
+# EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
+# EXPERIMENTS['FOM_grid'] = (setup_grid, FOM_optimizer_parameter_grid)
 
 #----------------------------------------------------------------------------------------
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_nabla_J_time_step'] = True
 TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
 TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1, 'omega' : 0.1}
 
@@ -304,7 +304,7 @@ EXPERIMENTS['TR_grid_time_step'] = (setup_grid, TR_optimizer_parameter_grid)
 #----------------------------------------------------------------------------------------
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_nabla_J_time_step'] = True
 
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
@@ -331,9 +331,9 @@ TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
 TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
 
-EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
+# EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
-EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
+# EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
 
 prefix = 'smooth_defects'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

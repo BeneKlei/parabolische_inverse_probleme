@@ -181,7 +181,7 @@ TR_optimizer_parameter = {
     #     'atol': 1e-12,                                         # Absolute convergence tolerance
     #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
     # },
-        'enrichment': {
+    'enrichment': {
         'parameter_basis' : {
             'reduced_basis' : True,
             'additional_snapshots' : {
@@ -278,8 +278,8 @@ FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identit
 FOM_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
 
 EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
-EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
-EXPERIMENTS['FOM_grid'] = (setup_grid, FOM_optimizer_parameter_grid)
+# EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
+# EXPERIMENTS['FOM_grid'] = (setup_grid, FOM_optimizer_parameter_grid)
 
 #----------------------------------------------------------------------------------------
 
@@ -332,8 +332,8 @@ TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity
 TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
 
 EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
-EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
-EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
+#EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
+#EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
 
 
 #----------------------------------------------------------------------------------------
