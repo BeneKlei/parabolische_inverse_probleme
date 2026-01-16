@@ -290,10 +290,16 @@ class SecondOrderCrankNicolson(TimeStepper):
             A_q = self.A.get_A_q(q[0])
             S_zeta = self.M + dt**2 * zeta**2 * A_q
             S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
-
+        
         A_q = A_q.assemble()
         S_zeta = S_zeta.assemble()
         S_zeta_minus_one = S_zeta_minus_one.assemble()
+
+        # print(self.M)
+        # print(S_zeta)
+
+        # import sys
+        # sys.exit()
         
         if not rhs_time_dep:
             dt_R = dt * rhs
@@ -346,7 +352,7 @@ class SecondOrderCrankNicolson(TimeStepper):
             _rhs += zeta * dt_R
 
             if not self.apply_adjoint:
-                # TODO rework s.t. the the deal.ii solver is used
+                # TODO rework s.t. the the deal.ii solver is used                
                 U_cur = _lhs.apply_inverse(_rhs)
                 assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
             else:

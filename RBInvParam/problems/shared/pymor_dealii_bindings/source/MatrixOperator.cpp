@@ -101,9 +101,20 @@ MatrixStack<Number>::apply_to_each_matrix(
 // ############################### MatrixOperator ###############################
 
 template <class Number, class MatrixType>
-MatrixOperator<Number, MatrixType>::MatrixOperator(MatrixOperator::MatV matrix)
-  : m_matrix(std::move(matrix))
-  {}
+MatrixOperator<Number, MatrixType>::MatrixOperator(const MatrixOperator::MatV& matrix)
+{
+  if constexpr (std::is_same_v<MatrixType, SparseMatrix<Number>>)
+  {
+    m_matrix.reinit(matrix.get_sparsity_pattern());
+    m_matrix = Number(0);
+    m_matrix.add(1.0, matrix);
+  }
+  else if constexpr (std::is_same_v<MatrixType, FullMatrix<Number>>)
+  {
+    m_matrix.reinit(matrix.m(), matrix.n());
+    m_matrix = matrix;
+  }
+}
 
 
 template <class Number, class MatrixType>
@@ -128,6 +139,7 @@ template <class Number, class MatrixType>
 void MatrixOperator<Number, MatrixType>::apply_inverse(Vector<Number> &y,
                                                        const Vector<Number> &f) const
 {
+  //std::cout << "deal.ii apply_inverse" << std::endl;
   AssertDimension(f.size(), this->dim_range());
   y.reinit(this->dim_source());
   y = 0;

@@ -275,22 +275,26 @@ void bind_operators(py::module_& m)
       .def("dim_range", &BaseOp::dim_range);
 
   py::class_<SparseOp, BaseOp, std::shared_ptr<SparseOp>>(m, "SparseMatrixOperator")
+      .def(py::init<typename SparseOp::MatV&>(), py::arg("matrix"))
       .def("apply", &SparseOp::apply, py::arg("y"), py::arg("u"))
       .def("apply_adjoint", &SparseOp::apply_adjoint, py::arg("y"), py::arg("w"))
       .def("apply_inverse", &SparseOp::apply_inverse, py::arg("y"), py::arg("f"))
       .def("apply_inverse_adjoint", &SparseOp::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
       .def("has_inverse", &SparseOp::has_inverse)
       .def("has_inverse_adjoint", &SparseOp::has_inverse_adjoint)
+      .def("get_matrix", &SparseOp::get_matrix, py::return_value_policy::reference_internal)
       .def("dim_source", &SparseOp::dim_source)
       .def("dim_range", &SparseOp::dim_range);
 
   py::class_<FullOp, BaseOp, std::shared_ptr<FullOp>>(m, "FullMatrixOperator")
+      .def(py::init<typename FullOp::MatV&>(), py::arg("matrix"))
       .def("apply", &FullOp::apply, py::arg("y"), py::arg("u"))
       .def("apply_adjoint", &FullOp::apply_adjoint, py::arg("y"), py::arg("w"))
       .def("apply_inverse", &FullOp::apply_inverse, py::arg("y"), py::arg("f"))
       .def("apply_inverse_adjoint", &FullOp::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
       .def("has_inverse", &FullOp::has_inverse)
       .def("has_inverse_adjoint", &FullOp::has_inverse_adjoint)
+      .def("get_matrix", &FullOp::get_matrix, py::return_value_policy::reference_internal)
       .def("dim_source", &FullOp::dim_source)
       .def("dim_range", &FullOp::dim_range);
 }

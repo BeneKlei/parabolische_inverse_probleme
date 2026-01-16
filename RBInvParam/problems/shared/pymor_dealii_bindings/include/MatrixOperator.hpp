@@ -60,7 +60,7 @@ class MatrixOperator : public BaseOperator<Number>
 public:
   using MatV = MatrixType;
 
-  MatrixOperator(MatV matrix);
+  MatrixOperator(const MatV& matrix);
 
   void apply(Vector<Number> &y,
              const Vector<Number> &u) const override;
@@ -77,11 +77,13 @@ public:
   bool has_inverse() const override;
   bool has_inverse_adjoint() const override;
 
+  const MatV& get_matrix() const { return m_matrix; }   // <-- getter
+
   std::size_t dim_source() const override;
   std::size_t dim_range() const override;
 
 private:
-  const MatV  m_matrix;
+  MatV  m_matrix;
 };
 
 

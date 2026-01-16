@@ -112,7 +112,7 @@ class DealIIBaseOperator(LinearComplexifiedListVectorArrayOperatorBase):
             op.dim_source())
         self.range = DealIIVectorSpace(
             op.dim_range())
-                
+        
         self.__auto_init(locals())
 
     def _real_apply_one_vector(self, u, mu=None, prepare_data=None):
@@ -138,6 +138,12 @@ class DealIIBaseOperator(LinearComplexifiedListVectorArrayOperatorBase):
                                                prepare_data=None):
         raise NotImplementedError
 
+
+class SparseMatrixOperator(DealIIBaseOperator):    
+    def __init__(self, op, name=None):
+        assert isinstance(op, pd2.SparseMatrixOperator)
+        super().__init__(op)
+
     def _assemble_lincomb(
         self,
         operators,
@@ -146,16 +152,17 @@ class DealIIBaseOperator(LinearComplexifiedListVectorArrayOperatorBase):
         solver_options=None,
         name=None,
     ):
-        raise NotImplementedError
-        # if not all(isinstance(op, (DealIIMatrixOperator)) for op in operators):
-        #     return None
-        # if identity_shift != 0.0:
-        #     return None
-        # assert not solver_options  # linear solver is not yet configurable
 
-        # matrix = pd2.SparseMatrix(operators[0].matrix.get_sparsity_pattern())
-        # matrix.copy_from(operators[0].matrix)
-        # matrix *= coefficients[0]
-        # for op, c in zip(operators[1:], coefficients[1:]):
-        #     matrix.add(c, op.matrix)
-        # return DealIIMatrixOperator(matrix, name=name)
+        if not all(isinstance(op, (SparseMatrixOperator)) for op in operators):
+            return None
+        if identity_shift != 0.0:
+            return None
+        assert not solver_options  # linear solver is not yet configurable
+
+        matrix = pd2.SparseMatrix(operators[0].op.get_matrix().get_sparsity_pattern())
+        matrix.copy_from(operators[0].op.get_matrix())
+        matrix *= coefficients[0]
+        for _op, c in zip(operators[1:], coefficients[1:]):
+            matrix.add(c, _op.op.get_matrix())
+
+        return SparseMatrixOperator(pd2.SparseMatrixOperator(matrix=matrix), name=name)

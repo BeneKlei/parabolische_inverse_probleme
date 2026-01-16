@@ -14,9 +14,9 @@ import RBInvParam.problems.shared.material_model as mm
 import RBInvParam.problems.elasticity.elasticity_model as em
 
 from RBInvParam.problems.shared.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
-from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIIMatrixOperator, DealIISymmetricMatrixOperator
+from RBInvParam.problems.shared.pymor_dealii_bindings.operator import *
 from RBInvParam.utils.logger import get_default_logger
-from RBInvParam.utils.discretization import construct_noise_data, process_product_names
+from RBInvParam.utils.discretization import construct_noise_data
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.products import BochnerProductOperator, EnergyProductOperator
 from RBInvParam.error_estimators.objective_error_estimators import CoercivityConstantEstimator
@@ -175,9 +175,18 @@ def build_InstationaryModelIP(setup : Dict,
     }
     
     elasticity_model.assemble_mass_matrix()
-    M = DealIISymmetricMatrixOperator(
-        matrix = elasticity_model.mass_matrix
+    # M = DealIISymmetricMatrixOperator(
+    #     matrix = elasticity_model.mass_matrix
+    # )
+
+    
+    matrix = pd2.SparseMatrix(elasticity_model.mass_matrix.get_sparsity_pattern())
+    matrix.copy_from(elasticity_model.mass_matrix)
+    
+    M = SparseMatrixOperator(
+        op = pd2.SparseMatrixOperator(matrix = matrix)
     )
+
     L = V_h.make_array(elasticity_model.force_list)
 
     A = ElasticitiyFOMEvaluatorA(

@@ -17,7 +17,7 @@ from pymor.vectorarrays.numpy import NumpyVectorArray
 
 from RBInvParam.evaluators import FOMEvaluatorA, FOMEvaluatorB, B_u
 from RBInvParam.problems.elasticity.elasticity_model import ElasticityModel
-from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIIBaseOperator, DealIIMatrixOperator
+from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIIBaseOperator, DealIIMatrixOperator, SparseMatrixOperator
 from RBInvParam.problems.shared.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
 
 
@@ -40,7 +40,7 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         self.elasticity_model.assemble_A_q(
             q.to_numpy().flatten()
         )
-        return DealIIBaseOperator(op = self.elasticity_model.get_A_q())
+        return SparseMatrixOperator(op = self.elasticity_model.get_A_q())
 
     
     def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
@@ -68,7 +68,7 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
             q.to_numpy().flatten()
         )
 
-        return DealIIBaseOperator(op = self.elasticity_model.get_partial_u_A_q_u())
+        return SparseMatrixOperator(op = self.elasticity_model.get_partial_u_A_q_u())
         
     
     def clear_rhs_boundary_dofs(self, 
