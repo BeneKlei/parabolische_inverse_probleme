@@ -103,6 +103,8 @@ MatrixStack<Number>::apply_to_each_matrix(
 template <class Number, class MatrixType>
 MatrixOperator<Number, MatrixType>::MatrixOperator(const MatrixOperator::MatV& matrix)
 {
+  // TODO Assuming mat is SPD. Add asserts for this.
+
   if constexpr (std::is_same_v<MatrixType, SparseMatrix<Number>>)
   {
     m_matrix.reinit(matrix.get_sparsity_pattern());
@@ -165,7 +167,8 @@ template <class Number, class MatrixType>
 void MatrixOperator<Number, MatrixType>::apply_inverse_adjoint(Vector<Number>       &y,
                                                                const Vector<Number> &f) const
 {
-  AssertThrow(false, ExcNotDefined());
+  //AssertThrow(false, ExcNotDefined());
+  this->apply_inverse(y,f);
 }
 
 template <class Number, class MatrixType>

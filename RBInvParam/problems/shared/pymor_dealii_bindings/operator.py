@@ -130,13 +130,17 @@ class DealIIBaseOperator(LinearComplexifiedListVectorArrayOperatorBase):
         return r
 
     def _real_apply_adjoint_one_vector(self, v, mu=None, prepare_data=None):
-        r = self.source.real_zero_vector()
+        r = self.range.real_zero_vector()
         self.op.apply_adjoint(r.impl, v.impl)
         return r
 
-    def _real_apply_inverse_adjoint_one_vector(self, u, mu=None, initial_guess=None, least_squares=False,
+    def _real_apply_inverse_adjoint_one_vector(self, v, mu=None, initial_guess=None, least_squares=False,
                                                prepare_data=None):
-        raise NotImplementedError
+        if least_squares:
+            raise NotImplementedError
+        r = self.source.real_zero_vector()
+        self.op.apply_inverse_adjoint(r.impl, v.impl)
+        return r
 
 
 class SparseMatrixOperator(DealIIBaseOperator):    
