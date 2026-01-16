@@ -33,7 +33,15 @@ class EvaluatorA(ABC):
         self.translation_operator = translation_operator
 
     @abstractmethod
-    def __call__(self, q: VectorArray) -> Dict:
+    def get_A_q(self, q: VectorArray) -> Operator:
+        pass
+
+    @abstractmethod
+    def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+        pass
+
+    @abstractmethod
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
         pass
 
     def get_parameter_names(self) -> List[str] | None:
@@ -73,7 +81,15 @@ class FOMEvaluatorA(EvaluatorA):
         super().__init__(source, range, Q, parameter_names)
 
     @abstractmethod
-    def __call__(self, q: VectorArray) -> Operator:
+    def get_A_q(self, q: VectorArray) -> Operator:
+        pass
+
+    @abstractmethod
+    def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+        pass
+
+    @abstractmethod
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
         pass
 
     @abstractmethod

@@ -12,8 +12,8 @@ ElasticityModel::ElasticityModel(const ElasticityModelConfig& config)
     }
 
     m_A_q.resize(reserve_size);
-    m_partial_q_A_q_u.resize(reserve_size);
-    m_partial_u_A_q_u.resize(_nt);
+    m_partial_q_A_q_u.resize(_nt);
+    m_partial_u_A_q_u.resize(reserve_size);
 
 }
 
@@ -84,6 +84,7 @@ void ElasticityModel::assemble_partial_q_A_q_u(
     std::vector<Vector<Number>> A_us;
     m_matrix_stack->apply_to_each_matrix(u, A_us, false);
     FullMatrix<Number> matrix;
+    matrix.reinit(m_state_space_dim, m_param_space_dim);
 
     for (unsigned int j = 0; j < m_param_space_dim; ++j)
         for (unsigned int i = 0; i < m_state_space_dim; ++i)

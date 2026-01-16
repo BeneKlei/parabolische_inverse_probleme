@@ -32,27 +32,44 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         self.elasticity_model = elasticity_model
         super().__init__(source, range, Q, parameter_names)
         
-    
-    def __call__(self, q: VectorArray, u: VectorArray = None) -> Dict:
+
+    def get_A_q(self, q: VectorArray) -> Operator:
         assert q in self.Q
         assert len(q) == 1
 
         self.elasticity_model.assemble_A_q(
             q.to_numpy().flatten()
         )
-        # self.elasticity_model.assemble_partial_q_A_q_u(
-        #     q.to_numpy().flatten(),
-        #     u.vectors[0].real_part.impl
-        # )
+        return DealIIBaseOperator(op = self.elasticity_model.get_A_q())
+
+    
+    def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+        assert q in self.Q
+        assert len(q) == 1
+
+        assert u in self.source
+        assert len(u) == 1
+        
+        self.elasticity_model.assemble_partial_q_A_q_u(
+            q.to_numpy().flatten(),
+            u.vectors[0].real_part.impl
+        )
+
+        return DealIIBaseOperator(op = self.elasticity_model.get_partial_q_A_q_u())
+
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+        assert q in self.Q
+        assert len(q) == 1
+
+        assert u in self.source
+        assert len(u) == 1
+
         self.elasticity_model.assemble_partial_u_A_q_u(
             q.to_numpy().flatten()
         )
+
+        return DealIIBaseOperator(op = self.elasticity_model.get_partial_u_A_q_u())
         
-        return {
-            'A_q' : DealIIBaseOperator(op = self.elasticity_model.get_A_q()),
-            'partial_q_A_q_u' : None,
-            'partial_u_A_q_u' : DealIIBaseOperator(op = self.elasticity_model.get_partial_u_A_q_u()),
-        }
     
     def clear_rhs_boundary_dofs(self, 
                                 rhs: VectorArray,
@@ -116,9 +133,10 @@ class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
             time_step = time_step
         )
 
-        B_u_op = DealIIBaseOperator(op = self.elasticity_model.get_partial_u_A_q_u(
+        B_u_op = DealIIBaseOperator(op = self.elasticity_model.get_partial_q_A_q_u(
             time_step = time_step
-        )),
+        ))
+
 
         def _B_u(d: NumpyVectorArray) -> pd2.Vector:
             # TODO Move parameter space handling to C++ and use pd2.Vector

@@ -171,12 +171,12 @@ bool MatrixOperator<Number, MatrixType>::has_inverse_adjoint() const
 template <class Number, class MatrixType>
 std::size_t MatrixOperator<Number, MatrixType>::dim_source() const 
 {
-  return m_matrix.m();
+  return m_matrix.n();
 }
 
 template <class Number, class MatrixType>
 std::size_t MatrixOperator<Number, MatrixType>::dim_range() const 
 {
-  return m_matrix.n();
+  return m_matrix.m();
 }
 

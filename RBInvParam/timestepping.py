@@ -287,7 +287,7 @@ class SecondOrderCrankNicolson(TimeStepper):
             S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][0]
             S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][0]
         else:
-            A_q = self.A(q[0])[self.A_q_key]
+            A_q = self.A.get_A_q(q[0])
             S_zeta = self.M + dt**2 * zeta**2 * A_q
             S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
 
@@ -315,9 +315,13 @@ class SecondOrderCrankNicolson(TimeStepper):
                     S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][n]
                     S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][n]
                 else:
-                    A_q = self.A(q[n])
+                    A_q = self.A.get_A_q(q[n])
                     S_zeta = self.M + dt**2 * zeta**2 * A_q
                     S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
+                
+                A_q = A_q.assemble()
+                S_zeta = S_zeta.assemble()
+                S_zeta_minus_one = S_zeta_minus_one.assemble()
 
             if rhs_time_dep:#
                 rhs_cur = rhs[n]
@@ -344,10 +348,10 @@ class SecondOrderCrankNicolson(TimeStepper):
             if not self.apply_adjoint:
                 # TODO rework s.t. the the deal.ii solver is used
                 U_cur = _lhs.apply_inverse(_rhs)
-                #assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
+                assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
             else:
                 U_cur = _lhs.apply_inverse_adjoint(_rhs)
-                #assert np.max(np.abs(_lhs.apply_adjoint(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
+                assert np.max(np.abs(_lhs.apply_adjoint(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
 
 
             # --------------------------------------------------------------
@@ -427,7 +431,7 @@ class SecondOrderCrankNicolsonAdjointDTO(SecondOrderCrankNicolson):
             S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][0]
             S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][0]
         else:
-            A_q = self.A(q[0])
+            A_q = self.A.get_A_q(q[0])
             S_zeta = self.M + dt**2 * zeta**2 * A_q
             S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
 
@@ -457,7 +461,7 @@ class SecondOrderCrankNicolsonAdjointDTO(SecondOrderCrankNicolson):
                     S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][n]
                     S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][n]
                 else:
-                    A_q = self.A(q[n])
+                    A_q = self.A.get_A_q(q[n])
                     S_zeta = self.M + dt**2 * zeta**2 * A_q
                     S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
 

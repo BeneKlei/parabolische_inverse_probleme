@@ -33,6 +33,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_observation(
     break;
   case ObservationOperatorType::Sensors:
     sensor_points = this->_get_sensor_edges(ctx);
+
     ObservationOperatorFactory::assemble_sensors_observation(
         ctx,
         observation_operator_matrix,
@@ -98,8 +99,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
     SparseMatrix<Number>& observation_operator_matrix,
     SparsityPattern& observation_operator_sp,
     std::vector<Point<dim>> sensor_points) const
-{      
-    
+{          
     double radius = std::get<double>(ctx.hyperparameter.at("radius"));
     const double tol2 = radius * radius;
 
@@ -192,6 +192,7 @@ std::vector<Point<dim>> ObservationOperatorFactory<dim, Number>::_get_sensor_edg
     
     std::vector<double> spatial_resolution = std::get<std::vector<double>>(ctx.hyperparameter.at("spatial_resolution"));
     bool second_row = std::get<bool>(ctx.hyperparameter.at("second_row"));    
+
     
     //double frequence  = std::get<double>(ctx.hyperparameter.at("frequence"));
     double frequence = 1.0;

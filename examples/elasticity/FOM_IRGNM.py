@@ -11,13 +11,17 @@ os.environ["NUMEXPR_NUM_THREADS"] = "4"
 
 
 from pymor.basic import *
+from pymor.core.defaults import set_defaults, get_defaults
+from pymor.algorithms.genericsolvers import solver_options
 
-import RBInvParam.problems.elasticity.material_model as mm
+import RBInvParam.problems.shared.material_model as mm
 
 from RBInvParam.optimizer import FOMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.problems.elasticity.build import build_InstationaryModelIP
+
+from RBInvParam.timestepping import TimeStepperType
 
 from RBInvParam.utils.create_q_exact import *
 
@@ -34,14 +38,19 @@ logger = get_default_logger(logger_name='FOM_IRGNM',
 logger.setLevel(logging.DEBUG)
 
 #########################################################################################''
-
 set_log_levels({
-    'pymor' : 'WARN'
+    'pymor.operators.constructions.LincombOperator' : 'ERROR',
+    'pymor.operators.constructions.AdjointOperator' : 'ERROR',
+    'pymor.algorithms.genericsolvers.lgmres' : 'ERROR'
 })
 
-logging.getLogger(
-    "pymor.operators.constructions.LincombOperator"
-).setLevel(logging.ERROR)
+set_defaults({
+    'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
+    'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
+})
+
+#print(solver_options())
+
 
 #########################################################################################''
 
@@ -51,8 +60,7 @@ logging.getLogger(
 def main():
     y_res = 30
     z_res = 30
-    # y_res = 20
-    # z_res = 20
+
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
     #par_dim = 3
@@ -75,19 +83,27 @@ def main():
         
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
-    #q_exact[0,700] = 40
+    #q_exact[0,50] = 2
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
-    bounds[:,0] = 0.001
+    bounds[:,0] = 1e-20
     bounds[:,1] = 1e20
 
 
     setup = {
         'spatial_resolution' : [4,y_res,z_res],
-        'body_force_type' : mm.BodyForceType.CenterExcite,
-        'system_matrix' : {
-            'type' : mm.SystemMatrixType.CosseratDelamination,
+        'body_force' : {
+            'type' : mm.BodyForceType.CenterExcite,
+            'hyperparameter' : {}
+            # 'type' : mm.BodyForceType.Gaussian,
+            # 'hyperparameter' : {
+            #     'center': [-0.1,0.0,0.0],
+            #     'sigma' : 2.0,
+            # }
+        },
+        'system_operator' : {
+            'type' : mm.MaterialOperatorType.CosseratDelamination,
             'hyperparameter' : {
                 'lambda' : 1e1,
                 'mu' : 1e1,
@@ -95,17 +111,11 @@ def main():
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.SensorsGrid,                                   
+            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {
                 'spatial_resolution' : [4,y_res,z_res],
-                # # #'radius' : 2.0,
-                # 'radius' : 0.001,
-                # 'second_row' : False 
-                #'grid_sizes' : [2,8,8]
-                #'grid_sizes' : [5,11,11]
+                'radius' : 0.001,
+                'second_row' : False 
             }
         },
         'dims' : {
@@ -130,11 +140,36 @@ def main():
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
         'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
         'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
+        'riesz_rep_hess': False,                       
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
         'save_path' : save_path,
         'time_stepper' : {
-            'name' : 'newman_second_order',
-            'zeta' : 0.5
+            'state' : {
+                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                'config' : {
+                    'zeta' : 0.5
+                }
+            },
+            'adjoint' : {
+                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
+                'config' : {
+                    'zeta' : 0.5
+                }
+            },
+            'lin_state' : {
+                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                'config' : {
+                    'zeta' : 0.5
+                }
+            },
+            'lin_adjoint' : {
+                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
+                'config' : {
+                    'zeta' : 0.5
+                }
+            },
         }
     }
 
@@ -143,38 +178,38 @@ def main():
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
-    u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in u_exact.vectors],
-        str('u_exact'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
+    # FOM.A.elasticity_model.save_time_series(
+    #     [v.real_part.impl for v in u_exact.vectors],
+    #     str('u_exact'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in u_start.vectors],
-        str('u_start'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # u_start = FOM.solve_state(FOM.Q.make_array(q_start))
+    # FOM.A.elasticity_model.save_time_series(
+    #     [v.real_part.impl for v in u_start.vectors],
+    #     str('u_start'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    diff = u_start - u_exact
-    FOM.A.material_model.save_time_series(
-        [v.real_part.impl for v in diff.vectors],
-        str('diff'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # diff = u_start - u_exact
+    # FOM.A.elasticity_model.save_time_series(
+    #     [v.real_part.impl for v in diff.vectors],
+    #     str('diff'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    _q_start = FOM.Q.make_array(q_start)
-    J = FOM.compute_objective(_q_start)
+    # _q_start = FOM.Q.make_array(q_start)
+    # J = FOM.compute_objective(_q_start)
 
-    print(J)
-    print(np.sqrt(2 * J))
+    # print(J)
+    # print(np.sqrt(2 * J))
 
-    import sys
-    sys.exit()
+    # import sys
+    # sys.exit()
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
@@ -190,10 +225,12 @@ def main():
         'i_max_inner': 10,                                       # Maximum number of inner iterations
         ####################
         'lin_solver_parms': {
-            'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
-            'max_iter': 250,                                     # Max iterations for the linear solver
-            'lin_solver_tol': 1e-8,                          # Tolerance for convergence in the linear solver
-            'inital_step_size': 0.1                                # Initial step size for iterative solvers (if applicable)
+            'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
+            'max_iter': 250,                                         # Maximum iterations for the linear solver
+            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
+            'kappa_arm' : 1e-12,
+            'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
+            'armijo_min_step_size' : 1e-20
         },
         'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
         'dump_every_nth_loop': 1,                                # Dump intermediate results every n optimization iterations

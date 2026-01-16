@@ -271,6 +271,7 @@ def build_InstationaryModelIP(setup : Dict,
     )
 
     ############################### Cost ###############################
+    
     elasticity_model.assemble_observation_operator_matrix(
         setup['observation_operator']['type'],
         setup['observation_operator']['hyperparameter']
