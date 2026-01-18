@@ -61,6 +61,9 @@ def main():
     y_res = 30
     z_res = 30
 
+    # y_res = 10
+    # z_res = 10
+
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
     #par_dim = 3

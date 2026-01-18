@@ -10,7 +10,7 @@ except ImportError:
     HAVE_DEALII = False
 
 import numpy as np
-from pymor.vectorarrays.list import ComplexifiedListVectorSpace, CopyOnWriteVector
+from pymor.vectorarrays.list import ComplexifiedListVectorSpace, CopyOnWriteVector, ListVectorSpace
 
 
 class DealIIVector(CopyOnWriteVector):
@@ -83,9 +83,9 @@ class DealIIVector(CopyOnWriteVector):
         return max_ind, A[max_ind]
 
 
-class DealIIVectorSpace(ComplexifiedListVectorSpace):
+class DealIIVectorSpace(ListVectorSpace):
 
-    real_vector_type = DealIIVector
+    vector_type = DealIIVector
 
     def __init__(self, dim):
         self.__auto_init(locals())
@@ -104,13 +104,13 @@ class DealIIVectorSpace(ComplexifiedListVectorSpace):
     def space_from_dim(cls, dim):
         return cls(dim)
 
-    def real_zero_vector(self):
+    def zero_vector(self):
         return DealIIVector(pd2.Vector(self.dim))
 
-    def real_make_vector(self, obj):
+    def make_vector(self, obj):
         return DealIIVector(obj)
 
-    def real_vector_from_numpy(self, data, ensure_copy=False):
-        v = self.real_zero_vector()
+    def vector_from_numpy(self, data, ensure_copy=False):
+        v = self.zero_vector()
         v.to_numpy()[:] = data
         return v

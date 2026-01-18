@@ -114,7 +114,6 @@ class InstationaryModelIP(ImmutableObject):
         self.riesz_rep_grad = self.setup['riesz_rep_grad']
         self.riesz_rep_hess = self.setup['riesz_rep_hess']
 
-        self.solver_options = None
         
         if not num_calls:
             self.num_calls = {
@@ -375,20 +374,20 @@ class InstationaryModelIP(ImmutableObject):
                          u: VectorArray) -> None:
         
         if target == 'A_q':
-            self._cached_operators[target][time_step] = self.A.get_A_q(q[time_step])
+            self._cached_operators[target][time_step] = self.A.get_A_q(q, time_step)
         elif target == 'partial_q_A_q_u':
-            self._cached_operators[target][time_step] = self.A.get_partial_q_A_q_u(q[time_step], u[time_step])
+            self._cached_operators[target][time_step] = self.A.get_partial_q_A_q_u(q, u, time_step)
         elif target == 'partial_u_A_q_u':
-            self._cached_operators[target][time_step] = self.A.get_partial_u_A_q_u(q[time_step], u[time_step])
+            self._cached_operators[target][time_step] = self.A.get_partial_u_A_q_u(q, u, time_step)
         elif target == 'A_ad_q':
             _target = target.replace('_ad', '')
-            self._cached_operators[_target][time_step] = self.A_ad.get_A_q(q[time_step])
+            self._cached_operators[_target][time_step] = self.A_ad.get_A_q(q, time_step)
         elif target == 'partial_q_A_ad_q_u':
             _target = target.replace('_ad', '')
-            self._cached_operators[target][time_step] = self.A_ad.get_partial_q_A_q_u(q[time_step], u[time_step])
+            self._cached_operators[target][time_step] = self.A_ad.get_partial_q_A_q_u(q, u, time_step)
         elif target == 'partial_u_A_ad_q_u':
             _target = target.replace('_ad', '')
-            self._cached_operators[target][time_step] = self.A_ad.get_partial_u_A_q_u(q[time_step], u[time_step])
+            self._cached_operators[target][time_step] = self.A_ad.get_partial_u_A_q_u(q, u, time_step)
         elif target in self.time_stepper_required_cache_keys:
             _time_stepper = next(
                 (time_stepper for time_stepper in self.time_stepper
@@ -411,27 +410,15 @@ class InstationaryModelIP(ImmutableObject):
             if self.state_error_estimator:
                 assert self.state_error_estimator.state_residual_operator.A == self.adjoint_error_estimator.adjoint_residual_operator.A
                 self._cached_operators['residual_A_q'][time_step] = \
-                    self.state_error_estimator.state_residual_operator._precompute_residual_A_q(q[time_step])
-        elif target == 'B_u':
-            self._cached_operators['B_u'][time_step] = self.B(u[time_step], time_step)
-        elif target == 'B_u_ad':
-            self._cached_operators['B_u_ad'][time_step] = self.B_ad(u[time_step], time_step)
+                    self.state_error_estimator.state_residual_operator._precompute_residual_A_q(q)
+        # elif target == 'B_u':
+        #     self._cached_operators['B_u'][time_step] = self.B(u, time_step)
+        # elif target == 'B_u_ad':
+        #     self._cached_operators['B_u_ad'][time_step] = self.B_ad(u, time_step)
         else:
             self.logger.error(f'Target {target} is not known.')
             raise ValueError
-    
-    def _cache_time_depended_operators(self, 
-                                       target: str,
-                                       q: VectorArray,
-                                       u: VectorArray) -> None:  
-        for time_step in range(self.nt+1):
-            self._cache_operators(
-                target = target,
-                time_step = time_step,
-                q = q,
-                u = u
-            )
-      
+
     def cache_operators(self, 
                         target: str,
                         q: VectorArray,
@@ -442,27 +429,42 @@ class InstationaryModelIP(ImmutableObject):
         if len(self._cached_operators['q']) != 0:
             assert np.all((self._cached_operators['q']-q).norm() == 0)
         
-        if target in ['B_u', 'B_u_ad']:
-            assert u
+        if u:
             assert len(u) == (self.nt + 1)
+        
+        if self.q_time_dep:
+            assert len(q) == len(self.nt + 1)
+        else:
+            assert len(q) == 1
 
         self.logger.debug(f'Caching {target}')
         self._cached_operators['q'] = q.copy()
-        
 
-        if self.q_time_dep or (target in ['B_u', 'B_u_ad']):
-            self._cache_time_depended_operators(
-                q = q,
-                u = u,
-                target = target
-            )
-        else:
+        _cache_non_time_dep = not self.q_time_dep and (target in ['A_q'] + self.time_stepper_required_cache_keys)
+        # TODO Find a better way. Combine partial_u into A_q_u as jacobian?
+        __cache_non_time_dep = not self.q_time_dep and (target in ['partial_u_A_q_u'] and self.A.A_q_linear_op)
+        _cache_non_time_dep = _cache_non_time_dep or __cache_non_time_dep
+    
+        if _cache_non_time_dep:
             self._cache_operators(
                 target = target,
                 time_step = 0,
-                q = q,
-                u = u
+                q = q[0],
+                u = None
             )
+        else:
+            for time_step in range(self.nt+1):
+                if self.q_time_dep:
+                    _q = q[time_step]
+                else:
+                    _q = q[0]
+
+                self._cache_operators(
+                    target = target,
+                    time_step = time_step,
+                    q = _q,
+                    u = u[time_step]
+                )      
             
     def reset_cached_operators(self,
                                keys: List[str] = None) -> None:
@@ -478,11 +480,17 @@ class InstationaryModelIP(ImmutableObject):
             if key == 'q':
                 self._cached_operators['q'] = self.Q.empty()
                 continue
-            
-            if self.q_time_dep or (key in ['B_u', 'B_u_ad']):
-                self._cached_operators[key] = [None] * (self.nt + 1)
-            else:
+
+            _cache_non_time_dep = not self.q_time_dep and (key in ['A_q'] + self.time_stepper_required_cache_keys)
+            # TODO Find a better way. Combine partial_u into A_q_u as jacobian?
+            __cache_non_time_dep = not self.q_time_dep and (key in ['partial_u_A_q_u'] and self.A.A_q_linear_op)
+            _cache_non_time_dep = _cache_non_time_dep or __cache_non_time_dep
+                
+            if _cache_non_time_dep:
                 self._cached_operators[key] = [None]
+            else:
+                self._cached_operators[key] = [None] * (self.nt + 1)
+                
     
     def update_cache(self,
                      q: VectorArray,
@@ -633,7 +641,7 @@ class InstationaryModelIP(ImmutableObject):
         
         required_cache_keys = ['A_q']
         required_cache_keys += _time_stepper.required_cache_keys
-        required_cache_keys += ['B_u']
+        required_cache_keys += ['partial_q_A_q_u']
         self.update_cache(
             q = q, 
             u = u,
@@ -642,14 +650,42 @@ class InstationaryModelIP(ImmutableObject):
         )
 
         if use_cached_operators:
-            B_u = self._cached_operators['B_u']
+            partial_q_A_q_u = self._cached_operators['partial_q_A_q_u']
         else:
-            B_u = [self.B(u[idx], idx) for idx in range(len(u))]
+            partial_q_A_q_u = [self.A.get_partial_q_A_q_u(
+                q[time_step] if self.q_time_dep else q,
+                u[time_step],
+                time_step
+            ) for time_step in range(len(u))]
+  
+
+        # if self.q_time_dep:
+        #     rhs = self.V.make_array([B_u[idx].B_u(d[idx]) for idx in range(len(u))])
+        # else:   
+        #     rhs = self.V.make_array([B_u[idx].B_u(d[0]) for idx in range(len(u))])
 
         if self.q_time_dep:
-            rhs = self.V.make_array([B_u[idx].B_u(d[idx]) for idx in range(len(u))])
-        else:   
-            rhs = self.V.make_array([B_u[idx].B_u(d[0]) for idx in range(len(u))])
+            reserve = self.nt + 1
+        else:
+            reserve = 1
+        
+        rhs = self.V.empty(reserve=reserve)
+        # _Q = partial_q_A_q_u[0].source
+        # for idx in range(0, self.nt + 1):
+        #     if self.q_time_dep:
+        #         d_ = _Q.from_numpy(d[idx].to_numpy())
+        #         rhs.append(partial_q_A_q_u[idx].apply(d_))
+        #     else:
+        #         d_ = _Q.from_numpy(d[0].to_numpy())
+        #         rhs.append(partial_q_A_q_u[idx].apply(d_))
+
+        _Q = partial_q_A_q_u[0].source
+        for idx in range(0, self.nt + 1):
+            if self.q_time_dep:
+                rhs.append(partial_q_A_q_u[idx].apply(_Q.from_numpy(d[idx].to_numpy())))
+            else:                
+                rhs.append(partial_q_A_q_u[idx].apply(_Q.from_numpy(d[0].to_numpy())))
+
             
         rhs = (-1) * rhs    
         iterator = _time_stepper.iterate(initial_data = self.initial_data['lin_state'], 
@@ -846,11 +882,11 @@ class InstationaryModelIP(ImmutableObject):
 
 
         if self.use_adjoint_space:
-            B_u_ad_key = 'B_u_ad'
+            partial_q_A_ad_q_u_key = 'partial_q_A_ad_q_u'
         else:
-            B_u_ad_key = 'B_u'
+            partial_q_A_ad_q_u_key = 'partial_q_A_q_u'
     
-        required_cache_keys = [B_u_ad_key] 
+        required_cache_keys = [partial_q_A_ad_q_u_key] 
         self.update_cache(
             q, 
             u,
@@ -859,16 +895,19 @@ class InstationaryModelIP(ImmutableObject):
         )
 
         if use_cached_operators:
-            B_u_ad = self._cached_operators[B_u_ad_key]
+            partial_q_A_ad_q_u = self._cached_operators[partial_q_A_ad_q_u_key]
         else:
-            B_u_ad = [self.B_ad(u[idx], idx) for idx in range(len(u))]
+            partial_q_A_ad_q_u = [self.A.get_partial_q_A_q_u(
+                q[time_step] if self.q_time_dep else q,
+                u[time_step],
+                time_step
+            ) for time_step in range(len(u))]
 
         self.num_calls['gradient'] += 1
-        grad = self.Q.empty(reserve=(self.nt + 1))
 
-        # TODO Check if this is efficent and / or how its efficeny can be improved
+        grad = partial_q_A_ad_q_u[0].source.empty(reserve=(self.nt + 1))
         for idx in range(0, self.nt + 1):
-            grad.append(self.Q.make_array(B_u_ad[idx].B_u_ad(p[idx])))
+            grad.append(partial_q_A_ad_q_u[idx].apply_adjoint(p[idx]))
 
         if not self.q_time_dep:
             _grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
@@ -946,13 +985,13 @@ class InstationaryModelIP(ImmutableObject):
 
         if self.use_adjoint_space:
             A_ad_q = 'A_ad_q'
-            B_u_ad_key = 'B_u_ad'
+            partial_q_A_ad_q_u_key = 'partial_q_A_ad_q_u'
         else:
             A_ad_q = 'A_q'
-            B_u_ad_key = 'B_u'
+            partial_q_A_ad_q_u_key = 'partial_q_A_q_u'
         
         required_cache_keys = [A_ad_q]
-        required_cache_keys += [B_u_ad_key] 
+        required_cache_keys += [partial_q_A_ad_q_u_key] 
 
         self.update_cache(
             q = q, 
@@ -960,24 +999,23 @@ class InstationaryModelIP(ImmutableObject):
             use_cached_operators = use_cached_operators, 
             required_cache_keys = required_cache_keys
         )
-
+        
         if use_cached_operators:
-            B_u_ad = self._cached_operators[B_u_ad_key]
+            partial_q_A_ad_q_u = self._cached_operators[partial_q_A_ad_q_u_key]
         else:
-            B_u_ad = [self.B_ad(u[idx], idx) for idx in range(len(u))]
+            partial_q_A_ad_q_u = [self.A.get_partial_q_A_q_u(
+                q[time_step] if self.q_time_dep else q,
+                u[time_step],
+                time_step
+            ) for time_step in range(len(u))]
+
 
         self.num_calls['linearized_gradient'] += 1
-        grad = self.Q.empty(reserve=(self.nt + 1))
 
-        #print(np.max(np.abs(grad.to_numpy())))
-        # TODO Check if this is efficent and / or how its efficeny can be improved
+        grad = partial_q_A_ad_q_u[0].source.empty(reserve=(self.nt + 1))
         for idx in range(0, self.nt + 1):
-            buf = self.Q.make_array(B_u_ad[idx].B_u_ad(lin_p[idx]))
-            grad.append(buf)
-
-            # print(idx)
-            # print(grad[idx])
-    
+            grad.append(partial_q_A_ad_q_u[idx].apply_adjoint(lin_p[idx]))
+        
         if not self.q_time_dep:
             _grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
         
