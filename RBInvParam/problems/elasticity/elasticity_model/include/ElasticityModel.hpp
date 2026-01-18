@@ -24,43 +24,29 @@ public:
     explicit ElasticityModel(const ElasticityModelConfig& config);
     
     void setup_system_operator();
-    void assemble_A_q(
-        py::array_t<float, py::array::c_style | py::array::forcecast> q_np,
-        std::size_t time_step = 0
+
+    std::unique_ptr<SpasMatOp> assemble_A_q(
+        const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
+        bool linear_part_only = false
     );
-    void assemble_partial_q_A_q_u(
-        const Vector<Number>& u,
-        std::size_t time_step = 0
+    std::unique_ptr<FullMatOp> assemble_partial_q_A_q_u(
+        const Vector<Number>& u
     );
-    void assemble_partial_u_A_q_u(
-        py::array_t<float, py::array::c_style | py::array::forcecast> q_np,
-        std::size_t time_step = 0
+    std::unique_ptr<SpasMatOp> assemble_partial_u_A_q_u(
+        const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np
     );
 
-    const SpasMatOp* get_A_q(std::size_t time_step = 0) const {
-        AssertIndexRange(time_step, m_A_q.size());
-        return m_A_q[time_step].get();
-    }
-    const FullMatOp* get_partial_q_A_q_u(std::size_t time_step = 0) const {
-        AssertIndexRange(time_step, m_partial_q_A_q_u.size());
-        return m_partial_q_A_q_u[time_step].get();
-    }
-    const SpasMatOp* get_partial_u_A_q_u(std::size_t time_step = 0) const {
-        AssertIndexRange(time_step, m_partial_u_A_q_u.size());
-        return m_partial_u_A_q_u[time_step].get();
-    }
+    std::unique_ptr<SpasMatOp> get_translation_operator();
+
+
+    bool m_has_translation_operator = true;
 
 private:
     void _unpack_q_1d(
-        py::array_t<float, py::array::c_style | py::array::forcecast> q_np,
+        const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
         py::buffer_info &buffer,
         ArrayView<const float> &q_view
     ) const;
-
-    std::vector<std::unique_ptr<SpasMatOp>> m_A_q;
-    std::vector<std::unique_ptr<FullMatOp>> m_partial_q_A_q_u;
-    std::vector<std::unique_ptr<SpasMatOp>> m_partial_u_A_q_u;
-
 
     const ElasticityModelConfig& m_elasticity_config;
     bool m_q_time_dep = false;

@@ -235,11 +235,12 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if not self._cached_operators['A']:
             start = 0
             translation_operator = self.FOM.A.get_translation_operator()
+            print(translation_operator)
             if translation_operator:
-                m = pd2.SparseMatrix()
-                m.reinit(translation_operator.matrix.get_sparsity_pattern())
-                m.copy_from(translation_operator.matrix)
-                translation_operator = DealIIMatrixOperator(matrix=m)
+                # m = pd2.SparseMatrix()
+                # m.reinit(translation_operator.matrix.get_sparsity_pattern())
+                # m.copy_from(translation_operator.matrix)
+                # translation_operator = DealIIMatrixOperator(matrix=m)
                 operators = [translation_operator]
                 coefficients = [1]
             else:

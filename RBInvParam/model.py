@@ -349,7 +349,7 @@ class InstationaryModelIP(ImmutableObject):
         keys += ['q']
         keys += ['A_q', 'partial_q_A_q_u', 'partial_u_A_q_u']
         keys += ['A_ad_q', 'partial_q_A_ad_q_u', 'partial_u_A_ad_q_u']
-        keys += ['residual_A_q', 'B_u', 'B_u_ad']
+        keys += ['residual_A_q']
         keys += self.time_stepper_required_cache_keys
 
         self.reset_cached_operators(
@@ -374,20 +374,20 @@ class InstationaryModelIP(ImmutableObject):
                          u: VectorArray) -> None:
         
         if target == 'A_q':
-            self._cached_operators[target][time_step] = self.A.get_A_q(q, time_step)
+            self._cached_operators[target][time_step] = self.A.get_A_q(q)
         elif target == 'partial_q_A_q_u':
-            self._cached_operators[target][time_step] = self.A.get_partial_q_A_q_u(q, u, time_step)
+            self._cached_operators[target][time_step] = self.A.get_partial_q_A_q_u(q, u)
         elif target == 'partial_u_A_q_u':
-            self._cached_operators[target][time_step] = self.A.get_partial_u_A_q_u(q, u, time_step)
+            self._cached_operators[target][time_step] = self.A.get_partial_u_A_q_u(q, u)
         elif target == 'A_ad_q':
             _target = target.replace('_ad', '')
-            self._cached_operators[_target][time_step] = self.A_ad.get_A_q(q, time_step)
+            self._cached_operators[_target][time_step] = self.A_ad.get_A_q(q)
         elif target == 'partial_q_A_ad_q_u':
             _target = target.replace('_ad', '')
-            self._cached_operators[target][time_step] = self.A_ad.get_partial_q_A_q_u(q, u, time_step)
+            self._cached_operators[target][time_step] = self.A_ad.get_partial_q_A_q_u(q, u)
         elif target == 'partial_u_A_ad_q_u':
             _target = target.replace('_ad', '')
-            self._cached_operators[target][time_step] = self.A_ad.get_partial_u_A_q_u(q, u, time_step)
+            self._cached_operators[target][time_step] = self.A_ad.get_partial_u_A_q_u(q, u)
         elif target in self.time_stepper_required_cache_keys:
             _time_stepper = next(
                 (time_stepper for time_stepper in self.time_stepper
@@ -411,10 +411,6 @@ class InstationaryModelIP(ImmutableObject):
                 assert self.state_error_estimator.state_residual_operator.A == self.adjoint_error_estimator.adjoint_residual_operator.A
                 self._cached_operators['residual_A_q'][time_step] = \
                     self.state_error_estimator.state_residual_operator._precompute_residual_A_q(q)
-        # elif target == 'B_u':
-        #     self._cached_operators['B_u'][time_step] = self.B(u, time_step)
-        # elif target == 'B_u_ad':
-        #     self._cached_operators['B_u_ad'][time_step] = self.B_ad(u, time_step)
         else:
             self.logger.error(f'Target {target} is not known.')
             raise ValueError
@@ -654,15 +650,9 @@ class InstationaryModelIP(ImmutableObject):
         else:
             partial_q_A_q_u = [self.A.get_partial_q_A_q_u(
                 q[time_step] if self.q_time_dep else q,
-                u[time_step],
-                time_step
+                u[time_step]
             ) for time_step in range(len(u))]
   
-
-        # if self.q_time_dep:
-        #     rhs = self.V.make_array([B_u[idx].B_u(d[idx]) for idx in range(len(u))])
-        # else:   
-        #     rhs = self.V.make_array([B_u[idx].B_u(d[0]) for idx in range(len(u))])
 
         if self.q_time_dep:
             reserve = self.nt + 1
@@ -670,14 +660,6 @@ class InstationaryModelIP(ImmutableObject):
             reserve = 1
         
         rhs = self.V.empty(reserve=reserve)
-        # _Q = partial_q_A_q_u[0].source
-        # for idx in range(0, self.nt + 1):
-        #     if self.q_time_dep:
-        #         d_ = _Q.from_numpy(d[idx].to_numpy())
-        #         rhs.append(partial_q_A_q_u[idx].apply(d_))
-        #     else:
-        #         d_ = _Q.from_numpy(d[0].to_numpy())
-        #         rhs.append(partial_q_A_q_u[idx].apply(d_))
 
         _Q = partial_q_A_q_u[0].source
         for idx in range(0, self.nt + 1):
@@ -899,8 +881,7 @@ class InstationaryModelIP(ImmutableObject):
         else:
             partial_q_A_ad_q_u = [self.A.get_partial_q_A_q_u(
                 q[time_step] if self.q_time_dep else q,
-                u[time_step],
-                time_step
+                u[time_step]
             ) for time_step in range(len(u))]
 
         self.num_calls['gradient'] += 1
@@ -908,6 +889,7 @@ class InstationaryModelIP(ImmutableObject):
         grad = partial_q_A_ad_q_u[0].source.empty(reserve=(self.nt + 1))
         for idx in range(0, self.nt + 1):
             grad.append(partial_q_A_ad_q_u[idx].apply_adjoint(p[idx]))
+        grad = self.Q.make_array(grad.to_numpy())
 
         if not self.q_time_dep:
             _grad = self.delta_t * self.Q.make_array(np.sum(grad.to_numpy(), axis=0, keepdims=True))
@@ -1005,8 +987,7 @@ class InstationaryModelIP(ImmutableObject):
         else:
             partial_q_A_ad_q_u = [self.A.get_partial_q_A_q_u(
                 q[time_step] if self.q_time_dep else q,
-                u[time_step],
-                time_step
+                u[time_step]
             ) for time_step in range(len(u))]
 
 
@@ -1039,7 +1020,7 @@ class InstationaryModelIP(ImmutableObject):
                              alpha: float = 0,
                              use_cached_operators: bool = False,
                              return_per_time_step : bool = False) -> NumpyVectorArray | Tuple[NumpyVectorArray, NumpyVectorArray]:
-                             
+        raise NotImplementedError             
         assert u in self.V
         assert z in self.V
         assert len(u) == self.nt + 1

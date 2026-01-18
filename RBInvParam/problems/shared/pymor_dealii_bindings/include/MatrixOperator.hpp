@@ -37,10 +37,14 @@ public:
 
 
   void materialize(MatV& matrix,
-                   ArrayView<const float>& q) const;
+                   ArrayView<const float>& q,
+                   bool linear_part_only = false) const;
+
   void apply_to_each_matrix(const Vector<Number> &v,
                             std::vector<Vector<Number>> &result,
                             const bool include_affine_base) const;
+
+  void get_translation(MatV& matrix) const;
 
 private:
   std::vector<MatV> m_A;

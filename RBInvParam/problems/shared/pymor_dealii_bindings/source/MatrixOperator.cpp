@@ -44,14 +44,18 @@ MatrixStack<Number>::A_i(const unsigned int i) const
 }
 
 template <class Number>
-void MatrixStack<Number>::materialize(MatV& matrix, ArrayView<const float>& q) const
+void MatrixStack<Number>::materialize(
+  MatV& matrix, 
+  ArrayView<const float>& q,
+  bool linear_part_only
+) const
 {
     AssertDimension(q.size(), dim_Q());
 
     matrix.reinit(m_A[0].get_sparsity_pattern());
 
     matrix = Number(0);
-    if (m_affine)
+    if (m_affine | !linear_part_only)
     {        
         matrix.add(1.0, m_A[0]);
 
@@ -65,7 +69,21 @@ void MatrixStack<Number>::materialize(MatV& matrix, ArrayView<const float>& q) c
         if (q[i] != Number(0))
             matrix.add(q[i], m_A[i]);
     }
+}
 
+template <class Number>
+void MatrixStack<Number>::get_translation(
+  MatV& matrix) const
+{
+  matrix.reinit(m_A[0].get_sparsity_pattern());
+  if (m_affine)
+  {
+    matrix.add(1.0, m_A[0]);
+  } 
+  else 
+  {
+    matrix = Number(0);
+  }
 }
 
 template <class Number>

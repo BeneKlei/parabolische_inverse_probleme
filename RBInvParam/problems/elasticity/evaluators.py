@@ -34,48 +34,40 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         super().__init__(source, range, Q, parameter_names)
         
 
-    def get_A_q(self, q: VectorArray, time_step: int = 0) -> Operator:
+    def get_A_q(self, q: VectorArray) -> Operator:
         assert q in self.Q
         assert len(q) == 1
-
-        self.elasticity_model.assemble_A_q(
-            q_np = q.to_numpy().flatten()
-        )
+        
         return SparseMatrixOperator(
-            op = self.elasticity_model.get_A_q(time_step=time_step)
+            op = self.elasticity_model.assemble_A_q(
+                q_np = q.to_numpy().flatten()
+            )
         )
 
-    
-    def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray, time_step: int = 0) -> Operator:
+    def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
         assert q in self.Q
         assert len(q) == 1
 
         assert u in self.source
         assert len(u) == 1
-        
-        self.elasticity_model.assemble_partial_q_A_q_u(
-            u = u.vectors[0].impl,
-            time_step=time_step
-        )
 
         return NumpyDealIIFullMatrixOperator(
-            op = self.elasticity_model.get_partial_q_A_q_u(time_step=time_step)
+            op = self.elasticity_model.assemble_partial_q_A_q_u(
+                u = u.vectors[0].impl
+            )
         )
-
-    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, time_step: int = 0) -> Operator:
+        
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
         assert q in self.Q
         assert len(q) == 1
         
         assert u is None
         
-        self.elasticity_model.assemble_partial_u_A_q_u(
-            q_np = q.to_numpy().flatten()
-        )
-
         return SparseMatrixOperator(
-            op = self.elasticity_model.get_partial_u_A_q_u(time_step=time_step)
+            op = self.elasticity_model.assemble_partial_u_A_q_u(
+                q_np = q.to_numpy().flatten()
+            )
         )
-        
     
     def clear_rhs_boundary_dofs(self, 
                                 rhs: VectorArray,
@@ -96,15 +88,16 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         return vector_array
 
     def get_translation_operator(self) -> Operator | None:
-        raise NotImplementedError
-        # if self.material_model.m_has_translation_operator:
-        #     q = np.zeros((self.material_model.param_space_dim))
-        #     self.material_model.m_q[:] = q
-        #     self.material_model.assemble_system_matrix()
-        #     self.system_matrix = self.material_model.system_matrix
-        #     return DealIIMatrixOperator(self.system_matrix)
-        # else:
-        #     return None
+        print(self.elasticity_model.m_has_translation_operator)
+        import sys
+        sys.exit()
+        if self.elasticity_model.m_has_translation_operator:
+            return SparseMatrixOperator(
+                op = self.elasticity_model.get_translation_operator()
+            )
+        else:
+            return None
+        
 
     def get_parameteric_operator(self, q: VectorArray) -> Operator:
         raise NotImplementedError

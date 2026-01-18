@@ -264,7 +264,7 @@ void bind_operators(py::module_& m)
   using FullOp   = FullMatrixOperator<Number>;
   using Vec      = dealii::Vector<Number>;
 
-  py::class_<BaseOp, std::shared_ptr<BaseOp>>(m, "BaseOperator")
+  py::class_<BaseOp, std::unique_ptr<BaseOp>>(m, "BaseOperator")
       .def("apply", &BaseOp::apply, py::arg("y"), py::arg("x"))
       .def("apply_adjoint", &BaseOp::apply_adjoint, py::arg("y"), py::arg("x"))
       .def("apply_inverse", &BaseOp::apply_inverse, py::arg("y"), py::arg("x"))
@@ -274,7 +274,7 @@ void bind_operators(py::module_& m)
       .def("dim_source", &BaseOp::dim_source)
       .def("dim_range", &BaseOp::dim_range);
 
-  py::class_<SparseOp, BaseOp, std::shared_ptr<SparseOp>>(m, "SparseMatrixOperator")
+  py::class_<SparseOp, BaseOp, std::unique_ptr<SparseOp>>(m, "SparseMatrixOperator")
       .def(py::init<typename SparseOp::MatV&>(), py::arg("matrix"))
       .def("apply", &SparseOp::apply, py::arg("y"), py::arg("u"))
       .def("apply_adjoint", &SparseOp::apply_adjoint, py::arg("y"), py::arg("w"))
@@ -286,7 +286,7 @@ void bind_operators(py::module_& m)
       .def("dim_source", &SparseOp::dim_source)
       .def("dim_range", &SparseOp::dim_range);
 
-  py::class_<FullOp, BaseOp, std::shared_ptr<FullOp>>(m, "FullMatrixOperator")
+  py::class_<FullOp, BaseOp, std::unique_ptr<FullOp>>(m, "FullMatrixOperator")
       .def(py::init<typename FullOp::MatV&>(), py::arg("matrix"))
       .def("apply", &FullOp::apply, py::arg("y"), py::arg("u"))
       .def("apply_adjoint", &FullOp::apply_adjoint, py::arg("y"), py::arg("w"))

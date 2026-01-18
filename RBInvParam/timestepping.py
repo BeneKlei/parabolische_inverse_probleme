@@ -85,11 +85,16 @@ class TimeStepper(ABC):
 
         for key in keys:
             key in cached_operators.keys()
-            if self.q_time_dep or (key == 'B_u'):
-                assert len(cached_operators[key]) == (self.nt + 1)
-            else:
+            _cache_non_time_dep = not self.q_time_dep and (key in ['A_q'] + self.required_cache_keys)
+            # TODO Find a better way. Combine partial_u into A_q_u as jacobian?
+            __cache_non_time_dep = not self.q_time_dep and (key in ['partial_u_A_q_u'] and self.A.A_q_linear_op)
+            _cache_non_time_dep = _cache_non_time_dep or __cache_non_time_dep
+
+            if _cache_non_time_dep:
                 assert len(cached_operators[key]) == 1
-    
+            else:
+                assert len(cached_operators[key]) == (self.nt + 1)
+
     def _check_initial_data(self,
                             initial_data: dict,
                             key: str):

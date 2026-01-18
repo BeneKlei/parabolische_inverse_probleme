@@ -14,7 +14,7 @@ from pymor.basic import *
 from pymor.core.defaults import set_defaults, get_defaults
 from pymor.algorithms.genericsolvers import solver_options
 
-import RBInvParam.problems.shared.material_model as mm
+import RBInvParam.problems.elasticity.material_model as mm
 
 from RBInvParam.optimizer import FOMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
@@ -38,18 +38,17 @@ logger = get_default_logger(logger_name='FOM_IRGNM',
 logger.setLevel(logging.DEBUG)
 
 #########################################################################################''
-set_log_levels({
-    'pymor.operators.constructions.LincombOperator' : 'ERROR',
-    'pymor.operators.constructions.AdjointOperator' : 'ERROR',
-    'pymor.algorithms.genericsolvers.lgmres' : 'ERROR'
-})
+# set_log_levels({
+#     'pymor.operators.constructions.LincombOperator' : 'ERROR',
+#     'pymor.operators.constructions.AdjointOperator' : 'ERROR',
+#     'pymor.algorithms.genericsolvers.lgmres' : 'ERROR'
+# })
 
-set_defaults({
-    'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
-    'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
-})
+# set_defaults({
+#     'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
+#     'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
+# })
 
-#print(solver_options())
 
 
 #########################################################################################''
@@ -60,9 +59,6 @@ set_defaults({
 def main():
     y_res = 30
     z_res = 30
-
-    # y_res = 10
-    # z_res = 10
 
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
@@ -105,8 +101,8 @@ def main():
             #     'sigma' : 2.0,
             # }
         },
-        'system_operator' : {
-            'type' : mm.MaterialOperatorType.CosseratDelamination,
+        'system_matrix' : {
+            'type' : mm.SystemMatrixType.CosseratDelamination,
             'hyperparameter' : {
                 'lambda' : 1e1,
                 'mu' : 1e1,
@@ -147,10 +143,11 @@ def main():
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
         'save_path' : save_path,
         'time_stepper' : {
-            'state' : {
+            'primal' : {
                 'type' : TimeStepperType.SecondOrderCrankNicolson,
                 'config' : {
                     'zeta' : 0.5
+                    #'zeta' : 1.0
                 }
             },
             'adjoint' : {
@@ -158,19 +155,7 @@ def main():
                 #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
                 'config' : {
                     'zeta' : 0.5
-                }
-            },
-            'lin_state' : {
-                'type' : TimeStepperType.SecondOrderCrankNicolson,
-                'config' : {
-                    'zeta' : 0.5
-                }
-            },
-            'lin_adjoint' : {
-                'type' : TimeStepperType.SecondOrderCrankNicolson,
-                #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
-                'config' : {
-                    'zeta' : 0.5
+                    #'zeta' : 1.0
                 }
             },
         }

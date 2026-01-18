@@ -98,6 +98,7 @@ def build_InstationaryModelIP(setup : Dict,
         'euclid' : scipy.sparse.identity(Q_h.dim)
     }
 
+    # TODO Construct by returning Operator instances
     products['L2'] = DealIIMatrixOperator(
         matrix = elasticity_model.product_L2
     )
@@ -328,6 +329,7 @@ def build_InstationaryModelIP(setup : Dict,
                                             noise_level = setup['noise_level'],
                                             product=products['bochner_prod_C'],
                                             time_depend_noise=True)
+
     
     setup['y_delta'] = y_delta.to_numpy()
 

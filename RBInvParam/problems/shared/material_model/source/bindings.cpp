@@ -29,7 +29,7 @@ PYBIND11_MODULE(material_model, m) {
           .def_readonly("param_space_dim", &MaterialModel::m_param_space_dim)
           .def_readonly("state_space_dim", &MaterialModel::m_state_space_dim)
           .def_readonly("observation_space_dim", &MaterialModel::m_observation_space_dim)
-          //.def_readonly("m_has_translation_operator", &MaterialModel::m_has_translation_operator)
+          .def_readonly("m_has_translation_operator", &MaterialModel::m_has_translation_operator)
 
           .def_readonly("product_V", &MaterialModel::m_product_V)
           .def_readonly("product_H", &MaterialModel::m_product_H)

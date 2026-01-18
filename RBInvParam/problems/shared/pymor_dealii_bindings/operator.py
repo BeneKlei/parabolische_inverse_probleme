@@ -207,12 +207,12 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
 
     def __init__(self, op, name=None):
         assert isinstance(op, pd2.BaseOperator)
-        
+
         self.source = DealIIVectorSpace(
             op.dim_source())
         self.range = DealIIVectorSpace(
             op.dim_range())
-        
+                
         self.__auto_init(locals())
 
     def _apply_one_vector(self, u, mu=None, prepare_data=None):

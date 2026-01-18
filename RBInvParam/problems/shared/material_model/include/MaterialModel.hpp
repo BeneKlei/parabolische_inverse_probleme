@@ -89,7 +89,7 @@ public:
   size_t m_param_space_dim = 0;
   size_t m_state_space_dim = 0;
   size_t m_observation_space_dim = 0;
-  //bool m_has_translation_operator = false;
+  bool m_has_translation_operator = false;
 
   // --------------------------------------------------
 

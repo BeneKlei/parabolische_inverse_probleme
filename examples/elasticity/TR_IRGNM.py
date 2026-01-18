@@ -42,15 +42,12 @@ logger.setLevel(logging.DEBUG)
 
 #########################################################################################''
 
-set_log_levels({
-    'pymor.operators.constructions.LincombOperator' : 'ERROR',
-    'pymor.operators.constructions.AdjointOperator' : 'ERROR'
-})
 
-# logging.getLogger(
-#     "pymor.operators.constructions.LincombOperator",
-#     "pymor.operators.constructions.AdjointOperator"
-# ).setLevel(logging.ERROR)
+set_log_levels({'pymor': 'ERROR'})
+# set_log_levels({
+#     'pymor.operators.constructions.LincombOperator' : 'ERROR',
+#     'pymor.operators.constructions.AdjointOperator' : 'ERROR'
+# })
 
 
 
@@ -70,8 +67,11 @@ set_log_levels({
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    # y_res = 30
+    # z_res = 30
+
+    y_res = 10
+    z_res = 10
 
     par_dim = (y_res + 1) * (z_res + 1)
     #* 5 * 3
@@ -133,8 +133,8 @@ def main():
 
     # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
-    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
     # #add_constant_patch(q_exact, center=(30, 20), value=3.0, half_size=1)
     # #add_constant_patch(q_exact, center=(10, 24), value=2.0, half_size=1)
@@ -173,7 +173,7 @@ def main():
     # q_exact[0,470] = 3
 
 
-    #q_exact[0,50] = 2
+    q_exact[0,50] = 2
     q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
@@ -292,7 +292,7 @@ def main():
     u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
 
     FOM.A.elasticity_model.save_time_series(
-        [v.real_part.impl for v in u_exact.vectors],
+        [v.impl for v in u_exact.vectors],
         str('u_exact'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
@@ -300,7 +300,7 @@ def main():
 
     p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
     FOM.A.elasticity_model.save_time_series(
-        [v.real_part.impl for v in p_exact.vectors],
+        [v.impl for v in p_exact.vectors],
         str('p_exact'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
@@ -308,7 +308,7 @@ def main():
 
     u_start = FOM.solve_state(FOM.Q.make_array(q_start))
     FOM.A.elasticity_model.save_time_series(
-        [v.real_part.impl for v in u_start.vectors],
+        [v.impl for v in u_start.vectors],
         str('u_start'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
@@ -316,7 +316,7 @@ def main():
 
     p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
     FOM.A.elasticity_model.save_time_series(
-        [v.real_part.impl for v in p_start.vectors],
+        [v.impl for v in p_start.vectors],
         str('p_start'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
@@ -324,7 +324,7 @@ def main():
 
     diff = u_start - u_exact    
     FOM.A.elasticity_model.save_time_series(
-        [v.real_part.impl for v in diff.vectors],
+        [v.impl for v in diff.vectors],
         str('diff'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
@@ -332,7 +332,7 @@ def main():
 
     y_delta = FOM.C.range.from_numpy(setup['y_delta'])
     FOM.A.elasticity_model.save_time_series(
-        [v.real_part.impl for v in y_delta.vectors],
+        [v.impl for v in y_delta.vectors],
         str('y_delta'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
@@ -340,7 +340,7 @@ def main():
 
     diff_y_delta = y_delta - FOM.C.apply(u_start)
     FOM.A.elasticity_model.save_time_series(
-        [v.real_part.impl for v in diff_y_delta.vectors],
+        [v.impl for v in diff_y_delta.vectors],
         str('diff_y_delta'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
@@ -351,10 +351,6 @@ def main():
 
     print(J)
     print(np.sqrt(2 * J))
-
-    import sys
-    sys.exit()
-
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
@@ -501,7 +497,7 @@ def main():
     # print(q_est)
     # u = FOM.solve_state(q_est)
     # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in u.vectors],
+    #     [v.impl for v in u.vectors],
     #     str('u_est'),
     #     str(save_path),
     #     np.linspace(T_initial, T_final, nt+1)
@@ -509,7 +505,7 @@ def main():
 
     # diff = u - u_exact
     # FOM.A.material_model.save_time_series(
-    #     [v.real_part.impl for v in diff.vectors],
+    #     [v.impl for v in diff.vectors],
     #     str('diff_est'),
     #     str(save_path),
     #     np.linspace(T_initial, T_final, nt+1)
