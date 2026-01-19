@@ -49,6 +49,7 @@ public:
 private:
   std::vector<MatV> m_A;
   bool m_affine;
+  SparsityPattern m_sp;
 
   // cache (one-entry or multi-entry). Marked mutable since materialize() is logically const.
   // mutable std::shared_ptr<MatV> m_cached_Aq;

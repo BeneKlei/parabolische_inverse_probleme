@@ -67,11 +67,11 @@ set_log_levels({'pymor': 'ERROR'})
 #########################################################################################''
 
 def main():
-    # y_res = 30
-    # z_res = 30
+    y_res = 30
+    z_res = 30
 
-    y_res = 10
-    z_res = 10
+    # y_res = 10
+    # z_res = 10
 
     par_dim = (y_res + 1) * (z_res + 1)
     #* 5 * 3
@@ -133,8 +133,8 @@ def main():
 
     # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
-    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
     # #add_constant_patch(q_exact, center=(30, 20), value=3.0, half_size=1)
     # #add_constant_patch(q_exact, center=(10, 24), value=2.0, half_size=1)
@@ -376,6 +376,7 @@ def main():
         'use_adjoint_space' : False,
         #'use_adjoint_space' : True,
         'offline_parallel' : False,
+        #'offline_parallel' : False,
         'reg_AGC_step' : False,
         #'TR_enforcement' : 'check_error',
         'TR_enforcement' : 'backtracking',

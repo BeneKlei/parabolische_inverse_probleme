@@ -43,6 +43,37 @@ MatrixStack<Number>::A_i(const unsigned int i) const
   return m_A[i];
 }
 
+// template <class Number>
+// void MatrixStack<Number>::materialize(
+//   MatV& matrix, 
+//   ArrayView<const float>& q,
+//   bool linear_part_only
+// ) const
+// {
+//     AssertDimension(q.size(), dim_Q());
+
+//     matrix.reinit(m_A[0].get_sparsity_pattern());
+
+//     matrix = Number(0);
+//     if (m_affine)
+//     {        
+//         if (!linear_part_only) {
+//           matrix.add(1.0, m_A[0]);
+//         }
+        
+//         for (unsigned int i = 1; i < m_A.size(); ++i)
+//         if (q[i - 1] != Number(0))
+//             matrix.add(q[i - 1], m_A[i]);
+//     }
+//     else
+//     {
+//         for (unsigned int i = 0; i < m_A.size(); ++i)
+//         if (q[i] != Number(0))
+//             matrix.add(q[i], m_A[i]);
+//     }
+// }
+
+
 template <class Number>
 void MatrixStack<Number>::materialize(
   MatV& matrix, 

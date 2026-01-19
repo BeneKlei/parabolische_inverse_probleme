@@ -63,7 +63,7 @@ std::unique_ptr<ElasticityModel::SpasMatOp> ElasticityModel::assemble_A_q(
     _unpack_q_1d(std::move(q_np), buf, q_view);
 
     MatrixStack<Number>::MatV matrix;
-    m_matrix_stack->materialize(matrix, q_view, linear_part_only);
+    m_matrix_stack->materialize(matrix, q_view, linear_part_only);    
     
     return std::make_unique<ElasticityModel::SpasMatOp>(
         std::move(matrix)

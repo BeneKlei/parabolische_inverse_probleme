@@ -21,6 +21,7 @@ from pymor.parameters.functionals import ProjectionParameterFunctional
 from pymor.parameters.base import Parameters
 from pymor.tools.floatcmp import float_cmp_all
 from pymor.operators.constructions import InverseOperator
+from pymor.parallel.default import new_parallel_pool
 
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.evaluators import ROMEvaluatorA
@@ -253,37 +254,30 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                 coefficients = []
                 start = len(operators)
 
-        # ---- PARALLEL PART: build A_q for i in [start, len(parameter_basis)) ----
-
-        # def _build_operator(i: int):
-        #     A_q = self.FOM.A.get_parameteric_operator(parameter_basis[i])
-        #     m = pd2.SparseMatrix()
-        #     m.reinit(A_q.matrix.get_sparsity_pattern())
-        #     m.copy_from(A_q.matrix)
-        #     return m
-
-        # def _build_operator(i: int):
-        #     A_q = self.FOM.A.get_parameteric_operator(parameter_basis[i])
-        #     # print(A_q)
-        #     # print(A_q.op)
-        #     # import sys
-        #     # sys.exit()
-        #     m = pd2.SparseMatrix()
-        #     m.reinit(A_q.op.get_matrix().get_sparsity_pattern())
-        #     m.copy_from(A_q.op.get_matrix())
-        #     return m
-
-        # n_ops = len(parameter_basis)
-        # to_build = range(start, n_ops)
-        # new_mats = [_build_operator(i) for i in to_build]
-        # new_ops = [DealIIMatrixOperator(matrix=m) for m in new_mats]
-        # operators.extend(new_ops)
 
         n_ops = len(parameter_basis)
         to_build = range(start, n_ops)
 
-        new_ops = [self.FOM.A.get_parameteric_operator(parameter_basis[i]) for i in to_build]
+        t = timer()
+
+        self.logger.info("Constructing A(q).")
+        if self.parallel:
+            self.logger.info(f"Using ThreadPoolExecutor; max_workers={os.cpu_count()}")
+
+            max_workers = min(os.cpu_count() or 1, len(to_build))
+            with ThreadPoolExecutor(max_workers=max_workers) as ex:
+
+                new_ops = list(ex.map(
+                    self.FOM.A.get_parameteric_operator, 
+                    (parameter_basis[i] for i in to_build)
+                    #,chunksize=4
+                ))
+        else:
+            self.logger.info("Running operator construction sequentially.")
+            new_ops = [self.FOM.A.get_parameteric_operator(parameter_basis[i]) for i in to_build]
+
         operators.extend(new_ops)
+        print(timer()-t)
 
         # ---- coefficients are cheap, do them serially ----
         for i in range(len(parameter_basis)):
@@ -293,6 +287,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                     len(parameter_basis), i
                 )
             )
+
 
         self._cached_operators['A'] = LincombOperator(operators, coefficients)
         return self._cached_operators['A']
@@ -397,48 +392,53 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         # --- original parameter-reduced operator ---------------------------------
         coefficients = parameter_reduced_A.coefficients
         base_operators = parameter_reduced_A.operators  # list of full-order operators
-        #base_mats = [op.matrix for op in base_operators]   # list of (n, n)
-        #base_mats = [op for op in base_operators]   # list of (n, n)
-
         n_ops = len(base_operators)
 
-        # worker uses ONLY numpy arrays, no self, no methods
-        def build_reduced_operator(i: int) -> NumpyMatrixOperator:
-                                #    base_operators : list,
-                                #    cached_blocks : list,
-                                #    V_old : VectorArray,
-                                #    W : VectorArray,
-                                #    state_basis : VectorArray,
-                                #    dim_V_old : int,
-                                #    dim_V_new : int,
-                                #    dim_Q_old : int) -> NumpyMatrixOperator:
+        # # worker uses ONLY numpy arrays, no self, no methods
+        # def build_reduced_operator(i: int) -> NumpyMatrixOperator:
+        #     A = base_operators[i]           # (n, n)
 
-            tid = threading.get_ident()
-            t0 = time.perf_counter()
+        #     if i < dim_Q_old:
+        #         VTAV_old = cached_blocks[i]  # (dim_V_old, dim_V_old)
 
+        #         AW = A.apply(source_W)
+        #         VTAW = range_V_old.inner(AW)
+
+        #         if source_basis == range_basis:
+        #             WTAV = VTAW.T
+        #         else:
+        #             AV = A.apply(source_V_old)
+        #             WTAV = range_W.inner(AV)
+
+        #         WTAW = range_W.inner(AW)
+
+        #         # assemble
+        #         M = np.empty((dim_range_new, dim_source_new), dtype=np.float64)
+        #         M[:dim_range_old, :dim_source_old] = VTAV_old
+        #         M[:dim_range_old, dim_source_old:] = VTAW
+        #         M[dim_range_old:, :dim_source_old] = WTAV
+        #         M[dim_range_old:, dim_source_old:] = WTAW
+        #     else:
+        #         AV = A.apply(_source_basis)
+        #         M  = _range_basis.inner(AV)
+
+        #     return NumpyMatrixOperator(matrix=M)
+        
+        def build_reduced_operator(i: int, 
+                                   base_operators : List, 
+                                   cached_blocks : List,
+                                   source_W : VectorArray, 
+                                   source_V_old : VectorArray,
+                                   range_V_old : VectorArray, 
+                                   range_W : VectorArray) -> np.ndarray:
             A = base_operators[i]           # (n, n)
-            #A = base_mats[i]           # (n, n)
-            step = time.perf_counter()
-            step_cpu = time.thread_time()
-            #print(f"t={tid} i={i} A.get {(step - t0)*1e3:.3f} ms")
 
             if i < dim_Q_old:
                 VTAV_old = cached_blocks[i]  # (dim_V_old, dim_V_old)
 
-                #W_impls = [w.real_part.impl for w in W.vectors]
-                # AW = [parameter_reduced_A.range.real_zero_vector() for _ in W]
-                # AW_impls = [v.impl for v in AW]
-                #AW = A.vmult_batch(W_impls)
-
                 AW = A.apply(source_W)
-
-                t1 = time.perf_counter()
-                t1_cpu = time.thread_time()
-                #print(f"t={tid} i={i} A.apply(W) {(t1 - step)*1e3:.3f} ms; cpu={(t1_cpu - step_cpu)*1e3:.3f} ms")
-
                 VTAW = range_V_old.inner(AW)
-                t2 = time.perf_counter()
-                #print(f"t={tid} i={i} V_old.inner {(t2 - t1)*1e3:.3f} ms")
+
                 if source_basis == range_basis:
                     WTAV = VTAW.T
                 else:
@@ -446,9 +446,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                     WTAV = range_W.inner(AV)
 
                 WTAW = range_W.inner(AW)
-
-                t3 = time.perf_counter()
-                #print(f"t={tid} i={i} W.inner {(t3 - t2)*1e3:.3f} ms")
 
                 # assemble
                 M = np.empty((dim_range_new, dim_source_new), dtype=np.float64)
@@ -460,14 +457,74 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                 AV = A.apply(_source_basis)
                 M  = _range_basis.inner(AV)
 
-            return NumpyMatrixOperator(matrix=M)
+            return M
 
         # --- parallel / serial path ----------------------------------------------
+
+        self.logger.info("Projecting A(q).")
+        t = timer()
         if self.parallel:
-            with ThreadPoolExecutor() as ex:
-                operators = list(ex.map(build_reduced_operator, range(n_ops)))
+            self.logger.info("Projecting operator parallely.") 
+
+            # pool = new_parallel_pool()
+            # base_ops_r = pool.push(base_operators)
+            # cached_r  = pool.push(cached_blocks)
+            # W_r       = pool.push(source_W)
+            # Vold_r    = pool.push(source_V_old)
+            # rV_r      = pool.push(range_V_old)
+            # rW_r      = pool.push(range_W)
+
+            # Ms = pool.map(
+            #     build_reduced_operator,
+            #     range(n_ops),
+            #     base_ops=base_ops_r,
+            #     cached_blocks=cached_r,
+            #     source_W=W_r,
+            #     source_V_old=Vold_r,
+            #     range_V_old=rV_r,
+            #     range_W=rW_r,
+            # )
+
+            pool = new_parallel_pool()
+            Ms = pool.map(
+                build_reduced_operator,
+                range(n_ops),
+                base_operators=pool.push(base_operators),
+                cached_blocks=pool.push(cached_blocks),
+                source_W=pool.push(source_W),
+                source_V_old=pool.push(source_V_old),
+                range_V_old=pool.push(range_V_old),
+                range_W=pool.push(range_W),
+            )
+
+            # self.logger.info(f"Using ThreadPoolExecutor; max_workers={os.cpu_count()}")
+
+            # max_workers = min(os.cpu_count() or 1, n_ops)
+            # with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            #     operators = list(ex.map(
+            #         build_reduced_operator, 
+            #         (i for i in range(n_ops))
+            #         #chunksize=4
+            #     ))
         else:
-            operators = [build_reduced_operator(i) for i in range(n_ops)]
+            self.logger.info("Projecting operator sequentially.")
+            Ms = [build_reduced_operator(
+                i,
+                base_operators=base_operators,
+                cached_blocks=cached_blocks,
+                source_W=source_W,
+                source_V_old=source_V_old,
+                range_V_old=range_V_old,
+                range_W=range_W
+            ) for i in range(n_ops)]
+        
+        operators = [NumpyMatrixOperator(matrix=M) for M in Ms]
+
+        print(timer() - t)
+        # import sys
+        # sys.exit()
+
+        
 
         # save new reduced operator
         self._cached_operators[cache_key] = LincombOperator(
@@ -475,6 +532,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             coefficients=coefficients
         )
         return self._cached_operators[cache_key]
+    
     
     def project_operators(self,
                           parameter_reduced_A: LincombOperator,
