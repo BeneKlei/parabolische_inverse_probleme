@@ -53,7 +53,7 @@ setup = {
         #     'sigma' : 1.0,
         # }
     },
-    'system_matrix' : {
+    'system_operator' : {
         'type' : mm.MaterialOperatorType.CosseratDelamination,
         'hyperparameter' : {
             'lambda' : 1e1,
