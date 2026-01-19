@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 
-import RBInvParam.problems.elasticity.material_model as mm
+import RBInvParam.problems.shared.material_model as mm
 
 from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimatorType
 from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimatorType
@@ -54,7 +54,7 @@ setup = {
         # }
     },
     'system_matrix' : {
-        'type' : mm.SystemMatrixType.CosseratDelamination,
+        'type' : mm.MaterialOperatorType.CosseratDelamination,
         'hyperparameter' : {
             'lambda' : 1e1,
             'mu' : 1e1,

@@ -17,4 +17,5 @@ squeue -u $USER -t RUNNING -o "%i %j" \
 
 
 #export LD_LIBRARY_PATH="/home/dealii/workdir/RBInvParam/problems/shared/pymor_dealii_bindings:$LD_LIBRARY_PATH"
-export LD_LIBRARY_PATH="/home/benedikt/Dokumente/parabolische_inverse_probleme/RBInvParam/problems/shared/pymor_dealii_bindings:$LD_LIBRARY_PATH"
+#export LD_LIBRARY_PATH="/home/benedikt/Dokumente/parabolische_inverse_probleme/RBInvParam/problems/shared/pymor_dealii_bindings:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="/home/b/b_klei15/parabolische_inverse_probleme/RBInvParam/problems/shared/pymor_dealii_bindings:$LD_LIBRARY_PATH"
