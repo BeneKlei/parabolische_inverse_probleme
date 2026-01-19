@@ -67,11 +67,11 @@ set_log_levels({'pymor': 'ERROR'})
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    # y_res = 30
+    # z_res = 30
 
-    # y_res = 10
-    # z_res = 10
+    y_res = 10
+    z_res = 10
 
     par_dim = (y_res + 1) * (z_res + 1)
     #* 5 * 3
@@ -133,8 +133,8 @@ def main():
 
     # q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
 
-    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
     # #add_constant_patch(q_exact, center=(30, 20), value=3.0, half_size=1)
     # #add_constant_patch(q_exact, center=(10, 24), value=2.0, half_size=1)
@@ -173,7 +173,7 @@ def main():
     # q_exact[0,470] = 3
 
 
-    #q_exact[0,50] = 2
+    q_exact[0,50] = 2
     q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
@@ -204,14 +204,14 @@ def main():
             }
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,     # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.Boundary,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsGrid,                                   
             'hyperparameter' : {
                 'spatial_resolution' : [4,y_res,z_res],
-                'radius' : 0.001,
-                'second_row' : False
+                # 'radius' : 0.001,
+                # 'second_row' : False
             }
         },
         'dims' : {

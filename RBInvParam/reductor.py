@@ -262,6 +262,23 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         #     m.copy_from(A_q.matrix)
         #     return m
 
+        # def _build_operator(i: int):
+        #     A_q = self.FOM.A.get_parameteric_operator(parameter_basis[i])
+        #     # print(A_q)
+        #     # print(A_q.op)
+        #     # import sys
+        #     # sys.exit()
+        #     m = pd2.SparseMatrix()
+        #     m.reinit(A_q.op.get_matrix().get_sparsity_pattern())
+        #     m.copy_from(A_q.op.get_matrix())
+        #     return m
+
+        # n_ops = len(parameter_basis)
+        # to_build = range(start, n_ops)
+        # new_mats = [_build_operator(i) for i in to_build]
+        # new_ops = [DealIIMatrixOperator(matrix=m) for m in new_mats]
+        # operators.extend(new_ops)
+
         n_ops = len(parameter_basis)
         to_build = range(start, n_ops)
 
