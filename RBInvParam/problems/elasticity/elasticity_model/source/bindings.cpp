@@ -41,7 +41,7 @@ PYBIND11_MODULE(elasticity_model, m) {
          &ElasticityModel::get_translation_operator
       )
       
-      .def_readonly("m_has_translation_operator", &MaterialModel::m_has_translation_operator);
+      .def_readonly("m_has_translation_operator", &ElasticityModel::m_has_translation_operator);
 
         // .def("assemble_partial_q_A_q_u", &ElasticityModel::assemble_partial_q_A_q_u)
         // .def("assemble_partial_u_A_q_u", &ElasticityModel::assemble_partial_u_A_q_u)

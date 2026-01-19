@@ -23,7 +23,8 @@ from pymor.tools.floatcmp import float_cmp_all
 from pymor.operators.constructions import InverseOperator
 
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.evaluators import ROMEvaluatorA, ROMEvaluatorB
+from RBInvParam.evaluators import ROMEvaluatorA
+#, ROMEvaluatorB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.utils.logger import get_default_logger
@@ -235,12 +236,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if not self._cached_operators['A']:
             start = 0
             translation_operator = self.FOM.A.get_translation_operator()
-            print(translation_operator)
+
             if translation_operator:
-                # m = pd2.SparseMatrix()
-                # m.reinit(translation_operator.matrix.get_sparsity_pattern())
-                # m.copy_from(translation_operator.matrix)
-                # translation_operator = DealIIMatrixOperator(matrix=m)
                 operators = [translation_operator]
                 coefficients = [1]
             else:
@@ -258,23 +255,17 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         # ---- PARALLEL PART: build A_q for i in [start, len(parameter_basis)) ----
 
-        def _build_operator(i: int):
-            A_q = self.FOM.A.get_parameteric_operator(parameter_basis[i])
-            m = pd2.SparseMatrix()
-            m.reinit(A_q.matrix.get_sparsity_pattern())
-            m.copy_from(A_q.matrix)
-            return m
+        # def _build_operator(i: int):
+        #     A_q = self.FOM.A.get_parameteric_operator(parameter_basis[i])
+        #     m = pd2.SparseMatrix()
+        #     m.reinit(A_q.matrix.get_sparsity_pattern())
+        #     m.copy_from(A_q.matrix)
+        #     return m
 
         n_ops = len(parameter_basis)
         to_build = range(start, n_ops)
 
-        # if self.parallel:
-        #     with ThreadPoolExecutor() as ex:
-        #         new_mats = list(ex.map(_build_operator, to_build))
-        # else:
-
-        new_mats = [_build_operator(i) for i in to_build]
-        new_ops = [DealIIMatrixOperator(matrix=m) for m in new_mats]
+        new_ops = [self.FOM.A.get_parameteric_operator(parameter_basis[i]) for i in to_build]
         operators.extend(new_ops)
 
         # ---- coefficients are cheap, do them serially ----
@@ -483,22 +474,15 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         state_basis = self._get_projection_basis('state_basis')
         adjoint_basis = self._get_projection_basis('adjoint_basis')
 
-        t = timer()
-        print(self.parallel)
         A_r = self._project_A(
             parameter_reduced_A = parameter_reduced_A,
             source_basis = 'state_basis',
             range_basis = 'state_basis'
         )
-        print(timer() - t)
-
-        # import sys
-        # sys.exit()
 
         parameteric_operator, translation_operator = split_constant_and_parameterized_operator(
             complete_operator=A_r
         )
-        print(timer() - t)
 
         A = ROMEvaluatorA(
             source = V,
@@ -508,17 +492,16 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             translation_operator = translation_operator
         )
 
-        B = ROMEvaluatorB(
-            source = Q,
-            range = V,
-            Q = Q,
-            V = V,
-            parameteric_operator = parameteric_operator,
-            translation_operator = translation_operator
-        )
+        # B = ROMEvaluatorB(
+        #     source = Q,
+        #     range = V,
+        #     Q = Q,
+        #     V = V,
+        #     parameteric_operator = parameteric_operator,
+        #     translation_operator = translation_operator
+        # )
+        B = None
         
-        print(timer() - t)
-
         if state_basis:
             if isinstance(self.FOM.L, VectorArray):
                 L = V.make_array(
@@ -530,7 +513,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         else:
             L = self.FOM.L
 
-        print(timer() - t)
+        #print(timer() - t)
 
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
         prod_V = project(self.FOM.products['prod_V'], state_basis, state_basis)

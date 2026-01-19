@@ -15,7 +15,8 @@ from pymor.vectorarrays.list import ListVectorArray
 from pymor.vectorarrays.numpy import NumpyVectorArray
 
 
-from RBInvParam.evaluators import FOMEvaluatorA, FOMEvaluatorB, B_u
+from RBInvParam.evaluators import FOMEvaluatorA
+#, FOMEvaluatorB, B_u
 from RBInvParam.problems.elasticity.elasticity_model import ElasticityModel
 from RBInvParam.problems.shared.pymor_dealii_bindings.operator import *
 from RBInvParam.problems.shared.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
@@ -88,9 +89,6 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         return vector_array
 
     def get_translation_operator(self) -> Operator | None:
-        print(self.elasticity_model.m_has_translation_operator)
-        import sys
-        sys.exit()
         if self.elasticity_model.m_has_translation_operator:
             return SparseMatrixOperator(
                 op = self.elasticity_model.get_translation_operator()
@@ -98,13 +96,16 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         else:
             return None
         
-
     def get_parameteric_operator(self, q: VectorArray) -> Operator:
-        raise NotImplementedError
-        # self.material_model.m_q[:] = q.to_numpy()
-        # self.material_model.assemble_parameteric_matrix()
-        # self.system_matrix = self.material_model.system_matrix
-        # return DealIIMatrixOperator(self.system_matrix)
+        assert q in self.Q
+        assert len(q) == 1
+        
+        return SparseMatrixOperator(
+            op = self.elasticity_model.assemble_A_q(
+                q_np = q.to_numpy().flatten(),
+                linear_part_only = True,
+            )
+        )
 
 # class ElasticitiyFOMEvaluatorB(FOMEvaluatorB):
 #     def __init__(self,

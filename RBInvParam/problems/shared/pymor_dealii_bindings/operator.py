@@ -109,6 +109,7 @@ from pymor.vectorarrays.list import NumpyListVectorSpace
 
 class DealIIMatrixOperator(ListVectorArrayOperatorBase):
     """Wraps a dealII matrix as an |Operator|."""
+    linear = True
 
     def __init__(self, matrix, name=None):
         self.source = DealIIVectorSpace(matrix.n())

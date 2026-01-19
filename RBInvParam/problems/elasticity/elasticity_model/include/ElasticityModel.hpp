@@ -38,7 +38,6 @@ public:
 
     std::unique_ptr<SpasMatOp> get_translation_operator();
 
-
     bool m_has_translation_operator = true;
 
 private:
