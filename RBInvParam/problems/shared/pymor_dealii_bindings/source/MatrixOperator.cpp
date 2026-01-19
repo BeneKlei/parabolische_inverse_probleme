@@ -55,10 +55,12 @@ void MatrixStack<Number>::materialize(
     matrix.reinit(m_A[0].get_sparsity_pattern());
 
     matrix = Number(0);
-    if (m_affine | !linear_part_only)
+    if (m_affine)
     {        
-        matrix.add(1.0, m_A[0]);
-
+        if (!linear_part_only) {
+          matrix.add(1.0, m_A[0]);
+        }
+        
         for (unsigned int i = 1; i < m_A.size(); ++i)
         if (q[i - 1] != Number(0))
             matrix.add(q[i - 1], m_A[i]);

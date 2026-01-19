@@ -1960,11 +1960,6 @@ class QrVrROMOptimizer(Optimizer):
         nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
         norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
 
-        print(self.QrVrROM.A.get_A_q(q_r).matrix)
-        import sys
-        sys.exit()
-
-
         # p_r_start = self.reductor.reconstruct(p_r, basis='state_basis')
         # self.FOM.A.material_model.save_time_series(
         #     [v.real_part.impl for v in p_r_start.vectors],
