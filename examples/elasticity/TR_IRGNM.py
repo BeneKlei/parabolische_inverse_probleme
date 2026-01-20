@@ -4,10 +4,15 @@ from pathlib import Path
 from datetime import datetime
 
 import os
-os.environ["OMP_NUM_THREADS"] = "4"
-os.environ["OPENBLAS_NUM_THREADS"] = "4"
-os.environ["MKL_NUM_THREADS"] = "4"
-os.environ["NUMEXPR_NUM_THREADS"] = "4"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
+# os.environ["OMP_NUM_THREADS"] = "4"
+# os.environ["OPENBLAS_NUM_THREADS"] = "4"
+# os.environ["MKL_NUM_THREADS"] = "4"
+# os.environ["NUMEXPR_NUM_THREADS"] = "4"
 
 from pymor.basic import *
 
@@ -375,7 +380,7 @@ def main():
         'use_error_estimator' : False,
         'use_adjoint_space' : False,
         #'use_adjoint_space' : True,
-        'offline_parallel' : False,
+        'offline_parallel' : True,
         #'offline_parallel' : False,
         'reg_AGC_step' : False,
         #'TR_enforcement' : 'check_error',

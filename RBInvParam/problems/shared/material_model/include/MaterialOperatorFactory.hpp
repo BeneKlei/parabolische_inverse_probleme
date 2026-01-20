@@ -51,7 +51,7 @@ struct MaterialOperatorFactoryContext {
   const DoFHandler<dim>              &dof_handler;
   const AffineConstraints<Number>    &BC_constraints;
   const SparsityPattern              &sparsity_pattern;
-  const SystemOperatorHyperparameter   &hyperparameter;
+  const SystemOperatorHyperparameter &hyperparameter;
 };
 
 template <int dim, typename Number>

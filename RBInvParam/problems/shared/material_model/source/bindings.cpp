@@ -41,17 +41,11 @@ PYBIND11_MODULE(material_model, m) {
           .def("assemble_product_H", &MaterialModel::assemble_product_H)
           .def("assemble_product_C", &MaterialModel::assemble_product_C)
 
-          //.def("assemble_system_matrix", &MaterialModel::assemble_system_matrix)
-          //.def("assemble_parameteric_matrix", &MaterialModel::assemble_parameteric_matrix)
           .def("assemble_mass_matrix", &MaterialModel::assemble_mass_matrix)          
           .def("assemble_observation_operator_matrix", &MaterialModel::assemble_observation_operator_matrix, py::return_value_policy::reference_internal)
           .def("assemble_bilinear_cost_matrix", &MaterialModel::assemble_bilinear_cost_matrix, py::return_value_policy::reference_internal)
-          //.def("assemble_system_matrix_derivative", &MaterialModel::assemble_system_matrix_derivative, py::return_value_policy::reference_internal)
   
-          .def_readwrite("m_q", &MaterialModel::m_q)
           .def_readonly("mass_matrix", &MaterialModel::m_mass_matrix)
-          //.def_readonly("system_matrix", &MaterialModel::m_system_matrix)
-          //.def_readonly("system_matrix_derivatives", &MaterialModel::m_system_matrix_derivatives)
           .def_readonly("observation_operator", &MaterialModel::m_observation_operator)
           .def_readonly("bilinear_cost_operator", &MaterialModel::m_bilinear_cost_operator)
           .def_readonly("force_list", &MaterialModel::m_force_list)

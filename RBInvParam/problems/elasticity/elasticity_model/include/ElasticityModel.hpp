@@ -37,20 +37,13 @@ public:
     );
 
     std::unique_ptr<SpasMatOp> get_translation_operator();
-
     bool m_has_translation_operator = true;
 
 private:
-    void _unpack_q_1d(
-        const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
-        py::buffer_info &buffer,
-        ArrayView<const float> &q_view
-    ) const;
-
     const ElasticityModelConfig& m_elasticity_config;
     bool m_q_time_dep = false;
 
-    std::shared_ptr<const MatrixStack<Number>> m_matrix_stack;
+    std::unique_ptr<MatrixStack<Number>> m_matrix_stack;
     MaterialOperatorFactory<dim, Number> m_material_matrices_factory = MaterialOperatorFactory<3, Number>();
 };
 

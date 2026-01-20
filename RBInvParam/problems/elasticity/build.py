@@ -22,8 +22,6 @@ from RBInvParam.products import BochnerProductOperator, EnergyProductOperator
 from RBInvParam.error_estimators.objective_error_estimators import CoercivityConstantEstimator
 
 from RBInvParam.problems.elasticity.evaluators import ElasticitiyFOMEvaluatorA
-#, ElasticitiyFOMEvaluatorB
-#from utils import * 
 
 def build_InstationaryModelIP(setup : Dict,
                               logger : logging.Logger = None) -> InstationaryModelIP:
@@ -55,8 +53,6 @@ def build_InstationaryModelIP(setup : Dict,
     #print(elasticity_model.m_base_config.spatial_resolution)
     elasticity_model.make_grid()
     elasticity_model.setup_system()
-    #TODO Call this in setup_system()
-    elasticity_model.setup_system_operator()
 
     ############################### State and Param Space ###############################
 
@@ -176,12 +172,7 @@ def build_InstationaryModelIP(setup : Dict,
         },
     }
     
-    elasticity_model.assemble_mass_matrix()
-    # M = DealIISymmetricMatrixOperator(
-    #     matrix = elasticity_model.mass_matrix
-    # )
-
-    
+    elasticity_model.assemble_mass_matrix()    
     matrix = pd2.SparseMatrix(elasticity_model.mass_matrix.get_sparsity_pattern())
     matrix.copy_from(elasticity_model.mass_matrix)
     

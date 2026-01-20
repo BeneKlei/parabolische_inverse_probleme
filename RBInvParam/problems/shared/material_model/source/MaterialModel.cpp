@@ -81,26 +81,11 @@ void MaterialModel::setup_system()
   m_system_matrix_sp.compress();
 
   std::cout << "\t Setting up BC constraints." << std::endl;
-  setup_BC_constraints();
-
+  _setup_BC_constraints();
+  
   // --------------------------------------------------
 
-  // MaterialOperatorFactoryContext<3, Number> ctx {
-  //   m_base_config.system_matrix_type,
-  //   m_fe,
-  //   m_dof_handler,
-  //   m_BC_constraints,
-  //   m_system_matrix_sp,
-  //   m_base_config.system_operator_hyperparameter
-  // };
-
-  // m_material_matrices_factory.assemble_system(
-  //   ctx,
-  //   m_system_matrices
-  // );
-  // m_has_translation_operator = m_system_matrices.m_affine;
-
-  // m_system_matrix_derivatives.resize(m_base_config.nt + 1);
+  this->setup_system_operator();
 
   // --------------------------------------------------
 
@@ -143,10 +128,10 @@ void MaterialModel::setup_system()
   );
 
   std::cout << "\t Assembling force list." << std::endl;
-  assemble_force_list();
+  _assemble_force_list();
 }
 
-void MaterialModel::setup_BC_constraints()
+void MaterialModel::_setup_BC_constraints()
 {
   m_BC_constraints.clear();  
   // Functions::ZeroFunction<dim> dirichlet_bc_function(m_fe.n_components()); 
@@ -194,7 +179,7 @@ void MaterialModel::get_component_dofs(Vector<Number>& state_DoFs, size_t compon
       state_DoFs[i] = Number(0);
 }
 
-void MaterialModel::assemble_force(Vector<Number>& result, double time) 
+void MaterialModel::_assemble_force(Vector<Number>& result, double time) 
 {
   Assert(result.size() == m_dof_handler.n_dofs(),
          ExcDimensionMismatch(result.size(), m_dof_handler.n_dofs()));
@@ -237,7 +222,7 @@ void MaterialModel::assemble_force(Vector<Number>& result, double time)
   m_BC_constraints.condense(result); 
 }
 
-void MaterialModel::assemble_force_list()
+void MaterialModel::_assemble_force_list()
 {
   m_force_list.clear();
   m_force_list.resize(m_base_config.nt+1);
@@ -245,26 +230,10 @@ void MaterialModel::assemble_force_list()
   double time = m_base_config.T_initial;
   for (uint32_t idx = 0; idx <= m_base_config.nt; idx++) {
     m_force_list[idx].reinit(m_dof_handler.n_dofs());
-    assemble_force(m_force_list[idx], time);
+    _assemble_force(m_force_list[idx], time);
     time += m_base_config.delta_t;
   }
 }
-
-// void MaterialModel::assemble_system_matrix()
-// {
-//   m_system_matrix.reinit(m_system_matrix_sp);
-//   m_system_matrix = 0;
-//   m_system_matrices.assemble(m_system_matrix, m_q);
-// }
-
-// void MaterialModel::assemble_parameteric_matrix()
-// {
-//   this->assemble_system_matrix();
-//   if (m_has_translation_operator)
-//   {
-//     m_system_matrix.add(-1.0, m_system_matrices.m_matrices[0]);
-//   }
-// }
 
 void MaterialModel::assemble_product_V(const StateProductType state_product_type) {
   StateProductFactoryContext<3, Number> ctx {
@@ -391,18 +360,23 @@ void MaterialModel::assemble_bilinear_cost_matrix()
   m_observation_operator.Tmmult(m_bilinear_cost_operator, buf, Vector<Number>(), false); 
 }
 
-// TODO Make a body force factory
-// void MaterialModel::setup_body_force() {
-//   switch (m_base_config.body_force_type)
-//   {
-//   case BodyForceType::CenterExcite:
-//     std::cout << "\t Using CenterExcite BodyForce" << std::endl;
-//     m_body_force = std::make_unique<CenterExciteBodyForce>();
-//     break;
-//   default:
-//     throw std::runtime_error("Unknown body force.");
-//   }
-// }
+void MaterialModel::_unpack_q_1d(
+  const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
+  py::buffer_info &buffer,
+  ArrayView<const float> &q_view) const
+{
+  if (q_np.ndim() != 1)
+    throw std::runtime_error("q must be a 1D numpy array");
+
+  buffer = q_np.request();
+
+  const std::size_t n = static_cast<std::size_t>(buffer.size);
+  AssertDimension(n, m_matrix_stack->dim_Q());
+
+  const auto *ptr = static_cast<const float *>(buffer.ptr);
+  q_view = ArrayView<const float>(ptr, n);
+}
+
 
 void MaterialModel::save_state(const Vector<Number>& v, 
                                const std::string save_path)

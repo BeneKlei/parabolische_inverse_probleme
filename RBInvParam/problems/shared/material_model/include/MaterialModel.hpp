@@ -1,5 +1,9 @@
 #pragma once
 
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+namespace py = pybind11;
+
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_generator.h>
 
@@ -64,12 +68,11 @@ public:
   );
 
   void assemble_system_operator();
-  //void assemble_parameteric_matrix();
-  //void assemble_system_matrix_derivative(const Vector<Number>& state_DoFs, size_t parameter_basis_idx);
   void assemble_bilinear_cost_matrix();
 
   // --------------------------------------------------
   
+  // TODO Return as unique_ptr direct to python
   void assemble_product_V(const StateProductType state_product_type);
   void assemble_product_H(const StateProductType state_product_type);
   void assemble_product_C(const ObservationSpaceProductType obs_space_product_type);
@@ -93,13 +96,11 @@ public:
 
   // --------------------------------------------------
 
-  Vector<Number> m_q;
   std::vector<Vector<Number>> m_force_list;
 
   // --------------------------------------------------
 
-  SparseMatrix<Number> m_mass_matrix;
-  
+  SparseMatrix<Number> m_mass_matrix;  
   SparseMatrix<Number> m_system_matrix;
   // TODO Make them sparse!!
   //std::vector<FullMatrix<Number>> m_system_matrix_derivatives;
@@ -124,6 +125,13 @@ public:
   SparsityPattern m_obs_space_product_sp;
   
 protected:
+  void setup_system_operator();
+  void _unpack_q_1d(
+      const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
+      py::buffer_info &buffer,
+      ArrayView<const float> &q_view
+  ) const;
+
   const MaterialModelBaseConfig m_base_config;
   Triangulation<dim> m_triangulation;
   FESystem<dim> m_fe;
@@ -135,16 +143,13 @@ protected:
   BodyForceFactory<dim, Number> m_body_force_factory = BodyForceFactory<3, Number>();
   AffineConstraints<Number> m_BC_constraints;
   std::unique_ptr<BodyForce> m_body_force;
-private:
-  //SystemMatrices<dim, Number> m_system_matrices;
 
+private:  
+  void _setup_BC_constraints();
+  void _setup_body_force();
   
-  void setup_BC_constraints();
-  void setup_body_force();
-  
-  void assemble_force_list();
-  void assemble_force(Vector<Number>& result, double time);
-
+  void _assemble_force_list();
+  void _assemble_force(Vector<Number>& result, double time);
 };
 
 

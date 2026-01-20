@@ -3,8 +3,11 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 )
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/source/bindings.cpp")
 
-#pybind11_add_module(material_model ${SOURCES})
-add_library(material_model_core SHARED ${SOURCES})
+pybind11_add_module(
+    material_model_core
+    SHARED
+    ${SOURCES}
+)
 
 target_include_directories(
   material_model_core

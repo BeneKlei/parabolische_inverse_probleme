@@ -262,15 +262,27 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         self.logger.info("Constructing A(q).")
         if self.parallel:
-            self.logger.info(f"Using ThreadPoolExecutor; max_workers={os.cpu_count()}")
 
-            max_workers = min(os.cpu_count() or 1, len(to_build))
+            # def timed_get_op(q):
+            #     tid = threading.get_ident()
+            #     tname = threading.current_thread().name
+            #     t0 = time.perf_counter()
+            #     op = self.FOM.A.get_parameteric_operator(q)
+            #     dt = time.perf_counter() - t0
+            #     self.logger.info("thread=%s tid=%s get_parameteric_operator dt=%.6f", tname, tid, dt)
+            #     return op
+            
+            #max_workers = min(os.cpu_count() or 1, len(to_build))
+            max_workers = min(4 or 1, len(to_build))
+            self.logger.info(f"Using ThreadPoolExecutor; max_workers={max_workers}")
             with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                _params = (parameter_basis[i] for i in to_build)
 
                 new_ops = list(ex.map(
                     self.FOM.A.get_parameteric_operator, 
-                    (parameter_basis[i] for i in to_build)
-                    #,chunksize=4
+                    #timed_get_op,
+                    _params,
+                    chunksize=16
                 ))
         else:
             self.logger.info("Running operator construction sequentially.")
