@@ -5,7 +5,7 @@
 
 template <int dim, typename Number>
 StoredEnergyOperator<dim, Number>::StoredEnergyOperator(
-    const StoredEnergyFunction<dim, Number> stored_energy_function, 
+    const StoredEnergyFunction<dim, Number>& stored_energy_function,
     const FiniteElement<dim>& fe,
     const DoFHandler<dim>& dof_handler
 )   
@@ -13,6 +13,18 @@ StoredEnergyOperator<dim, Number>::StoredEnergyOperator(
     , m_fe(fe)
     , m_dof_handler(dof_handler)
 {}
+
+template <int dim, typename Number>
+std::size_t StoredEnergyOperator<dim, Number>::dim_source() const
+{
+    return m_dof_handler.n_dofs();
+}
+
+template <int dim, typename Number>
+std::size_t StoredEnergyOperator<dim, Number>::dim_range() const
+{
+    return m_dof_handler.n_dofs();
+}
 
 template <int dim, typename Number>
 void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
@@ -46,7 +58,7 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
 
         for (unsigned int q_point=0; q_point<n_quadrature_points; ++q_point){
 
-            DY_stored_energy_points[q_point] = m_stored_energy_function.gradient(
+            DY_stored_energy_points[q_point] = m_stored_energy_function->gradient(
                 q_points_coords[q_point],
                 u_gradients[q_point] + I
             );

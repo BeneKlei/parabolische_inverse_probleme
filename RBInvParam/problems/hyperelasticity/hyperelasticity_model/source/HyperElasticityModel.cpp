@@ -9,7 +9,8 @@ void HyperElasticityModel::setup_material_operator() {
 
     switch (m_hyperelasticity_config.se_type)
     {
-    case StoredEnergyFunctionType::NeoHookean:
+    case StoredEnergyFunctionType::NeoHookean: 
+    {
         std::cout << "\t Using NeoHookean stored energy function" << std::endl;        
 
         double mu    = std::get<double>(m_hyperelasticity_config.se_hyperparameter.at("mu"));
@@ -23,6 +24,7 @@ void HyperElasticityModel::setup_material_operator() {
             m_dof_handler
         );
         break;
+    }
     default:
         throw std::runtime_error("Unknown StoredEnergyFunctionType.");
     }
@@ -37,12 +39,8 @@ HyperElasticityModel::assemble_A_q(
     ArrayView<const float> q_view;
     _unpack_q_1d(q_np, buf, q_view);
     
-    StoredEnergyFunction<dim, Number> _stored_energy_function = m_stored_energy_function;
-    _stored_energy_function.set_param(q_view);
-    _stored_energy_function.setup_field_function();
-
-    return std::make_unique<HyperElasticityModel<dim, Number>::StorEneOp>(
-       std::move(_stored_energy_function),
+    return std::make_unique<HyperElasticityModel::StorEneOp>(
+       *m_stored_energy_function,
        m_fe,
        m_dof_handler
     );
