@@ -1,9 +1,5 @@
 #pragma once
 
-#include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
-namespace py = pybind11;
-
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_generator.h>
 
@@ -57,7 +53,7 @@ public:
   void make_state_grid();
   void make_param_grid();
   void setup_system();
-  void material_operator_type() {};
+  void setup_material_operator() {};
 
   void assemble_mass_matrix();
   void assemble_observation_operator_matrix(
@@ -100,10 +96,6 @@ public:
 
   SparseMatrix<Number> m_mass_matrix;  
   SparseMatrix<Number> m_system_matrix;
-  // TODO Make them sparse!!
-  //std::vector<FullMatrix<Number>> m_system_matrix_derivatives;
-
-
   SparseMatrix<Number> m_observation_operator;
   SparseMatrix<Number> m_bilinear_cost_operator;
 
@@ -123,13 +115,6 @@ public:
   SparsityPattern m_obs_space_product_sp;
   
 protected:
-  void setup_system_operator();
-  void _unpack_q_1d(
-      const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
-      py::buffer_info &buffer,
-      ArrayView<const float> &q_view
-  ) const;
-
   const MaterialModelBaseConfig m_base_config;
 
   // TODO Rename to x_state
@@ -137,9 +122,9 @@ protected:
   FESystem<dim> m_fe;
   DoFHandler<dim> m_dof_handler;
 
-  Triangulation<dim> m_param_triangulation;
-  FE_Q<dim> m_param_fe;
-  DoFHandler<dim> m_param_dof_handler;
+  Triangulation<dim-1, dim> m_param_triangulation;
+  FE_Q<dim-1, dim> m_param_fe;
+  DoFHandler<dim-1, dim> m_param_dof_handler;
 
   ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();

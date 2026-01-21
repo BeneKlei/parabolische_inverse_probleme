@@ -29,7 +29,7 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
   : m_base_config(config), 
     m_fe(FE_Q<dim>(1), dim),
     m_dof_handler(m_triangulation),
-    m_param_fe(FE_Q<dim>(1)),
+    m_param_fe(FE_Q<dim-1>(1)),
     m_param_dof_handler(m_param_triangulation)
     
 {
@@ -44,9 +44,14 @@ void MaterialModel::make_param_grid()
     Point<3> ori  = Point<3>(-0.1, -15.0, -15.0);
     Point<3> dest = Point<3>(-0.1,  15.0,  15.0);
 
+    const std::array<unsigned int, dim-1> reps = {
+        m_base_config.param_resolution_y,   // subdivisions along y
+        m_base_config.param_resolution_z    // subdivisions along z
+    };
+
     GridGenerator::subdivided_hyper_rectangle(
         m_param_triangulation, 
-        m_base_config.spatial_resolution, 
+        reps, 
         ori, 
         dest
     ); 
@@ -111,7 +116,7 @@ void MaterialModel::setup_system()
   
   // --------------------------------------------------
 
-  this->setup_system_operator();
+  this->setup_material_operator();
 
   // --------------------------------------------------
 
@@ -384,23 +389,6 @@ void MaterialModel::assemble_bilinear_cost_matrix()
   m_bilinear_cost_operator.reinit(m_bilinear_cost_operator_sp);
 
   m_observation_operator.Tmmult(m_bilinear_cost_operator, buf, Vector<Number>(), false); 
-}
-
-void MaterialModel::_unpack_q_1d(
-  const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
-  py::buffer_info &buffer,
-  ArrayView<const float> &q_view) const
-{
-  if (q_np.ndim() != 1)
-    throw std::runtime_error("q must be a 1D numpy array");
-
-  buffer = q_np.request();
-
-  const std::size_t n = static_cast<std::size_t>(buffer.size);
-  AssertDimension(n, m_matrix_stack->dim_Q());
-
-  const auto *ptr = static_cast<const float *>(buffer.ptr);
-  q_view = ArrayView<const float>(ptr, n);
 }
 
 

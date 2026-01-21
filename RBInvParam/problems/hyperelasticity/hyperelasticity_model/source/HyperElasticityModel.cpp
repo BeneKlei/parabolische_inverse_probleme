@@ -45,3 +45,20 @@ HyperElasticityModel::assemble_A_q(
        m_dof_handler
     );
 }
+
+void HyperElasticityModel::_unpack_q_1d(
+  const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
+  py::buffer_info &buffer,
+  ArrayView<const float> &q_view) const
+{
+  if (q_np.ndim() != 1)
+    throw std::runtime_error("q must be a 1D numpy array");
+
+  buffer = q_np.request();
+
+  const std::size_t n = static_cast<std::size_t>(buffer.size);
+  AssertDimension(n,m_param_dim);
+
+  const auto *ptr = static_cast<const float *>(buffer.ptr);
+  q_view = ArrayView<const float>(ptr, n);
+}

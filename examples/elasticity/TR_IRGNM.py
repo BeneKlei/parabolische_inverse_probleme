@@ -196,7 +196,7 @@ def main():
             #     'sigma' : 2.0,
             # }
         },
-        'system_operator' : {
+        'material_operator' : {
             'type' : mm.MaterialOperatorType.CosseratDelamination,
             'hyperparameter' : {
                 'lambda' : 1e1,

@@ -3,11 +3,7 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 )
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/source/bindings.cpp")
 
-pybind11_add_module(
-    material_model_core
-    SHARED
-    ${SOURCES}
-)
+add_library(material_model_core SHARED ${SOURCES})
 
 target_include_directories(
   material_model_core
@@ -15,7 +11,12 @@ target_include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(material_model_core PUBLIC material_model_operators)
+target_link_libraries(
+  material_model_core 
+  PUBLIC 
+  material_model_operators
+  pybind11::headers  
+)
 
 PYBIND11_DEAL_II_SETUP_TARGET(material_model_core)
 #install(TARGETS material_model LIBRARY DESTINATION .)

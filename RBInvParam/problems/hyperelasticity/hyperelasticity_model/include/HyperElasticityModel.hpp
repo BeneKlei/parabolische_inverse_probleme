@@ -42,6 +42,12 @@ public:
     bool m_has_translation_operator = true;
 
 private:
+    void _unpack_q_1d(
+        const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
+        py::buffer_info &buffer,
+        ArrayView<const float> &q_view
+    ) const;
+    
     void compute_partial_u_A_q_u(
         const Vector<Number>& q,
         const Vector<Number>& u,

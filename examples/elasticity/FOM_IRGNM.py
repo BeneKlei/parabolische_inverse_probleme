@@ -14,16 +14,16 @@ from pymor.basic import *
 from pymor.core.defaults import set_defaults, get_defaults
 from pymor.algorithms.genericsolvers import solver_options
 
-import RBInvParam.problems.elasticity.material_model as mm
+import RBInvParam.problems.shared.material_model as mm
 
 from RBInvParam.optimizer import FOMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
-from RBInvParam.problems.elasticity.build import build_InstationaryModelIP
-
+from RBInvParam.problems.elasticity.build import build_ElasticityModelIP
 from RBInvParam.timestepping import TimeStepperType
-
 from RBInvParam.utils.create_q_exact import *
+
+
 
 #########################################################################################''
 
@@ -101,8 +101,8 @@ def main():
             #     'sigma' : 2.0,
             # }
         },
-        'system_matrix' : {
-            'type' : mm.SystemMatrixType.CosseratDelamination,
+        'material_operator' : {
+            'type' : mm.MaterialOperatorType.CosseratDelamination,
             'hyperparameter' : {
                 'lambda' : 1e1,
                 'mu' : 1e1,
@@ -162,7 +162,7 @@ def main():
     }
 
 
-    FOM = build_InstationaryModelIP(setup, logger)
+    FOM = build_ElasticityModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 

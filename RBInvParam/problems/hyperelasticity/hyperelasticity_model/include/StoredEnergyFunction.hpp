@@ -100,10 +100,10 @@ private:
     double m_beta;
     double m_c1;
     
-    const FiniteElement<dim>& m_param_fe;
+    const FiniteElement<dim-1>& m_param_fe;
     const DoFHandler<dim>& m_param_dof_handler;
-    const DoFHandler<dim>& m_state_dof_handler;
-    const MappingQ1<dim> m_mapping;
+    const DoFHandler<dim-1>& m_state_dof_handler;
+    const MappingQ1<dim-1> m_mapping;
     //Functions::FEFieldFunction<dim> m_param_factor_field;
 };
 
