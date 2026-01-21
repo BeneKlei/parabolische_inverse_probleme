@@ -32,13 +32,9 @@ namespace py = pybind11;
 #include "StateProductFactory.hpp"
 #include "ObservationSpaceProductFactory.hpp"
 
-
 using namespace dealii;
 
 typedef double Number;
-// TODO make Class for this with "highlevel" pymor like interface
-typedef std::vector<dealii::Vector<Number>> VectorArray;
-
 
 struct MaterialModelBaseConfig {
     int nt = 50;
@@ -58,8 +54,10 @@ public:
   explicit MaterialModel(const MaterialModelBaseConfig& config);
   virtual ~MaterialModel() = default;
 
-  void make_grid();
+  void make_state_grid();
+  void make_param_grid();
   void setup_system();
+  void material_operator_type() {};
 
   void assemble_mass_matrix();
   void assemble_observation_operator_matrix(
@@ -89,8 +87,8 @@ public:
 
   // --------------------------------------------------
 
-  size_t m_param_space_dim = 0;
-  size_t m_state_space_dim = 0;
+  size_t m_param_dim = 0;
+  size_t m_state_dim = 0;
   size_t m_observation_space_dim = 0;
   bool m_has_translation_operator = false;
 
@@ -133,14 +131,21 @@ protected:
   ) const;
 
   const MaterialModelBaseConfig m_base_config;
+
+  // TODO Rename to x_state
   Triangulation<dim> m_triangulation;
   FESystem<dim> m_fe;
   DoFHandler<dim> m_dof_handler;
+
+  Triangulation<dim> m_param_triangulation;
+  FE_Q<dim> m_param_fe;
+  DoFHandler<dim> m_param_dof_handler;
 
   ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
   ObservationSpaceProductFactory<dim, Number> m_observation_space_product_factory = ObservationSpaceProductFactory<3, Number>();
   BodyForceFactory<dim, Number> m_body_force_factory = BodyForceFactory<3, Number>();
+
   AffineConstraints<Number> m_BC_constraints;
   std::unique_ptr<BodyForce> m_body_force;
 

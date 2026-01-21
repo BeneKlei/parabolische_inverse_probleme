@@ -11,8 +11,8 @@ namespace py = pybind11;
 
 
 struct ElasticityModelConfig : MaterialModelBaseConfig {
-    MaterialOperatorType system_operator_type = MaterialOperatorType::CosseratDelamination;
-    SystemOperatorHyperparameter system_operator_hyperparameter = {};
+    MaterialOperatorType material_operator_type = MaterialOperatorType::CosseratDelamination;
+    MaterialOperatorHyperparameter material_operator_hyperparameter = {};
 };
 
 class ElasticityModel : public MaterialModel
@@ -23,7 +23,7 @@ public:
 
     explicit ElasticityModel(const ElasticityModelConfig& config);
     
-    void setup_system_operator();
+    void setup_material_operator();
 
     std::unique_ptr<SpasMatOp> assemble_A_q(
         const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,

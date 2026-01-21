@@ -23,11 +23,12 @@ PYBIND11_MODULE(material_model, m) {
 
      py::class_<MaterialModel>(m, "MaterialModel")
           .def(py::init<const MaterialModelBaseConfig&>())
-          .def("make_grid", &MaterialModel::make_grid)
+          .def("make_state_grid", &MaterialModel::make_state_grid)
+          .def("make_param_grid", &MaterialModel::make_param_grid)
           .def("setup_system", &MaterialModel::setup_system)
          
-          .def_readonly("param_space_dim", &MaterialModel::m_param_space_dim)
-          .def_readonly("state_space_dim", &MaterialModel::m_state_space_dim)
+          .def_readonly("param_space_dim", &MaterialModel::m_param_dim)
+          .def_readonly("state_space_dim", &MaterialModel::m_state_dim)
           .def_readonly("observation_space_dim", &MaterialModel::m_observation_space_dim)
           .def_readonly("m_has_translation_operator", &MaterialModel::m_has_translation_operator)
 

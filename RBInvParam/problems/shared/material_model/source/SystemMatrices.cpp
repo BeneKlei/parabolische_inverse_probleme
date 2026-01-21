@@ -5,7 +5,7 @@
 // template <int dim, typename Number>
 // void SystemMatrices<dim, Number>::assemble(SparseMatrix<Number> &result, const Vector<Number> &parameters)
 // {
-//     Assert(m_param_space_dim == parameters.size(),
+//     Assert(m_param_dim == parameters.size(),
 //             ExcDimensionMismatch(m_matrices.size(), parameters.size()));
 
 //     result = 0;
@@ -26,5 +26,5 @@
 // template <int dim, typename Number>
 // std::size_t SystemMatrices<dim, Number>::get_param_space_dim()
 // {
-//     return m_param_space_dim;
+//     return m_param_dim;
 // }

@@ -12,7 +12,7 @@
 //     std::size_t get_param_space_dim();
 
 //     std::vector<SparseMatrix<Number>> m_matrices;
-//     std::size_t m_param_space_dim = 0;
+//     std::size_t m_param_dim = 0;
 //     bool m_affine = false; 
 
 

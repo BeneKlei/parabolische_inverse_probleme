@@ -27,8 +27,11 @@
 
 MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
   : m_base_config(config), 
-    m_fe(dealii::FE_Q<dim>(1), dim),
-    m_dof_handler(m_triangulation)
+    m_fe(FE_Q<dim>(1), dim),
+    m_dof_handler(m_triangulation),
+    m_param_fe(FE_Q<dim>(1)),
+    m_param_dof_handler(m_param_triangulation)
+    
 {
   const double computed_nt = (m_base_config.T_final - m_base_config.T_initial) / m_base_config.delta_t;
   if (std::abs(computed_nt - static_cast<double>(m_base_config.nt)) > 1e-8) {
@@ -36,7 +39,20 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
   }
 }
 
-void MaterialModel::make_grid()
+void MaterialModel::make_param_grid()
+{
+    Point<3> ori  = Point<3>(-0.1, -15.0, -15.0);
+    Point<3> dest = Point<3>(-0.1,  15.0,  15.0);
+
+    GridGenerator::subdivided_hyper_rectangle(
+        m_param_triangulation, 
+        m_base_config.spatial_resolution, 
+        ori, 
+        dest
+    ); 
+}
+
+void MaterialModel::make_state_grid()
 {
     Point<3> ori  = Point<3>(-0.1, -15.0, -15.0);
     Point<3> dest = Point<3>( 0.1,  15.0,  15.0);
@@ -73,12 +89,22 @@ void MaterialModel::make_grid()
 
 void MaterialModel::setup_system()
 {
+  std::cout << "\t Setting up function spaces." << std::endl;
+
   m_dof_handler.clear();
   m_dof_handler.distribute_dofs(m_fe);
 
   m_system_matrix_sp.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
   DoFTools::make_sparsity_pattern(m_dof_handler, m_system_matrix_sp);
   m_system_matrix_sp.compress();
+
+
+  m_param_dim = m_param_dof_handler.n_dofs();
+  m_state_dim = m_dof_handler.n_dofs();
+
+  std::cout << "\t ---------------------- " << std::endl;
+  std::cout << "\t #DoFs: " << m_state_dim  << std::endl;
+  std::cout << "\t #Parameter: " << m_param_dim  << std::endl;
 
   std::cout << "\t Setting up BC constraints." << std::endl;
   _setup_BC_constraints();
@@ -328,19 +354,19 @@ void MaterialModel::clear_rhs_boundary_dofs(Vector<Number>& v)
 
 // void MaterialModel::assemble_system_matrix_derivative(const Vector<Number>& state_DoFs, size_t parameter_basis_idx)
 // {    
-//     m_system_matrix_derivatives[parameter_basis_idx].reinit(m_state_space_dim, m_param_space_dim);
+//     m_system_matrix_derivatives[parameter_basis_idx].reinit(m_state_dim, m_param_dim);
 //     m_system_matrix_derivatives[parameter_basis_idx] = 0;
-//     assert(m_system_matrices.m_param_space_dim == m_param_space_dim &&
+//     assert(m_system_matrices.m_param_dim == m_param_dim &&
 //        "Mismatch between system matrices count and parameter dimension");
     
 //     // m_system_matrix_derivative = 0;
 //     unsigned int offset = m_system_matrices.m_affine ? 1 : 0;
 //     Vector<Number> A_q_basis_u;
     
-//     for (size_t i = 0; i < m_param_space_dim; i++) {
-//         A_q_basis_u.reinit(m_state_space_dim);
+//     for (size_t i = 0; i < m_param_dim; i++) {
+//         A_q_basis_u.reinit(m_state_dim);
 //         m_system_matrices.m_matrices[i + offset].vmult(A_q_basis_u, state_DoFs);
-//         for (size_t j = 0; j < m_state_space_dim; j++) {
+//         for (size_t j = 0; j < m_state_dim; j++) {
 //           m_system_matrix_derivatives[parameter_basis_idx].set(j,i, A_q_basis_u[j]);
 //         }        
 //     }

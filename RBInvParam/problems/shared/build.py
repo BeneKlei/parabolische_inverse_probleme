@@ -4,60 +4,32 @@ warnings.filterwarnings("ignore", category=UserWarning)
 import numpy as np
 import scipy
 import logging
-import inspect
 from typing import Dict
 
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.numpy import NumpyMatrixOperator
  
 import RBInvParam.problems.shared.material_model as mm
-import RBInvParam.problems.elasticity.elasticity_model as em
 
 from RBInvParam.problems.shared.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
 from RBInvParam.problems.shared.pymor_dealii_bindings.operator import *
-from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.discretization import construct_noise_data
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.products import BochnerProductOperator, EnergyProductOperator
 from RBInvParam.error_estimators.objective_error_estimators import CoercivityConstantEstimator
+from RBInvParam.evaluators import EvaluatorA
 
-from RBInvParam.problems.elasticity.evaluators import ElasticitiyFOMEvaluatorA
 
 def build_InstationaryModelIP(setup : Dict,
+                              material_model: mm.MaterialModel,
+                              EvaluatorA_class: EvaluatorA,
                               logger : logging.Logger = None) -> InstationaryModelIP:
 
-    if logger:
-        logger = logger
-    else:
-        logger = get_default_logger(inspect.getframeinfo(inspect.currentframe()).function)
-        logger.setLevel(logging.DEBUG)   
-
-    logger.debug('Constructing problem..')
-
-    elasticity_model_config = em.ElasticityModelConfig()
-    elasticity_model_config.nt = setup['dims']['nt']
-    elasticity_model_config.T_initial = setup['T_initial']
-    elasticity_model_config.T_final = setup['T_final']
-    elasticity_model_config.delta_t = setup['delta_t']
-    elasticity_model_config.spatial_resolution = setup['spatial_resolution']
-
-    elasticity_model_config.system_operator_type = setup['system_operator']['type']
-    if setup['system_operator']['hyperparameter']: 
-        elasticity_model_config.system_operator_hyperparameter = setup['system_operator']['hyperparameter']
-
-    elasticity_model_config.body_force_type = setup['body_force']['type']
-    if setup['body_force']['hyperparameter']: 
-        elasticity_model_config.body_force_hyperparameter = setup['body_force']['hyperparameter']
-
-    elasticity_model = em.ElasticityModel(elasticity_model_config)
-    elasticity_model.make_param_grid()
-    elasticity_model.make_state_grid()
-    elasticity_model.setup_system()
-
+ 
     ############################### State and Param Space ###############################
 
-    setup['dims']['par_dim'] = elasticity_model.param_space_dim
-    setup['dims']['state_dim'] = elasticity_model.state_space_dim
+    setup['dims']['par_dim'] = material_model.param_space_dim
+    setup['dims']['state_dim'] = material_model.state_space_dim
 
     Q_h = NumpyVectorSpace(dim = setup['dims']['par_dim'])
     V_h = DealIIVectorSpace(dim = setup['dims']['state_dim'])
@@ -75,8 +47,8 @@ def build_InstationaryModelIP(setup : Dict,
         'h1_0' : mm.StateProductType.H1_0, 
     }
 
-    elasticity_model.assemble_product_H(_str_to_enum_map_state[product_names['prod_H']])
-    elasticity_model.assemble_product_V(_str_to_enum_map_state[product_names['prod_V']])
+    material_model.assemble_product_H(_str_to_enum_map_state[product_names['prod_H']])
+    material_model.assemble_product_V(_str_to_enum_map_state[product_names['prod_V']])
 
     products = {
         'prod_H' : None,
@@ -96,15 +68,15 @@ def build_InstationaryModelIP(setup : Dict,
 
     # TODO Construct by returning Operator instances
     products['L2'] = DealIIMatrixOperator(
-        matrix = elasticity_model.product_L2
+        matrix = material_model.product_L2
     )
 
     products['H1'] = DealIIMatrixOperator(
-        matrix = elasticity_model.product_H1
+        matrix = material_model.product_H1
     )
 
     products['prod_H'] = DealIIMatrixOperator(
-        matrix = elasticity_model.product_H
+        matrix = material_model.product_H
     )
 
     products['prod_Q'] = NumpyMatrixOperator(
@@ -112,7 +84,7 @@ def build_InstationaryModelIP(setup : Dict,
     )
 
     products['prod_V'] = DealIIMatrixOperator(
-        matrix = elasticity_model.product_V
+        matrix = material_model.product_V
     )
 
     products['energy'] = EnergyProductOperator(
@@ -132,7 +104,7 @@ def build_InstationaryModelIP(setup : Dict,
 
     products['bochner_prod_V'] = BochnerProductOperator(
         product=DealIIMatrixOperator(
-            matrix = elasticity_model.product_V
+            matrix = material_model.product_V
         ),
         delta_t=setup['delta_t'],
         space = V_h,
@@ -172,23 +144,22 @@ def build_InstationaryModelIP(setup : Dict,
         },
     }
     
-    elasticity_model.assemble_mass_matrix()    
-    matrix = pd2.SparseMatrix(elasticity_model.mass_matrix.get_sparsity_pattern())
-    matrix.copy_from(elasticity_model.mass_matrix)
+    material_model.assemble_mass_matrix()    
+    matrix = pd2.SparseMatrix(material_model.mass_matrix.get_sparsity_pattern())
+    matrix.copy_from(material_model.mass_matrix)
     
     M = SparseMatrixOperator(
         op = pd2.SparseMatrixOperator(matrix = matrix)
     )
 
-    L = V_h.make_array(elasticity_model.force_list)
+    L = V_h.make_array(material_model.force_list)
 
-    A = ElasticitiyFOMEvaluatorA(
-        elasticity_model = elasticity_model,
+    A = EvaluatorA_class(
+        material_model,
         source = V_h,
         range = V_h,
         Q = Q_h    
     )    
-    B = None
     # B = ElasticitiyFOMEvaluatorB(
     #     elasticity_model = elasticity_model,
     #     source=Q_h,
@@ -214,8 +185,6 @@ def build_InstationaryModelIP(setup : Dict,
     assert y > 0
     A_coercivity_constant_estimator_function = lambda q: y * x
     
-    
-
     A_coercivity_constant_estimator = CoercivityConstantEstimator(
         coercivity_estimator_function = A_coercivity_constant_estimator_function,
         Q = Q_h,
@@ -248,7 +217,6 @@ def build_InstationaryModelIP(setup : Dict,
         'M' : M,
         'A' : A,
         'L' : L,
-        'B' : B,
         'C' : None,
         'constant_cost_term' : None,
         'linear_cost_term' : None,
@@ -275,11 +243,11 @@ def build_InstationaryModelIP(setup : Dict,
 
     ############################### Cost ###############################
     
-    elasticity_model.assemble_observation_operator_matrix(
+    material_model.assemble_observation_operator_matrix(
         setup['observation_operator']['type'],
         setup['observation_operator']['hyperparameter']
     )
-    C = DealIIMatrixOperator(matrix = elasticity_model.observation_operator)
+    C = DealIIMatrixOperator(matrix = material_model.observation_operator)
     C_continuity_constant = 1.0
 
     building_blocks['C'] = C
@@ -295,18 +263,18 @@ def build_InstationaryModelIP(setup : Dict,
         'state_h1_0' : mm.ObservationSpaceProductType.STATE_H1_0, 
     }
 
-    setup['dims']['observation_space_dim'] = elasticity_model.observation_space_dim
+    setup['dims']['observation_space_dim'] = material_model.observation_space_dim
     C_h = DealIIVectorSpace(dim = setup['dims']['observation_space_dim'])
     
-    elasticity_model.assemble_product_C(_str_to_enum_map_observation_space[product_names['prod_C']])
+    material_model.assemble_product_C(_str_to_enum_map_observation_space[product_names['prod_C']])
 
     products['prod_C'] = DealIIMatrixOperator(
-        matrix = elasticity_model.product_C
+        matrix = material_model.product_C
     )
 
     products['bochner_prod_C'] = BochnerProductOperator(
         product=DealIIMatrixOperator(
-            matrix = elasticity_model.product_C
+            matrix = material_model.product_C
         ),
         delta_t=setup['delta_t'],
         space = C_h,
@@ -344,10 +312,10 @@ def build_InstationaryModelIP(setup : Dict,
     linear_cost_term = products['prod_C'].apply(y_delta)
     linear_cost_term = C.apply_adjoint(linear_cost_term)
     #--------------------------------------------------------   
-    elasticity_model.assemble_bilinear_cost_matrix()
+    material_model.assemble_bilinear_cost_matrix()
 
     bilinear_cost_term = DealIIMatrixOperator(
-        matrix = elasticity_model.bilinear_cost_operator
+        matrix = material_model.bilinear_cost_operator
     )
 
     ############################### Final ###############################

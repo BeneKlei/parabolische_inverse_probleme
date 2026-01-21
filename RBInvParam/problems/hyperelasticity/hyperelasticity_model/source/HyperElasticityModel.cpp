@@ -1,10 +1,11 @@
 #include "HyperElasticityModel.hpp"
 
-template <int dim, typename Number>
-HyperElasticityModel<dim, Number>::HyperElasticityModel(const HyperElasticityModelConfig& config)
+HyperElasticityModel::HyperElasticityModel(const HyperElasticityModelConfig& config)
     : MaterialModel(static_cast<const MaterialModelBaseConfig&>(config))
     , m_hyperelasticity_config(config)                                  
-{    
+{}
+
+void HyperElasticityModel::setup_material_operator() {
 
     switch (m_hyperelasticity_config.se_type)
     {
@@ -14,35 +15,35 @@ HyperElasticityModel<dim, Number>::HyperElasticityModel(const HyperElasticityMod
         double mu    = std::get<double>(m_hyperelasticity_config.se_hyperparameter.at("mu"));
         double kappa = std::get<double>(m_hyperelasticity_config.se_hyperparameter.at("kappa"));
 
-        m_stored_energy_function = NeoHookeanStoredEnergy<dim, Number>(
-            mu = mu,
-            kappa = kappa
+        m_stored_energy_function = std::make_unique<NeoHookeanStoredEnergy<dim, Number>>(
+            mu,
+            kappa,
+            m_param_fe,
+            m_param_dof_handler,
+            m_dof_handler
         );
+        break;
     default:
         throw std::runtime_error("Unknown StoredEnergyFunctionType.");
     }
-    
-    m_param_space_dim = 0;
-    m_state_space_dim = m_dof_handler.n_dofs();
+};
 
-    std::cout << "\t ---------------------- " << std::endl;
-    std::cout << "\t #DoFs: " << m_state_space_dim  << std::endl;
-    std::cout << "\t #Parameter: " << m_param_space_dim  << std::endl;
-}
-
-template <int dim, typename Number>
-std::unique_ptr<typename HyperElasticityModel<dim, Number>::StorEneOp> 
-HyperElasticityModel<dim, Number>::assemble_A_q(
+std::unique_ptr<typename HyperElasticityModel::StorEneOp> 
+HyperElasticityModel::assemble_A_q(
     const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np
 ) 
 {
-    StoredEnergyOperatorContext<dim> ctx {
-        m_fe,
-        m_dof_handler
-    };
+    py::buffer_info buf;
+    ArrayView<const float> q_view;
+    _unpack_q_1d(q_np, buf, q_view);
+    
+    StoredEnergyFunction<dim, Number> _stored_energy_function = m_stored_energy_function;
+    _stored_energy_function.set_param(q_view);
+    _stored_energy_function.setup_field_function();
 
     return std::make_unique<HyperElasticityModel<dim, Number>::StorEneOp>(
-       m_stored_energy_function,
-       ctx
+       std::move(_stored_energy_function),
+       m_fe,
+       m_dof_handler
     );
 }

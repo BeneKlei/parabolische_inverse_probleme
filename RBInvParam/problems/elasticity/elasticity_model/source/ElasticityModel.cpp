@@ -5,17 +5,17 @@ ElasticityModel::ElasticityModel(const ElasticityModelConfig& config)
     , m_elasticity_config(config)                                     
 {}
 
-void ElasticityModel::setup_system_operator() 
+void ElasticityModel::setup_material_operator() 
 {
-    std::cout << "\t Setting up system matrizies." << std::endl;
+    std::cout << "\t Setting up material operator." << std::endl;
 
     MaterialOperatorFactoryContext<dim, Number> ctx {
-        m_elasticity_config.system_operator_type,
+        m_elasticity_config.material_operator_type,
         m_fe,
         m_dof_handler,
         m_BC_constraints,
         m_system_matrix_sp,
-        m_elasticity_config.system_operator_hyperparameter
+        m_elasticity_config.material_operator_hyperparameter
     };
 
     std::vector<MatrixStack<Number>::MatV> _matrices;
@@ -32,12 +32,12 @@ void ElasticityModel::setup_system_operator()
         _affine
     );
     
-    m_param_space_dim = m_matrix_stack->dim_Q();
-    m_state_space_dim = m_dof_handler.n_dofs();
+    m_param_dim = m_matrix_stack->dim_Q();
+    m_state_dim = m_dof_handler.n_dofs();
 
     std::cout << "\t ---------------------- " << std::endl;
-    std::cout << "\t #DoFs: " << m_state_space_dim  << std::endl;
-    std::cout << "\t #Parameter: " << m_param_space_dim  << std::endl;
+    std::cout << "\t #DoFs: " << m_state_dim  << std::endl;
+    std::cout << "\t #Parameter: " << m_param_dim  << std::endl;
 }
 
 std::unique_ptr<ElasticityModel::SpasMatOp> ElasticityModel::assemble_A_q(
@@ -66,10 +66,10 @@ std::unique_ptr<ElasticityModel::FullMatOp> ElasticityModel::assemble_partial_q_
     std::vector<Vector<Number>> A_us;
     m_matrix_stack->apply_to_each_matrix(u, A_us, false);
     FullMatrix<Number> matrix;
-    matrix.reinit(m_state_space_dim, m_param_space_dim);
+    matrix.reinit(m_state_dim, m_param_dim);
 
-    for (unsigned int j = 0; j < m_param_space_dim; ++j)
-        for (unsigned int i = 0; i < m_state_space_dim; ++i)
+    for (unsigned int j = 0; j < m_param_dim; ++j)
+        for (unsigned int i = 0; i < m_state_dim; ++i)
             matrix(i, j) = A_us[j][i];
     
     return std::make_unique<ElasticityModel::FullMatOp>(

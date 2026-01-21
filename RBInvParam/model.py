@@ -28,7 +28,7 @@ class InstationaryModelIP(ImmutableObject):
                  M : Operator,
                  A : EvaluatorA,
                  L : VectorArray,
-                 B : EvaluatorB,
+                 #B : EvaluatorB,
                  C : Operator,
                  constant_cost_term: None | float,
                  linear_cost_term: None | VectorArray,
@@ -84,7 +84,7 @@ class InstationaryModelIP(ImmutableObject):
 
         self.A = A 
         self.L = L 
-        self.B = B 
+        #self.B = B 
         self.C = C
         self.constant_cost_term = constant_cost_term 
         self.linear_cost_term = linear_cost_term 
@@ -197,14 +197,14 @@ class InstationaryModelIP(ImmutableObject):
         if self.use_adjoint_space:
             assert M_ad is not None
             assert A_ad is not None
-            assert B_ad is not None
+            #assert B_ad is not None
             assert linear_cost_term_ad is not None
             assert bilinear_cost_term_ad is not None
             assert V_ad is not None
 
             self.M_ad = M_ad
             self.A_ad = A_ad
-            self.B_ad = B_ad
+            #self.B_ad = B_ad
             self.linear_cost_term_ad = linear_cost_term_ad
             self.bilinear_cost_term_ad = bilinear_cost_term_ad
             self.V_ad = V_ad
@@ -215,7 +215,7 @@ class InstationaryModelIP(ImmutableObject):
         else:
             self.M_ad = M
             self.A_ad = A
-            self.B_ad = B
+            #self.B_ad = B
             self.linear_cost_term_ad = linear_cost_term
             self.bilinear_cost_term_ad = bilinear_cost_term
             self.V_ad = V

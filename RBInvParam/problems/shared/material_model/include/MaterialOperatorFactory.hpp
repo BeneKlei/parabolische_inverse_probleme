@@ -6,11 +6,10 @@
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/dofs/dof_handler.h>
 
-
 using namespace dealii;
 
 typedef std::variant<int, double, std::string> SystemMatrixHyperparameterType;
-typedef std::map<std::string, SystemMatrixHyperparameterType>  SystemOperatorHyperparameter;
+typedef std::map<std::string, SystemMatrixHyperparameterType>  MaterialOperatorHyperparameter;
 
 template <typename T>
 constexpr const char* type_name() {
@@ -22,7 +21,7 @@ constexpr const char* type_name() {
 
 template <class T>
 inline void check_required_keys(
-    const SystemOperatorHyperparameter& params,
+    const MaterialOperatorHyperparameter& params,
     const std::initializer_list<std::string>& required_keys) 
 {
     for (const auto& key : required_keys) {
@@ -46,12 +45,12 @@ enum class MaterialOperatorType {
 
 template <int dim, typename Number>
 struct MaterialOperatorFactoryContext {
-  const MaterialOperatorType         &system_operator_type;
-  const FiniteElement<dim>           &fe;
-  const DoFHandler<dim>              &dof_handler;
-  const AffineConstraints<Number>    &BC_constraints;
-  const SparsityPattern              &sparsity_pattern;
-  const SystemOperatorHyperparameter &hyperparameter;
+  const MaterialOperatorType           &system_operator_type;
+  const FiniteElement<dim>             &fe;
+  const DoFHandler<dim>                &dof_handler;
+  const AffineConstraints<Number>      &BC_constraints;
+  const SparsityPattern                &sparsity_pattern;
+  const MaterialOperatorHyperparameter &hyperparameter;
 };
 
 template <int dim, typename Number>

@@ -204,8 +204,6 @@ class DealIISymmetricMatrixOperator(DealIIMatrixOperator):
 #####################################################################
 
 class DealIIBaseOperator(ListVectorArrayOperatorBase):
-    """Wraps a dealII matrix as an |Operator|."""
-
     def __init__(self, op, name=None):
         assert isinstance(op, pd2.BaseOperator)
 
