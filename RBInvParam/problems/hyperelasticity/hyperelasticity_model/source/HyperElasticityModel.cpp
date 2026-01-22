@@ -29,8 +29,8 @@ void HyperElasticityModel::setup_material_operator() {
         throw std::runtime_error("Unknown StoredEnergyFunctionType.");
     }
 
-    m_param_dim = m_param_dof_handler.n_dofs();
-    m_state_dim = m_dof_handler.n_dofs();
+    //m_param_dim = m_param_dof_handler.n_dofs();
+    //m_state_dim = m_dof_handler.n_dofs();
 };
 
 std::unique_ptr<typename HyperElasticityModel::StorEneOp> 

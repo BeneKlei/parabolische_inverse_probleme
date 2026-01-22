@@ -70,7 +70,7 @@ def main():
 
     # T_final = 1
     # nt = 20
-    delta_t = (T_final - T_initial) / nt
+    #delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
@@ -90,9 +90,13 @@ def main():
     bounds[:,0] = 1e-20
     bounds[:,1] = 1e20
 
+    state_grid_resolution = [4,y_res,z_res]
+    param_grid_resolution = [4,y_res,z_res]
+    
 
     setup = {
-        'spatial_resolution' : [4,y_res,z_res],
+        'param_grid_resolution' : param_grid_resolution,
+        'state_grid_resolution' : state_grid_resolution,
         'body_force' : {
             'type' : mm.BodyForceType.CenterExcite,
             'hyperparameter' : {}
@@ -113,7 +117,7 @@ def main():
         'observation_operator': {
             'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {
-                'spatial_resolution' : [4,y_res,z_res],
+                'spatial_resolution' : state_grid_resolution,
                 'radius' : 0.001,
                 'second_row' : False 
             }
@@ -132,7 +136,7 @@ def main():
         },
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
-        'delta_t': delta_t,                           # Time step size
+        'delta_t': None,                              # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
         'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter

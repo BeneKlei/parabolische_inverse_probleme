@@ -30,8 +30,8 @@ def build_ElasticityModelIP(setup : Dict,
     elasticity_model_config.nt = setup['dims']['nt']
     elasticity_model_config.T_initial = setup['T_initial']
     elasticity_model_config.T_final = setup['T_final']
-    elasticity_model_config.delta_t = setup['delta_t']
-    elasticity_model_config.spatial_resolution = setup['spatial_resolution']
+    elasticity_model_config.param_grid_resolution = setup['param_grid_resolution']
+    elasticity_model_config.state_grid_resolution = setup['state_grid_resolution']
 
     elasticity_model_config.material_operator_type = setup['material_operator']['type']
     if setup['material_operator']['hyperparameter']: 
@@ -42,8 +42,6 @@ def build_ElasticityModelIP(setup : Dict,
         elasticity_model_config.body_force_hyperparameter = setup['body_force']['hyperparameter']
 
     elasticity_model = em.ElasticityModel(elasticity_model_config)
-    elasticity_model.make_param_grid()
-    elasticity_model.make_state_grid()
     elasticity_model.setup_system()
     
     ############################### Coercivity ###############################

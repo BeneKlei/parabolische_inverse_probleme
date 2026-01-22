@@ -22,10 +22,9 @@ PYBIND11_MODULE(material_model, m) {
 
       py::class_<MaterialModel>(m, "MaterialModel")
          //.def(py::init<const MaterialModelBaseConfig&>())
-         .def("make_state_grid", &MaterialModel::make_state_grid)
-         .def("make_param_grid", &MaterialModel::make_param_grid)
          .def("setup_system", &MaterialModel::setup_system)
 
+         .def_readonly("delta_t", &MaterialModel::delta_t)
          .def_readonly("param_space_dim", &MaterialModel::m_param_dim)
          .def_readonly("state_space_dim", &MaterialModel::m_state_dim)
          .def_readonly("observation_space_dim", &MaterialModel::m_observation_space_dim)
@@ -100,8 +99,10 @@ PYBIND11_MODULE(material_model, m) {
           .def_readwrite("nt", &MaterialModelBaseConfig::nt)
           .def_readwrite("T_initial", &MaterialModelBaseConfig::T_initial)
           .def_readwrite("T_final", &MaterialModelBaseConfig::T_final)
-          .def_readwrite("delta_t", &MaterialModelBaseConfig::delta_t)
-          .def_readwrite("spatial_resolution", &MaterialModelBaseConfig::spatial_resolution)
+          .def_readwrite("p1", &MaterialModelBaseConfig::p1)
+          .def_readwrite("p2", &MaterialModelBaseConfig::p2)
+          .def_readwrite("param_grid_resolution", &MaterialModelBaseConfig::param_grid_resolution)
+          .def_readwrite("state_grid_resolution", &MaterialModelBaseConfig::state_grid_resolution)
           .def_readwrite("body_force_type", &MaterialModelBaseConfig::body_force_type)
           .def_readwrite("body_force_hyperparameter", &MaterialModelBaseConfig::body_force_hyperparameter);
 }

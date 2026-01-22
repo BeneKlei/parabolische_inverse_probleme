@@ -1,67 +1,70 @@
-#include <deal.II/dofs/dof_tools.h>
-#include <deal.II/dofs/dof_handler.h>
-
-#include <deal.II/lac/dynamic_sparsity_pattern.h>
-#include <deal.II/lac/vector.h>
-#include <deal.II/lac/slepc_solver.h>
-#include <deal.II/lac/petsc_sparse_matrix.h>
-
-#include <deal.II/numerics/data_out.h>
-
-#include <deal.II/numerics/matrix_tools.h>
-#include <deal.II/numerics/solution_transfer.h>
-#include <deal.II/numerics/vector_tools.h>
-
-#include <deal.II/lac/solver_bicgstab.h>
-#include <deal.II/lac/precondition.h>
-#include <deal.II/lac/solver_cg.h>
-
-#include <deal.II/base/data_out_base.h>
-#include <deal.II/base/function.h>
-
-#include <fstream>
-#include <iostream>
-
 #include "MaterialModel.hpp"
 #include "utils.hpp"
 
+// C++
+#include <cmath>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
+
+// deal.II implementation headers
+#include <deal.II/base/geometry_info.h>
+#include <deal.II/base/index_set.h>
+#include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/function.h>           // only needed if you uncomment ZeroFunction
+
+#include <deal.II/dofs/dof_tools.h>
+
+#include <deal.II/fe/fe_values.h>
+
+#include <deal.II/grid/grid_generator.h>
+
+#include <deal.II/numerics/data_out.h>
+#include <deal.II/numerics/vector_tools.h>   // only needed if you uncomment interpolate_boundary_values
+
+
 MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
-  : m_base_config(config), 
-    m_fe(FE_Q<dim>(1), dim),
-    m_dof_handler(m_triangulation),
-    m_param_fe(FE_Q<dim>(1)),
-    m_param_dof_handler(m_param_triangulation)
-    
+  : m_base_config(config) 
+  , m_fe(FE_Q<dim>(1), dim)
+  , m_dof_handler(m_triangulation)
+  , m_param_fe(FE_Q<dim>(1))
+  , m_param_dof_handler(m_param_triangulation)
+  , m_param_evaluator(
+      m_param_mapping,
+      m_param_fe,
+      update_values,
+      0
+    )
 {
-  const double computed_nt = (m_base_config.T_final - m_base_config.T_initial) / m_base_config.delta_t;
-  if (std::abs(computed_nt - static_cast<double>(m_base_config.nt)) > 1e-8) {
-    throw std::runtime_error("Invalid time discretization: check T_final, T_initial, delta_t, and nt.");
-  }
+  delta_t = (m_base_config.T_final - m_base_config.T_initial) / m_base_config.nt;
 }
 
-void MaterialModel::make_param_grid()
+void MaterialModel::setup_param_grid()
 {
-    Point<3> ori  = Point<3>(-0.1, -15.0, -15.0);
-    Point<3> dest = Point<3>(0.1,  15.0,  15.0);
-
     GridGenerator::subdivided_hyper_rectangle(
         m_param_triangulation, 
-        m_base_config.spatial_resolution,
-        ori, 
-        dest
+        m_base_config.param_grid_resolution,
+        m_base_config.p1, 
+        m_base_config.p2
     ); 
+
+    m_param_grid_cache = std::make_unique<GridTools::Cache<3>>(
+      m_param_triangulation, 
+      m_param_mapping
+    );
+    
 }
 
-void MaterialModel::make_state_grid()
+void MaterialModel::setup_state_grid()
 {
-    Point<3> ori  = Point<3>(-0.1, -15.0, -15.0);
-    Point<3> dest = Point<3>( 0.1,  15.0,  15.0);
-
     GridGenerator::subdivided_hyper_rectangle(
         m_triangulation, 
-        m_base_config.spatial_resolution, 
-        ori, 
-        dest
+        m_base_config.state_grid_resolution, 
+        m_base_config.p1, 
+        m_base_config.p2
     ); 
 
     for (const auto &face : m_triangulation.active_face_iterators())
@@ -71,11 +74,11 @@ void MaterialModel::make_state_grid()
             bool is_left  = true;
             bool is_right = true;
 
-            for (unsigned int v = 0; v < GeometryInfo<3>::vertices_per_face; ++v)
+            for (unsigned int v = 0; v < GeometryInfo<dim>::vertices_per_face; ++v)
             {
-                if (std::fabs(face->vertex(v)[0] - ori[0]) > 1e-12)
+                if (std::fabs(face->vertex(v)[0] - m_base_config.p1[0]) > 1e-12)
                     is_left = false;
-                if (std::fabs(face->vertex(v)[0] - dest[0]) > 1e-12)
+                if (std::fabs(face->vertex(v)[0] - m_base_config.p2[0]) > 1e-12)
                     is_right = false;
             }
 
@@ -87,37 +90,97 @@ void MaterialModel::make_state_grid()
     }
 }
 
-void MaterialModel::setup_system()
+void MaterialModel::setup_param_space()
 {
-  std::cout << "\t Setting up function spaces." << std::endl;
-
   m_param_dof_handler.clear();
   m_param_dof_handler.distribute_dofs(m_param_fe);
 
+  // -----------------------------------------------
+  m_param_constraints.clear();
+
+  // Map global DoFs -> physical support points
+  std::vector<Point<dim>> support_points(m_param_dof_handler.n_dofs());
+  DoFTools::map_dofs_to_support_points(
+    m_param_mapping, 
+    m_param_dof_handler, 
+    support_points
+  );
+
+  const Number x_min = m_base_config.p1[0];
+  const Number tol = 1e-12;
+  for (types::global_dof_index i = 0; i < support_points.size(); ++i)
+    if (std::abs(support_points[i][0] - x_min) > tol)
+    {
+      m_param_constraints.add_line(i);
+      m_param_constraints.set_inhomogeneity(i, Number(1.0));
+    }
+
+  m_param_constraints.close();
+  m_param_dim = m_param_dof_handler.n_dofs() - m_param_constraints.n_constraints();
+
+  // -----------------------------------------------
+
+  m_param_free_dofs.clear();
+  m_param_free_dofs.reserve(m_param_dim);
+
+  std::vector<bool> constrained(
+    m_param_dof_handler.n_dofs(), 
+    false
+  );
+  for (types::global_dof_index i = 0; i < constrained.size(); ++i)
+    constrained[i] = m_param_constraints.is_constrained(i);
+
+  for (types::global_dof_index i = 0; i < constrained.size(); ++i)
+    if (!constrained[i])
+      m_param_free_dofs.push_back(i);
+
+  // -----------------------------------------------
+  m_full_param_buffer.clear();
+  m_full_param_buffer.resize(m_param_dof_handler.n_dofs());
+}
+
+void MaterialModel::setup_state_space()
+{
   m_dof_handler.clear();
   m_dof_handler.distribute_dofs(m_fe);
 
   m_system_matrix_sp.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
   DoFTools::make_sparsity_pattern(m_dof_handler, m_system_matrix_sp);
   m_system_matrix_sp.compress();
+
+  m_state_dim = m_dof_handler.n_dofs();
   
+}
+
+void MaterialModel::setup_system()
+{
+  std::cout << "\t Setting up grids." << std::endl;
+  setup_param_grid();
+  setup_state_grid();
+
+  // --------------------------------------------------
+
+  std::cout << "\t Setting up function spaces." << std::endl;
+  setup_param_space();
+  setup_state_space();
+  
+  std::cout << "\t ---------------------- " << std::endl;
+  std::cout << "\t\t #State DoFs: " << m_state_dim << std::endl;
+  std::cout << "\t\t #Parameter: " << m_param_dim << std::endl;
+
   // --------------------------------------------------
 
   std::cout << "\t Setting up BC constraints." << std::endl;
-  _setup_BC_constraints();
+  setup_BC_constraints();
   
-  // // --------------------------------------------------
+  // --------------------------------------------------
 
   std::cout << "\t Setting up material operator." << std::endl;
-
-  this->setup_material_operator();
-
-  std::cout << "\t ---------------------- " << std::endl;
-  std::cout << "\t #State DoFs: " << m_state_dim  << std::endl;
-  std::cout << "\t #Parameter: " << m_param_dim  << std::endl;
+  setup_material_operator();
 
   // --------------------------------------------------
 
+  std::cout << "\t Setting up L2 & H1 in state space." << std::endl;
   StateProductFactoryContext<3, Number> ctx_product_L2 {
     StateProductType::L2,
     m_fe,
@@ -144,6 +207,8 @@ void MaterialModel::setup_system()
 
   // --------------------------------------------------
 
+  std::cout << "\t Assembling force list." << std::endl;
+
   BodyForceFactoryContext<3, Number> ctx_body_force {
     m_base_config.body_force_type,
     m_fe,
@@ -151,16 +216,14 @@ void MaterialModel::setup_system()
     m_base_config.body_force_hyperparameter
   };
 
-
   m_body_force = m_body_force_factory.assemble_body_force(
     ctx_body_force
   );
 
-  std::cout << "\t Assembling force list." << std::endl;
-  _assemble_force_list();
+  assemble_force_list();
 }
 
-void MaterialModel::_setup_BC_constraints()
+void MaterialModel::setup_BC_constraints()
 {
   m_BC_constraints.clear();  
   // Functions::ZeroFunction<dim> dirichlet_bc_function(m_fe.n_components()); 
@@ -208,7 +271,7 @@ void MaterialModel::get_component_dofs(Vector<Number>& state_DoFs, size_t compon
       state_DoFs[i] = Number(0);
 }
 
-void MaterialModel::_assemble_force(Vector<Number>& result, double time) 
+void MaterialModel::assemble_force(Vector<Number>& result, double time) 
 {
   Assert(result.size() == m_dof_handler.n_dofs(),
          ExcDimensionMismatch(result.size(), m_dof_handler.n_dofs()));
@@ -251,7 +314,7 @@ void MaterialModel::_assemble_force(Vector<Number>& result, double time)
   m_BC_constraints.condense(result); 
 }
 
-void MaterialModel::_assemble_force_list()
+void MaterialModel::assemble_force_list()
 {
   m_force_list.clear();
   m_force_list.resize(m_base_config.nt+1);
@@ -259,8 +322,8 @@ void MaterialModel::_assemble_force_list()
   double time = m_base_config.T_initial;
   for (uint32_t idx = 0; idx <= m_base_config.nt; idx++) {
     m_force_list[idx].reinit(m_dof_handler.n_dofs());
-    _assemble_force(m_force_list[idx], time);
-    time += m_base_config.delta_t;
+    assemble_force(m_force_list[idx], time);
+    time += delta_t;
   }
 }
 
@@ -460,3 +523,34 @@ void MaterialModel::save_time_series(const std::vector<Vector<double>> &v,
     pvd << "</VTKFile>\n";
 }
 
+void MaterialModel::evaluate_param_values(
+  const std::vector<Number> &param,
+  const std::vector<Point<dim>> &points,  
+  std::vector<Number> &values
+) const
+{
+  AssertThrow(
+    m_param_grid_cache.get() != nullptr, 
+    ExcMessage("m_param_grid_cache not initialized.")
+  );
+  AssertDimension(points.size(), m_param_dim);
+  
+  values.clear();
+  values.resize(points.size());
+
+  m_full_param_buffer = Number(1.0);
+  
+  // TODO move this into own function
+  for (unsigned int k = 0; k < m_param_free_dofs.size(); ++k)
+    m_full_param_buffer[m_param_free_dofs[k]] = param[k];
+
+  m_param_constraints.distribute(m_full_param_buffer);
+
+  for (std::size_t i = 0; i < points.size(); ++i)
+  {
+    const auto &p = points[i];
+    m_param_evaluator.reinit(*m_param_grid_cache, m_param_dof_handler, p);
+    m_param_evaluator.evaluate(m_full_param_buffer, EvaluationFlags::values);
+    values[i] = m_param_evaluator.get_value(0);
+  }
+}

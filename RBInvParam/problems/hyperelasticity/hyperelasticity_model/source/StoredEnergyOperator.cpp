@@ -36,12 +36,14 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
     const unsigned int dofs_per_cell       = m_fe.dofs_per_cell;
     const unsigned int n_quadrature_points = quadrature_formula.size();
 
-    Vector<double> local_y(dofs_per_cell);
+    Vector<Number> local_y(dofs_per_cell);
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
     const FEValuesExtractors::Vector vel(0);
 
     std::vector<Tensor<2,dim>> u_gradients(n_quadrature_points);   
     std::vector<Point<dim>> q_points_coords(n_quadrature_points);
+    //std::vector<Number> param_values(n_quadrature_points);
+
     std::vector<Tensor<2,dim>> DY_stored_energy_points(n_quadrature_points);
 
     Tensor<2,dim> I = Tensor<2, dim>(unit_symmetric_tensor<dim, Number>());
@@ -55,6 +57,7 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
 
         fe_values[vel].get_function_gradients(u, u_gradients);
         q_points_coords = fe_values.get_quadrature_points();
+        //q_points_coords
 
         for (unsigned int q_point=0; q_point<n_quadrature_points; ++q_point){
 

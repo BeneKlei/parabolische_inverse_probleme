@@ -26,6 +26,10 @@ public:
     std::size_t dim_range() const;
 
 private:
+    const std::vector<Number> m_param_buffer;
+    const std::vector<Number> m_full_param_buffer;
+
+
     const StoredEnergyFunction<dim, Number>& m_stored_energy_function;
     const FiniteElement<dim>& m_fe;
     const DoFHandler<dim>& m_dof_handler;

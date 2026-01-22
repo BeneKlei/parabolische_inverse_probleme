@@ -27,7 +27,8 @@ def build_InstationaryModelIP(setup : Dict,
                               coercivity_constant_estimator_function: Callable[[np.ndarray], float],
                               logger : logging.Logger = None) -> InstationaryModelIP:
 
- 
+    setup['delta_t'] = material_model.delta_t
+
     ############################### State and Param Space ###############################
 
     setup['dims']['par_dim'] = material_model.param_space_dim

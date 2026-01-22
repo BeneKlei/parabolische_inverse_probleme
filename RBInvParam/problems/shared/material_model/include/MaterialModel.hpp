@@ -1,43 +1,51 @@
 #pragma once
 
-#include <deal.II/grid/tria.h>
-#include <deal.II/grid/grid_generator.h>
+// C++
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <vector>
+
+// deal.II: core types used in the class interface
+#include <deal.II/base/point.h>
 
 #include <deal.II/dofs/dof_handler.h>
-#include <deal.II/dofs/dof_tools.h>
-
-#include <deal.II/lac/sparse_matrix.h>
-#include <deal.II/lac/sparsity_pattern.h>
-#include <deal.II/lac/sparse_direct.h>
-#include <deal.II/lac/vector.h>
-#include <deal.II/lac/dynamic_sparsity_pattern.h> 
-#include <deal.II/lac/affine_constraints.h>
-#include <deal.II/lac/precondition.h>
-#include <deal.II/lac/sparse_ilu.h>
-#include <deal.II/lac/full_matrix.h>
 
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
-#include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 
-#include <filesystem>
+#include <deal.II/grid/tria.h>
+#include <deal.II/grid/grid_tools_cache.h>
 
-#include "SystemMatrices.hpp"
+#include <deal.II/lac/affine_constraints.h>
+#include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/sparsity_pattern.h>
+#include <deal.II/lac/vector.h>
+
+#include <deal.II/matrix_free/fe_point_evaluation.h>
+
+// your project headers (types appear in members / signatures)
 #include "BodyForceFactory.hpp"
 #include "ObservationOperatorFactory.hpp"
-#include "StateProductFactory.hpp"
 #include "ObservationSpaceProductFactory.hpp"
+#include "StateProductFactory.hpp"
+#include "SystemMatrices.hpp"
 
 using namespace dealii;
 
 typedef double Number;
 
 struct MaterialModelBaseConfig {
+    static constexpr size_t dim{3};
+
     int nt = 50;
     double T_initial = 0.0;
     double T_final = 1.0;
-    double delta_t = 1.0 / 50;
-    std::vector<uint32_t> spatial_resolution = {4,30,30};
+    Point<dim> p1 = { -0.1, -15.0, -15.0 };
+    Point<dim> p2 = {  0.1,  15.0,  15.0 };
+    std::vector<unsigned int> param_grid_resolution = {4,30,30};
+    std::vector<unsigned int> state_grid_resolution = {4,30,30};
     BodyForceType body_force_type = BodyForceType::CenterExcite;
     BodyForceHyperparameter body_force_hyperparameter = {};    
 };
@@ -49,9 +57,7 @@ public:
 
   explicit MaterialModel(const MaterialModelBaseConfig& config);
   virtual ~MaterialModel() = default;
-
-  void make_state_grid();
-  void make_param_grid();
+  
   void setup_system();
 
   virtual void setup_material_operator() = 0;
@@ -77,11 +83,23 @@ public:
 
   void get_component_dofs(Vector<Number>& state_DoFs, size_t component_idx);  
   void clear_rhs_boundary_dofs(Vector<Number>& v);  
-  void save_state(const Vector<Number>& v, const std::string save_path);
-  void save_time_series(const std::vector<Vector<Number>> &v,
-                        const std::string &name,
-                        const std::string &save_path,
-                        const std::vector<double> &times);
+  void save_state(
+    const Vector<Number>& v, 
+    const std::string save_path
+  );
+
+  void save_time_series(
+    const std::vector<Vector<Number>> &v,
+    const std::string &name,
+    const std::string &save_path,
+    const std::vector<double> &times
+  );
+
+  void evaluate_param_values(
+    const std::vector<double>&,
+    const std::vector<Point<dim>>&,
+    std::vector<double>&
+  ) const;
 
   // --------------------------------------------------
 
@@ -115,19 +133,32 @@ public:
   SparsityPattern m_bilinear_cost_operator_sp;
   SparsityPattern m_observation_operator_sp;
   SparsityPattern m_obs_space_product_sp;
+
+  Number delta_t; 
   
 protected:
   const MaterialModelBaseConfig m_base_config;
 
+  
+  // ---------------------- State FE ----------------------
   // TODO Rename to x_state
   Triangulation<dim> m_triangulation;
   FESystem<dim> m_fe;
   DoFHandler<dim> m_dof_handler;
 
+  // ---------------------- Param FE ----------------------
   Triangulation<dim> m_param_triangulation;
   FE_Q<dim> m_param_fe;
   DoFHandler<dim> m_param_dof_handler;
 
+  // TODO Build eval mech also for state
+  MappingQ1<dim> m_param_mapping;
+  FEPointEvaluation<1, dim> m_param_evaluator;
+  std::unique_ptr<GridTools::Cache<dim>> m_param_grid_cache;
+
+  AffineConstraints<Number> m_param_constraints;
+  std::vector<types::global_dof_index> m_param_free_dofs; // reduced index -> global DoF index
+  
   ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
   ObservationSpaceProductFactory<dim, Number> m_observation_space_product_factory = ObservationSpaceProductFactory<3, Number>();
@@ -137,11 +168,19 @@ protected:
   std::unique_ptr<BodyForce> m_body_force;
 
 private:  
-  void _setup_BC_constraints();
-  void _setup_body_force();
+  std::vector<Number> m_full_param_buffer;
+
+  void setup_param_grid();
+  void setup_state_grid();
+  void setup_param_space();
+  void setup_state_space();
+
+  void setup_BC_constraints();
+  void setup_body_force();
   
-  void _assemble_force_list();
-  void _assemble_force(Vector<Number>& result, double time);
+  void assemble_force_list();
+  void assemble_force(Vector<Number>& result, double time);
+  
 };
 
 
