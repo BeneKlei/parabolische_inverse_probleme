@@ -587,7 +587,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         #     parameteric_operator = parameteric_operator,
         #     translation_operator = translation_operator
         # )
-        B = None
+        # B = None
         
         if state_basis:
             if isinstance(self.FOM.L, VectorArray):
@@ -699,7 +699,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'M' : project(self.FOM.M, state_basis, state_basis),
             'A' : A,
             'L' : L,
-            'B' : B,
             'C' : project(self.FOM.C, None, state_basis),
             'constant_cost_term' : self.FOM.constant_cost_term,
             'linear_cost_term' : linear_cost_term,
@@ -744,14 +743,14 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             complete_operator=A_ad_source_r
         )
 
-        B_ad = ROMEvaluatorB(
-            source = Q,
-            range = V_ad,
-            Q = Q,
-            V = V,
-            parameteric_operator = parameteric_operator,
-            translation_operator = translation_operator
-        )
+        # B_ad = ROMEvaluatorB(
+        #     source = Q,
+        #     range = V_ad,
+        #     Q = Q,
+        #     V = V,
+        #     parameteric_operator = parameteric_operator,
+        #     translation_operator = translation_operator
+        # )
 
 
         if len(self.bases['adjoint_basis']) > 0:
@@ -763,7 +762,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         projected_ad_operators = {
             'M_ad' : project(self.FOM.M, adjoint_basis, adjoint_basis),
             'A_ad' : A_ad,
-            'B_ad' : B_ad,
             'linear_cost_term_ad' : linear_cost_term_ad,
             'bilinear_cost_term_ad' : project(self.FOM.bilinear_cost_term, adjoint_basis, state_basis),
         }

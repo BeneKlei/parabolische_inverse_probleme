@@ -21,7 +21,7 @@ import RBInvParam.problems.shared.material_model as mm
 from RBInvParam.optimizer import QrVrROMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
-from RBInvParam.problems.elasticity.build import build_InstationaryModelIP
+from RBInvParam.problems.elasticity.build import build_ElasticityModelIP
 
 from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimatorType
 from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimatorType
@@ -178,7 +178,7 @@ def main():
     # q_exact[0,470] = 3
 
 
-    q_exact[0,50] = 2
+    #q_exact[0,50] = 2
     q_circ[0,:] = 1
 
     bounds = np.zeros((par_dim, 2))
@@ -278,7 +278,7 @@ def main():
         }
     }
 
-    FOM = build_InstationaryModelIP(setup, logger)
+    FOM = build_ElasticityModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
@@ -380,8 +380,8 @@ def main():
         'use_error_estimator' : False,
         'use_adjoint_space' : False,
         #'use_adjoint_space' : True,
-        'offline_parallel' : True,
-        #'offline_parallel' : False,
+        #'offline_parallel' : True,
+        'offline_parallel' : False,
         'reg_AGC_step' : False,
         #'TR_enforcement' : 'check_error',
         'TR_enforcement' : 'backtracking',

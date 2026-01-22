@@ -14,6 +14,7 @@ from pymor.basic import *
 from pymor.core.defaults import set_defaults, get_defaults
 from pymor.algorithms.genericsolvers import solver_options
 
+import RBInvParam.problems.elasticity.elasticity_model as em
 import RBInvParam.problems.shared.material_model as mm
 
 from RBInvParam.optimizer import FOMOptimizer
@@ -143,11 +144,10 @@ def main():
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
         'save_path' : save_path,
         'time_stepper' : {
-            'primal' : {
+            'state' : {
                 'type' : TimeStepperType.SecondOrderCrankNicolson,
                 'config' : {
                     'zeta' : 0.5
-                    #'zeta' : 1.0
                 }
             },
             'adjoint' : {
@@ -155,7 +155,19 @@ def main():
                 #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
                 'config' : {
                     'zeta' : 0.5
-                    #'zeta' : 1.0
+                }
+            },
+            'lin_state' : {
+                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                'config' : {
+                    'zeta' : 0.5
+                }
+            },
+            'lin_adjoint' : {
+                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
+                'config' : {
+                    'zeta' : 0.5
                 }
             },
         }

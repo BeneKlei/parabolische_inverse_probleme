@@ -4,7 +4,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 import numpy as np
 import scipy
 import logging
-from typing import Dict
+from typing import Dict, Callable
 
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.numpy import NumpyMatrixOperator
@@ -24,6 +24,7 @@ from RBInvParam.evaluators import EvaluatorA
 def build_InstationaryModelIP(setup : Dict,
                               material_model: mm.MaterialModel,
                               EvaluatorA_class: EvaluatorA,
+                              coercivity_constant_estimator_function: Callable[[np.ndarray], float],
                               logger : logging.Logger = None) -> InstationaryModelIP:
 
  
@@ -50,6 +51,7 @@ def build_InstationaryModelIP(setup : Dict,
 
     material_model.assemble_product_H(_str_to_enum_map_state[product_names['prod_H']])
     material_model.assemble_product_V(_str_to_enum_map_state[product_names['prod_V']])
+    
 
     products = {
         'prod_H' : None,
@@ -147,11 +149,15 @@ def build_InstationaryModelIP(setup : Dict,
     
     material_model.assemble_mass_matrix()    
     matrix = pd2.SparseMatrix(material_model.mass_matrix.get_sparsity_pattern())
-    matrix.copy_from(material_model.mass_matrix)
+    matrix.copy_from(material_model.mass_matrix)    
     
     M = SparseMatrixOperator(
         op = pd2.SparseMatrixOperator(matrix = matrix)
     )
+
+    # print("Here 2")  
+    # import sys
+    # sys.exit()
 
     L = V_h.make_array(material_model.force_list)
 
@@ -160,7 +166,7 @@ def build_InstationaryModelIP(setup : Dict,
         source = V_h,
         range = V_h,
         Q = Q_h    
-    )    
+    )  
     # B = ElasticitiyFOMEvaluatorB(
     #     elasticity_model = elasticity_model,
     #     source=Q_h,
@@ -168,26 +174,9 @@ def build_InstationaryModelIP(setup : Dict,
     #     Q = Q_h,
     #     V = V_h   
     # )
-    ############################### Coercivity ###############################
-
-    assert product_names['prod_V'] == 'h1_0_semi'
-    # I AM NOT SURE THAT THIS IS CORRECT! JUST FOR TESTING
-    #A_coercivity_constant_estimator_function = lambda q: 1
-
-    x = np.min([
-        2 * setup['system_operator']['hyperparameter']['mu'],
-        2 * setup['system_operator']['hyperparameter']['nu'],
-        2 * setup['system_operator']['hyperparameter']['mu'] + \
-        3 * setup['system_operator']['hyperparameter']['lambda']
-    ])
-
-    #A_coercivity_constant_estimator_function = lambda q: np.min(q.to_numpy()) * x
-    y = np.min(setup['bounds'][:,0])
-    assert y > 0
-    A_coercivity_constant_estimator_function = lambda q: y * x
     
     A_coercivity_constant_estimator = CoercivityConstantEstimator(
-        coercivity_estimator_function = A_coercivity_constant_estimator_function,
+        coercivity_estimator_function = coercivity_constant_estimator_function,
         Q = Q_h,
         q_time_dep = setup['q_time_dep']
     )

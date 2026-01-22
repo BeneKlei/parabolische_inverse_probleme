@@ -15,15 +15,15 @@ void MaterialOperatorFactory<dim, Number>::assemble_system(
   switch (ctx.system_operator_type)
   {
   case MaterialOperatorType::Cosserat:
-    std::cout << "\t Using Cosserat SystemMatrix" << std::endl;
+    std::cout << "\t Using Cosserat MaterialOperator" << std::endl;
     MaterialOperatorFactory::assemble_cosserat_system(ctx, matrices, affine);
     break;
   case MaterialOperatorType::CosseratDelamination:
-    std::cout << "\t Using CosseratDelamination SystemMatrix" << std::endl;
+    std::cout << "\t Using CosseratDelamination MaterialOperator" << std::endl;
     MaterialOperatorFactory::assemble_cosserat_delamination_system(ctx, matrices, affine);
     break;
   case MaterialOperatorType::CosseratSpatial:
-    std::cout << "\t Using CosseratSpatial SystemMatrix" << std::endl;
+    std::cout << "\t Using CosseratSpatial MaterialOperator" << std::endl;
     MaterialOperatorFactory::assemble_cosserat_spatial_system(ctx, matrices, affine);
     break;
   default:

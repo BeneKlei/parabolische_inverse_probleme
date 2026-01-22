@@ -29,7 +29,7 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
   : m_base_config(config), 
     m_fe(FE_Q<dim>(1), dim),
     m_dof_handler(m_triangulation),
-    m_param_fe(FE_Q<dim-1>(1)),
+    m_param_fe(FE_Q<dim>(1)),
     m_param_dof_handler(m_param_triangulation)
     
 {
@@ -42,16 +42,11 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
 void MaterialModel::make_param_grid()
 {
     Point<3> ori  = Point<3>(-0.1, -15.0, -15.0);
-    Point<3> dest = Point<3>(-0.1,  15.0,  15.0);
-
-    const std::array<unsigned int, dim-1> reps = {
-        m_base_config.param_resolution_y,   // subdivisions along y
-        m_base_config.param_resolution_z    // subdivisions along z
-    };
+    Point<3> dest = Point<3>(0.1,  15.0,  15.0);
 
     GridGenerator::subdivided_hyper_rectangle(
         m_param_triangulation, 
-        reps, 
+        m_base_config.spatial_resolution,
         ori, 
         dest
     ); 
@@ -96,27 +91,30 @@ void MaterialModel::setup_system()
 {
   std::cout << "\t Setting up function spaces." << std::endl;
 
+  m_param_dof_handler.clear();
+  m_param_dof_handler.distribute_dofs(m_param_fe);
+
   m_dof_handler.clear();
   m_dof_handler.distribute_dofs(m_fe);
 
   m_system_matrix_sp.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
   DoFTools::make_sparsity_pattern(m_dof_handler, m_system_matrix_sp);
   m_system_matrix_sp.compress();
-
-
-  m_param_dim = m_param_dof_handler.n_dofs();
-  m_state_dim = m_dof_handler.n_dofs();
-
-  std::cout << "\t ---------------------- " << std::endl;
-  std::cout << "\t #DoFs: " << m_state_dim  << std::endl;
-  std::cout << "\t #Parameter: " << m_param_dim  << std::endl;
+  
+  // --------------------------------------------------
 
   std::cout << "\t Setting up BC constraints." << std::endl;
   _setup_BC_constraints();
   
-  // --------------------------------------------------
+  // // --------------------------------------------------
+
+  std::cout << "\t Setting up material operator." << std::endl;
 
   this->setup_material_operator();
+
+  std::cout << "\t ---------------------- " << std::endl;
+  std::cout << "\t #State DoFs: " << m_state_dim  << std::endl;
+  std::cout << "\t #Parameter: " << m_param_dim  << std::endl;
 
   // --------------------------------------------------
 
@@ -320,8 +318,6 @@ void MaterialModel::assemble_mass_matrix()
     m_dof_handler,
     m_system_matrix_sp    
   };
-
-  
 
   m_state_product_factory.assemble_state_product(
     ctx,

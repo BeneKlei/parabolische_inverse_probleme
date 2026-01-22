@@ -25,7 +25,7 @@ wheel.packages = ["RBInvParam"]
 minimum-version = "build-system.requires"
 cmake.source-dir = "RBInvParam/problems" 
 build-dir = "RBInvParam/problems/build/{wheel_tag}"
-cmake.build-type = "Debug"
+#cmake.build-type = "Debug"
 
 [tool.coverage.run]
 source = [

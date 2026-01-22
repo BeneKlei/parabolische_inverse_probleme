@@ -55,7 +55,7 @@ class InstationaryModelIP(ImmutableObject):
                  V_ad : None | VectorSpace = None,
                  M_ad : None | Operator = None,
                  A_ad : None | EvaluatorA = None,
-                 B_ad : None | EvaluatorB = None,
+                 #B_ad : None | EvaluatorB = None,
                  linear_cost_term_ad : None | VectorArray = None,
                  bilinear_cost_term_ad : None | Operator = None):
                 

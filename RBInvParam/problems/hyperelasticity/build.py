@@ -42,19 +42,21 @@ def build_HyperElasticityModelIP(setup : Dict,
 
     hyperelasticity_model = hm.HyperElasticityModel(hyperelasticity_model_config)
 
-    import sys
-    sys.exit()
     hyperelasticity_model.make_state_grid()
     hyperelasticity_model.make_param_grid()
     hyperelasticity_model.setup_system()
 
-    import sys
-    sys.exit()
+    ############################### Coercivity ###############################
+
+    assert setup['products']['prod_V'] == 'h1_0_semi'
+    # I AM NOT SURE THAT THIS IS CORRECT! JUST FOR TESTING
+    coercivity_constant_estimator_function = lambda q: 1
 
     return build_InstationaryModelIP(
         setup = setup,
         material_model = hyperelasticity_model,
-        A_class = HyperElasticitiyFOMEvaluatorA,
+        EvaluatorA_class = HyperElasticitiyFOMEvaluatorA,
+        coercivity_constant_estimator_function = coercivity_constant_estimator_function,
         logger = logger
     )
 

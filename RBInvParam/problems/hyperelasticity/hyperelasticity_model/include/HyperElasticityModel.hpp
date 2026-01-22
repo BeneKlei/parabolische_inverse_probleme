@@ -30,14 +30,14 @@ public:
         const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np
     );
 
-    std::unique_ptr<FullMatOp> assemble_partial_q_A_q_u(
-        const Vector<Number>& u
-    );
+    // std::unique_ptr<FullMatOp> assemble_partial_q_A_q_u(
+    //     const Vector<Number>& u
+    // );
 
-    std::unique_ptr<SpasMatOp> assemble_partial_u_A_q_u(
-        const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
-        const Vector<Number>& u
-    );
+    // std::unique_ptr<SpasMatOp> assemble_partial_u_A_q_u(
+    //     const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
+    //     const Vector<Number>& u
+    // );
 
     bool m_has_translation_operator = true;
 

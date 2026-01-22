@@ -162,22 +162,22 @@ double NeoHookeanStoredEnergy<dim, Number>::compute_param_factor(const PointType
   return 1.0;
 }
 
-template <int dim, typename Number>
-bool NeoHookeanStoredEnergy<dim, Number>::in_first_layer(const PointType& p) const
-{
-    const auto cell_and_ref = GridTools::find_active_cell_around_point(
-      m_mapping, 
-      m_param_dof_handler, 
-      p
-    );
-    const auto &cell = cell_and_ref.first;
+// template <int dim, typename Number>
+// bool NeoHookeanStoredEnergy<dim, Number>::in_first_layer(const PointType& p) const
+// {
+//     const auto cell_and_ref = GridTools::find_active_cell_around_point(
+//       m_mapping, 
+//       m_param_dof_handler, 
+//       p
+//     );
+//     const auto &cell = cell_and_ref.first;
 
-    for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f)
-        if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == 1)
-            return true;
+//     for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f)
+//         if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == 1)
+//             return true;
 
-    return false;
-}
+//     return false;
+// }
 
 // -------------------- explicit instantiations --------------------
 

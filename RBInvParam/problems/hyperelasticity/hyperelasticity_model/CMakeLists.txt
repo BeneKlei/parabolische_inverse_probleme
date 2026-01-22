@@ -18,7 +18,6 @@ target_link_libraries(
     material_model_core
 )
 
-
 PYBIND11_DEAL_II_SETUP_TARGET(hyperelasticity_model)
 #install(TARGETS material_model LIBRARY DESTINATION .)
 

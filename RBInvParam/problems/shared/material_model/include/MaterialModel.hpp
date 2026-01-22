@@ -53,7 +53,9 @@ public:
   void make_state_grid();
   void make_param_grid();
   void setup_system();
-  void setup_material_operator() {};
+
+  virtual void setup_material_operator() = 0;
+  // TODO Add assemble_A_q etc. here to the interface
 
   void assemble_mass_matrix();
   void assemble_observation_operator_matrix(
@@ -122,9 +124,9 @@ protected:
   FESystem<dim> m_fe;
   DoFHandler<dim> m_dof_handler;
 
-  Triangulation<dim-1, dim> m_param_triangulation;
-  FE_Q<dim-1, dim> m_param_fe;
-  DoFHandler<dim-1, dim> m_param_dof_handler;
+  Triangulation<dim> m_param_triangulation;
+  FE_Q<dim> m_param_fe;
+  DoFHandler<dim> m_param_dof_handler;
 
   ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();

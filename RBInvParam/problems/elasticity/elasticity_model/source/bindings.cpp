@@ -17,6 +17,7 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(elasticity_model, m) {
     py::module::import("pymor_dealii_bindings");
+    
     py::class_<ElasticityModel, MaterialModel>(m, "ElasticityModel")
       .def(py::init<const ElasticityModelConfig&>())
       .def("setup_material_operator", &ElasticityModel::setup_material_operator)

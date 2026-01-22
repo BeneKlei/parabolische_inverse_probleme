@@ -15,7 +15,6 @@ target_link_libraries(
   material_model_core 
   PUBLIC 
   material_model_operators
-  pybind11::headers  
 )
 
 PYBIND11_DEAL_II_SETUP_TARGET(material_model_core)

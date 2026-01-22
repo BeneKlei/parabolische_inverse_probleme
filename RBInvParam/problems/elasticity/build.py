@@ -1,3 +1,4 @@
+import numpy as np
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -44,11 +45,31 @@ def build_ElasticityModelIP(setup : Dict,
     elasticity_model.make_param_grid()
     elasticity_model.make_state_grid()
     elasticity_model.setup_system()
+    
+    ############################### Coercivity ###############################
+
+    assert setup['products']['prod_V'] == 'h1_0_semi'
+    # I AM NOT SURE THAT THIS IS CORRECT! JUST FOR TESTING
+    #A_coercivity_constant_estimator_function = lambda q: 1
+
+    x = np.min([
+        2 * setup['material_operator']['hyperparameter']['mu'],
+        2 * setup['material_operator']['hyperparameter']['nu'],
+        2 * setup['material_operator']['hyperparameter']['mu'] + \
+        3 * setup['material_operator']['hyperparameter']['lambda']
+    ])
+
+    y = np.min(setup['bounds'][:,0])
+    assert y > 0
+    coercivity_constant_estimator_function = lambda q: y * x
+
+    ##########################################################################
 
     return build_InstationaryModelIP(
         setup = setup,
         material_model = elasticity_model,
-        A_class = ElasticitiyFOMEvaluatorA,
+        EvaluatorA_class = ElasticitiyFOMEvaluatorA,
+        coercivity_constant_estimator_function = coercivity_constant_estimator_function,
         logger = logger
     )
 

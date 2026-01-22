@@ -30,7 +30,7 @@ template <int dim, typename Number>
 void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
                                               const Vector<Number> &u) const
 {
-    QGaussLobatto<3> quadrature_formula(2);
+    QGaussLobatto<dim> quadrature_formula(2);
     FEValues<dim> fe_values(m_fe, quadrature_formula,
                             update_gradients | update_JxW_values | update_quadrature_points | update_values);
     const unsigned int dofs_per_cell       = m_fe.dofs_per_cell;
@@ -58,7 +58,7 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
 
         for (unsigned int q_point=0; q_point<n_quadrature_points; ++q_point){
 
-            DY_stored_energy_points[q_point] = m_stored_energy_function->gradient(
+            DY_stored_energy_points[q_point] = m_stored_energy_function.gradient(
                 q_points_coords[q_point],
                 u_gradients[q_point] + I
             );
@@ -78,6 +78,9 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
         }
     }
 }
+
+template class StoredEnergyOperator<2, double>;
+template class StoredEnergyOperator<3, double>;
 
 // namespace dealii_like
 // {

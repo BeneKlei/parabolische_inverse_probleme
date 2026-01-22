@@ -1,17 +1,10 @@
-import copy
-import numpy as np
-from types import SimpleNamespace
-from typing import List, Dict
-
-import pymor_dealii_bindings as pd2
-
+from typing import List
 
 import pymor.vectorarrays as VectorArray
 
 from pymor.vectorarrays.interface import VectorSpace
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.list import ListVectorArray
-
 
 from RBInvParam.evaluators import FOMEvaluatorA
 from RBInvParam.problems.hyperelasticity.hyperelasticity_model import HyperElasticityModel

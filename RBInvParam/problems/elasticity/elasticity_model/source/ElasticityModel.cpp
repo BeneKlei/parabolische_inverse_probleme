@@ -7,8 +7,6 @@ ElasticityModel::ElasticityModel(const ElasticityModelConfig& config)
 
 void ElasticityModel::setup_material_operator() 
 {
-    std::cout << "\t Setting up material operator." << std::endl;
-
     MaterialOperatorFactoryContext<dim, Number> ctx {
         m_elasticity_config.material_operator_type,
         m_fe,
@@ -34,10 +32,6 @@ void ElasticityModel::setup_material_operator()
     
     m_param_dim = m_matrix_stack->dim_Q();
     m_state_dim = m_dof_handler.n_dofs();
-
-    std::cout << "\t ---------------------- " << std::endl;
-    std::cout << "\t #DoFs: " << m_state_dim  << std::endl;
-    std::cout << "\t #Parameter: " << m_param_dim  << std::endl;
 }
 
 std::unique_ptr<ElasticityModel::SpasMatOp> ElasticityModel::assemble_A_q(
