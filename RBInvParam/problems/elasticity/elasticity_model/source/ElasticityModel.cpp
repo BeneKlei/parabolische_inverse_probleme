@@ -12,7 +12,7 @@ void ElasticityModel::setup_material_operator()
         m_fe,
         m_dof_handler,
         m_BC_constraints,
-        m_system_matrix_sp,
+        m_state_sp,
         m_elasticity_config.material_operator_hyperparameter
     };
 

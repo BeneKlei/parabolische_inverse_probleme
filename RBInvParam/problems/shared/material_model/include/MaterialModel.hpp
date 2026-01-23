@@ -145,7 +145,6 @@ public:
   SparseMatrix<Number> m_product_H1;
 
   // --------------------------------------------------
-  SparsityPattern m_system_matrix_sp;
   SparsityPattern m_bilinear_cost_operator_sp;
   SparsityPattern m_observation_operator_sp;
   SparsityPattern m_obs_space_product_sp;
@@ -161,6 +160,7 @@ protected:
   FESystem<dim> m_fe;
   DoFHandler<dim> m_dof_handler;
 
+  SparsityPattern m_state_sp;
   // ---------------------- Param FE ----------------------
   Triangulation<dim> m_param_triangulation;
   FE_Q<dim> m_param_fe;

@@ -23,6 +23,7 @@ void bind_operator(py::module_& m)
 
      py::class_<StorEneOp, BaseOp, std::unique_ptr<StorEneOp>>(m, "StoredEnergyOperator")
           .def("apply", &StorEneOp::apply, py::arg("y"), py::arg("x"))
+          .def("jacobian", &StorEneOp::jacobian, py::arg("u"))
           .def("dim_source", &StorEneOp::dim_source)
           .def("dim_range", &StorEneOp::dim_range);
 

@@ -48,7 +48,7 @@ PYBIND11_MODULE(material_model, m) {
          .def_readonly("observation_operator", &MaterialModel::m_observation_operator)
          .def_readonly("bilinear_cost_operator", &MaterialModel::m_bilinear_cost_operator)
          .def_readonly("force_list", &MaterialModel::m_force_list)
-         .def_readonly("system_matrix_sp", &MaterialModel::m_system_matrix_sp)
+         //.def_readonly("m_state_sp", &MaterialModel::m_state_sp)
 
          .def("get_component_dofs", &MaterialModel::get_component_dofs, py::return_value_policy::reference_internal)
          .def("clear_rhs_boundary_dofs", &MaterialModel::clear_rhs_boundary_dofs, py::return_value_policy::reference_internal)

@@ -182,25 +182,20 @@ void MatrixOperator<Number, MatrixType>::apply_inverse(Vector<Number> &y,
   }
 }
 
-
 template <class Number, class MatrixType>
 void MatrixOperator<Number, MatrixType>::apply_inverse_adjoint(Vector<Number>       &y,
                                                                const Vector<Number> &f) const
 {
-  //AssertThrow(false, ExcNotDefined());
   this->apply_inverse(y,f);
 }
 
 template <class Number, class MatrixType>
-bool MatrixOperator<Number, MatrixType>::has_inverse() const
+std::unique_ptr<BaseOperator<Number>> 
+MatrixOperator<Number, MatrixType>::jacobian(const Vector<Number> &u) const
 {
-  return true;
-}
-
-template <class Number, class MatrixType>
-bool MatrixOperator<Number, MatrixType>::has_inverse_adjoint() const
-{
-  return true;
+  return std::make_unique<MatrixOperator<Number, MatrixType>>(
+    m_matrix
+  );
 }
 
 template <class Number, class MatrixType>

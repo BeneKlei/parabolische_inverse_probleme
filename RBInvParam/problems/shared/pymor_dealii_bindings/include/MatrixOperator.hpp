@@ -78,11 +78,10 @@ public:
 
   void apply_inverse_adjoint(Vector<Number> &y,
                              const Vector<Number> &f) const override;
-
-  bool has_inverse() const override;
-  bool has_inverse_adjoint() const override;
-
-  const MatV& get_matrix() const { return m_matrix; }   // <-- getter
+  
+  std::unique_ptr<BaseOperator<Number>> jacobian(const Vector<Number> &u) const override;
+  
+  const MatV& get_matrix() const { return m_matrix; }
 
   std::size_t dim_source() const override;
   std::size_t dim_range() const override;

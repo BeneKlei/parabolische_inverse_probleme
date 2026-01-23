@@ -40,7 +40,8 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
     )
   , m_state_space_context(m_triangulation,
                           m_fe,
-                          m_dof_handler)
+                          m_dof_handler,
+                          m_state_sp)
   , m_param_space_context(m_param_triangulation,
                           m_param_fe,
                           m_param_dof_handler,
@@ -152,9 +153,9 @@ void MaterialModel::setup_state_space()
   m_dof_handler.clear();
   m_dof_handler.distribute_dofs(m_fe);
 
-  m_system_matrix_sp.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
-  DoFTools::make_sparsity_pattern(m_dof_handler, m_system_matrix_sp);
-  m_system_matrix_sp.compress();
+  m_state_sp.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
+  DoFTools::make_sparsity_pattern(m_dof_handler, m_state_sp);
+  m_state_sp.compress();
 
   m_state_dim = m_dof_handler.n_dofs();
   
@@ -193,7 +194,7 @@ void MaterialModel::setup_system()
     StateProductType::L2,
     m_fe,
     m_dof_handler,
-    m_system_matrix_sp    
+    m_state_sp    
   };
 
   m_state_product_factory.assemble_state_product(
@@ -205,7 +206,7 @@ void MaterialModel::setup_system()
     StateProductType::H1,
     m_fe,
     m_dof_handler,
-    m_system_matrix_sp    
+    m_state_sp    
   };
 
   m_state_product_factory.assemble_state_product(
@@ -340,7 +341,7 @@ void MaterialModel::assemble_product_V(const StateProductType state_product_type
     state_product_type,
     m_fe,
     m_dof_handler,
-    m_system_matrix_sp    
+    m_state_sp    
   };
 
   m_state_product_factory.assemble_state_product(
@@ -354,7 +355,7 @@ void MaterialModel::assemble_product_H(const StateProductType state_product_type
     state_product_type,
     m_fe,
     m_dof_handler,
-    m_system_matrix_sp    
+    m_state_sp    
   };
 
   m_state_product_factory.assemble_state_product(
@@ -368,7 +369,7 @@ void MaterialModel::assemble_product_C(const ObservationSpaceProductType obs_spa
     obs_space_product_type,
     m_fe,
     m_dof_handler,
-    m_system_matrix_sp,
+    m_state_sp,
     m_observation_space_dim     
   };
 
@@ -381,13 +382,13 @@ void MaterialModel::assemble_product_C(const ObservationSpaceProductType obs_spa
 
 void MaterialModel::assemble_mass_matrix()
 {
-  m_mass_matrix.reinit(m_system_matrix_sp);
+  m_mass_matrix.reinit(m_state_sp);
   m_mass_matrix = 0;
   StateProductFactoryContext<3, Number> ctx {
     StateProductType::Mass,
     m_fe,
     m_dof_handler,
-    m_system_matrix_sp    
+    m_state_sp    
   };
 
   m_state_product_factory.assemble_state_product(
@@ -406,7 +407,7 @@ void MaterialModel::assemble_observation_operator_matrix(
       m_fe,
       m_dof_handler,
       m_BC_constraints,
-      m_system_matrix_sp,
+      m_state_sp,
       hyperparameter,
     };
   

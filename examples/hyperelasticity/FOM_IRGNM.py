@@ -45,10 +45,12 @@ logger.setLevel(logging.DEBUG)
 #     'pymor.algorithms.genericsolvers.lgmres' : 'ERROR'
 # })
 
-# set_defaults({
-#     'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
-#     'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
-# })
+set_defaults({
+    #'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
+    #'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
+    'pymor.algorithms.newton.newton.maxiter' : 1e3,
+    'pymor.algorithms.newton.newton.atol' : 1e-4,
+})
 
 
 
@@ -58,15 +60,19 @@ logger.setLevel(logging.DEBUG)
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    y_res = 10
-    z_res = 10
+    y_res = 30
+    z_res = 30
 
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
     #par_dim = 3
     T_initial = 0
-    T_final = 5.0
-    nt = 50
+    # T_final = 5.0
+    # nt = 50
+
+    T_final = 1.0
+    nt = 10
+
 
     # T_final = 1
     # nt = 20
@@ -77,13 +83,13 @@ def main():
     q_exact = np.ones((1,par_dim))
     
     q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
-    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
         
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
-    q_exact[0,50] = 2
+    #q_exact[0,50] = 2
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -104,8 +110,10 @@ def main():
         'stored_energy' : {
             'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                'mu' : 26.32, 
-                'kappa' : 68.60
+                # 'mu' : 26.32, 
+                # 'kappa' : 68.60
+                'mu' : 300.0, 
+                'kappa' : 200.0
             }
         },
         'observation_operator': {
@@ -178,11 +186,13 @@ def main():
 
     u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
     FOM.A.hyperelasticity_model.save_time_series(
-        [v.real_part.impl for v in u_exact.vectors],
+        [v.impl for v in u_exact.vectors],
         str('u_exact'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
     )
+    import sys
+    sys.exit()
 
     u_start = FOM.solve_state(FOM.Q.make_array(q_start))
     FOM.A.hyperelasticity_model.save_time_series(

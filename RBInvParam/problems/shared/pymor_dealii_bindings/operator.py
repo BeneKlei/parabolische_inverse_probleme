@@ -108,17 +108,28 @@ class DealIISymmetricMatrixOperator(DealIIMatrixOperator):
 
 #####################################################################
 
+def wrap_dealii_operator(op, *, linear=False):
+    if isinstance(op, pd2.SparseMatrixOperator):
+        return SparseMatrixOperator(op=op)
+    elif isinstance(op, pd2.FullMatrixOperator):
+        return FullMatrixOperator(op=op)
+    elif isinstance(op, pd2.BaseOperator):
+        return DealIIBaseOperator(op=op, linear=linear)
+    else:
+        raise TypeError(f"Unsupported deal.II operator type: {type(op)}")
+
+
 class DealIIBaseOperator(ListVectorArrayOperatorBase):
     linear = False
 
-    def __init__(self, op, name=None):
+    def __init__(self, op, name=None, linear=False):
         assert isinstance(op, pd2.BaseOperator)
 
-        self.source = DealIIVectorSpace(
-            op.dim_source())
-        self.range = DealIIVectorSpace(
-            op.dim_range())
-            
+        self.op = op
+        self.source = DealIIVectorSpace(op.dim_source())
+        self.range = DealIIVectorSpace(op.dim_range())
+        self.linear = linear
+
         self.__auto_init(locals())
 
     def _apply_one_vector(self, u, mu=None, prepare_data=None):
@@ -148,13 +159,34 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
         self.op.apply_inverse_adjoint(r.impl, v.impl)
         return r
 
+    def jacobian(self, U, mu=None):
+        assert U in self.source
+        assert len(U) == 1
+
+        # return SparseMatrixOperator(
+        #     op=self.op.jacobian(U.vectors[0].impl)
+        # )
+
+        return wrap_dealii_operator(
+            self.op.jacobian(U.vectors[0].impl),
+            linear=True,
+        )
+
 class SparseMatrixOperator(DealIIBaseOperator):    
     linear = True
 
     def __init__(self, op, name=None):
         assert isinstance(op, pd2.SparseMatrixOperator)
         super().__init__(op)
+    
+    def jacobian(self, U, mu=None):
+        assert U in self.source
+        assert len(U) == 1
 
+        return SparseMatrixOperator(
+            op = self.op.jacobian(U.vectors[0].impl)
+        )
+        
     def _assemble_lincomb(
         self,
         operators,
@@ -184,6 +216,14 @@ class FullMatrixOperator(DealIIBaseOperator):
     def __init__(self, op, name=None):
         assert isinstance(op, pd2.FullMatrixOperator)
         super().__init__(op)
+    
+    def jacobian(self, U, mu=None):
+        assert U in self.source
+        assert len(U) == 1
+
+        return FullMatrixOperator(
+            op = self.op.jacobian(U.vectors[0].impl)
+        )
 
 class NumpyDealIIFullMatrixOperator(FullMatrixOperator):
     def __init__(self, op, name=None):
