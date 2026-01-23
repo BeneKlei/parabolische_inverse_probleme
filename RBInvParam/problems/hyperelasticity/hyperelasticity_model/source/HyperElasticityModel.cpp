@@ -29,8 +29,6 @@ void HyperElasticityModel::setup_material_operator() {
         throw std::runtime_error("Unknown StoredEnergyFunctionType.");
     }
 
-    //m_param_dim = m_param_dof_handler.n_dofs();
-    //m_state_dim = m_dof_handler.n_dofs();
 };
 
 std::unique_ptr<typename HyperElasticityModel::StorEneOp> 
@@ -38,30 +36,31 @@ HyperElasticityModel::assemble_A_q(
     const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np
 ) 
 {
-    py::buffer_info buf;
-    ArrayView<const float> q_view;
-    _unpack_q_1d(q_np, buf, q_view);
+    Vector<Number> q;
+    _unpack_q_1d(q_np, q);
     
     return std::make_unique<HyperElasticityModel::StorEneOp>(
-       *m_stored_energy_function,
-       m_fe,
-       m_dof_handler
+        q,
+        this->state_space_context(),
+        this->param_space_context(),
+        *m_stored_energy_function
     );
 }
 
 void HyperElasticityModel::_unpack_q_1d(
   const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
-  py::buffer_info &buffer,
-  ArrayView<const float> &q_view) const
+  Vector<Number> &q) const
 {
   if (q_np.ndim() != 1)
     throw std::runtime_error("q must be a 1D numpy array");
 
-  buffer = q_np.request();
+  py::buffer_info buffer = q_np.request();
 
   const std::size_t n = static_cast<std::size_t>(buffer.size);
   AssertDimension(n,m_param_dim);
+  q.reinit(n);
 
   const auto *ptr = static_cast<const float *>(buffer.ptr);
-  q_view = ArrayView<const float>(ptr, n);
+  std::transform(ptr, ptr + n, q.begin(),
+                 [](float v) { return static_cast<double>(v); });
 }

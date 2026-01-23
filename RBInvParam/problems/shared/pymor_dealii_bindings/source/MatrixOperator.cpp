@@ -139,7 +139,6 @@ MatrixOperator<Number, MatrixType>::MatrixOperator(const MatrixOperator::MatV& m
   }
 }
 
-
 template <class Number, class MatrixType>
 void MatrixOperator<Number, MatrixType>::apply(Vector<Number>       &y,
                                                const Vector<Number> &u) const

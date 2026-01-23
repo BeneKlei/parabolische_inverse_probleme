@@ -29,8 +29,8 @@ def build_HyperElasticityModelIP(setup : Dict,
     hyperelasticity_model_config.nt = setup['dims']['nt']
     hyperelasticity_model_config.T_initial = setup['T_initial']
     hyperelasticity_model_config.T_final = setup['T_final']
-    hyperelasticity_model_config.delta_t = setup['delta_t']
-    hyperelasticity_model_config.spatial_resolution = setup['spatial_resolution']
+    hyperelasticity_model_config.param_grid_resolution = setup['param_grid_resolution']
+    hyperelasticity_model_config.state_grid_resolution = setup['state_grid_resolution']
 
     hyperelasticity_model_config.se_type = setup['stored_energy']['type']
     if setup['stored_energy']['hyperparameter']: 
@@ -41,9 +41,6 @@ def build_HyperElasticityModelIP(setup : Dict,
         hyperelasticity_model_config.body_force_hyperparameter = setup['body_force']['hyperparameter']
 
     hyperelasticity_model = hm.HyperElasticityModel(hyperelasticity_model_config)
-
-    hyperelasticity_model.make_state_grid()
-    hyperelasticity_model.make_param_grid()
     hyperelasticity_model.setup_system()
 
     ############################### Coercivity ###############################

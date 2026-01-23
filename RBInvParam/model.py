@@ -487,7 +487,6 @@ class InstationaryModelIP(ImmutableObject):
             else:
                 self._cached_operators[key] = [None] * (self.nt + 1)
                 
-    
     def update_cache(self,
                      q: VectorArray,
                      u: VectorArray = None,

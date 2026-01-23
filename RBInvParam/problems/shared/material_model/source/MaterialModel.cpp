@@ -1,6 +1,3 @@
-#include "MaterialModel.hpp"
-#include "utils.hpp"
-
 // C++
 #include <cmath>
 #include <cstdint>
@@ -25,6 +22,9 @@
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/vector_tools.h>   // only needed if you uncomment interpolate_boundary_values
 
+#include "MaterialModel.hpp"
+#include "utils.hpp"
+
 
 MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
   : m_base_config(config) 
@@ -38,6 +38,17 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
       update_values,
       0
     )
+  , m_state_space_context(m_triangulation,
+                          m_fe,
+                          m_dof_handler)
+  , m_param_space_context(m_param_triangulation,
+                          m_param_fe,
+                          m_param_dof_handler,
+                          m_param_mapping,
+                          m_param_evaluator,
+                          m_param_grid_cache,
+                          m_param_constraints,
+                          m_param_free_dofs)
 {
   delta_t = (m_base_config.T_final - m_base_config.T_initial) / m_base_config.nt;
 }
@@ -134,9 +145,6 @@ void MaterialModel::setup_param_space()
     if (!constrained[i])
       m_param_free_dofs.push_back(i);
 
-  // -----------------------------------------------
-  m_full_param_buffer.clear();
-  m_full_param_buffer.resize(m_param_dof_handler.n_dofs());
 }
 
 void MaterialModel::setup_state_space()
@@ -165,8 +173,8 @@ void MaterialModel::setup_system()
   setup_state_space();
   
   std::cout << "\t ---------------------- " << std::endl;
-  std::cout << "\t\t #State DoFs: " << m_state_dim << std::endl;
-  std::cout << "\t\t #Parameter: " << m_param_dim << std::endl;
+  std::cout << "\t #State DoFs: " << m_state_dim << std::endl;
+  std::cout << "\t #Parameter: " << m_param_dim << std::endl;
 
   // --------------------------------------------------
 
@@ -490,7 +498,7 @@ void MaterialModel::save_time_series(const std::vector<Vector<double>> &v,
 
     std::vector<std::string> solution_names = {"x", "y", "z"};
     std::vector<DataComponentInterpretation::DataComponentInterpretation> dci(3);
-	  for (unsigned int i=0;i<3;i++)
+	  for (unsigned int i=0;i<dim;i++)
 	    dci[i] = DataComponentInterpretation::component_is_part_of_vector;
 
     // Open .pvd file to collect all timesteps
@@ -523,34 +531,34 @@ void MaterialModel::save_time_series(const std::vector<Vector<double>> &v,
     pvd << "</VTKFile>\n";
 }
 
-void MaterialModel::evaluate_param_values(
-  const std::vector<Number> &param,
-  const std::vector<Point<dim>> &points,  
-  std::vector<Number> &values
-) const
-{
-  AssertThrow(
-    m_param_grid_cache.get() != nullptr, 
-    ExcMessage("m_param_grid_cache not initialized.")
-  );
-  AssertDimension(points.size(), m_param_dim);
+// void MaterialModel::evaluate_param_values(
+//   const std::vector<Number> &param,
+//   const std::vector<Point<dim>> &points,  
+//   std::vector<Number> &values
+// ) const
+// {
+//   AssertThrow(
+//     m_param_grid_cache.get() != nullptr, 
+//     ExcMessage("m_param_grid_cache not initialized.")
+//   );
+//   AssertDimension(points.size(), m_param_dim);
   
-  values.clear();
-  values.resize(points.size());
+//   // values.clear();
+//   // values.resize(points.size());
 
-  m_full_param_buffer = Number(1.0);
+//   // // m_full_param_buffer = Number(1.0);
   
-  // TODO move this into own function
-  for (unsigned int k = 0; k < m_param_free_dofs.size(); ++k)
-    m_full_param_buffer[m_param_free_dofs[k]] = param[k];
+//   // // // TODO move this into own function
+//   // // for (unsigned int k = 0; k < m_param_free_dofs.size(); ++k)
+//   // //   m_full_param_buffer[m_param_free_dofs[k]] = param[k];
 
-  m_param_constraints.distribute(m_full_param_buffer);
+//   // // m_param_constraints.distribute(m_full_param_buffer);
 
-  for (std::size_t i = 0; i < points.size(); ++i)
-  {
-    const auto &p = points[i];
-    m_param_evaluator.reinit(*m_param_grid_cache, m_param_dof_handler, p);
-    m_param_evaluator.evaluate(m_full_param_buffer, EvaluationFlags::values);
-    values[i] = m_param_evaluator.get_value(0);
-  }
-}
+//   // for (std::size_t i = 0; i < points.size(); ++i)
+//   // {
+//   //   const auto &p = points[i];
+//   //   m_param_evaluator.reinit(*m_param_grid_cache, m_param_dof_handler, p);
+//   //   m_param_evaluator.evaluate(param, EvaluationFlags::values);
+//   //   values[i] = m_param_evaluator.get_value(0);
+//   // }
+// }

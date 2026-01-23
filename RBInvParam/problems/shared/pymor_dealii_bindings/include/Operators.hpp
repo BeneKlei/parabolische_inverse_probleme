@@ -45,6 +45,12 @@ public:
     AssertThrow(false, ExcNotDefined());
   }
 
+  // virtual void apply_inverse_adjoint(Vector<Number>       &y,
+  //                                    const Vector<Number> &u) const
+  // {
+  //   AssertThrow(false, ExcNotDefined());
+  // }
+
   virtual bool has_inverse() const { return false; }
   virtual bool has_inverse_adjoint() const { return false; }
 

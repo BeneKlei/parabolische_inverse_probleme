@@ -1,11 +1,15 @@
 #pragma once
 
+#include <functional>
+
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/dofs/dof_handler.h>
 
 #include "Operators.hpp"
 #include "StoredEnergyFunction.hpp"
+#include "ParamSpaceContext.hpp"
+#include "StateSpaceContext.hpp"
 
 using namespace dealii;
 
@@ -13,24 +17,21 @@ template <int dim, typename Number>
 class StoredEnergyOperator : public BaseOperator<Number>
 {
 public:
-    StoredEnergyOperator(
-        const StoredEnergyFunction<dim, Number>& stored_energy_function,
-        const FiniteElement<dim>& fe,
-        const DoFHandler<dim>& dof_handler
-    );
-    
-    void apply(Vector<Number>       &y,
-               const Vector<Number> &x) const;
-    
-    std::size_t dim_source() const;
-    std::size_t dim_range() const;
+  StoredEnergyOperator(const Vector<Number>                    &q,
+                       const StateSpaceContext<dim>            &state_space_context,
+                       const ParamSpaceContext<dim, Number>    &param_space_context,
+                       const StoredEnergyFunction<dim, Number> &stored_energy_function
+                      );
+
+  void apply(Vector<Number>       &y,
+             const Vector<Number> &x) const override;
+
+  std::size_t dim_source() const override;
+  std::size_t dim_range()  const override;
 
 private:
-    const std::vector<Number> m_param_buffer;
-    const std::vector<Number> m_full_param_buffer;
-
-
-    const StoredEnergyFunction<dim, Number>& m_stored_energy_function;
-    const FiniteElement<dim>& m_fe;
-    const DoFHandler<dim>& m_dof_handler;
+  const Vector<Number>                     m_q;
+  const StateSpaceContext<dim>            &m_state_space_context;
+  const ParamSpaceContext<dim, Number>    &m_param_space_context;
+  const StoredEnergyFunction<dim, Number> &m_stored_energy_function;
 };

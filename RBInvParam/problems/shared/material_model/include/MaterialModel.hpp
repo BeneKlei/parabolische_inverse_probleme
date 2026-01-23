@@ -30,11 +30,16 @@
 #include "ObservationOperatorFactory.hpp"
 #include "ObservationSpaceProductFactory.hpp"
 #include "StateProductFactory.hpp"
-#include "SystemMatrices.hpp"
+#include "ParamSpaceContext.hpp"
+#include "StateSpaceContext.hpp"
 
 using namespace dealii;
 
 typedef double Number;
+
+// ======================================================
+// Material Model Base Config
+// ======================================================
 
 struct MaterialModelBaseConfig {
     static constexpr size_t dim{3};
@@ -49,6 +54,10 @@ struct MaterialModelBaseConfig {
     BodyForceType body_force_type = BodyForceType::CenterExcite;
     BodyForceHyperparameter body_force_hyperparameter = {};    
 };
+
+// ======================================================
+// Material Model
+// ======================================================
 
 class MaterialModel
 {
@@ -95,11 +104,18 @@ public:
     const std::vector<double> &times
   );
 
-  void evaluate_param_values(
-    const std::vector<double>&,
-    const std::vector<Point<dim>>&,
-    std::vector<double>&
-  ) const;
+  // --------------------------------------------------
+
+  const StateSpaceContext<dim>& state_space_context() const
+  {
+    return m_state_space_context;
+  }
+
+  const ParamSpaceContext<dim, Number>& param_space_context() const
+  {
+    return m_param_space_context;
+  }
+
 
   // --------------------------------------------------
 
@@ -139,7 +155,6 @@ public:
 protected:
   const MaterialModelBaseConfig m_base_config;
 
-  
   // ---------------------- State FE ----------------------
   // TODO Rename to x_state
   Triangulation<dim> m_triangulation;
@@ -158,18 +173,24 @@ protected:
 
   AffineConstraints<Number> m_param_constraints;
   std::vector<types::global_dof_index> m_param_free_dofs; // reduced index -> global DoF index
-  
+
+  // ---------------------- Contexts ----------------------
+  StateSpaceContext<dim>         m_state_space_context;
+  ParamSpaceContext<dim, Number> m_param_space_context;
+
+  // ---------------------- Factories ---------------------
+
   ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
   ObservationSpaceProductFactory<dim, Number> m_observation_space_product_factory = ObservationSpaceProductFactory<3, Number>();
   BodyForceFactory<dim, Number> m_body_force_factory = BodyForceFactory<3, Number>();
 
+  // ------------------------------------------------------
+
   AffineConstraints<Number> m_BC_constraints;
   std::unique_ptr<BodyForce> m_body_force;
 
 private:  
-  std::vector<Number> m_full_param_buffer;
-
   void setup_param_grid();
   void setup_state_grid();
   void setup_param_space();
@@ -182,5 +203,3 @@ private:
   void assemble_force(Vector<Number>& result, double time);
   
 };
-
-
