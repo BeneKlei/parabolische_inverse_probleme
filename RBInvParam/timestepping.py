@@ -287,6 +287,8 @@ class SecondOrderCrankNicolson(TimeStepper):
         rhs_pre = rhs[0].copy()
         rhs_cur = rhs[0].copy()
 
+        # TODO implement non linear operator
+
         if use_cached_operators:
             A_q = cached_operators[self.A_q_key][0]
             S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][0]
@@ -300,12 +302,6 @@ class SecondOrderCrankNicolson(TimeStepper):
         S_zeta = S_zeta.assemble()
         S_zeta_minus_one = S_zeta_minus_one.assemble()
 
-        # print(self.M)
-        # print(S_zeta)
-
-        # import sys
-        # sys.exit()
-        
         if not rhs_time_dep:
             dt_R = dt * rhs
 
@@ -357,7 +353,7 @@ class SecondOrderCrankNicolson(TimeStepper):
             _rhs += zeta * dt_R
 
             if not self.apply_adjoint:
-                # TODO rework s.t. the the deal.ii solver is used                
+                # TODO rework s.t. the the deal.ii solver is used
                 U_cur = _lhs.apply_inverse(_rhs)
                 #assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
             else:

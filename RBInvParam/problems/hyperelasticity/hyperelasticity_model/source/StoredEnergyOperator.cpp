@@ -8,7 +8,7 @@ using namespace dealii;
 template <int dim, typename Number>
 StoredEnergyOperator<dim, Number>::StoredEnergyOperator(
     const Vector<Number>                    &q,
-    const StateSpaceContext<dim>            &state_space_context,
+    const StateSpaceContext<dim, Number>    &state_space_context,
     const ParamSpaceContext<dim, Number>    &param_space_context,
     const StoredEnergyFunction<dim, Number> &stored_energy_function)
   : m_q(q)
@@ -70,15 +70,24 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
     q_points = fe_values_state.get_quadrature_points();
 
     for (unsigned int q = 0; q < n_q; ++q)
-    {      
-      DY_stored_energy_points[q] =
+    {            
+      const Tensor<2, dim> DY =
           m_stored_energy_function.gradient(q_points[q], u_gradients[q] + I);
+
+      // Assert(
+      //   numbers::is_finite(DY),
+      //   ExcMessage("NaN detected in stored energy gradient at quadrature point q=" + std::to_string(q))
+      // );
+
+      //AssertThrow(numbers::is_finite(DY), ExcMessage("NaN!"));
+
+      DY_stored_energy_points[q] = DY;
 
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
       {
         const unsigned int component_i =
             m_state_space_context.fe().system_to_component_index(i).first;
-
+        
         local_y(i) += DY_stored_energy_points[q][component_i] *
                       fe_values_state.shape_grad(i, q) *
                       fe_values_state.JxW(q);
@@ -89,7 +98,36 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
     for (unsigned int i = 0; i < dofs_per_cell; ++i)
       y(local_dof_indices[i]) += local_y(i);
   }
+
+  // Assert(
+  //   y.is_finite(),
+  //   ExcMessage("NaN detected")
+  // );
+
 }
+
+
+// for (unsigned int q = 0; q < n_q; ++q)
+// {
+//   const auto &q_point = q_points[q];
+//   const auto &u_grad  = u_gradients[q];
+//   const double JxW    = fe_values_state.JxW(q);
+
+//   const auto DY =
+//       m_stored_energy_function.gradient(q_point, u_grad + I);
+
+//   Assert(numbers::is_finite(DY), ExcMessage("NaN detected"));
+
+//   DY_stored_energy_points[q] = DY;
+
+//   for (unsigned int i = 0; i < dofs_per_cell; ++i)
+//   {
+//     const unsigned int comp =
+//         m_state_space_context.fe().system_to_component_index(i).first;
+
+//     local_y(i) += DY[comp] * fe_values_state.shape_grad(i, q) * JxW;
+//   }
+// }
 
 
 template <int dim, typename Number>
@@ -165,14 +203,21 @@ StoredEnergyOperator<dim, Number>::jacobian(const Vector<Number> &u) const
         }
       }
     }
+
+    cell->get_dof_indices(local_dof_indices); 
+    m_state_space_context.BC_constraints().distribute_local_to_global(
+      local_J,
+      local_dof_indices,
+      J
+    );
   }
+
+  J.compress(VectorOperation::add);
 
   return std::make_unique<SparseMatrixOperator<Number>>(
     J
   );
 }
-
-
 
 template class StoredEnergyOperator<2, double>;
 template class StoredEnergyOperator<3, double>;

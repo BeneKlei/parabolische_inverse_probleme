@@ -156,10 +156,6 @@ def build_InstationaryModelIP(setup : Dict,
         op = pd2.SparseMatrixOperator(matrix = matrix)
     )
 
-    # print("Here 2")  
-    # import sys
-    # sys.exit()
-
     L = V_h.make_array(material_model.force_list)
 
     A = EvaluatorA_class(

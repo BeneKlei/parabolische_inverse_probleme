@@ -32,7 +32,8 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         return DealIIBaseOperator(
             op = self.hyperelasticity_model.assemble_A_q(
                 q_np = q.to_numpy().flatten()
-            )
+            ),
+            #linear = True
         )
 
     def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:

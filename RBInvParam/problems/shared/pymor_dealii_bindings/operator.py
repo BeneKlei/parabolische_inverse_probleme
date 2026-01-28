@@ -120,8 +120,6 @@ def wrap_dealii_operator(op, *, linear=False):
 
 
 class DealIIBaseOperator(ListVectorArrayOperatorBase):
-    linear = False
-
     def __init__(self, op, name=None, linear=False):
         assert isinstance(op, pd2.BaseOperator)
 
@@ -163,21 +161,15 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
         assert U in self.source
         assert len(U) == 1
 
-        # return SparseMatrixOperator(
-        #     op=self.op.jacobian(U.vectors[0].impl)
-        # )
-
         return wrap_dealii_operator(
             self.op.jacobian(U.vectors[0].impl),
             linear=True,
         )
 
 class SparseMatrixOperator(DealIIBaseOperator):    
-    linear = True
-
     def __init__(self, op, name=None):
         assert isinstance(op, pd2.SparseMatrixOperator)
-        super().__init__(op)
+        super().__init__(op, linear=True)
     
     def jacobian(self, U, mu=None):
         assert U in self.source
@@ -211,11 +203,9 @@ class SparseMatrixOperator(DealIIBaseOperator):
         return SparseMatrixOperator(pd2.SparseMatrixOperator(matrix=matrix), name=name)
 
 class FullMatrixOperator(DealIIBaseOperator):    
-    linear = True
-
     def __init__(self, op, name=None):
         assert isinstance(op, pd2.FullMatrixOperator)
-        super().__init__(op)
+        super().__init__(op, linear=True)
     
     def jacobian(self, U, mu=None):
         assert U in self.source
@@ -228,7 +218,7 @@ class FullMatrixOperator(DealIIBaseOperator):
 class NumpyDealIIFullMatrixOperator(FullMatrixOperator):
     def __init__(self, op, name=None):
         assert isinstance(op, pd2.FullMatrixOperator)
-        super().__init__(op)
+        super().__init__(op, linear=True)
 
         self.dealii_source = DealIIVectorSpace(dim=self.op.dim_source())
         self.dealii_range = DealIIVectorSpace(dim=self.op.dim_range())

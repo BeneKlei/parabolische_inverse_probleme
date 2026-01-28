@@ -41,7 +41,8 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
   , m_state_space_context(m_triangulation,
                           m_fe,
                           m_dof_handler,
-                          m_state_sp)
+                          m_state_sp, 
+                          m_BC_constraints)
   , m_param_space_context(m_param_triangulation,
                           m_param_fe,
                           m_param_dof_handler,

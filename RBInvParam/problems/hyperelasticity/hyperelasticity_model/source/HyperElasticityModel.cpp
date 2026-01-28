@@ -11,17 +11,27 @@ void HyperElasticityModel::setup_material_operator() {
     {
     case StoredEnergyFunctionType::NeoHookean: 
     {
-        std::cout << "\t Using NeoHookean stored energy function" << std::endl;        
+        std::cout << "\t Using NeoHookean stored energy function" << std::endl;
 
         double mu    = std::get<double>(m_hyperelasticity_config.se_hyperparameter.at("mu"));
         double kappa = std::get<double>(m_hyperelasticity_config.se_hyperparameter.at("kappa"));
 
-        m_stored_energy_function = std::make_unique<NeoHookeanStoredEnergy<dim, Number>>(
+        m_stored_energy_function = std::make_unique<NeoHookeanStoredEnergy<dim>>(
             mu,
-            kappa,
-            m_param_fe,
-            m_param_dof_handler,
-            m_dof_handler
+            kappa
+        );
+        break;
+    }
+    case StoredEnergyFunctionType::Hookean: 
+    {
+        std::cout << "\t Using Hookean stored energy function" << std::endl;
+
+        double mu    = std::get<double>(m_hyperelasticity_config.se_hyperparameter.at("mu"));
+        double lambda = std::get<double>(m_hyperelasticity_config.se_hyperparameter.at("lambda"));
+
+        m_stored_energy_function = std::make_unique<HookeanStoredEnergy<dim>>(
+            mu,
+            lambda
         );
         break;
     }

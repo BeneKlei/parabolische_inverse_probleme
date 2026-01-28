@@ -46,8 +46,8 @@ logger.setLevel(logging.DEBUG)
 # })
 
 set_defaults({
-    #'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
-    #'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
+    # 'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
+    # 'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
     'pymor.algorithms.newton.newton.maxiter' : 1e3,
     'pymor.algorithms.newton.newton.atol' : 1e-4,
 })
@@ -60,8 +60,8 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    y_res = 30
-    z_res = 30
+    y_res = 60
+    z_res = 60
 
     par_dim = (y_res + 1) * (z_res + 1) 
     #* 5 * 3
@@ -70,9 +70,8 @@ def main():
     # T_final = 5.0
     # nt = 50
 
-    T_final = 1.0
-    nt = 10
-
+    T_final = 5.0
+    nt = 50
 
     # T_final = 1
     # nt = 20
@@ -108,12 +107,13 @@ def main():
             'hyperparameter' : {}
         },
         'stored_energy' : {
+            #'type' : hm.StoredEnergyFunctionType.Hookean,
             'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                # 'mu' : 26.32, 
-                # 'kappa' : 68.60
-                'mu' : 300.0, 
-                'kappa' : 200.0
+                'mu' : 26.32, 
+                'kappa' : 68.60
+                # 'mu' : 1e1, 
+                # 'lambda' : 1e1
             }
         },
         'observation_operator': {

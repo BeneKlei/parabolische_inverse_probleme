@@ -67,6 +67,7 @@ PYBIND11_MODULE(hyperelasticity_model, m) {
 
     py::enum_<StoredEnergyFunctionType>(m, "StoredEnergyFunctionType")
          .value("NeoHookean", StoredEnergyFunctionType::NeoHookean)
+         .value("Hookean", StoredEnergyFunctionType::Hookean)
          .export_values();
      
 

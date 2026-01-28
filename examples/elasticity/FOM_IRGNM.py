@@ -111,7 +111,7 @@ def main():
             'hyperparameter' : {
                 'lambda' : 1e1,
                 'mu' : 1e1,
-                'nu' : 1e-3,
+                'nu' : 0.0,
             }
         },
         'observation_operator': {
@@ -182,13 +182,15 @@ def main():
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
-    # u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
-    # FOM.A.elasticity_model.save_time_series(
-    #     [v.real_part.impl for v in u_exact.vectors],
-    #     str('u_exact'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
+    FOM.A.elasticity_model.save_time_series(
+        [v.impl for v in u_exact.vectors],
+        str('u_exact'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
+    import sys
+    sys.exit()
 
     # u_start = FOM.solve_state(FOM.Q.make_array(q_start))
     # FOM.A.elasticity_model.save_time_series(

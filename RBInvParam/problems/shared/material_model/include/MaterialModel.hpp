@@ -106,7 +106,7 @@ public:
 
   // --------------------------------------------------
 
-  const StateSpaceContext<dim>& state_space_context() const
+  const StateSpaceContext<dim, Number>& state_space_context() const
   {
     return m_state_space_context;
   }
@@ -175,7 +175,7 @@ protected:
   std::vector<types::global_dof_index> m_param_free_dofs; // reduced index -> global DoF index
 
   // ---------------------- Contexts ----------------------
-  StateSpaceContext<dim>         m_state_space_context;
+  StateSpaceContext<dim, Number> m_state_space_context;
   ParamSpaceContext<dim, Number> m_param_space_context;
 
   // ---------------------- Factories ---------------------
