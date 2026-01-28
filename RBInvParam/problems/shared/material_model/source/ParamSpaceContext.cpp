@@ -8,36 +8,37 @@ void ParamSpaceContext<dim, Number>::evaluate_values(
   const std::vector<Point<dim>> &points,
   std::vector<Number>           &values) const
 {
-  AssertThrow(m_grid_cache.get() != nullptr,
-              ExcMessage("m_param_grid_cache not initialized."));
+  std::cout << "Enter" << std::endl;
+  AssertDimension(param_full.size(), m_dof_handler.n_dofs());
 
   values.resize(points.size());
+  m_rpe.reinit(points, m_dof_handler.get_triangulation(), m_mapping);
 
-  // // scalar parameter field (component 0)
-  // for (std::size_t i = 0; i < points.size(); ++i)
-  //   values[i] = VectorTools::point_value(m_mapping, m_dof_handler, param_full, points[i], 0);
+  const auto _values = VectorTools::point_values<1>(
+    m_mapping,
+    m_dof_handler,
+    param_full,
+    points,
+    m_rpe
+  );
+  values = _values;
+  std::cout << "Leave" << std::endl;
 }
 
 template <int dim, typename Number>
-void ParamSpaceContext<dim, Number>::evaluate_values_from_reduced(
-  const std::vector<Number>     &param_reduced,
-  Vector<Number>                &full_buffer,
-  const std::vector<Point<dim>> &points,
-  std::vector<Number>           &values) const
+void ParamSpaceContext<dim, Number>::reconstruct_full_param(
+  const Vector<Number>          &param,
+  Vector<Number>                &param_full
+) const
 {
-  AssertThrow(m_grid_cache.get() != nullptr,
-              ExcMessage("m_param_grid_cache not initialized."));
-  AssertDimension(param_reduced.size(), m_free_dofs.size());
+  AssertDimension(param_full.size(), m_free_dofs.size());
+  
+  param_full.reinit(m_dof_handler.n_dofs());
 
-  // full_buffer.reinit(m_dof_handler.n_dofs());
-  // full_buffer = Number(0);
+  for (std::size_t k = 0; k < m_free_dofs.size(); ++k)
+    param_full[m_free_dofs[k]] = param[k];
 
-  // for (std::size_t k = 0; k < m_free_dofs.size(); ++k)
-  //   full_buffer[m_free_dofs[k]] = param_reduced[k];
-
-  // m_constraints.distribute(full_buffer);
-
-  // evaluate_values(full_buffer, points, values);
+  m_constraints.distribute(param_full);
 }
 
 // explicit instantiations (since definitions are in a .cpp)

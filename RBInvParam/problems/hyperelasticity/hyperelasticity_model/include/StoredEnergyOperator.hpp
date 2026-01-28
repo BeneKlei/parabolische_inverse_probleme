@@ -19,6 +19,7 @@ class StoredEnergyOperator : public BaseOperator<Number>
 {
 public:
   StoredEnergyOperator(const Vector<Number>                    &q,
+                       const Vector<Number>                    &full_q,
                        const StateSpaceContext<dim, Number>    &state_space_context,
                        const ParamSpaceContext<dim, Number>    &param_space_context,
                        const StoredEnergyFunction<dim, Number> &stored_energy_function
@@ -37,7 +38,10 @@ public:
 
 private:
   const Vector<Number>                     m_q;
+  const Vector<Number>                     m_full_q;
+
   const StateSpaceContext<dim, Number>    &m_state_space_context;
   const ParamSpaceContext<dim, Number>    &m_param_space_context;
+
   const StoredEnergyFunction<dim, Number> &m_stored_energy_function;
 };

@@ -47,10 +47,17 @@ HyperElasticityModel::assemble_A_q(
 ) 
 {
     Vector<Number> q;
+    Vector<Number> full_q;
     _unpack_q_1d(q_np, q);
+
+    m_param_space_context.reconstruct_full_param(
+        q,
+        full_q
+    );
     
     return std::make_unique<HyperElasticityModel::StorEneOp>(
         q,
+        full_q,
         this->state_space_context(),
         this->param_space_context(),
         *m_stored_energy_function

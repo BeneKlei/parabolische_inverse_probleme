@@ -8,10 +8,12 @@ using namespace dealii;
 template <int dim, typename Number>
 StoredEnergyOperator<dim, Number>::StoredEnergyOperator(
     const Vector<Number>                    &q,
+    const Vector<Number>                    &full_q,
     const StateSpaceContext<dim, Number>    &state_space_context,
     const ParamSpaceContext<dim, Number>    &param_space_context,
     const StoredEnergyFunction<dim, Number> &stored_energy_function)
   : m_q(q)
+  , m_full_q(full_q)
   , m_state_space_context(state_space_context)
   , m_param_space_context(param_space_context)
   , m_stored_energy_function(stored_energy_function)
@@ -38,10 +40,10 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
   const unsigned int n_q = quadrature_formula.size();
 
   // --- FEValues for state ---
+  // TODO do not recreate them!!
   FEValues<dim> fe_values_state(m_state_space_context.fe(),
                                 quadrature_formula,
-                                update_gradients | update_JxW_values |
-                                update_quadrature_points | update_values);
+                                update_gradients | update_JxW_values);
 
   const unsigned int dofs_per_cell = m_state_space_context.fe().dofs_per_cell;
 
@@ -52,11 +54,10 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
   const FEValuesExtractors::Vector vel(0);
 
   std::vector<Tensor<2, dim>> u_gradients(n_q);
-  std::vector<Point<dim>>     q_points(n_q);
-  std::vector<Number> param_values(n_q);
-  std::vector<Tensor<2, dim>> DY_stored_energy_points(n_q);
+  std::vector<Number>         param_values(n_q, Number(1.0));
 
-  const Tensor<2, dim> I = Tensor<2, dim>(unit_symmetric_tensor<dim, Number>());
+  const Tensor<2, dim> I(unit_symmetric_tensor<dim, Number>());
+
 
   y = Number(0);
 
@@ -65,69 +66,49 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
     local_y = Number(0);
 
     fe_values_state.reinit(cell);
-
     fe_values_state[vel].get_function_gradients(u, u_gradients);
-    q_points = fe_values_state.get_quadrature_points();
+    const auto &q_points = fe_values_state.get_quadrature_points();
+    
+    m_param_space_context.evaluate_values(
+      m_full_q,
+      q_points,
+      param_values
+    );
 
     for (unsigned int q = 0; q < n_q; ++q)
-    {            
-      const Tensor<2, dim> DY =
-          m_stored_energy_function.gradient(q_points[q], u_gradients[q] + I);
+    {      
+      const auto &q_point        = q_points[q];
+      const auto &u_grad         = u_gradients[q];
+      const Number &param_value  = param_values[q];
 
-      // Assert(
-      //   numbers::is_finite(DY),
-      //   ExcMessage("NaN detected in stored energy gradient at quadrature point q=" + std::to_string(q))
-      // );
-
-      //AssertThrow(numbers::is_finite(DY), ExcMessage("NaN!"));
-
-      DY_stored_energy_points[q] = DY;
+      const Tensor<2, dim> DY = m_stored_energy_function.gradient(q_point, u_grad + I);
 
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
       {
-        const unsigned int component_i =
-            m_state_space_context.fe().system_to_component_index(i).first;
+        // const unsigned int component_i =
+        //     m_state_space_context.fe().system_to_component_index(i).first;
         
-        local_y(i) += DY_stored_energy_points[q][component_i] *
-                      fe_values_state.shape_grad(i, q) *
-                      fe_values_state.JxW(q);
+        // local_y(i) += param_value * DY[component_i] *
+        //               fe_values_state.shape_grad(i, q) *
+        //               fe_values_state.JxW(q);
+
+        local_y(i) += param_value *
+              scalar_product(DY, fe_values_state[vel].gradient(i,q)) *
+              fe_values_state.JxW(q);
       }
     }
 
     cell->get_dof_indices(local_dof_indices);
-    for (unsigned int i = 0; i < dofs_per_cell; ++i)
-      y(local_dof_indices[i]) += local_y(i);
+    m_state_space_context.BC_constraints().distribute_local_to_global(
+      local_y,
+      local_dof_indices,
+      y
+    );
+    // for (unsigned int i = 0; i < dofs_per_cell; ++i)
+    //   y(local_dof_indices[i]) += local_y(i);
   }
-
-  // Assert(
-  //   y.is_finite(),
-  //   ExcMessage("NaN detected")
-  // );
-
+  y.compress(VectorOperation::add);
 }
-
-
-// for (unsigned int q = 0; q < n_q; ++q)
-// {
-//   const auto &q_point = q_points[q];
-//   const auto &u_grad  = u_gradients[q];
-//   const double JxW    = fe_values_state.JxW(q);
-
-//   const auto DY =
-//       m_stored_energy_function.gradient(q_point, u_grad + I);
-
-//   Assert(numbers::is_finite(DY), ExcMessage("NaN detected"));
-
-//   DY_stored_energy_points[q] = DY;
-
-//   for (unsigned int i = 0; i < dofs_per_cell; ++i)
-//   {
-//     const unsigned int comp =
-//         m_state_space_context.fe().system_to_component_index(i).first;
-
-//     local_y(i) += DY[comp] * fe_values_state.shape_grad(i, q) * JxW;
-//   }
-// }
 
 
 template <int dim, typename Number>
@@ -152,14 +133,18 @@ StoredEnergyOperator<dim, Number>::jacobian(const Vector<Number> &u) const
 
   const FEValuesExtractors::Vector vel(0);
 
-  std::vector<Tensor<2, dim>> u_gradients(n_q);
-  std::vector<Point<dim>>     q_points(n_q);
-  std::vector<Number> param_values(n_q);
-  std::vector<Tensor<2, dim>> DY_DY_H_stored_energy_points(n_q);
-
+  // std::vector<Tensor<2, dim>> u_gradients(n_q);
+  // std::vector<Point<dim>>     q_points(n_q);
+  // std::vector<Number> param_values(n_q);
+  // std::vector<Tensor<2, dim>> DY_DY_H_stored_energy_points(n_q);
   Tensor<2,dim> test_j_H;
+  // const Tensor<2, dim> I = Tensor<2, dim>(unit_symmetric_tensor<dim, Number>());
+  
+  std::vector<Tensor<2, dim>> u_gradients(n_q);
+  std::vector<Number>         param_values(n_q, Number(1.0));
 
-  const Tensor<2, dim> I = Tensor<2, dim>(unit_symmetric_tensor<dim, Number>());
+  const Tensor<2, dim> I(unit_symmetric_tensor<dim, Number>());
+
   
   SparseMatrix<Number> J;
   J.reinit(m_state_space_context.state_sp());
@@ -168,21 +153,30 @@ StoredEnergyOperator<dim, Number>::jacobian(const Vector<Number> &u) const
   for (const auto &cell : m_state_space_context.dof_handler().active_cell_iterators())
   {
     local_J = Number(0);
+
     fe_values_state.reinit(cell);
-
     fe_values_state[vel].get_function_gradients(u, u_gradients);
-    q_points = fe_values_state.get_quadrature_points();
+    const auto &q_points = fe_values_state.get_quadrature_points();
 
-    // TODO 
+    // TODO Cache last values
+    m_param_space_context.evaluate_values(
+      m_full_q,
+      q_points,
+      param_values
+    );
 
     for (unsigned int q = 0; q < n_q; ++q)
     {
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
       {
+        const auto &q_point        = q_points[q];
+        const auto &u_grad         = u_gradients[q];
+        const Number &param_value  = param_values[q];
+
         const unsigned int component_i = 
           m_state_space_context.fe().system_to_component_index(i).first;
         
-        DY_DY_H_stored_energy_points[q] =
+        const Tensor<2, dim> DYDYH =
           m_stored_energy_function.contracted_hessian(
             q_points[q], 
             u_gradients[q] + I,
@@ -198,7 +192,7 @@ StoredEnergyOperator<dim, Number>::jacobian(const Vector<Number> &u) const
           test_j_H.clear();
           test_j_H[component_j] = fe_values_state.shape_grad(j, q);
 
-          local_J(i, j) += double_contract<0,0,1,1>(DY_DY_H_stored_energy_points[q], test_j_H) * 
+          local_J(i, j) += double_contract<0,0,1,1>(DYDYH, test_j_H) * 
                            fe_values_state.JxW(q);
         }
       }

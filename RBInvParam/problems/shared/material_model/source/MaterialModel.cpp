@@ -48,7 +48,7 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
                           m_param_dof_handler,
                           m_param_mapping,
                           m_param_evaluator,
-                          m_param_grid_cache,
+                          m_param_rpe,
                           m_param_constraints,
                           m_param_free_dofs)
 {
@@ -64,11 +64,7 @@ void MaterialModel::setup_param_grid()
         m_base_config.p2
     ); 
 
-    m_param_grid_cache = std::make_unique<GridTools::Cache<3>>(
-      m_param_triangulation, 
-      m_param_mapping
-    );
-    
+    m_param_rpe.reinit(m_param_dof_handler.get_triangulation(), m_param_mapping);
 }
 
 void MaterialModel::setup_state_grid()

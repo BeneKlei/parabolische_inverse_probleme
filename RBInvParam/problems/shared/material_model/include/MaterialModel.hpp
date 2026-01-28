@@ -169,7 +169,7 @@ protected:
   // TODO Build eval mech also for state
   MappingQ1<dim> m_param_mapping;
   FEPointEvaluation<1, dim> m_param_evaluator;
-  std::unique_ptr<GridTools::Cache<dim>> m_param_grid_cache;
+  Utilities::MPI::RemotePointEvaluation<dim, dim> m_param_rpe;
 
   AffineConstraints<Number> m_param_constraints;
   std::vector<types::global_dof_index> m_param_free_dofs; // reduced index -> global DoF index
