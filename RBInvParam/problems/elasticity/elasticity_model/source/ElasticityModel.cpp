@@ -9,8 +9,8 @@ void ElasticityModel::setup_material_operator()
 {
     MaterialOperatorFactoryContext<dim, Number> ctx {
         m_elasticity_config.material_operator_type,
-        m_fe,
-        m_dof_handler,
+        m_state_fe,
+        m_state_dof_handler,
         m_BC_constraints,
         m_state_sp,
         m_elasticity_config.material_operator_hyperparameter
@@ -31,7 +31,7 @@ void ElasticityModel::setup_material_operator()
     );
     
     m_param_dim = m_matrix_stack->dim_Q();
-    m_state_dim = m_dof_handler.n_dofs();
+    m_state_dim = m_state_dof_handler.n_dofs();
 }
 
 std::unique_ptr<ElasticityModel::SpasMatOp> ElasticityModel::assemble_A_q(

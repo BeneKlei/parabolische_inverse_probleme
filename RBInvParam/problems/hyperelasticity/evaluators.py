@@ -7,7 +7,11 @@ from pymor.operators.interface import Operator
 from pymor.vectorarrays.list import ListVectorArray
 
 from RBInvParam.evaluators import FOMEvaluatorA
-from RBInvParam.problems.hyperelasticity.hyperelasticity_model import HyperElasticityModel
+#from RBInvParam.problems.hyperelasticity.hyperelasticity_model import HyperElasticityModel
+
+from hyperelasticity_model import HyperElasticityModel
+
+
 from RBInvParam.problems.shared.pymor_dealii_bindings.operator import *
 
 

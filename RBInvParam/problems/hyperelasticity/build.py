@@ -5,7 +5,9 @@ import logging
 import inspect
 from typing import Dict
 
-import RBInvParam.problems.hyperelasticity.hyperelasticity_model as hm
+#import RBInvParam.problems.hyperelasticity.hyperelasticity_model as hm
+import material_model as mm
+import hyperelasticity_model as hm
 
 from RBInvParam.problems.shared.pymor_dealii_bindings.operator import *
 from RBInvParam.utils.logger import get_default_logger

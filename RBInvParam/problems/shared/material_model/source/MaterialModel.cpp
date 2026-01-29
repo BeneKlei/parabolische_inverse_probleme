@@ -26,29 +26,25 @@
 #include "utils.hpp"
 
 
+// TODO Move the FE mechanic to the contexts
 MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
   : m_base_config(config) 
-  , m_fe(FE_Q<dim>(1), dim)
-  , m_dof_handler(m_triangulation)
+  , m_state_fe(FE_Q<dim>(1), dim)
+  , m_state_dof_handler(m_state_triangulation)
+  , m_state_quadrature(QGaussLobatto<dim>(2))
   , m_param_fe(FE_Q<dim>(1))
   , m_param_dof_handler(m_param_triangulation)
-  , m_param_evaluator(
-      m_param_mapping,
-      m_param_fe,
-      update_values,
-      0
-    )
-  , m_state_space_context(m_triangulation,
-                          m_fe,
-                          m_dof_handler,
+  , m_state_space_context(m_state_triangulation,
+                          m_state_fe,
+                          m_state_dof_handler,
+                          m_state_quadrature,
                           m_state_sp, 
                           m_BC_constraints)
   , m_param_space_context(m_param_triangulation,
                           m_param_fe,
                           m_param_dof_handler,
                           m_param_mapping,
-                          m_param_evaluator,
-                          m_param_rpe,
+                          //m_param_rpe,
                           m_param_constraints,
                           m_param_free_dofs)
 {
@@ -63,20 +59,18 @@ void MaterialModel::setup_param_grid()
         m_base_config.p1, 
         m_base_config.p2
     ); 
-
-    m_param_rpe.reinit(m_param_dof_handler.get_triangulation(), m_param_mapping);
 }
 
 void MaterialModel::setup_state_grid()
 {
     GridGenerator::subdivided_hyper_rectangle(
-        m_triangulation, 
+        m_state_triangulation, 
         m_base_config.state_grid_resolution, 
         m_base_config.p1, 
         m_base_config.p2
     ); 
 
-    for (const auto &face : m_triangulation.active_face_iterators())
+    for (const auto &face : m_state_triangulation.active_face_iterators())
     {
         if (face->at_boundary())
         {
@@ -102,6 +96,7 @@ void MaterialModel::setup_state_grid()
 void MaterialModel::setup_param_space()
 {
   m_param_dof_handler.clear();
+  m_param_dof_handler.reinit(m_param_triangulation);
   m_param_dof_handler.distribute_dofs(m_param_fe);
 
   // -----------------------------------------------
@@ -129,6 +124,7 @@ void MaterialModel::setup_param_space()
 
   // -----------------------------------------------
 
+  // TODO The computation to the contexts, maybe also the grids.
   m_param_free_dofs.clear();
   m_param_free_dofs.reserve(m_param_dim);
 
@@ -147,14 +143,14 @@ void MaterialModel::setup_param_space()
 
 void MaterialModel::setup_state_space()
 {
-  m_dof_handler.clear();
-  m_dof_handler.distribute_dofs(m_fe);
+  m_state_dof_handler.clear();
+  m_state_dof_handler.distribute_dofs(m_state_fe);
 
-  m_state_sp.reinit(m_dof_handler.n_dofs(), m_dof_handler.n_dofs(), m_dof_handler.max_couplings_between_dofs());
-  DoFTools::make_sparsity_pattern(m_dof_handler, m_state_sp);
+  m_state_sp.reinit(m_state_dof_handler.n_dofs(), m_state_dof_handler.n_dofs(), m_state_dof_handler.max_couplings_between_dofs());
+  DoFTools::make_sparsity_pattern(m_state_dof_handler, m_state_sp);
   m_state_sp.compress();
 
-  m_state_dim = m_dof_handler.n_dofs();
+  m_state_dim = m_state_dof_handler.n_dofs();
   
 }
 
@@ -169,6 +165,7 @@ void MaterialModel::setup_system()
   std::cout << "\t Setting up function spaces." << std::endl;
   setup_param_space();
   setup_state_space();
+  m_state_space_context.pre_compute();
   
   std::cout << "\t ---------------------- " << std::endl;
   std::cout << "\t #State DoFs: " << m_state_dim << std::endl;
@@ -189,8 +186,8 @@ void MaterialModel::setup_system()
   std::cout << "\t Setting up L2 & H1 in state space." << std::endl;
   StateProductFactoryContext<3, Number> ctx_product_L2 {
     StateProductType::L2,
-    m_fe,
-    m_dof_handler,
+    m_state_fe,
+    m_state_dof_handler,
     m_state_sp    
   };
 
@@ -201,8 +198,8 @@ void MaterialModel::setup_system()
 
   StateProductFactoryContext<3, Number> ctx_product_H1 {
     StateProductType::H1,
-    m_fe,
-    m_dof_handler,
+    m_state_fe,
+    m_state_dof_handler,
     m_state_sp    
   };
 
@@ -217,8 +214,8 @@ void MaterialModel::setup_system()
 
   BodyForceFactoryContext<3, Number> ctx_body_force {
     m_base_config.body_force_type,
-    m_fe,
-    m_dof_handler,
+    m_state_fe,
+    m_state_dof_handler,
     m_base_config.body_force_hyperparameter
   };
 
@@ -232,11 +229,11 @@ void MaterialModel::setup_system()
 void MaterialModel::setup_BC_constraints()
 {
   m_BC_constraints.clear();  
-  // Functions::ZeroFunction<dim> dirichlet_bc_function(m_fe.n_components()); 
+  // Functions::ZeroFunction<dim> dirichlet_bc_function(m_state_fe.n_components()); 
   // uint32_t boundary_id = 0;
 
   // VectorTools::interpolate_boundary_values(
-  //   m_dof_handler, 
+  //   m_state_dof_handler, 
   //   boundary_id, 
   //   dirichlet_bc_function, 
   //   m_BC_constraints
@@ -245,7 +242,7 @@ void MaterialModel::setup_BC_constraints()
   // boundary_id = 1;
 
   // VectorTools::interpolate_boundary_values(
-  //   m_dof_handler, 
+  //   m_state_dof_handler, 
   //   boundary_id, 
   //   dirichlet_bc_function, 
   //   m_BC_constraints
@@ -254,7 +251,7 @@ void MaterialModel::setup_BC_constraints()
   // boundary_id = 2;
 
   // VectorTools::interpolate_boundary_values(
-  //   m_dof_handler, 
+  //   m_state_dof_handler, 
   //   boundary_id, 
   //   dirichlet_bc_function, 
   //   m_BC_constraints
@@ -266,10 +263,10 @@ void MaterialModel::setup_BC_constraints()
 void MaterialModel::get_component_dofs(Vector<Number>& state_DoFs, size_t component_idx)
 {
   const FEValuesExtractors::Scalar comp(component_idx);
-  const ComponentMask mask = m_fe.component_mask(comp);
+  const ComponentMask mask = m_state_fe.component_mask(comp);
 
   // Get all global DoF indices belonging to this component
-  const IndexSet comp_dofs = DoFTools::extract_dofs(m_dof_handler, mask);
+  const IndexSet comp_dofs = DoFTools::extract_dofs(m_state_dof_handler, mask);
 
   // Zero out all other entries
   for (unsigned int i = 0; i < state_DoFs.size(); ++i)
@@ -279,15 +276,15 @@ void MaterialModel::get_component_dofs(Vector<Number>& state_DoFs, size_t compon
 
 void MaterialModel::assemble_force(Vector<Number>& result, double time) 
 {
-  Assert(result.size() == m_dof_handler.n_dofs(),
-         ExcDimensionMismatch(result.size(), m_dof_handler.n_dofs()));
+  Assert(result.size() == m_state_dof_handler.n_dofs(),
+         ExcDimensionMismatch(result.size(), m_state_dof_handler.n_dofs()));
 
   QGaussLobatto<dim> quadrature_formula(2);
-  FEValues<dim> fe_values(m_fe, quadrature_formula,
+  FEValues<dim> fe_values(m_state_fe, quadrature_formula,
                           update_values | update_quadrature_points | update_JxW_values);
 
   const unsigned int n_quadrature_points = quadrature_formula.size();
-  const unsigned int dofs_per_cell = m_fe.dofs_per_cell;
+  const unsigned int dofs_per_cell = m_state_fe.dofs_per_cell;
 
   Vector<Number> cell_rhs(dofs_per_cell);
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
@@ -296,7 +293,7 @@ void MaterialModel::assemble_force(Vector<Number>& result, double time)
   result = 0;
   m_body_force->set_time(time);
 
-  typename DoFHandler<dim>::active_cell_iterator cell = m_dof_handler.begin_active(), endc = m_dof_handler.end();
+  typename DoFHandler<dim>::active_cell_iterator cell = m_state_dof_handler.begin_active(), endc = m_state_dof_handler.end();
   for (; cell != endc; ++cell) {
     fe_values.reinit(cell);
     cell_rhs = 0;
@@ -305,7 +302,7 @@ void MaterialModel::assemble_force(Vector<Number>& result, double time)
 
     for (unsigned int i = 0; i < dofs_per_cell; ++i)
     {
-      const unsigned int component_i = m_fe.system_to_component_index(i).first;
+      const unsigned int component_i = m_state_fe.system_to_component_index(i).first;
       for (unsigned int q_point = 0; q_point < n_quadrature_points; ++q_point)
       {
         cell_rhs(i) += fe_values.shape_value(i, q_point) *
@@ -327,7 +324,7 @@ void MaterialModel::assemble_force_list()
 
   double time = m_base_config.T_initial;
   for (uint32_t idx = 0; idx <= m_base_config.nt; idx++) {
-    m_force_list[idx].reinit(m_dof_handler.n_dofs());
+    m_force_list[idx].reinit(m_state_dof_handler.n_dofs());
     assemble_force(m_force_list[idx], time);
     time += delta_t;
   }
@@ -336,8 +333,8 @@ void MaterialModel::assemble_force_list()
 void MaterialModel::assemble_product_V(const StateProductType state_product_type) {
   StateProductFactoryContext<3, Number> ctx {
     state_product_type,
-    m_fe,
-    m_dof_handler,
+    m_state_fe,
+    m_state_dof_handler,
     m_state_sp    
   };
 
@@ -350,8 +347,8 @@ void MaterialModel::assemble_product_V(const StateProductType state_product_type
 void MaterialModel::assemble_product_H(const StateProductType state_product_type) {
   StateProductFactoryContext<3, Number> ctx {
     state_product_type,
-    m_fe,
-    m_dof_handler,
+    m_state_fe,
+    m_state_dof_handler,
     m_state_sp    
   };
 
@@ -364,8 +361,8 @@ void MaterialModel::assemble_product_H(const StateProductType state_product_type
 void MaterialModel::assemble_product_C(const ObservationSpaceProductType obs_space_product_type) {
   ObservationSpaceProductFactoryContext<3, Number> ctx {
     obs_space_product_type,
-    m_fe,
-    m_dof_handler,
+    m_state_fe,
+    m_state_dof_handler,
     m_state_sp,
     m_observation_space_dim     
   };
@@ -383,8 +380,8 @@ void MaterialModel::assemble_mass_matrix()
   m_mass_matrix = 0;
   StateProductFactoryContext<3, Number> ctx {
     StateProductType::Mass,
-    m_fe,
-    m_dof_handler,
+    m_state_fe,
+    m_state_dof_handler,
     m_state_sp    
   };
 
@@ -401,8 +398,8 @@ void MaterialModel::assemble_observation_operator_matrix(
 {
     ObservationOperatorFactoryContext<dim, Number> ctx {
       observation_operator_type,
-      m_fe,
-      m_dof_handler,
+      m_state_fe,
+      m_state_dof_handler,
       m_BC_constraints,
       m_state_sp,
       hyperparameter,
@@ -472,7 +469,7 @@ void MaterialModel::save_state(const Vector<Number>& v,
 	  for (unsigned int i=0;i<3;i++)
 	    dci[i] = DataComponentInterpretation::component_is_part_of_vector;
     
-    data_out.attach_dof_handler(m_dof_handler);
+    data_out.attach_dof_handler(m_state_dof_handler);
     data_out.add_data_vector(v, solution_names, DataOut<3>::type_dof_data ,dci);
     data_out.add_data_vector(v, solution_names);
     data_out.build_patches();
@@ -509,7 +506,7 @@ void MaterialModel::save_time_series(const std::vector<Vector<double>> &v,
 
     for (unsigned int t = 0; t < v.size(); ++t)
     {
-        data_out.attach_dof_handler(m_dof_handler);
+        data_out.attach_dof_handler(m_state_dof_handler);
         data_out.add_data_vector(v[t], solution_names, DataOut<3>::type_dof_data ,dci);
         data_out.build_patches();
 

@@ -14,8 +14,11 @@ from pymor.basic import *
 from pymor.core.defaults import set_defaults, get_defaults
 from pymor.algorithms.genericsolvers import solver_options
 
-import RBInvParam.problems.hyperelasticity.hyperelasticity_model as hm
-import RBInvParam.problems.shared.material_model as mm
+#import RBInvParam.problems.hyperelasticity.hyperelasticity_model as hm
+#import RBInvParam.problems.shared.material_model as mm
+
+import material_model as mm
+import hyperelasticity_model as hm
 
 from RBInvParam.optimizer import FOMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
@@ -60,18 +63,22 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    y_res = 60
-    z_res = 60
+    state_y_res = 30
+    state_z_res = 30
 
-    par_dim = (y_res + 1) * (z_res + 1) 
+    param_y_res = 30
+    param_z_res = 30
+
+    par_dim = (param_y_res + 1) * (param_z_res + 1) 
     #* 5 * 3
     #par_dim = 3
     T_initial = 0
+
+    T_final = 1.0
+    nt = 10
+
     # T_final = 5.0
     # nt = 50
-
-    T_final = 5.0
-    nt = 50
 
     # T_final = 1
     # nt = 20
@@ -81,7 +88,7 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
     add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
 
@@ -95,9 +102,8 @@ def main():
     bounds[:,0] = 1e-20
     bounds[:,1] = 1e20
 
-    state_grid_resolution = [4,y_res,z_res]
-    param_grid_resolution = [4,y_res,z_res]
-
+    state_grid_resolution = [4,state_y_res,state_z_res]
+    param_grid_resolution = [4,param_y_res,param_z_res]
 
     setup = {
         'param_grid_resolution' : param_grid_resolution,
@@ -191,8 +197,6 @@ def main():
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
     )
-    import sys
-    sys.exit()
 
     u_start = FOM.solve_state(FOM.Q.make_array(q_start))
     FOM.A.hyperelasticity_model.save_time_series(

@@ -17,7 +17,14 @@ StoredEnergyOperator<dim, Number>::StoredEnergyOperator(
   , m_state_space_context(state_space_context)
   , m_param_space_context(param_space_context)
   , m_stored_energy_function(stored_energy_function)
-{}
+{
+  // m_param_space_context.evaluate_values(
+  //   m_full_q,
+  //   m_state_space_context.quad_points_flat(),
+  //   m_param_values
+  // );
+
+}
 
 template <int dim, typename Number>
 std::size_t StoredEnergyOperator<dim, Number>::dim_source() const
@@ -35,15 +42,10 @@ template <int dim, typename Number>
 void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
                                               const Vector<Number> &u) const
 {
-  // --- quadrature ---
-  QGaussLobatto<dim> quadrature_formula(2);
-  const unsigned int n_q = quadrature_formula.size();
-
-  // --- FEValues for state ---
-  // TODO do not recreate them!!
+  const unsigned int n_q = m_state_space_context.quadrature().size();
   FEValues<dim> fe_values_state(m_state_space_context.fe(),
-                                quadrature_formula,
-                                update_gradients | update_JxW_values);
+                                m_state_space_context.quadrature(),
+                                update_values | update_gradients | update_quadrature_points | update_JxW_values);
 
   const unsigned int dofs_per_cell = m_state_space_context.fe().dofs_per_cell;
 
@@ -53,12 +55,11 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
 
   const FEValuesExtractors::Vector vel(0);
 
+  // TODO Multi query scenario. Alloc once and reuse.
   std::vector<Tensor<2, dim>> u_gradients(n_q);
   std::vector<Number>         param_values(n_q, Number(1.0));
 
   const Tensor<2, dim> I(unit_symmetric_tensor<dim, Number>());
-
-
   y = Number(0);
 
   for (const auto &cell : m_state_space_context.dof_handler().active_cell_iterators())
@@ -68,20 +69,28 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
     fe_values_state.reinit(cell);
     fe_values_state[vel].get_function_gradients(u, u_gradients);
     const auto &q_points = fe_values_state.get_quadrature_points();
-    
-    m_param_space_context.evaluate_values(
-      m_full_q,
-      q_points,
-      param_values
-    );
+
+    // m_param_space_context.evaluate_values(
+    //   m_full_q,
+    //   q_points,
+    //   param_values
+    // );
 
     for (unsigned int q = 0; q < n_q; ++q)
     {      
       const auto &q_point        = q_points[q];
       const auto &u_grad         = u_gradients[q];
-      const Number &param_value  = param_values[q];
+
+      Number param_value = 1.0;
+      if ((q_point[0] == -0.05) & (q_point[1] == 5.0) & (q_point[0] == 10.0)) 
+          param_value = 2.0;
+
+      
+      //const Number &param_value  = param_values[q];
 
       const Tensor<2, dim> DY = m_stored_energy_function.gradient(q_point, u_grad + I);
+
+
 
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
       {
@@ -159,11 +168,11 @@ StoredEnergyOperator<dim, Number>::jacobian(const Vector<Number> &u) const
     const auto &q_points = fe_values_state.get_quadrature_points();
 
     // TODO Cache last values
-    m_param_space_context.evaluate_values(
-      m_full_q,
-      q_points,
-      param_values
-    );
+    // m_param_space_context.evaluate_values(
+    //   m_full_q,
+    //   q_points,
+    //   param_values
+    // );
 
     for (unsigned int q = 0; q < n_q; ++q)
     {

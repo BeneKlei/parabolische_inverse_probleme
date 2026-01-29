@@ -4,6 +4,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <deal.II/base/mpi.h>
+
 #include <fstream>
 
 #include "MaterialModel.hpp"
@@ -19,6 +21,12 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(material_model, m) {
       py::module::import("pymor_dealii_bindings");
+      m.def("_mpi_info", []() {
+         return py::make_tuple(
+            dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD),
+            dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD)
+         );
+      });
 
       py::class_<MaterialModel>(m, "MaterialModel")
          //.def(py::init<const MaterialModelBaseConfig&>())

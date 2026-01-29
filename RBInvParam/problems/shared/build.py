@@ -9,7 +9,8 @@ from typing import Dict, Callable
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.numpy import NumpyMatrixOperator
  
-import RBInvParam.problems.shared.material_model as mm
+#import RBInvParam.problems.shared.material_model as mm
+import material_model as mm
 
 from RBInvParam.problems.shared.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
 from RBInvParam.problems.shared.pymor_dealii_bindings.operator import *

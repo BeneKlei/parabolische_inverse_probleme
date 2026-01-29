@@ -156,20 +156,20 @@ protected:
 
   // ---------------------- State FE ----------------------
   // TODO Rename to x_state
-  Triangulation<dim> m_triangulation;
-  FESystem<dim> m_fe;
-  DoFHandler<dim> m_dof_handler;
-
+  Triangulation<dim> m_state_triangulation;
+  FESystem<dim> m_state_fe;
+  DoFHandler<dim> m_state_dof_handler;
+  QGaussLobatto<dim> m_state_quadrature;
   SparsityPattern m_state_sp;
+  MappingQ1<dim> m_state_mapping;  
+
   // ---------------------- Param FE ----------------------
   Triangulation<dim> m_param_triangulation;
   FE_Q<dim> m_param_fe;
   DoFHandler<dim> m_param_dof_handler;
-
-  // TODO Build eval mech also for state
-  MappingQ1<dim> m_param_mapping;
-  FEPointEvaluation<1, dim> m_param_evaluator;
-  Utilities::MPI::RemotePointEvaluation<dim, dim> m_param_rpe;
+  MappingQ1<dim> m_param_mapping;  
+  
+  //Utilities::MPI::RemotePointEvaluation<dim, dim> m_param_rpe;
 
   AffineConstraints<Number> m_param_constraints;
   std::vector<types::global_dof_index> m_param_free_dofs; // reduced index -> global DoF index

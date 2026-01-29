@@ -29,16 +29,14 @@ public:
                     const FE_Q<dim>                                 &fe,
                     const DoFHandler<dim>                           &dof_handler,
                     const MappingQ1<dim>                            &mapping,
-                    FEPointEvaluation<1, dim>                       &evaluator,
-                    Utilities::MPI::RemotePointEvaluation<dim, dim> &param_rpe,
+                    //Utilities::MPI::RemotePointEvaluation<dim, dim> &param_rpe,
                     const AffineConstraints<Number>                 &constraints,
                     const std::vector<types::global_dof_index>      &free_dofs)
     : m_triangulation(triangulation)
     , m_fe(fe)
     , m_dof_handler(dof_handler)
     , m_mapping(mapping)
-    , m_evaluator(evaluator)
-    , m_rpe(param_rpe)
+    //, m_rpe(param_rpe)
     , m_constraints(constraints)
     , m_free_dofs(free_dofs)
   {}
@@ -71,8 +69,7 @@ private:
 
   const MappingQ1<dim>     & m_mapping;
 
-  FEPointEvaluation<1, dim> & m_evaluator;
-  Utilities::MPI::RemotePointEvaluation<dim, dim>& m_rpe;
+  //Utilities::MPI::RemotePointEvaluation<dim, dim>& m_rpe;
 
   const AffineConstraints<Number> & m_constraints;
   const std::vector<types::global_dof_index>    & m_free_dofs;
