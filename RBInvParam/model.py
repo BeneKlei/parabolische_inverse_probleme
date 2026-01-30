@@ -9,7 +9,7 @@ from pymor.vectorarrays.numpy import NumpyVectorArray, VectorSpace
 from pymor.operators.interface import Operator
 from pymor.core.base import ImmutableObject
 
-from RBInvParam.evaluators import EvaluatorA, EvaluatorB
+from RBInvParam.evaluators import EvaluatorA, InvalidAssemblyArgument
 from RBInvParam.timestepping import create_time_stepper
 
 from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimator
@@ -28,7 +28,6 @@ class InstationaryModelIP(ImmutableObject):
                  M : Operator,
                  A : EvaluatorA,
                  L : VectorArray,
-                 #B : EvaluatorB,
                  C : Operator,
                  constant_cost_term: None | float,
                  linear_cost_term: None | VectorArray,
@@ -55,7 +54,6 @@ class InstationaryModelIP(ImmutableObject):
                  V_ad : None | VectorSpace = None,
                  M_ad : None | Operator = None,
                  A_ad : None | EvaluatorA = None,
-                 #B_ad : None | EvaluatorB = None,
                  linear_cost_term_ad : None | VectorArray = None,
                  bilinear_cost_term_ad : None | Operator = None):
                 
@@ -344,7 +342,7 @@ class InstationaryModelIP(ImmutableObject):
 
         self._cached_operators = {}
 
-
+        # TODO Rename 'partial_u_A_q_u' to jacobian everywhere
         keys = []
         keys += ['q']
         keys += ['A_q', 'partial_q_A_q_u', 'partial_u_A_q_u']
@@ -367,6 +365,36 @@ class InstationaryModelIP(ImmutableObject):
         else:
             return np.any((self._cached_operators['q']-q).norm() != 0)
     
+    def _cache_jacobians(self,
+                         A: EvaluatorA,
+                         time_step: int,
+                         q: VectorArray,
+                         u: VectorArray) -> Operator:
+        
+        assert isinstance(A, EvaluatorA)
+
+        if A is self.A:
+            A_q_key = 'A_q'
+        elif A is self.A_ad:
+            A_q_key = 'A_ad_q'
+        else:
+            raise ValueError("Unknown operator")
+        
+        try:
+            _A_q = self._cached_operators[A_q_key][time_step]
+        except (KeyError, IndexError):
+            _A_q = None
+
+        try:
+            if _A_q is None:
+                _op = self.A.get_partial_u_A_q_u(q, u)
+            else:
+                _op = self.A.get_partial_u_A_q_u(q, u, A_q=_A_q)
+        except InvalidAssemblyArgument:
+            _op = self.A.get_partial_u_A_q_u(q, u)
+
+        return _op
+    
     def _cache_operators(self, 
                          target: str,
                          time_step: int,
@@ -378,16 +406,23 @@ class InstationaryModelIP(ImmutableObject):
         elif target == 'partial_q_A_q_u':
             self._cached_operators[target][time_step] = self.A.get_partial_q_A_q_u(q, u)
         elif target == 'partial_u_A_q_u':
-            self._cached_operators[target][time_step] = self.A.get_partial_u_A_q_u(q, u)
+            self._cached_operators[target][time_step] = self._cache_jacobians(
+                A = self.A,
+                time_step = time_step,
+                q = q,
+                u = u
+            )
         elif target == 'A_ad_q':
-            _target = target.replace('_ad', '')
-            self._cached_operators[_target][time_step] = self.A_ad.get_A_q(q)
+            self._cached_operators[target][time_step] = self.A_ad.get_A_q(q)
         elif target == 'partial_q_A_ad_q_u':
-            _target = target.replace('_ad', '')
             self._cached_operators[target][time_step] = self.A_ad.get_partial_q_A_q_u(q, u)
         elif target == 'partial_u_A_ad_q_u':
-            _target = target.replace('_ad', '')
-            self._cached_operators[target][time_step] = self.A_ad.get_partial_u_A_q_u(q, u)
+            self._cached_operators[target][time_step] = self._cache_jacobians(
+                A = self.A_ad,
+                time_step = time_step,
+                q = q,
+                u = u
+            )
         elif target in self.time_stepper_required_cache_keys:
             _time_stepper = next(
                 (time_stepper for time_stepper in self.time_stepper
@@ -500,6 +535,7 @@ class InstationaryModelIP(ImmutableObject):
             for key in required_cache_keys:
                 lst = self._cached_operators[key]
                 assert all(x is None for x in lst) or all(x is not None for x in lst)
+
                 if all(x is None for x in self._cached_operators[key]):
                     self.cache_operators(q=q, u=u, target=key)
         

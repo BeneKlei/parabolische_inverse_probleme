@@ -12,10 +12,8 @@ from pymor.vectorarrays.numpy import NumpyVectorArray
 from RBInvParam.utils.discretization import Struct, build_projection
 
 
-# @runtime_checkable
-# class B_u(Protocol):
-#     B_u: Callable[[VectorArray], VectorArray]
-#     B_u_ad: Callable[[VectorArray], VectorArray]
+class InvalidAssemblyArgument(Exception):
+    pass
 
 class EvaluatorA(ABC):
     def __init__(self,
@@ -90,7 +88,7 @@ class FOMEvaluatorA(EvaluatorA):
         pass
 
     @abstractmethod
-    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, A_q: Operator = None) -> Operator:
         pass
 
     @abstractmethod

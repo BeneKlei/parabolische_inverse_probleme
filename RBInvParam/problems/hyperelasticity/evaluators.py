@@ -6,7 +6,7 @@ from pymor.vectorarrays.interface import VectorSpace
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.list import ListVectorArray
 
-from RBInvParam.evaluators import FOMEvaluatorA
+from RBInvParam.evaluators import FOMEvaluatorA, InvalidAssemblyArgument
 from RBInvParam.problems.hyperelasticity.hyperelasticity_model import HyperElasticityModel
 
 #from hyperelasticity_model import HyperElasticityModel
@@ -35,6 +35,7 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         op = self.hyperelasticity_model.assemble_A_q(
             q_np = q.to_numpy().flatten()
         )
+        # TODO Remove linear from FOMEvaluatorA
         self.linear = op.linear
         
         return DealIIBaseOperator(
@@ -50,13 +51,23 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
 
         raise NotImplementedError
         
-    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, A_q: Operator = None) -> Operator:
         assert q in self.Q
         assert len(q) == 1
+        assert u in self.source
+        assert len(u) == 1
+
+        if A_q is None:        
+            A_q = self.hyperelasticity_model.assemble_A_q(
+                q_np = q.to_numpy().flatten()
+            )
         
-        assert u is None
+        assert isinstance(A_q, Operator)
         
-        raise NotImplementedError
+        try:
+            return A_q.jacobian(U=u)
+        except:
+            raise InvalidAssemblyArgument
     
     def clear_rhs_boundary_dofs(self, 
                                 rhs: VectorArray,

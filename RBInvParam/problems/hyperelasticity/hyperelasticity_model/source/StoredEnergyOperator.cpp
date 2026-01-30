@@ -65,6 +65,7 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
     fe_values_state[vel].get_function_gradients(u, u_gradients);
     const auto &q_points = fe_values_state.get_quadrature_points();
 
+    // TODO Cache them once, reuse for all u's and the jacobian
     m_param_space_context.evaluate_values(
       m_q,
       q_points,
@@ -112,13 +113,11 @@ template <int dim, typename Number>
 std::unique_ptr<BaseOperator<Number>> 
 StoredEnergyOperator<dim, Number>::jacobian(const Vector<Number> &u) const
 {
-  // --- quadrature ---
-  QGaussLobatto<dim> quadrature_formula(2);
-  const unsigned int n_q = quadrature_formula.size();
+  const unsigned int n_q = m_state_space_context.quadrature().size();
 
   // --- FEValues for state ---
   FEValues<dim> fe_values_state(m_state_space_context.fe(),
-                                quadrature_formula,
+                                m_state_space_context.quadrature(),
                                 update_gradients | update_JxW_values |
                                 update_quadrature_points | update_values);
   
@@ -129,13 +128,7 @@ StoredEnergyOperator<dim, Number>::jacobian(const Vector<Number> &u) const
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
   const FEValuesExtractors::Vector vel(0);
-
-  // std::vector<Tensor<2, dim>> u_gradients(n_q);
-  // std::vector<Point<dim>>     q_points(n_q);
-  // std::vector<Number> param_values(n_q);
-  // std::vector<Tensor<2, dim>> DY_DY_H_stored_energy_points(n_q);
   Tensor<2,dim> test_j_H;
-  // const Tensor<2, dim> I = Tensor<2, dim>(unit_symmetric_tensor<dim, Number>());
   
   std::vector<Tensor<2, dim>> u_gradients(n_q);
   std::vector<Number>         param_values(n_q, Number(1.0));
@@ -172,6 +165,8 @@ StoredEnergyOperator<dim, Number>::jacobian(const Vector<Number> &u) const
         const unsigned int component_i = 
           m_state_space_context.fe().system_to_component_index(i).first;
         
+
+        // TODO Refactor avoiding the "trick" with test_j_H
         const Tensor<2, dim> DYDYH =
           m_stored_energy_function.contracted_hessian(
             q_points[q], 
@@ -188,6 +183,7 @@ StoredEnergyOperator<dim, Number>::jacobian(const Vector<Number> &u) const
           test_j_H.clear();
           test_j_H[component_j] = fe_values_state.shape_grad(j, q);
 
+          // TODO Refactor using deal.ii Tensor methods
           local_J(i, j) += param_value * 
                            double_contract<0,0,1,1>(DYDYH, test_j_H) * 
                            fe_values_state.JxW(q);

@@ -4,15 +4,10 @@ from pathlib import Path
 from datetime import datetime
 
 import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
-
-# os.environ["OMP_NUM_THREADS"] = "4"
-# os.environ["OPENBLAS_NUM_THREADS"] = "4"
-# os.environ["MKL_NUM_THREADS"] = "4"
-# os.environ["NUMEXPR_NUM_THREADS"] = "4"
+os.environ["OMP_NUM_THREADS"] = "4"
+os.environ["OPENBLAS_NUM_THREADS"] = "4"
+os.environ["MKL_NUM_THREADS"] = "4"
+os.environ["NUMEXPR_NUM_THREADS"] = "4"
 
 from pymor.basic import *
 
@@ -72,15 +67,13 @@ set_log_levels({'pymor': 'ERROR'})
 #########################################################################################''
 
 def main():
-    y_res = 30
-    z_res = 30
+    state_y_res = 30
+    state_z_res = 30
 
-    # y_res = 10
-    # z_res = 10
+    param_y_res = 30
+    param_z_res = 30
 
-    par_dim = (y_res + 1) * (z_res + 1)
-    #* 5 * 3
-    #par_dim = 3
+    par_dim = (param_y_res + 1) * (param_z_res + 1) 
     T_initial = 0
     #T_final = 10.0
     # T_final = 5.0
@@ -109,7 +102,7 @@ def main():
     # q_exact[0,200] = 2
     # q_exact[0,300] = 3
 
-    q_exact = q_exact[0,:].reshape(y_res+1,z_res+1)
+    q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     #q_exact[10:21,10:21] = 2
     # q_exact[9,21] = 3
     # q_exact[8,21] = 3
@@ -185,8 +178,12 @@ def main():
     bounds[:,0] = 1e-20
     bounds[:,1] = 1e20
 
+    state_grid_resolution = [4,state_y_res,state_z_res]
+    param_grid_resolution = [4,param_y_res,param_z_res]
+
     setup = {
-        'spatial_resolution' : [4,y_res,z_res],
+        'param_grid_resolution' : param_grid_resolution,
+        'state_grid_resolution' : state_grid_resolution,
         'body_force' : {
             'type' : mm.BodyForceType.CenterExcite,
             'hyperparameter' : {}
@@ -214,7 +211,7 @@ def main():
             #'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             #'type': mm.ObservationOperatorType.SensorsGrid,                                   
             'hyperparameter' : {
-                'spatial_resolution' : [4,y_res,z_res],
+                'spatial_resolution' : state_grid_resolution,
                 # 'radius' : 0.001,
                 # 'second_row' : False
             }
@@ -438,11 +435,11 @@ def main():
                     # 'normalize' : None,
                     # 'HaPOD' : None,
                 },
-                #'coarsing' : None,
-                'coarsing' : {
-                    'rel_tol_coeff_u' : 1e-2,
-                    'rel_tol_coeff_p' : 1e-2
-                }
+                'coarsing' : None,
+                # 'coarsing' : {
+                #     'rel_tol_coeff_u' : 1e-2,
+                #     'rel_tol_coeff_p' : 1e-2
+                # }
             },
             'adjoint_basis' : {
                 'additional_snapshots' :{

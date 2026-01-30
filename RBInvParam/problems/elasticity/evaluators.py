@@ -15,7 +15,7 @@ from pymor.vectorarrays.list import ListVectorArray
 from pymor.vectorarrays.numpy import NumpyVectorArray
 
 
-from RBInvParam.evaluators import FOMEvaluatorA
+from RBInvParam.evaluators import FOMEvaluatorA, InvalidAssemblyArgument
 #, FOMEvaluatorB, B_u
 from RBInvParam.problems.elasticity.elasticity_model import ElasticityModel
 from RBInvParam.problems.shared.pymor_dealii_bindings.operator import *
@@ -58,11 +58,13 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
             )
         )
         
-    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, A_q: Operator = None) -> Operator:
         assert q in self.Q
         assert len(q) == 1
-        
         assert u is None
+
+        if A_q is not None:
+            raise InvalidAssemblyArgument
         
         return SparseMatrixOperator(
             op = self.elasticity_model.assemble_partial_u_A_q_u(
