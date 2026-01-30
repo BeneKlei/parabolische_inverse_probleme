@@ -21,7 +21,8 @@ class EvaluatorA(ABC):
                 range : VectorSpace,
                 Q : VectorSpace,
                 parameter_names: List[str] | None,
-                translation_operator: bool = False):
+                translation_operator: bool = False,
+                A_q_linear: bool = False):
 
         assert source == range
         self.Q = Q
@@ -29,7 +30,7 @@ class EvaluatorA(ABC):
         self.range = range
         self.parameter_names = parameter_names
         self.translation_operator = translation_operator
-        self.linear = False
+        self.A_q_linear = A_q_linear
 
     @abstractmethod
     def get_A_q(self, q: VectorArray) -> Operator:
@@ -75,9 +76,16 @@ class FOMEvaluatorA(EvaluatorA):
                  source : VectorSpace,
                  range : VectorSpace,
                  Q : VectorSpace,
-                 parameter_names: List[str] | None):
+                 parameter_names: List[str] | None,
+                 A_q_linear: bool = False):
 
-        super().__init__(source, range, Q, parameter_names)
+        super().__init__(
+            source, 
+            range, 
+            Q, 
+            parameter_names, 
+            A_q_linear
+        )
 
     @abstractmethod
     def get_A_q(self, q: VectorArray) -> Operator:

@@ -30,9 +30,8 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
                  Q : VectorSpace,
                  parameter_names: List[str] | None = None):
         assert isinstance(elasticity_model, ElasticityModel)
-        self.elasticity_model = elasticity_model
-        self.A_q_linear_op = True
-        super().__init__(source, range, Q, parameter_names)
+        self.elasticity_model = elasticity_model        
+        super().__init__(source, range, Q, parameter_names, A_q_linear = True)
         
 
     def get_A_q(self, q: VectorArray) -> Operator:

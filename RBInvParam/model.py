@@ -334,27 +334,27 @@ class InstationaryModelIP(ImmutableObject):
             self.adjoint_time_stepper,
             self.lin_adjoint_time_stepper
         ]
-        self.time_stepper_required_cache_keys = []        
-        for time_stepper in self.time_stepper:
-            self.time_stepper_required_cache_keys += time_stepper.required_cache_keys 
 
         ###############################################################
 
-        self._cached_operators = {}
-
         # TODO Rename 'partial_u_A_q_u' to jacobian everywhere
-        keys = []
-        keys += ['q']
-        keys += ['A_q', 'partial_q_A_q_u', 'partial_u_A_q_u']
-        keys += ['A_ad_q', 'partial_q_A_ad_q_u', 'partial_u_A_ad_q_u']
-        keys += ['residual_A_q']
-        keys += self.time_stepper_required_cache_keys
+        self.time_dep_cache_policy = {
+            'A_q' : self.q_time_dep,
+            'partial_q_A_q_u' : True,
+            'partial_u_A_q_u' : self.A.A_q_linear,
+            'A_ad_q' : self.q_time_dep,
+            'partial_q_A_ad_q_u' : True,
+            'partial_u_A_ad_q_u' : self.A.A_q_linear,
+        }
 
+        for time_stepper in self.time_stepper:
+            self.time_dep_cache_policy.update(time_stepper.time_dep_cache_policy)
+
+        self._cached_operators = {}
         self.reset_cached_operators(
-            keys = keys
+            targets = ['q'] + list(self.time_dep_cache_policy.keys())
         )
 
-     
 #%% cache methods
     def _cache_update_required(self,
                                q : VectorArray) -> bool:
@@ -447,13 +447,16 @@ class InstationaryModelIP(ImmutableObject):
                 self._cached_operators['residual_A_q'][time_step] = \
                     self.state_error_estimator.state_residual_operator._precompute_residual_A_q(q)
         else:
-            self.logger.error(f'Target {target} is not known.')
+            self.logger.error(f'Unknown target {target}.')
             raise ValueError
 
     def cache_operators(self, 
                         target: str,
                         q: VectorArray,
                         u: VectorArray = None) -> None:
+
+        if target == 'residual_A_q':
+            raise NotImplementedError("Deprac")
         
         assert target in self._cached_operators.keys()
         assert q in self.Q
@@ -470,58 +473,34 @@ class InstationaryModelIP(ImmutableObject):
 
         self.logger.debug(f'Caching {target}')
         self._cached_operators['q'] = q.copy()
-
-        _cache_non_time_dep = not self.q_time_dep and (target in ['A_q'] + self.time_stepper_required_cache_keys)
-        # TODO Find a better way. Combine partial_u into A_q_u as jacobian?
-        __cache_non_time_dep = not self.q_time_dep and (target in ['partial_u_A_q_u'] and self.A.A_q_linear_op)
-        _cache_non_time_dep = _cache_non_time_dep or __cache_non_time_dep
-    
-        if _cache_non_time_dep:
-            self._cache_operators(
-                target = target,
-                time_step = 0,
-                q = q[0],
-                u = None
-            )
+            
+        if self.time_dep_cache_policy[target]:
+            for time_step in range(self.nt + 1):
+                _q = q[time_step] if self.q_time_dep else q[0]
+                self._cache_operators(target=target, time_step=time_step, q=_q, u=u[time_step])
         else:
-            for time_step in range(self.nt+1):
-                if self.q_time_dep:
-                    _q = q[time_step]
-                else:
-                    _q = q[0]
-
-                self._cache_operators(
-                    target = target,
-                    time_step = time_step,
-                    q = _q,
-                    u = u[time_step]
-                )      
+            self._cache_operators(target=target, time_step=0, q=q[0], u=None)
             
     def reset_cached_operators(self,
-                               keys: List[str] = None) -> None:
+                               targets: List[str] = None) -> None:
         self.logger.debug('Deleting cache')
 
-        if not keys:
-            keys = self._cached_operators.keys()
+        if not targets:
+            targets = self._cached_operators.keys()
 
-        for key in keys:
-            if key in self._cached_operators.keys():
-                del self._cached_operators[key][:]
+        for target in targets:
+            if target in self._cached_operators.keys():
+                del self._cached_operators[target][:]
             
-            if key == 'q':
+            if target == 'q':
                 self._cached_operators['q'] = self.Q.empty()
                 continue
 
-            _cache_non_time_dep = not self.q_time_dep and (key in ['A_q'] + self.time_stepper_required_cache_keys)
-            # TODO Find a better way. Combine partial_u into A_q_u as jacobian?
-            __cache_non_time_dep = not self.q_time_dep and (key in ['partial_u_A_q_u'] and self.A.linear)
-            _cache_non_time_dep = _cache_non_time_dep or __cache_non_time_dep
-                
-            if _cache_non_time_dep:
-                self._cached_operators[key] = [None]
+            if self.time_dep_cache_policy[target]:
+                self._cached_operators[target] = [None] * (self.nt + 1)
             else:
-                self._cached_operators[key] = [None] * (self.nt + 1)
-                
+                self._cached_operators[target] = [None]
+                            
     def update_cache(self,
                      q: VectorArray,
                      u: VectorArray = None,
@@ -556,7 +535,7 @@ class InstationaryModelIP(ImmutableObject):
         _time_stepper = self.state_time_stepper
 
         required_cache_keys = ['A_q'] 
-        required_cache_keys += _time_stepper.required_cache_keys
+        required_cache_keys += list(_time_stepper.time_dep_cache_policy.keys())
         self.update_cache(
             q = q,             
             use_cached_operators = use_cached_operators, 
@@ -607,7 +586,7 @@ class InstationaryModelIP(ImmutableObject):
             A_ad_q_key = 'partial_u_A_q_u'
     
         required_cache_keys = [A_ad_q_key] 
-        required_cache_keys += _time_stepper.required_cache_keys
+        required_cache_keys += list(_time_stepper.time_dep_cache_policy.keys())
         self.update_cache(
             q = q,
             u = u,
@@ -630,6 +609,7 @@ class InstationaryModelIP(ImmutableObject):
         iterator = _time_stepper.iterate(initial_data = self.initial_data['adjoint'], 
                                          q=q,
                                          rhs=rhs,
+                                         u=u,
                                          use_cached_operators=use_cached_operators,
                                          cached_operators=self._cached_operators,
                                          config={
@@ -671,7 +651,7 @@ class InstationaryModelIP(ImmutableObject):
         _time_stepper = self.lin_state_time_stepper
         
         required_cache_keys = ['A_q']
-        required_cache_keys += _time_stepper.required_cache_keys
+        required_cache_keys += list(_time_stepper.time_dep_cache_policy.keys())
         required_cache_keys += ['partial_q_A_q_u']
         self.update_cache(
             q = q, 
@@ -708,6 +688,7 @@ class InstationaryModelIP(ImmutableObject):
         iterator = _time_stepper.iterate(initial_data = self.initial_data['lin_state'], 
                                          q=q,
                                          rhs=rhs,
+                                         u=u,
                                          use_cached_operators=use_cached_operators,
                                          cached_operators=self._cached_operators)
         
@@ -751,7 +732,7 @@ class InstationaryModelIP(ImmutableObject):
             A_ad_q_key = 'partial_u_A_q_u'
     
         required_cache_keys = [A_ad_q_key] 
-        required_cache_keys += _time_stepper.required_cache_keys
+        required_cache_keys += list(_time_stepper.time_dep_cache_policy.keys())
         self.update_cache(
             q = q, 
             u = u,
@@ -769,6 +750,7 @@ class InstationaryModelIP(ImmutableObject):
         iterator = _time_stepper.iterate(initial_data = self.initial_data['lin_adjoint'], 
                                          q=q,
                                          rhs=rhs,
+                                         u=u,
                                          use_cached_operators=use_cached_operators,
                                          cached_operators=self._cached_operators,
                                          config={
@@ -849,9 +831,7 @@ class InstationaryModelIP(ImmutableObject):
             return z, z_dot
         else:
             return z
-
-        
-
+      
 #%% objective and gradient
     def objective(self, 
                   u: Union[VectorArray, np.ndarray],
@@ -892,6 +872,7 @@ class InstationaryModelIP(ImmutableObject):
                  use_cached_operators: bool = False,
                  return_per_time_step : bool = False) -> NumpyVectorArray | Tuple[NumpyVectorArray, NumpyVectorArray]:
         
+        assert q in self.Q
         assert u in self.V
         assert p in self.V_ad
         assert len(u) == self.nt + 1
@@ -1339,7 +1320,7 @@ class InstationaryModelIP(ImmutableObject):
                                u=u, 
                                use_cached_operators=use_cached_operators)
         
-        return self.gradient(u, p, alpha)
+        return self.gradient(u, p, q=q, alpha=alpha)
     
     def compute_linearized_objective(self,
                                      q: VectorArray,

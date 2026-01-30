@@ -25,7 +25,7 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         
         assert isinstance(hyperelasticity_model, HyperElasticityModel)
         self.hyperelasticity_model = hyperelasticity_model
-        super().__init__(source, range, Q, parameter_names)
+        super().__init__(source, range, Q, parameter_names, False)
         
 
     def get_A_q(self, q: VectorArray) -> Operator:
@@ -34,9 +34,7 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
 
         op = self.hyperelasticity_model.assemble_A_q(
             q_np = q.to_numpy().flatten()
-        )
-        # TODO Remove linear from FOMEvaluatorA
-        self.linear = op.linear
+        )        
         
         return DealIIBaseOperator(
             op = op
@@ -58,10 +56,12 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         assert len(u) == 1
 
         if A_q is None:        
-            A_q = self.hyperelasticity_model.assemble_A_q(
-                q_np = q.to_numpy().flatten()
+             A_q = DealIIBaseOperator(
+                op = self.hyperelasticity_model.assemble_A_q(
+                    q_np = q.to_numpy().flatten()
+                )
             )
-        
+            
         assert isinstance(A_q, Operator)
         
         try:

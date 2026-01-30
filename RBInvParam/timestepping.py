@@ -44,7 +44,7 @@ class TimeStepper(ABC):
         self.T_initial = T_initial
         self.T_final = T_final
         self.q_time_dep = q_time_dep
-        self.required_cache_keys : List[str] = []
+        self.time_dep_cache_policy : Dict[str, bool] = {}
         self.A_q_key = A_q_key
         self.apply_adjoint = apply_adjoint
         self.key_prefix = key_prefix
@@ -58,10 +58,27 @@ class TimeStepper(ABC):
         assert self.M.range == self.A.range
         assert self.A.range == self.V
     
+    def _get_A_q(self, 
+                q: VectorArray,
+                u: VectorArray = None) -> Operator:
+
+        _A_q_key = self.A_q_key.replace('_ad', '')
+        if _A_q_key == 'A_q':
+            return self.A.get_A_q(q)
+        elif _A_q_key == 'partial_q_A_q_u':
+            return self.A.get_partial_q_A_q_u(q, u)
+        elif _A_q_key == 'partial_u_A_q_u':            
+            return self.A.get_partial_u_A_q_u(q, u)
+        else:
+            self.logger.error(f'Unknown target {self.A_q_key}.')
+            raise ValueError
+
+
     @abstractmethod
     def iterate(self,                               
                 initial_data : VectorArray, 
                 q : Union[VectorArray, List[VectorArray]], 
+                u : Union[VectorArray, List[VectorArray]],                 
                 rhs : Union[VectorArray, List[VectorArray]],
                 use_cached_operators: bool = False,
                 cached_operators: Dict = None,
@@ -83,18 +100,6 @@ class TimeStepper(ABC):
 
         if len(cached_operators['q']) > 0:
             assert ((cached_operators['q']-q).norm() <= 1e-16)[0]
-
-        for key in keys:
-            key in cached_operators.keys()
-            _cache_non_time_dep = not self.q_time_dep and (key in ['A_q'] + self.required_cache_keys)
-            # TODO Find a better way. Combine partial_u into A_q_u as jacobian?
-            __cache_non_time_dep = not self.q_time_dep and (key in ['partial_u_A_q_u'] and self.A.A_q_linear_op)
-            _cache_non_time_dep = _cache_non_time_dep or __cache_non_time_dep
-
-            if _cache_non_time_dep:
-                assert len(cached_operators[key]) == 1
-            else:
-                assert len(cached_operators[key]) == (self.nt + 1)
 
     def _check_initial_data(self,
                             initial_data: dict,
@@ -205,16 +210,26 @@ class SecondOrderCrankNicolson(TimeStepper):
 
         assert 0 <= zeta <= 1 
         self.zeta = zeta
-        self.required_cache_keys = [
-            self.key_prefix + '_' + 'S_zeta', 
-            self.key_prefix + '_' + 'S_zeta_minus_one'
-        ]
+
+        _A_q_key = self.A_q_key.replace('_ad', '')
+        if _A_q_key == 'A_q':
+            policy = self.q_time_dep
+        elif _A_q_key == 'partial_q_A_q_u':
+            policy = True
+        elif _A_q_key == 'partial_u_A_q_u':
+            policy = self.A.A_q_linear
+        else:
+            self.logger.error(f'Unknown target {self.A_q_key}.')
+            raise ValueError
+
+        self.time_dep_cache_policy = {
+            self.key_prefix + '_' + 'S_zeta' : policy,
+            self.key_prefix + '_' + 'S_zeta_minus_one' : policy
+        }
     
     def cache_operator(self,
                        target: str,
                        time_step: int,
-                       q : VectorArray,
-                       u : VectorArray,
                        A_q: Operator) -> Operator:
         
         if self.q_time_dep:
@@ -224,9 +239,9 @@ class SecondOrderCrankNicolson(TimeStepper):
         dt = (self.T_final - self.T_initial) / self.nt
 
         if target == (self.key_prefix + '_' +'S_zeta'):
-            return self.M + dt**2 * zeta**2 * A_q
+            return (self.M + dt**2 * zeta**2 * A_q).assemble()
         elif target == (self.key_prefix + '_' + 'S_zeta_minus_one'):
-            return self.M + dt**2 * zeta * (zeta - 1) * A_q
+            return (self.M + dt**2 * zeta * (zeta - 1) * A_q).assemble()
         else:
             raise ValueError
 
@@ -234,21 +249,30 @@ class SecondOrderCrankNicolson(TimeStepper):
                 initial_data : dict, 
                 q : Union[VectorArray, List[VectorArray]], 
                 rhs : VectorArray,
+                u : Union[VectorArray, List[VectorArray]] = None,
                 use_cached_operators: bool = False,
                 cached_operators: Dict = None,
                 config: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
         
         ################################### Prepare ###################################
-        assert isinstance(rhs, VectorArray)
-        assert len(rhs) in (self.nt + 1, 1)
+        # assert q in self.Q
+
+        # if self.q_time_dep:
+        #     assert len(q) == self.nt + 1
+        # else:
+        #     assert len(q) == 1
+
+        # assert isinstance(rhs, VectorArray)
+        # assert len(rhs) in (self.nt + 1, 1)
+
+        # if u: 
+        #     assert u in self.V
+        #     assert len(u) == self.nt + 1
 
         if len(rhs) == 1:
             rhs_time_dep = False
         else:
             rhs_time_dep = True
-
-        assert isinstance(q, (VectorArray, np.ndarray))
-        assert q in self.Q
 
         implicit_euler_rhs = False
         if config and config['implicit_euler_rhs']:
@@ -288,17 +312,16 @@ class SecondOrderCrankNicolson(TimeStepper):
         rhs_pre = rhs[0].copy()
         rhs_cur = rhs[0].copy()
 
-        # TODO implement non linear operator
-
         if use_cached_operators:
             A_q = cached_operators[self.A_q_key][0]
             S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][0]
             S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][0]
-        else:
-            A_q = self.A.get_A_q(q[0])
+        else: 
+            A_q = self._get_A_q(q[0], u[0] if u else None)
             S_zeta = self.M + dt**2 * zeta**2 * A_q
             S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
-        
+
+
         A_q = A_q.assemble()
         S_zeta = S_zeta.assemble()
         S_zeta_minus_one = S_zeta_minus_one.assemble()
@@ -323,7 +346,7 @@ class SecondOrderCrankNicolson(TimeStepper):
                     S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][n]
                     S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][n]
                 else:
-                    A_q = self.A.get_A_q(q[n])
+                    A_q = self._get_A_q(q[0], u[0] if u else None)
                     S_zeta = self.M + dt**2 * zeta**2 * A_q
                     S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
                 

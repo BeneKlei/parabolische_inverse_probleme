@@ -46,7 +46,7 @@ set_log_levels({
     'pymor.operators.constructions.LincombOperator' : 'ERROR',
     #'pymor.operators.constructions.AdjointOperator' : 'ERROR',
     #'pymor.algorithms.genericsolvers.lgmres' : 'ERROR',
-    #'pymor.algorithms' : 'ERROR'
+    'pymor.algorithms' : 'ERROR'
 })
 
 set_defaults({
@@ -68,8 +68,8 @@ def main():
     state_y_res = 30
     state_z_res = 30
 
-    param_y_res = 30
-    param_z_res = 30
+    param_y_res = state_y_res
+    param_z_res = state_z_res
 
     par_dim = (param_y_res + 1) * (param_z_res + 1) 
     #* 5 * 3
@@ -116,21 +116,22 @@ def main():
             'hyperparameter' : {}
         },
         'stored_energy' : {
-            'type' : hm.StoredEnergyFunctionType.Hookean,
-            #'type' : hm.StoredEnergyFunctionType.NeoHookean,
+            #'type' : hm.StoredEnergyFunctionType.Hookean,
+            'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                # 'mu' : 26.32, 
-                # 'kappa' : 68.60
-                'mu' : 1e1, 
-                'lambda' : 1e1
+                'mu' : 26.32, 
+                'kappa' : 68.60
+                # 'mu' : 1e1, 
+                # 'lambda' : 1e1
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,
+            'type': mm.ObservationOperatorType.Identity,
             'hyperparameter' : {
                 'spatial_resolution' : state_grid_resolution,
-                'radius' : 0.001,
-                'second_row' : False 
+                #'radius' : 0.001,
+                #'second_row' : False 
             }
         },
         'dims' : {
@@ -149,7 +150,8 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
+        #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
+        'noise_level': 0,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -231,27 +233,50 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
+    #p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact, use_cached_operators=True)
+    p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
     FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in u_start.vectors],
-        str('u_start'),
+        [v.impl for v in p_exact.vectors],
+        str('p_exact'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
     )
+    print(np.max(np.abs(p_exact.to_numpy())))
 
-    diff = u_start - u_exact
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in diff.vectors],
-        str('diff'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # u_start = FOM.solve_state(FOM.Q.make_array(q_start))
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in u_start.vectors],
+    #     str('u_start'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
+
+
+    # p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in p_start.vectors],
+    #     str('p_start'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
+
+    # diff = u_start - u_exact
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in diff.vectors],
+    #     str('diff'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
     _q_start = FOM.Q.make_array(q_start)
+    _q_exact = FOM.Q.make_array(q_exact)
     J = FOM.compute_objective(_q_start)
-
+    
     print(J)
     print(np.sqrt(2 * J))
+
+    print(FOM.compute_gradient(_q_start))
+    print(FOM.compute_gradient(_q_exact))
 
     import sys
     sys.exit()
