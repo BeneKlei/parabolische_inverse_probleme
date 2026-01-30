@@ -18,6 +18,7 @@ from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIIMatr
 class TimeStepperType(Enum):
     ImplicitEulerTimeStepper = "ImplicitEulerTimeStepper"
     SecondOrderCrankNicolson = "SecondOrderCrankNicolson"
+    SecondOrderCrankNicolsonLinear = "SecondOrderCrankNicolsonLinear"
     SecondOrderCrankNicolsonAdjointDTO = "SecondOrderCrankNicolsonAdjointDTO"
 
 class TimeStepper(ABC):
@@ -343,6 +344,200 @@ class SecondOrderCrankNicolson(TimeStepper):
 
             # --------------------------------------------------------------
             _lhs = S_zeta
+
+            # if not self.apply_adjoint:
+            #     _rhs = S_zeta_minus_one.apply(U_pre)
+                
+            # else:
+            #     _rhs = S_zeta_minus_one.apply_adjoint(U_pre)
+
+            _rhs = self.M.apply(U_pre)
+            _rhs += (zeta * dt * M_U_dot_pre)
+            _rhs += (zeta * zeta * dt_R)
+
+            if not self.apply_adjoint:
+                # TODO rework s.t. the the deal.ii solver is used
+                _U = _lhs.apply_inverse(_rhs)
+                #assert np.max(np.abs(_lhs.apply(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
+            else:
+                _U = _lhs.apply_inverse_adjoint(_rhs)
+                #assert np.max(np.abs(_lhs.apply_adjoint(U_cur).to_numpy()-_rhs.to_numpy())) <= 1e-12
+
+
+            # --------------------------------------------------------------
+            M_U_dot_cur = M_U_dot_pre
+            #_U = zeta * U_cur + (1 - zeta) * U_pre
+            if not self.apply_adjoint:
+                A_q_U = A_q.apply(_U)
+            else:
+                A_q_U = A_q.apply_adjoint(_U)
+
+            M_U_dot_cur += (-1) * dt * A_q_U
+            M_U_dot_cur += dt_R
+
+            if not self.apply_adjoint:
+                U_dot_cur = self.M.apply_inverse(M_U_dot_cur)
+            else:
+                U_dot_cur = self.M.apply_inverse_adjoint(M_U_dot_cur)
+
+            # --------------------------------------------------------------
+
+            U_cur = _U
+            U_cur += (-1) * (1 - zeta) * U_pre
+            U_cur *= (1 / zeta)
+
+            yield U_cur, U_dot_cur, t
+
+# TODO Thats a legacy version of CN timestepper for linear operators ONLY. Should be merged or replaced by the more general CN timestepper
+class SecondOrderCrankNicolsonLinear(TimeStepper):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        assert 'zeta' in self.config.keys()
+        zeta = self.config['zeta']
+
+        assert 0 <= zeta <= 1 
+        self.zeta = zeta
+        self.required_cache_keys = [
+            self.key_prefix + '_' + 'S_zeta', 
+            self.key_prefix + '_' + 'S_zeta_minus_one'
+        ]
+    
+    def cache_operator(self,
+                       target: str,
+                       time_step: int,
+                       q : VectorArray,
+                       u : VectorArray,
+                       A_q: Operator) -> Operator:
+        
+        if self.q_time_dep:
+            assert time_step == 0
+
+        zeta = self.zeta 
+        dt = (self.T_final - self.T_initial) / self.nt
+
+        if target == (self.key_prefix + '_' +'S_zeta'):
+            return self.M + dt**2 * zeta**2 * A_q
+        elif target == (self.key_prefix + '_' + 'S_zeta_minus_one'):
+            return self.M + dt**2 * zeta * (zeta - 1) * A_q
+        else:
+            raise ValueError
+
+    def iterate(self,                               
+                initial_data : dict, 
+                q : Union[VectorArray, List[VectorArray]], 
+                rhs : VectorArray,
+                use_cached_operators: bool = False,
+                cached_operators: Dict = None,
+                config: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
+        
+        ################################### Prepare ###################################
+        assert isinstance(rhs, VectorArray)
+        assert len(rhs) in (self.nt + 1, 1)
+
+        if len(rhs) == 1:
+            rhs_time_dep = False
+        else:
+            rhs_time_dep = True
+
+        assert isinstance(q, (VectorArray, np.ndarray))
+        assert q in self.Q
+
+        implicit_euler_rhs = False
+        if config and config['implicit_euler_rhs']:
+            implicit_euler_rhs = config['implicit_euler_rhs']
+
+        for key in ['zeroth_order', 'first_order']:
+            self._check_initial_data(initial_data, key)
+
+        if use_cached_operators:
+            self._check_cache(
+               keys = self.required_cache_keys,
+               q = q,
+               cached_operators = cached_operators
+            )
+                
+        num_values = self.nt + 1
+        dt = (self.T_final - self.T_initial) / self.nt
+        DT = (self.T_final - self.T_initial) / (num_values - 1)
+
+        zeta = self.zeta
+
+        ################################### First step ###################################
+
+        U_cur = initial_data['zeroth_order']
+        U_dot_cur = initial_data['first_order']
+        if not self.apply_adjoint:
+            M_U_dot_cur = self.M.apply(U_dot_cur)
+        else:
+            M_U_dot_cur = self.M.apply_adjoint(U_dot_cur)
+
+        t = self.T_initial
+        yield U_cur, U_dot_cur, t
+
+        U_pre = U_cur.copy()
+        M_U_dot_pre = M_U_dot_cur.copy()
+
+        rhs_pre = rhs[0].copy()
+        rhs_cur = rhs[0].copy()
+
+        # TODO implement non linear operator
+
+        if use_cached_operators:
+            A_q = cached_operators[self.A_q_key][0]
+            S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][0]
+            S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][0]
+        else:
+            A_q = self.A.get_A_q(q[0])
+            S_zeta = self.M + dt**2 * zeta**2 * A_q
+            S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
+        
+        assert A_q.linear
+        A_q = A_q.assemble()
+        S_zeta = S_zeta.assemble()
+        S_zeta_minus_one = S_zeta_minus_one.assemble()
+
+        if not rhs_time_dep:
+            dt_R = dt * rhs
+
+        ################################### Stepping ###################################
+
+        for n in range(1,self.nt+1):
+            t += dt
+            U_pre = U_cur
+            M_U_dot_pre = M_U_dot_cur
+
+            if rhs_time_dep:
+                rhs_pre = rhs_cur
+            
+            if self.q_time_dep:
+                # Otherwise the values set above are never updated
+                if use_cached_operators:
+                    A_q = cached_operators[self.A_q_key][n]
+                    S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][n]
+                    S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][n]
+                else:
+                    A_q = self.A.get_A_q(q[n])
+                    S_zeta = self.M + dt**2 * zeta**2 * A_q
+                    S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
+                
+                A_q = A_q.assemble()
+                S_zeta = S_zeta.assemble()
+                S_zeta_minus_one = S_zeta_minus_one.assemble()
+
+            if rhs_time_dep:#
+                rhs_cur = rhs[n]
+
+                if implicit_euler_rhs:
+                    dt_R = rhs_cur
+                else:
+                    dt_R = zeta * rhs_cur
+                    dt_R += (1.0 - zeta) * rhs_pre
+                
+                dt_R *= dt
+
+            # --------------------------------------------------------------
+            _lhs = S_zeta
             if not self.apply_adjoint:
                 _rhs = S_zeta_minus_one.apply(U_pre)
                 
@@ -380,6 +575,7 @@ class SecondOrderCrankNicolson(TimeStepper):
             # --------------------------------------------------------------
 
             yield U_cur, U_dot_cur, t
+
 
 class SecondOrderCrankNicolsonAdjointDTO(SecondOrderCrankNicolson):
     def iterate(self,                               
@@ -521,6 +717,8 @@ def create_time_stepper(time_stepper_type: TimeStepperType,
         return ImplicitEulerTimeStepper(**kwargs)
     elif time_stepper_type == TimeStepperType.SecondOrderCrankNicolson:
         return SecondOrderCrankNicolson(**kwargs)
+    elif time_stepper_type == TimeStepperType.SecondOrderCrankNicolsonLinear:
+        return SecondOrderCrankNicolsonLinear(**kwargs)
     elif time_stepper_type == TimeStepperType.SecondOrderCrankNicolsonAdjointDTO:
         return SecondOrderCrankNicolsonAdjointDTO(**kwargs)
     

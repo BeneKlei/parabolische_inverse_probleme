@@ -25,8 +25,8 @@ void bind_operator(py::module_& m)
           .def("apply", &StorEneOp::apply, py::arg("y"), py::arg("x"))
           .def("jacobian", &StorEneOp::jacobian, py::arg("u"))
           .def("dim_source", &StorEneOp::dim_source)
-          .def("dim_range", &StorEneOp::dim_range);
-
+          .def("dim_range", &StorEneOp::dim_range)
+          .def_readonly("linear", &BaseOp::m_linear);
 }
 
 PYBIND11_MODULE(hyperelasticity_model, m) {

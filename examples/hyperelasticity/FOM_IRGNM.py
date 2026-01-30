@@ -14,11 +14,11 @@ from pymor.basic import *
 from pymor.core.defaults import set_defaults, get_defaults
 from pymor.algorithms.genericsolvers import solver_options
 
-#import RBInvParam.problems.hyperelasticity.hyperelasticity_model as hm
-#import RBInvParam.problems.shared.material_model as mm
+import RBInvParam.problems.hyperelasticity.hyperelasticity_model as hm
+import RBInvParam.problems.shared.material_model as mm
 
-import material_model as mm
-import hyperelasticity_model as hm
+#import material_model as mm
+#import hyperelasticity_model as hm
 
 from RBInvParam.optimizer import FOMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
@@ -42,17 +42,19 @@ logger = get_default_logger(logger_name='FOM_IRGNM',
 logger.setLevel(logging.DEBUG)
 
 #########################################################################################''
-# set_log_levels({
-#     'pymor.operators.constructions.LincombOperator' : 'ERROR',
-#     'pymor.operators.constructions.AdjointOperator' : 'ERROR',
-#     'pymor.algorithms.genericsolvers.lgmres' : 'ERROR'
-# })
+set_log_levels({
+    'pymor.operators.constructions.LincombOperator' : 'ERROR',
+    #'pymor.operators.constructions.AdjointOperator' : 'ERROR',
+    #'pymor.algorithms.genericsolvers.lgmres' : 'ERROR',
+    #'pymor.algorithms' : 'ERROR'
+})
 
 set_defaults({
     # 'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
     # 'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
     'pymor.algorithms.newton.newton.maxiter' : 1e3,
-    'pymor.algorithms.newton.newton.atol' : 1e-4,
+    #'pymor.algorithms.newton.newton.atol' : 1e-4,
+    'pymor.algorithms.newton.newton.atol' : 1e-12,
 })
 
 
@@ -74,11 +76,11 @@ def main():
     #par_dim = 3
     T_initial = 0
 
-    T_final = 1.0
-    nt = 10
+    # T_final = 1.0
+    # nt = 10
 
-    # T_final = 5.0
-    # nt = 50
+    T_final = 5.0
+    nt = 50
 
     # T_final = 1
     # nt = 20
@@ -91,11 +93,12 @@ def main():
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
     add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    q_exact = q_exact.T
 
-        
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
-    #q_exact[0,50] = 2
+
+    #q_exact[0,50] = 2.0
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -157,6 +160,7 @@ def main():
         'save_path' : save_path,
         'time_stepper' : {
             'state' : {
+                #'type' : TimeStepperType.SecondOrderCrankNicolson,
                 'type' : TimeStepperType.SecondOrderCrankNicolson,
                 'config' : {
                     'zeta' : 0.5
@@ -190,6 +194,35 @@ def main():
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
+
+    # _q_start = FOM.Q.make_array(q_start)
+    # print(FOM.compute_objective(_q_start))
+
+    # for i in range(8):
+    #     q_exact = np.ones((1,par_dim))
+    #     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
+    #     q_exact[:, i:8] = 2.0
+    #     q_exact = q_exact.flatten()
+    #     q_exact = np.array([q_exact])    
+
+    # #print(q_exact)
+
+    #     _q_exact = FOM.Q.make_array(q_exact)
+    #     print(FOM.compute_objective(_q_exact))
+    # import sys
+    # sys.exit()
+
+    # q_exact = np.ones((1,par_dim))
+    # _q_exact = FOM.Q.make_array(q_exact)
+    # print(FOM.compute_objective(_q_exact))
+
+    # q_exact = 2 * np.ones((1,par_dim))
+    # _q_exact = FOM.Q.make_array(q_exact)
+    # print(FOM.compute_objective(_q_exact))
+
+    # import sys
+    # sys.exit()
+
     u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
     FOM.A.hyperelasticity_model.save_time_series(
         [v.impl for v in u_exact.vectors],
@@ -200,7 +233,7 @@ def main():
 
     u_start = FOM.solve_state(FOM.Q.make_array(q_start))
     FOM.A.hyperelasticity_model.save_time_series(
-        [v.real_part.impl for v in u_start.vectors],
+        [v.impl for v in u_start.vectors],
         str('u_start'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
@@ -208,7 +241,7 @@ def main():
 
     diff = u_start - u_exact
     FOM.A.hyperelasticity_model.save_time_series(
-        [v.real_part.impl for v in diff.vectors],
+        [v.impl for v in diff.vectors],
         str('diff'),
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)

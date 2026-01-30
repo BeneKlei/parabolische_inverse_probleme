@@ -479,7 +479,7 @@ class InstationaryModelIP(ImmutableObject):
 
             _cache_non_time_dep = not self.q_time_dep and (key in ['A_q'] + self.time_stepper_required_cache_keys)
             # TODO Find a better way. Combine partial_u into A_q_u as jacobian?
-            __cache_non_time_dep = not self.q_time_dep and (key in ['partial_u_A_q_u'] and self.A.A_q_linear_op)
+            __cache_non_time_dep = not self.q_time_dep and (key in ['partial_u_A_q_u'] and self.A.linear)
             _cache_non_time_dep = _cache_non_time_dep or __cache_non_time_dep
                 
             if _cache_non_time_dep:

@@ -13,7 +13,8 @@ HookeanStoredEnergy<dim>::HookeanStoredEnergy(
     double mu, 
     double lambda
 )
-  : m_lambda(lambda)
+  : StoredEnergyFunction<dim,double>(true)
+  , m_lambda(lambda)
   , m_mu(mu)
 {}
 
@@ -117,7 +118,8 @@ NeoHookeanStoredEnergy<dim>::NeoHookeanStoredEnergy(
     double mu, 
     double kappa
 )
-  : m_mu(mu)
+  : StoredEnergyFunction<dim,double>(false)
+  , m_mu(mu)
   , m_kappa(kappa)
   , m_beta((3.0 * kappa - 2.0 * mu) / (6.0 * mu))
   , m_c1(mu / 2.0)
@@ -160,10 +162,6 @@ NeoHookeanStoredEnergy<dim>::gradient(const PointType &p,
   grad -= (std::pow(D, -2.0 * m_beta) * invert(transpose(F)));
   grad *= (2.0 * m_c1);
 
-  // std::cout << Y.norm() << std::endl;
-  // std::cout << invert(transpose(Y)) << std::endl;
-  // std::cout << grad << std::endl;
-
   return grad;
 }
 
@@ -188,9 +186,6 @@ NeoHookeanStoredEnergy<dim>::contracted_hessian(const PointType &p,
                                                 const TensorType &H) const
 {
   const double D  = determinant(F);
-  // const Tensor<2,dim> I = Tensor<2, dim>(unit_symmetric_tensor<dim, double>());
-  // const Tensor<2,dim> Y = F - I;
-
   TensorType cont;
   cont = 0.0;
   

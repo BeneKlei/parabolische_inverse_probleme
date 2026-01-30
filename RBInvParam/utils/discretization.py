@@ -2,7 +2,6 @@ from typing import Dict,Tuple
 import numpy as np
 np.random.seed(0)
 
-from pymor.models.basic import InstationaryModel
 from pymor.vectorarrays.interface import VectorArray
 from pymor.operators.constructions import LincombOperator
 from pymor.operators.interface import Operator
@@ -10,12 +9,15 @@ from pymor.parameters.functionals import ProjectionParameterFunctional, Paramete
 from pymor.operators.numpy import NumpyMatrixOperator
 from scipy.sparse import csr_matrix
 
-def construct_noise_data(model : InstationaryModel,
+#from RBInvParam.model import InstationaryModelIP
+
+def construct_noise_data(model,
                          q_exact : np.ndarray,
                          C: Operator,
                          noise_level : float,
                          product: Operator, 
                          time_depend_noise: bool = True) -> Tuple[VectorArray, VectorArray]:
+
 
     u_exact = model.solve_state(q_exact)
     y_exact = C.apply(u_exact)

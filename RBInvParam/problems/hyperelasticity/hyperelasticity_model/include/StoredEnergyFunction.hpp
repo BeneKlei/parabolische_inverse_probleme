@@ -20,6 +20,7 @@ public:
     using PointType  = Point<dim, Number>;
     using TensorType = Tensor<2, dim, Number>;
 
+    explicit StoredEnergyFunction(bool linear = false) : m_linear(linear) {}
     virtual ~StoredEnergyFunction() = default;
 
     virtual Number value(const PointType &p, const TensorType &F) const = 0;
@@ -32,6 +33,8 @@ public:
     virtual TensorType contracted_hessian(const PointType &p, const TensorType &F,
                                         const TensorTypeMinus1 &H,
                                         std::size_t comp) const = 0;
+    
+    const bool m_linear;
 };
 
 // -------------------------------------------------------------------------------

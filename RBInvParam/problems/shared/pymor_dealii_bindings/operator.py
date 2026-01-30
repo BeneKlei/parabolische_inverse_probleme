@@ -108,26 +108,25 @@ class DealIISymmetricMatrixOperator(DealIIMatrixOperator):
 
 #####################################################################
 
-def wrap_dealii_operator(op, *, linear=False):
+def wrap_dealii_operator(op):
     if isinstance(op, pd2.SparseMatrixOperator):
         return SparseMatrixOperator(op=op)
     elif isinstance(op, pd2.FullMatrixOperator):
         return FullMatrixOperator(op=op)
     elif isinstance(op, pd2.BaseOperator):
-        return DealIIBaseOperator(op=op, linear=linear)
+        return DealIIBaseOperator(op=op)
     else:
         raise TypeError(f"Unsupported deal.II operator type: {type(op)}")
 
 
 class DealIIBaseOperator(ListVectorArrayOperatorBase):
-    def __init__(self, op, name=None, linear=False):
+    def __init__(self, op, name=None):
         assert isinstance(op, pd2.BaseOperator)
 
         self.op = op
         self.source = DealIIVectorSpace(op.dim_source())
         self.range = DealIIVectorSpace(op.dim_range())
-        self.linear = linear
-
+        self.linear = op.linear
         self.__auto_init(locals())
 
     def _apply_one_vector(self, u, mu=None, prepare_data=None):
@@ -162,14 +161,13 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
         assert len(U) == 1
 
         return wrap_dealii_operator(
-            self.op.jacobian(U.vectors[0].impl),
-            linear=True,
+            self.op.jacobian(U.vectors[0].impl)
         )
 
 class SparseMatrixOperator(DealIIBaseOperator):    
     def __init__(self, op, name=None):
         assert isinstance(op, pd2.SparseMatrixOperator)
-        super().__init__(op, linear=True)
+        super().__init__(op)
     
     def jacobian(self, U, mu=None):
         assert U in self.source
@@ -205,7 +203,7 @@ class SparseMatrixOperator(DealIIBaseOperator):
 class FullMatrixOperator(DealIIBaseOperator):    
     def __init__(self, op, name=None):
         assert isinstance(op, pd2.FullMatrixOperator)
-        super().__init__(op, linear=True)
+        super().__init__(op)
     
     def jacobian(self, U, mu=None):
         assert U in self.source
@@ -218,7 +216,7 @@ class FullMatrixOperator(DealIIBaseOperator):
 class NumpyDealIIFullMatrixOperator(FullMatrixOperator):
     def __init__(self, op, name=None):
         assert isinstance(op, pd2.FullMatrixOperator)
-        super().__init__(op, linear=True)
+        super().__init__(op)
 
         self.dealii_source = DealIIVectorSpace(dim=self.op.dim_source())
         self.dealii_range = DealIIVectorSpace(dim=self.op.dim_range())

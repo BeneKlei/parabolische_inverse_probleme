@@ -18,6 +18,7 @@ template <class Number>
 class BaseOperator
 {
 public:
+  explicit BaseOperator(bool linear = false) : m_linear(linear) {}
   virtual ~BaseOperator() = default;
 
   // y = A u
@@ -54,4 +55,5 @@ public:
   virtual std::size_t dim_source() const = 0;
   virtual std::size_t dim_range() const = 0;
 
+  const bool m_linear;
 };

@@ -271,7 +271,8 @@ void bind_operators(py::module_& m)
       .def("apply_inverse_adjoint", &BaseOp::apply_inverse_adjoint, py::arg("y"), py::arg("x"))
       .def("jacobian", &BaseOp::jacobian, py::arg("u"))
       .def("dim_source", &BaseOp::dim_source)
-      .def("dim_range", &BaseOp::dim_range);
+      .def("dim_range", &BaseOp::dim_range)
+      .def_readonly("linear", &BaseOp::m_linear);
 
   py::class_<SparseOp, BaseOp, std::unique_ptr<SparseOp>>(m, "SparseMatrixOperator")
       .def(py::init<typename SparseOp::MatV&>(), py::arg("matrix"))
@@ -282,7 +283,8 @@ void bind_operators(py::module_& m)
       .def("jacobian", &SparseOp::jacobian, py::arg("u"))
       .def("get_matrix", &SparseOp::get_matrix, py::return_value_policy::reference_internal)
       .def("dim_source", &SparseOp::dim_source)
-      .def("dim_range", &SparseOp::dim_range);
+      .def("dim_range", &SparseOp::dim_range)
+      .def_readonly("linear", &BaseOp::m_linear);
 
   py::class_<FullOp, BaseOp, std::unique_ptr<FullOp>>(m, "FullMatrixOperator")
       .def(py::init<typename FullOp::MatV&>(), py::arg("matrix"))
@@ -293,7 +295,8 @@ void bind_operators(py::module_& m)
       .def("jacobian", &FullOp::jacobian, py::arg("u"))
       .def("get_matrix", &FullOp::get_matrix, py::return_value_policy::reference_internal)
       .def("dim_source", &FullOp::dim_source)
-      .def("dim_range", &FullOp::dim_range);
+      .def("dim_range", &FullOp::dim_range)
+      .def_readonly("linear", &BaseOp::m_linear);
 }
 
 PYBIND11_MODULE(pymor_dealii_bindings, m) {

@@ -7,9 +7,9 @@ from pymor.operators.interface import Operator
 from pymor.vectorarrays.list import ListVectorArray
 
 from RBInvParam.evaluators import FOMEvaluatorA
-#from RBInvParam.problems.hyperelasticity.hyperelasticity_model import HyperElasticityModel
+from RBInvParam.problems.hyperelasticity.hyperelasticity_model import HyperElasticityModel
 
-from hyperelasticity_model import HyperElasticityModel
+#from hyperelasticity_model import HyperElasticityModel
 
 
 from RBInvParam.problems.shared.pymor_dealii_bindings.operator import *
@@ -25,21 +25,22 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         
         assert isinstance(hyperelasticity_model, HyperElasticityModel)
         self.hyperelasticity_model = hyperelasticity_model
-        self.A_q_linear_op = True
         super().__init__(source, range, Q, parameter_names)
         
 
     def get_A_q(self, q: VectorArray) -> Operator:
         assert q in self.Q
         assert len(q) == 1
+
+        op = self.hyperelasticity_model.assemble_A_q(
+            q_np = q.to_numpy().flatten()
+        )
+        self.linear = op.linear
         
         return DealIIBaseOperator(
-            op = self.hyperelasticity_model.assemble_A_q(
-                q_np = q.to_numpy().flatten()
-            ),
-            #linear = True
+            op = op
         )
-
+        
     def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
         assert q in self.Q
         assert len(q) == 1

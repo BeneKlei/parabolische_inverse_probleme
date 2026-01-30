@@ -31,6 +31,7 @@ class EvaluatorA(ABC):
         self.range = range
         self.parameter_names = parameter_names
         self.translation_operator = translation_operator
+        self.linear = False
 
     @abstractmethod
     def get_A_q(self, q: VectorArray) -> Operator:

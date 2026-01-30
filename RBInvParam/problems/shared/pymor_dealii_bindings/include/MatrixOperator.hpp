@@ -84,9 +84,9 @@ public:
   const MatV& get_matrix() const { return m_matrix; }
 
   std::size_t dim_source() const override;
-  std::size_t dim_range() const override;
-
+  std::size_t dim_range() const override;  
 private:
+  // TODO Make m_matrix const
   MatV  m_matrix;
 };
 

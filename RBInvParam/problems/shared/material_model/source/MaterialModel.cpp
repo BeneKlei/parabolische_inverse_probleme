@@ -39,14 +39,20 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
                           m_state_dof_handler,
                           m_state_quadrature,
                           m_state_sp, 
-                          m_BC_constraints)
+                          m_BC_constraints,
+                          m_base_config.state_grid_resolution, 
+                          m_base_config.p1, 
+                          m_base_config.p2)
   , m_param_space_context(m_param_triangulation,
                           m_param_fe,
                           m_param_dof_handler,
                           m_param_mapping,
                           //m_param_rpe,
                           m_param_constraints,
-                          m_param_free_dofs)
+                          m_param_free_dofs,
+                          m_base_config.state_grid_resolution, 
+                          m_base_config.p1, 
+                          m_base_config.p2)
 {
   delta_t = (m_base_config.T_final - m_base_config.T_initial) / m_base_config.nt;
 }

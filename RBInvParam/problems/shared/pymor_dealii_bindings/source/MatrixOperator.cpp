@@ -123,6 +123,7 @@ MatrixStack<Number>::apply_to_each_matrix(
 
 template <class Number, class MatrixType>
 MatrixOperator<Number, MatrixType>::MatrixOperator(const MatrixOperator::MatV& matrix)
+  : BaseOperator<Number>(true)
 {
   // TODO Assuming mat is SPD. Add asserts for this.
 

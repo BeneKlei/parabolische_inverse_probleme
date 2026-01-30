@@ -20,13 +20,20 @@ public:
                     const DoFHandler<dim>           &dof_handler,
                     const Quadrature<dim>           &quadrature,
                     const SparsityPattern           &state_sp,
-                    const AffineConstraints<Number> &BC_constraints)
+                    const AffineConstraints<Number> &BC_constraints,
+                    const std::vector<unsigned int>  grid_resolution,
+                    const Point<dim>                 p1,
+                    const Point<dim>                 p2)
+
     : m_state_triangulation(triangulation)
     , m_fe(fe)
     , m_dof_handler(dof_handler)
     , m_quadrature(quadrature)
     , m_state_sp(state_sp)
     , m_BC_constraints(BC_constraints)
+    , m_grid_resolution(grid_resolution)
+    , m_p1(p1)
+    , m_p2(p2)
   {}
 
   const Triangulation<dim>           & triangulation()  const { return m_state_triangulation; }
@@ -59,6 +66,9 @@ private:
   const Quadrature<dim>           & m_quadrature;
   const SparsityPattern           & m_state_sp;
   const AffineConstraints<Number> & m_BC_constraints;
+  const std::vector<unsigned int>   m_grid_resolution;
+  const Point<dim>                  m_p1;
+  const Point<dim>                  m_p2;
 
   std::vector<Point<dim>>           m_quad_points_flat;
   //std::vector<unsigned int>         m_cell_offsets;

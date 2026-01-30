@@ -9,8 +9,8 @@ from typing import Dict, Callable
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.numpy import NumpyMatrixOperator
  
-#import RBInvParam.problems.shared.material_model as mm
-import material_model as mm
+import RBInvParam.problems.shared.material_model as mm
+#import material_model as mm
 
 from RBInvParam.problems.shared.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
 from RBInvParam.problems.shared.pymor_dealii_bindings.operator import *
@@ -277,9 +277,8 @@ def build_InstationaryModelIP(setup : Dict,
                                             product=products['bochner_prod_C'],
                                             time_depend_noise=True)
 
-    
     setup['y_delta'] = y_delta.to_numpy()
-
+    
     assert (len(y_delta) == setup['dims']['nt'] + 1)
     assert (y_delta.space == C.range) 
 
