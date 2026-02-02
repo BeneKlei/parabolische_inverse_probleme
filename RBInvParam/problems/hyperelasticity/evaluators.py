@@ -31,23 +31,12 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
     def get_A_q(self, q: VectorArray) -> Operator:
         assert q in self.Q
         assert len(q) == 1
-
-        op = self.hyperelasticity_model.assemble_A_q(
-            q_np = q.to_numpy().flatten()
-        )        
-        
+    
         return DealIIBaseOperator(
-            op = op
+            op = self.hyperelasticity_model.assemble_A_q(
+                q_np = q.to_numpy().flatten()
+            )
         )
-        
-    def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
-        assert q in self.Q
-        assert len(q) == 1
-
-        assert u in self.source
-        assert len(u) == 1
-
-        raise NotImplementedError
         
     def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, A_q: Operator = None) -> Operator:
         assert q in self.Q
@@ -68,6 +57,21 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
             return A_q.jacobian(U=u)
         except:
             raise InvalidAssemblyArgument
+    
+    def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+        assert q in self.Q
+        assert len(q) == 1
+        assert u in self.source
+        assert len(u) == 1
+
+        return DealIIBaseOperator(
+            op = self.hyperelasticity_model.assemble_partial_q_A_q_u(
+                q_np = q.to_numpy().flatten(),
+                u = u.vectors[0].impl
+            ),
+            source_space="numpy",
+            range_space="dealii"      
+        )
     
     def clear_rhs_boundary_dofs(self, 
                                 rhs: VectorArray,

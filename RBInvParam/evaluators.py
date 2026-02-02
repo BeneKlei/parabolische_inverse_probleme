@@ -35,13 +35,13 @@ class EvaluatorA(ABC):
     @abstractmethod
     def get_A_q(self, q: VectorArray) -> Operator:
         pass
-
+    
+    @abstractmethod
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, A_q: Operator = None) -> Operator:
+        pass
+    
     @abstractmethod
     def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
-        pass
-
-    @abstractmethod
-    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
         pass
 
     def get_parameter_names(self) -> List[str] | None:
@@ -90,13 +90,13 @@ class FOMEvaluatorA(EvaluatorA):
     @abstractmethod
     def get_A_q(self, q: VectorArray) -> Operator:
         pass
-
+    
     @abstractmethod
-    def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, A_q: Operator = None) -> Operator:
         pass
 
     @abstractmethod
-    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, A_q: Operator = None) -> Operator:
+    def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
         pass
 
     @abstractmethod

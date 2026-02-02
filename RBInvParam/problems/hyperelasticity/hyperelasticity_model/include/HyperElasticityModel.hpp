@@ -19,39 +19,34 @@ typedef double Number;
 class HyperElasticityModel : public MaterialModel
 {
 public:
-    using StorEneOp = StoredEnergyOperator<dim, Number>;
+    using SEOp       = StoredEnergyOperator<dim, Number>;
+    using SEJacOp    = StoredEnergyJacobianOperator<dim, Number>;
+    using SEParamOp  = StoredEnergyParamDerivOperator<dim, Number>;
     using SpasMatOp = SparseMatrixOperator<Number>;
-    using FullMatOp = FullMatrixOperator<Number>;
 
     explicit HyperElasticityModel(const HyperElasticityModelConfig& config);
     void setup_material_operator();
 
-    std::unique_ptr<StorEneOp> assemble_A_q(
-        const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np
+    // TODO Mkae q_np const
+    std::unique_ptr<SEOp> assemble_A_q(
+        const py::object q_np
     );
 
-    // std::unique_ptr<FullMatOp> assemble_partial_q_A_q_u(
+    // std::unique_ptr<SEJacOp> assemble_partial_u_A_q_u(
+    //     const py::object q_np,
     //     const Vector<Number>& u
     // );
 
-    // std::unique_ptr<SpasMatOp> assemble_partial_u_A_q_u(
-    //     const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
-    //     const Vector<Number>& u
-    // );
-
-    bool m_has_translation_operator = true;
+    std::unique_ptr<SEParamOp> assemble_partial_q_A_q_u(
+        const py::object q_np,
+        const Vector<Number>& u
+    );
 
 private:
     void _unpack_q_1d(
         const py::array_t<float, py::array::c_style | py::array::forcecast>& q_np,
         Vector<Number> &q
     ) const;
-    
-    // void compute_partial_u_A_q_u(
-    //     const Vector<Number>& q,
-    //     const Vector<Number>& u,
-    //     SparseMatrix<Number>& partial_u_A_q_u
-    // );
 
     std::unique_ptr<StoredEnergyFunction<dim, Number>> m_stored_energy_function;
     bool m_q_time_dep = false;

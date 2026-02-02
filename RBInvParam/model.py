@@ -341,10 +341,10 @@ class InstationaryModelIP(ImmutableObject):
         self.time_dep_cache_policy = {
             'A_q' : self.q_time_dep,
             'partial_q_A_q_u' : True,
-            'partial_u_A_q_u' : self.A.A_q_linear,
+            'partial_u_A_q_u' : (self.A.A_q_linear or self.q_time_dep),
             'A_ad_q' : self.q_time_dep,
             'partial_q_A_ad_q_u' : True,
-            'partial_u_A_ad_q_u' : self.A.A_q_linear,
+            'partial_u_A_ad_q_u' : (self.A.A_q_linear or self.q_time_dep)
         }
 
         for time_stepper in self.time_stepper:

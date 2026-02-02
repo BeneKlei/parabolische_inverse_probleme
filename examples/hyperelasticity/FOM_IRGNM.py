@@ -46,7 +46,7 @@ set_log_levels({
     'pymor.operators.constructions.LincombOperator' : 'ERROR',
     #'pymor.operators.constructions.AdjointOperator' : 'ERROR',
     #'pymor.algorithms.genericsolvers.lgmres' : 'ERROR',
-    'pymor.algorithms' : 'ERROR'
+    #'pymor.algorithms' : 'ERROR'
 })
 
 set_defaults({
@@ -65,8 +65,8 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    state_y_res = 30
-    state_z_res = 30
+    state_y_res = 10
+    state_z_res = 10
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -76,11 +76,11 @@ def main():
     #par_dim = 3
     T_initial = 0
 
-    # T_final = 1.0
-    # nt = 10
+    T_final = 1.0
+    nt = 10
 
-    T_final = 5.0
-    nt = 50
+    # T_final = 5.0
+    # nt = 50
 
     # T_final = 1
     # nt = 20
@@ -90,10 +90,10 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
-    q_exact = q_exact.T
+    # q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
+    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    # q_exact = q_exact.T
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
@@ -195,7 +195,6 @@ def main():
     FOM = build_HyperElasticityModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
-
 
     # _q_start = FOM.Q.make_array(q_start)
     # print(FOM.compute_objective(_q_start))
