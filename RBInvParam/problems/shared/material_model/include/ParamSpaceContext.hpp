@@ -59,7 +59,8 @@ public:
   void evaluate_values(
     const Vector<Number>          &param,
     const std::vector<Point<dim>> &points,
-    std::vector<Number>           &values
+    std::vector<Number>           &values,
+    bool                           derivative = false
   ) const;
 
   void reconstruct_full_param(

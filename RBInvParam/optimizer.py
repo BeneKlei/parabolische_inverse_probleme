@@ -767,17 +767,6 @@ class Optimizer(BasicObject):
 
         model_unsufficent = False
         
-        
-        # if not q_0 in self.FOM.Q:
-        #     q_ = self.reductor.reconstruct(q_0, basis='parameter_basis')
-        # else:
-        #     q_ = q_0.copy()
-
-        # q_ = q_.to_numpy().flatten()
-        # mask_lb = q_ >= self.FOM.bounds[:,0]
-        # mask_ub = q_ <= self.FOM.bounds[:,1]
-        # assert np.all(mask_lb) and np.all(mask_ub)
-
         alpha = alpha_0
         q = q_0.copy()
         norm_delta_q = np.sqrt(model.products['prod_Q'].apply2(q-self.last_update_q,q-self.last_update_q)[0,0])

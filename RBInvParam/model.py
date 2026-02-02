@@ -341,18 +341,19 @@ class InstationaryModelIP(ImmutableObject):
         self.time_dep_cache_policy = {
             'A_q' : self.q_time_dep,
             'partial_q_A_q_u' : True,
-            'partial_u_A_q_u' : (self.A.A_q_linear or self.q_time_dep),
+            'partial_u_A_q_u' : not self.A.A_q_linear or self.q_time_dep,
             'A_ad_q' : self.q_time_dep,
             'partial_q_A_ad_q_u' : True,
-            'partial_u_A_ad_q_u' : (self.A.A_q_linear or self.q_time_dep)
+            'partial_u_A_ad_q_u' : not self.A.A_q_linear or self.q_time_dep
         }
 
         for time_stepper in self.time_stepper:
             self.time_dep_cache_policy.update(time_stepper.time_dep_cache_policy)
 
+        self.required_cache_keys = list(self.time_dep_cache_policy.keys())
         self._cached_operators = {}
         self.reset_cached_operators(
-            targets = ['q'] + list(self.time_dep_cache_policy.keys())
+            targets = ['q'] + self.required_cache_keys
         )
 
 #%% cache methods
@@ -388,7 +389,7 @@ class InstationaryModelIP(ImmutableObject):
         try:
             if _A_q is None:
                 _op = self.A.get_partial_u_A_q_u(q, u)
-            else:
+            else:                
                 _op = self.A.get_partial_u_A_q_u(q, u, A_q=_A_q)
         except InvalidAssemblyArgument:
             _op = self.A.get_partial_u_A_q_u(q, u)
@@ -423,7 +424,7 @@ class InstationaryModelIP(ImmutableObject):
                 q = q,
                 u = u
             )
-        elif target in self.time_stepper_required_cache_keys:
+        elif target in self.required_cache_keys:
             _time_stepper = next(
                 (time_stepper for time_stepper in self.time_stepper
                 if target in time_stepper.required_cache_keys),
@@ -473,7 +474,7 @@ class InstationaryModelIP(ImmutableObject):
 
         self.logger.debug(f'Caching {target}')
         self._cached_operators['q'] = q.copy()
-            
+        
         if self.time_dep_cache_policy[target]:
             for time_step in range(self.nt + 1):
                 _q = q[time_step] if self.q_time_dep else q[0]

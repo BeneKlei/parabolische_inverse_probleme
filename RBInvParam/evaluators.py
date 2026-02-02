@@ -78,13 +78,13 @@ class FOMEvaluatorA(EvaluatorA):
                  Q : VectorSpace,
                  parameter_names: List[str] | None,
                  A_q_linear: bool = False):
-
+                
         super().__init__(
             source, 
             range, 
             Q, 
             parameter_names, 
-            A_q_linear
+            A_q_linear = A_q_linear
         )
 
     @abstractmethod

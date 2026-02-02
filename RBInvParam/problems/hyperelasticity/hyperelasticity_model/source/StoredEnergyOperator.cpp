@@ -379,22 +379,31 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply_adjoint(Vector<Number>  
   std::vector<Tensor<2, dim>> u_gradients(n_q);
   std::vector<Tensor<2, dim>> p_gradients(n_q);
   std::vector<Number>         param_values(n_q);
+  Vector<Number>              e(this->dim_source());
 
   const Tensor<2, dim> I(unit_symmetric_tensor<dim, Number>());
 
-  for (std::size_t i=0; i<y.size(); ++i) 
+  for (unsigned int i = 0; i < this->dim_source(); ++i)
   {
+    e = Number(0.0);
+    e(i) = Number(1.0);
+
     for (const auto &cell : this->m_state_space_context.dof_handler().active_cell_iterators())
     {
-      //local_y = Number(0);
-
       fe_values_state.reinit(cell);
       fe_values_state[vel].get_function_gradients(this->m_u, u_gradients);
-      fe_values_state[vel].get_function_gradients(p, _gradients);
+      fe_values_state[vel].get_function_gradients(p, p_gradients);
       const auto &q_points = fe_values_state.get_quadrature_points();
 
+      this->m_param_space_context.evaluate_values(
+        e,
+        q_points,
+        param_values,
+        true
+      );
+
       for (unsigned int q = 0; q < n_q; ++q)
-      {      
+      {
         const auto &q_point        = q_points[q];
         const auto &u_grad         = u_gradients[q];
         const auto &p_grad         = p_gradients[q];
@@ -403,7 +412,7 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply_adjoint(Vector<Number>  
         const Tensor<2, dim> DY = this->m_stored_energy_function.gradient(q_point, u_grad + I);      
         const Number DYp_grad = scalar_product(DY, p_grad); 
 
-        local_y(i) = DYp_grad * fe_values_state.JxW(q);
+        y(i) += param_value * DYp_grad * fe_values_state.JxW(q);
       }
     }
   }

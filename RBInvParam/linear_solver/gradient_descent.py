@@ -14,6 +14,7 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 
 MACHINE_EPS = 1e-16
 CONV_TOL = 1e-16
+#CONV_TOL = 1e-3
 
 def armijo_condition(
     previous_J : float,
@@ -252,13 +253,19 @@ def gradient_descent_linearized_problem(
             
         
         
-        if (i % 100 == 0):
-        #if (i % 1 == 0):
+        #if (i % 100 == 0):
+        if (i % 1 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {terminaton_lhs:3.4e}.")
             
 
         buffer_d.pop(0)
         buffer_d.append(current_d)
+
+        # __d = current_d.to_numpy().reshape(9,9)
+        # print(__d)
+        # import matplotlib.pyplot as plt
+        # plt.imshow(__d)
+        # plt.savefig(f'./d_{i}.png')
 
         buffer_J.pop(0)
         buffer_J.append(current_J)    

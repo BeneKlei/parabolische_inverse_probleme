@@ -45,6 +45,7 @@ class TimeStepper(ABC):
         self.T_final = T_final
         self.q_time_dep = q_time_dep
         self.time_dep_cache_policy : Dict[str, bool] = {}
+        self.required_cache_keys = []
         self.A_q_key = A_q_key
         self.apply_adjoint = apply_adjoint
         self.key_prefix = key_prefix
@@ -217,7 +218,7 @@ class SecondOrderCrankNicolson(TimeStepper):
         elif _A_q_key == 'partial_q_A_q_u':
             policy = True
         elif _A_q_key == 'partial_u_A_q_u':
-            policy = self.A.A_q_linear
+            policy = not self.A.A_q_linear or self.q_time_dep
         else:
             self.logger.error(f'Unknown target {self.A_q_key}.')
             raise ValueError
@@ -226,10 +227,14 @@ class SecondOrderCrankNicolson(TimeStepper):
             self.key_prefix + '_' + 'S_zeta' : policy,
             self.key_prefix + '_' + 'S_zeta_minus_one' : policy
         }
+
+        self.required_cache_keys = list(self.time_dep_cache_policy.keys())
     
     def cache_operator(self,
                        target: str,
                        time_step: int,
+                       q: VectorArray,
+                       u: VectorArray,
                        A_q: Operator) -> Operator:
         
         if self.q_time_dep:

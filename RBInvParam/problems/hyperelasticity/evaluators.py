@@ -41,8 +41,9 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
     def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, A_q: Operator = None) -> Operator:
         assert q in self.Q
         assert len(q) == 1
-        assert u in self.source
-        assert len(u) == 1
+        if u is not None:
+            assert u in self.source
+            assert len(u) == 1
 
         if A_q is None:        
              A_q = DealIIBaseOperator(

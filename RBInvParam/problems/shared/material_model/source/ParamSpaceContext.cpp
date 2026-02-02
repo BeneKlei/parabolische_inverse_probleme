@@ -32,7 +32,8 @@ template <int dim, typename Number>
 void ParamSpaceContext<dim, Number>::evaluate_values(
   const Vector<Number>          &param,
   const std::vector<Point<dim>> &points,
-  std::vector<Number>           &values) const
+  std::vector<Number>           &values,
+  bool                           derivative) const
 {
   AssertDimension(param.size(), m_free_dofs.size());
   values.resize(points.size());
@@ -63,7 +64,19 @@ void ParamSpaceContext<dim, Number>::evaluate_values(
   {
     const auto &p = points[i];
 
-    if (p[0] != m_p1[0]) { values[i] = 1.0; continue; }
+    //if (p[0] != m_p1[0]) { values[i] = 1.0; continue; }
+    if (p[0] != m_p1[0]) 
+    { 
+      if (derivative) {
+        values[i] = 0.0; 
+        continue; 
+      }
+      else
+      {
+        values[i] = 1.0; 
+        continue; 
+      }
+    }
 
     const double y_min = m_p1[1] , y_max = m_p2[1];
     const double z_min = m_p1[2] , z_max = m_p2[1];

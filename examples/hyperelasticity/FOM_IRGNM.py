@@ -46,15 +46,15 @@ set_log_levels({
     'pymor.operators.constructions.LincombOperator' : 'ERROR',
     #'pymor.operators.constructions.AdjointOperator' : 'ERROR',
     #'pymor.algorithms.genericsolvers.lgmres' : 'ERROR',
-    #'pymor.algorithms' : 'ERROR'
+    'pymor.algorithms' : 'ERROR'
 })
 
 set_defaults({
-    # 'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
-    # 'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
-    'pymor.algorithms.newton.newton.maxiter' : 1e3,
+    'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
+    'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
+    #'pymor.algorithms.newton.newton.maxiter' : 1e3,
     #'pymor.algorithms.newton.newton.atol' : 1e-4,
-    'pymor.algorithms.newton.newton.atol' : 1e-12,
+    #'pymor.algorithms.newton.newton.atol' : 1e-12,
 })
 
 
@@ -65,8 +65,8 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    state_y_res = 10
-    state_z_res = 10
+    state_y_res = 8
+    state_z_res = 8
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -76,11 +76,12 @@ def main():
     #par_dim = 3
     T_initial = 0
 
-    T_final = 1.0
-    nt = 10
+    # T_final = 1.0
+    # nt = 10
 
-    # T_final = 5.0
-    # nt = 50
+    T_final = 5.0
+    #nt = 50
+    nt = 10
 
     # T_final = 1
     # nt = 20
@@ -98,7 +99,7 @@ def main():
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    #q_exact[0,50] = 2.0
+    q_exact[0,50] = 2.0
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -116,13 +117,13 @@ def main():
             'hyperparameter' : {}
         },
         'stored_energy' : {
-            #'type' : hm.StoredEnergyFunctionType.Hookean,
-            'type' : hm.StoredEnergyFunctionType.NeoHookean,
+            'type' : hm.StoredEnergyFunctionType.Hookean,
+            #'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                'mu' : 26.32, 
-                'kappa' : 68.60
-                # 'mu' : 1e1, 
-                # 'lambda' : 1e1
+                # 'mu' : 26.32, 
+                # 'kappa' : 68.60
+                'mu' : 1e1, 
+                'lambda' : 1e1
             }
         },
         'observation_operator': {
@@ -232,7 +233,6 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-    #p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact, use_cached_operators=True)
     p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
     FOM.A.hyperelasticity_model.save_time_series(
         [v.impl for v in p_exact.vectors],
@@ -240,49 +240,50 @@ def main():
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
     )
-    print(np.max(np.abs(p_exact.to_numpy())))
 
-    # u_start = FOM.solve_state(FOM.Q.make_array(q_start))
-    # FOM.A.hyperelasticity_model.save_time_series(
-    #     [v.impl for v in u_start.vectors],
-    #     str('u_start'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
+    FOM.A.hyperelasticity_model.save_time_series(
+        [v.impl for v in u_start.vectors],
+        str('u_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
 
-    # p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
-    # FOM.A.hyperelasticity_model.save_time_series(
-    #     [v.impl for v in p_start.vectors],
-    #     str('p_start'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
+    FOM.A.hyperelasticity_model.save_time_series(
+        [v.impl for v in p_start.vectors],
+        str('p_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
-    # diff = u_start - u_exact
-    # FOM.A.hyperelasticity_model.save_time_series(
-    #     [v.impl for v in diff.vectors],
-    #     str('diff'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    diff = u_start - u_exact
+    FOM.A.hyperelasticity_model.save_time_series(
+        [v.impl for v in diff.vectors],
+        str('diff'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
     _q_start = FOM.Q.make_array(q_start)
     _q_exact = FOM.Q.make_array(q_exact)
     J = FOM.compute_objective(_q_start)
     
-    print(J)
-    print(np.sqrt(2 * J))
+    print(FOM.compute_objective(_q_start))
+    print(FOM.compute_objective(_q_exact))
+    #print(np.sqrt(2 * J))
 
-    print(FOM.compute_gradient(_q_start))
-    print(FOM.compute_gradient(_q_exact))
+    # print(FOM.compute_gradient(_q_start))
+    # print(FOM.compute_gradient(_q_exact))
 
-    import sys
-    sys.exit()
+    # import sys
+    # sys.exit()
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                          # Initial regularization parameter
+        #'alpha_0': 1e-5,                                          # Initial regularization parameter
+        'alpha_0': 1e-14,                                          # Initial regularization parameter
         'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
         'tau': 1.50,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)

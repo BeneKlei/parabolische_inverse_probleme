@@ -239,6 +239,7 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
         return self._range_adapter.from_native(r_native)
 
     def jacobian(self, U, mu=None):
+
         if U not in self.source:
             raise ValueError("U must be an element of self.source.")
         if len(U) != 1:
@@ -312,49 +313,49 @@ class FullMatrixOperator(DealIIBaseOperator):
 
     # IMPORTANT: remove jacobian override; base implementation is adapter-safe and preserves config
 
-# class NumpyDealIIFullMatrixOperator(FullMatrixOperator):
-#     def __init__(self, op, name=None):
-#         assert isinstance(op, pd2.FullMatrixOperator)
-#         super().__init__(op)
+class NumpyDealIIFullMatrixOperator(FullMatrixOperator):
+    def __init__(self, op, name=None):
+        assert isinstance(op, pd2.FullMatrixOperator)
+        super().__init__(op)
 
-#         self.dealii_source = DealIIVectorSpace(dim=self.op.dim_source())
-#         self.dealii_range = DealIIVectorSpace(dim=self.op.dim_range())
+        self.dealii_source = DealIIVectorSpace(dim=self.op.dim_source())
+        self.dealii_range = DealIIVectorSpace(dim=self.op.dim_range())
 
-#         self.np_source = NumpyListVectorSpace(dim=self.dealii_source.dim)
-#         self.np_range = NumpyListVectorSpace(dim=self.dealii_range.dim)
+        self.np_source = NumpyListVectorSpace(dim=self.dealii_source.dim)
+        self.np_range = NumpyListVectorSpace(dim=self.dealii_range.dim)
 
-#         self.source = self.np_source
-#         self.range = self.dealii_range
+        self.source = self.np_source
+        self.range = self.dealii_range
         
 
-#     def _apply_one_vector(self, u, mu=None, prepare_data=None):
-#         u = self.dealii_source.vector_from_numpy(u.to_numpy())
-#         r = self.range.zero_vector()
-#         self.op.apply(r.impl, u.impl)
-#         return r
+    def _apply_one_vector(self, u, mu=None, prepare_data=None):
+        u = self.dealii_source.vector_from_numpy(u.to_numpy())
+        r = self.range.zero_vector()
+        self.op.apply(r.impl, u.impl)
+        return r
 
-#     def _apply_inverse_one_vector(
-#         self, v, mu=None, initial_guess=None, least_squares=False, prepare_data=None
-#     ):  
-#         if least_squares:
-#             raise NotImplementedError
+    def _apply_inverse_one_vector(
+        self, v, mu=None, initial_guess=None, least_squares=False, prepare_data=None
+    ):  
+        if least_squares:
+            raise NotImplementedError
         
-#         r = self.dealii_source.zero_vector()
-#         self.op.apply_inverse(r.impl, v.impl)
+        r = self.dealii_source.zero_vector()
+        self.op.apply_inverse(r.impl, v.impl)
 
-#         return r.to_numpy()
+        return r.to_numpy()
     
-#     def _apply_adjoint_one_vector(self, v, mu=None, prepare_data=None):
-#         r = self.dealii_source.zero_vector()
-#         self.op.apply_adjoint(r.impl, v.impl)
+    def _apply_adjoint_one_vector(self, v, mu=None, prepare_data=None):
+        r = self.dealii_source.zero_vector()
+        self.op.apply_adjoint(r.impl, v.impl)
 
-#         return r.to_numpy()
+        return r.to_numpy()
 
-#     def _apply_inverse_adjoint_one_vector(self, v, mu=None, initial_guess=None, least_squares=False,
-#                                           prepare_data=None):
-#         if least_squares:
-#             raise NotImplementedError
-#         r = self.source.zero_vector()
-#         self.op.apply_inverse_adjoint(r.impl, v.impl)
+    def _apply_inverse_adjoint_one_vector(self, v, mu=None, initial_guess=None, least_squares=False,
+                                          prepare_data=None):
+        if least_squares:
+            raise NotImplementedError
+        r = self.source.zero_vector()
+        self.op.apply_inverse_adjoint(r.impl, v.impl)
 
-#         return r
+        return r

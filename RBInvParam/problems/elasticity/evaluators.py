@@ -47,7 +47,11 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
     def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, A_q: Operator = None) -> Operator:
         assert q in self.Q
         assert len(q) == 1
-        assert u is None
+
+        if u is not None:
+            assert u in self.source
+            assert len(u) == 1
+        
 
         # TODO implement Jacobian.
         if A_q is not None:
@@ -65,6 +69,7 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         assert u in self.source
         assert len(u) == 1
 
+        # TODO Replace this
         return NumpyDealIIFullMatrixOperator(
             op = self.elasticity_model.assemble_partial_q_A_q_u(
                 u = u.vectors[0].impl
