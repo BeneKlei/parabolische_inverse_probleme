@@ -51,6 +51,8 @@ template <int dim, typename Number>
 void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
                                               const Vector<Number> &u) const
 {
+  // std::cout << this->m_state_space_context.quad_points_flat()[0] << std::endl;
+  // std::exit(-1);
   AssertDimension(u.size(), dim_source());
   y.reinit(dim_range());
   y = Number(0);
@@ -316,7 +318,8 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply(Vector<Number>       &y,
     this->m_param_space_context.evaluate_values(
       d,
       q_points,
-      param_values
+      param_values,
+      true
     );
 
     for (unsigned int q = 0; q < n_q; ++q)
@@ -383,34 +386,34 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply_adjoint(Vector<Number>  
 
   const Tensor<2, dim> I(unit_symmetric_tensor<dim, Number>());
 
-  for (unsigned int i = 0; i < this->dim_source(); ++i)
+  for (const auto &cell : this->m_state_space_context.dof_handler().active_cell_iterators())
   {
-    e = Number(0.0);
-    e(i) = Number(1.0);
-
-    for (const auto &cell : this->m_state_space_context.dof_handler().active_cell_iterators())
+    fe_values_state.reinit(cell);
+    fe_values_state[vel].get_function_gradients(this->m_u, u_gradients);
+    fe_values_state[vel].get_function_gradients(p, p_gradients);
+    const auto &q_points = fe_values_state.get_quadrature_points();
+    
+    for (unsigned int q = 0; q < n_q; ++q)
     {
-      fe_values_state.reinit(cell);
-      fe_values_state[vel].get_function_gradients(this->m_u, u_gradients);
-      fe_values_state[vel].get_function_gradients(p, p_gradients);
-      const auto &q_points = fe_values_state.get_quadrature_points();
+      const auto &q_point        = q_points[q];
+      const auto &u_grad         = u_gradients[q];
+      const auto &p_grad         = p_gradients[q];
 
-      this->m_param_space_context.evaluate_values(
-        e,
-        q_points,
-        param_values,
-        true
-      );
+      Number param_value = Number(0.0);
 
-      for (unsigned int q = 0; q < n_q; ++q)
+      const Tensor<2, dim> DY = this->m_stored_energy_function.gradient(q_point, u_grad + I);      
+      const Number DYp_grad = scalar_product(DY, p_grad); 
+
+      for (unsigned int i = 0; i < this->dim_source(); ++i)
       {
-        const auto &q_point        = q_points[q];
-        const auto &u_grad         = u_gradients[q];
-        const auto &p_grad         = p_gradients[q];
-        const Number &param_value  = param_values[q];
+        e = Number(0.0);
+        e(i) = Number(1.0);
 
-        const Tensor<2, dim> DY = this->m_stored_energy_function.gradient(q_point, u_grad + I);      
-        const Number DYp_grad = scalar_product(DY, p_grad); 
+        param_value = this->m_param_space_context.evaluate_value(
+          e,
+          q_point,
+          true
+        );
 
         y(i) += param_value * DYp_grad * fe_values_state.JxW(q);
       }

@@ -43,18 +43,18 @@ logger.setLevel(logging.DEBUG)
 
 #########################################################################################''
 set_log_levels({
-    'pymor.operators.constructions.LincombOperator' : 'ERROR',
+    #'pymor.operators.constructions.LincombOperator' : 'ERROR',
     #'pymor.operators.constructions.AdjointOperator' : 'ERROR',
     #'pymor.algorithms.genericsolvers.lgmres' : 'ERROR',
-    'pymor.algorithms' : 'ERROR'
+    #'pymor.algorithms' : 'ERROR'
 })
 
 set_defaults({
-    'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
-    'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
+    #'pymor.algorithms.genericsolvers.solver_options.lgmres_tol' : 1e-12,
+    #'pymor.algorithms.genericsolvers.solver_options.lgmres_maxiter' : int(1e3),
     #'pymor.algorithms.newton.newton.maxiter' : 1e3,
-    #'pymor.algorithms.newton.newton.atol' : 1e-4,
-    #'pymor.algorithms.newton.newton.atol' : 1e-12,
+    'pymor.algorithms.newton.newton.atol' : 1e-4,
+    'pymor.algorithms.newton.newton.atol' : 1e-5,
 })
 
 
@@ -65,8 +65,8 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    state_y_res = 8
-    state_z_res = 8
+    state_y_res = 30
+    state_z_res = 30
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -80,8 +80,7 @@ def main():
     # nt = 10
 
     T_final = 5.0
-    #nt = 50
-    nt = 10
+    nt = 50    
 
     # T_final = 1
     # nt = 20
@@ -91,15 +90,15 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    # q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
-    # q_exact = q_exact.T
+    q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
+    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    q_exact = q_exact.T
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    q_exact[0,50] = 2.0
+    #q_exact[0,50] = 2.0
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -127,12 +126,11 @@ def main():
             }
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.Sensors,
-            'type': mm.ObservationOperatorType.Identity,
+            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {
                 'spatial_resolution' : state_grid_resolution,
-                #'radius' : 0.001,
-                #'second_row' : False 
+                'radius' : 0.001,
+                'second_row' : False 
             }
         },
         'dims' : {
@@ -151,8 +149,8 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
-        'noise_level': 0,                      # Absolute noise magnitude added to data
+        'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
+        #'noise_level': 0,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -225,53 +223,56 @@ def main():
     # import sys
     # sys.exit()
 
-    u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in u_exact.vectors],
-        str('u_exact'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in u_exact.vectors],
+    #     str('u_exact'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in p_exact.vectors],
-        str('p_exact'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in p_exact.vectors],
+    #     str('p_exact'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in u_start.vectors],
-        str('u_start'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # u_start = FOM.solve_state(FOM.Q.make_array(q_start))
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in u_start.vectors],
+    #     str('u_start'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
 
-    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in p_start.vectors],
-        str('p_start'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in p_start.vectors],
+    #     str('p_start'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    diff = u_start - u_exact
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in diff.vectors],
-        str('diff'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # diff = u_start - u_exact
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in diff.vectors],
+    #     str('diff'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    _q_start = FOM.Q.make_array(q_start)
-    _q_exact = FOM.Q.make_array(q_exact)
-    J = FOM.compute_objective(_q_start)
+    # _q_start = FOM.Q.make_array(q_start)
+    # _q_exact = FOM.Q.make_array(q_exact)
+    # J = FOM.compute_objective(_q_start)
     
-    print(FOM.compute_objective(_q_start))
-    print(FOM.compute_objective(_q_exact))
+    # print(FOM.compute_objective(_q_start))
+    # print(FOM.compute_objective(_q_exact))
+    # _d = FOM.Q.zeros()
+    # print(FOM.compute_linearized_objective(_q_start, _d, 0.0))
+    # print(FOM.compute_linearized_objective(_q_exact, _d, 0.0))
     #print(np.sqrt(2 * J))
 
     # print(FOM.compute_gradient(_q_start))
@@ -282,8 +283,8 @@ def main():
 
     optimizer_parameter = {
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-        #'alpha_0': 1e-5,                                          # Initial regularization parameter
-        'alpha_0': 1e-14,                                          # Initial regularization parameter
+        'alpha_0': 1e-5,                                          # Initial regularization parameter
+        #'alpha_0': 1e-14,                                          # Initial regularization parameter
         'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
         'tau': 1.50,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)

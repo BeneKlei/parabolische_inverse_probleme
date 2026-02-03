@@ -63,6 +63,12 @@ public:
     bool                           derivative = false
   ) const;
 
+  Number evaluate_value(
+    const Vector<Number>  &param,
+    const Point<dim>      &point,
+    bool                   derivative = false
+  ) const;
+
   void reconstruct_full_param(
     const Vector<Number>          &param,
     Vector<Number>                &param_full

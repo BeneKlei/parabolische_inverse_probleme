@@ -409,7 +409,6 @@ class SecondOrderCrankNicolson(TimeStepper):
                 U_dot_cur = self.M.apply_inverse_adjoint(M_U_dot_cur)
 
             # --------------------------------------------------------------
-
             U_cur = _U
             U_cur += (-1) * (1 - zeta) * U_pre
             U_cur *= (1 / zeta)

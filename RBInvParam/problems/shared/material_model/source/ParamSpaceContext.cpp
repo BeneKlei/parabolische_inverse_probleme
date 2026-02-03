@@ -29,6 +29,41 @@ using namespace dealii;
 // }
 
 template <int dim, typename Number>
+Number ParamSpaceContext<dim, Number>::evaluate_value(
+  const Vector<Number>  &param,
+  const Point<dim>      &point,
+  bool                   derivative) const
+{
+  AssertDimension(param.size(), m_free_dofs.size());
+  
+  const unsigned int Ny = m_grid_resolution[1];
+  const unsigned int Nz = m_grid_resolution[2];
+  const unsigned int stride = Nz + 1;
+
+  if (point[0] != m_p1[0]) 
+  { 
+    if (derivative) {
+      return Number(0.0); 
+    }
+    else
+    {
+      return Number(1.0); 
+    }
+  }
+
+  const double y_min = m_p1[1] , y_max = m_p2[1];
+  const double z_min = m_p1[2] , z_max = m_p2[1];
+
+  auto clamp = [](int v, int lo, int hi){ return std::max(lo, std::min(v, hi)); };
+
+  int iy = clamp((int)std::lround((point[1]-y_min)/(y_max-y_min) * Ny), 0, (int)Ny);
+  int iz = clamp((int)std::lround((point[2]-z_min)/(z_max-z_min) * Nz), 0, (int)Nz);
+
+  return Number(param[iy * stride + iz]);  
+}
+
+
+template <int dim, typename Number>
 void ParamSpaceContext<dim, Number>::evaluate_values(
   const Vector<Number>          &param,
   const std::vector<Point<dim>> &points,
@@ -38,55 +73,11 @@ void ParamSpaceContext<dim, Number>::evaluate_values(
   AssertDimension(param.size(), m_free_dofs.size());
   values.resize(points.size());
 
-  // //std::cout << "============================" << std::endl;
-  // for (std::size_t i = 0; i < points.size(); ++i)
-  // {
-  //   const auto &p = points[i];
-  //   if (p[0] != m_p1[0])
-  //   {
-  //     values[i] = Number(1.0);
-  //     continue;
-  //   }
-    
-  //   for (unsigned int n_y=0; n_y<=m_grid_resolution[1]; ++n_y)
-  //   {
-  //     for (unsigned int n_z=0; n_z<=m_grid_resolution[2]; ++n_z)
-  //     {
-  //       values[i] = param[m_grid_resolution[1] * n_y + n_z];
-  //     }
-  //   }
-  // }
-  const unsigned int Ny = m_grid_resolution[1];
-  const unsigned int Nz = m_grid_resolution[2];
-  const unsigned int stride = Nz + 1;
-
   for (std::size_t i=0; i<points.size(); ++i)
-  {
-    const auto &p = points[i];
-
-    //if (p[0] != m_p1[0]) { values[i] = 1.0; continue; }
-    if (p[0] != m_p1[0]) 
-    { 
-      if (derivative) {
-        values[i] = 0.0; 
-        continue; 
-      }
-      else
-      {
-        values[i] = 1.0; 
-        continue; 
-      }
-    }
-
-    const double y_min = m_p1[1] , y_max = m_p2[1];
-    const double z_min = m_p1[2] , z_max = m_p2[1];
-
-    auto clamp = [](int v, int lo, int hi){ return std::max(lo, std::min(v, hi)); };
-
-    int iy = clamp((int)std::lround((p[1]-y_min)/(y_max-y_min) * Ny), 0, (int)Ny);
-    int iz = clamp((int)std::lround((p[2]-z_min)/(z_max-z_min) * Nz), 0, (int)Nz);
-
-    values[i] = param[iy * stride + iz];
+  {    
+    values[i] = evaluate_value(param,
+                               points[i],
+                               derivative);
   }
 }
 

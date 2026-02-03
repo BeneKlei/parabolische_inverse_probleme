@@ -541,7 +541,7 @@ class InstationaryModelIP(ImmutableObject):
             q = q,             
             use_cached_operators = use_cached_operators, 
             required_cache_keys = required_cache_keys
-        )
+        )   
 
         iterator = _time_stepper.iterate(initial_data = self.initial_data['state'], 
                                          q=q,
@@ -1329,8 +1329,7 @@ class InstationaryModelIP(ImmutableObject):
                                      alpha : float,
                                      use_cached_operators: bool = False) -> float:
         u = self.solve_state(q=q, 
-                             use_cached_operators=use_cached_operators)
-        
+                             use_cached_operators=use_cached_operators)        
         lin_u = self.solve_linearized_state(q=q, 
                                             d=d, 
                                             u=u, 

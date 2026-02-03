@@ -83,7 +83,7 @@ def main():
         
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
-    #q_exact[0,50] = 2
+    #q_exact[0,50] = 2.0
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -111,13 +111,17 @@ def main():
             'hyperparameter' : {
                 'lambda' : 1e1,
                 'mu' : 1e1,
-                #'nu' : 0.0,
-                'nu' : 1e-3,
+                'nu' : 0.0,
+                #'nu' : 1e-3,
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            'hyperparameter' : {}
+            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            'hyperparameter' : {
+                'spatial_resolution' : [4,y_res,z_res],
+                'radius' : 0.001,
+                'second_row' : False 
+            }
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps
