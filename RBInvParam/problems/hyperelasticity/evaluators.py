@@ -4,6 +4,7 @@ import pymor.vectorarrays as VectorArray
 
 from pymor.vectorarrays.interface import VectorSpace
 from pymor.operators.interface import Operator
+from pymor.operators.constructions import ZeroOperator
 from pymor.vectorarrays.list import ListVectorArray
 
 from RBInvParam.evaluators import FOMEvaluatorA, InvalidAssemblyArgument
@@ -20,12 +21,11 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
                  hyperelasticity_model: HyperElasticityModel,
                  source : VectorSpace,
                  range : VectorSpace,
-                 Q : VectorSpace,
-                 parameter_names: List[str] | None = None):
+                 Q : VectorSpace):
         
         assert isinstance(hyperelasticity_model, HyperElasticityModel)
         self.hyperelasticity_model = hyperelasticity_model
-        super().__init__(source, range, Q, parameter_names, False)
+        super().__init__(source, range, Q, True, False)
         
 
     def get_A_q(self, q: VectorArray) -> Operator:
@@ -92,12 +92,17 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         vector_array = vector_array.space.make_array(vector_array.vectors[::-1])
         return vector_array
 
-    def get_translation_operator(self) -> Operator | None:
-        raise NotImplementedError
-    
+    def get_translation_operator(self) -> Operator:
+        if self.A_affine:
+            _q = self.Q.zeros()
+            return self.get_A_q(_q)
+        else:
+            return ZeroOperator(source=self.source, range=self.range)
+
     def get_parameteric_operator(self, q: VectorArray) -> Operator:
         assert q in self.Q
         assert len(q) == 1
-        
-        raise NotImplementedError
+
+        param_op = self.get_A_q(q) - self.get_translation_operator()
+        return param_op.assemble()
    

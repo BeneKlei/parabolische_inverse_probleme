@@ -11,6 +11,7 @@ import pymor.vectorarrays as VectorArray
 from pymor.vectorarrays.interface import VectorSpace
 from pymor.operators.interface import Operator
 from pymor.operators.numpy import NumpyMatrixOperator
+from pymor.operators.constructions import ZeroOperator
 from pymor.vectorarrays.list import ListVectorArray
 from pymor.vectorarrays.numpy import NumpyVectorArray
 
@@ -96,12 +97,12 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         return vector_array
 
     def get_translation_operator(self) -> Operator | None:
-        if self.elasticity_model.m_has_translation_operator:
+        if self.A_affine:
             return SparseMatrixOperator(
                 op = self.elasticity_model.get_translation_operator()
             )
         else:
-            return None
+            return ZeroOperator(source=self.source, range=self.range)
         
     def get_parameteric_operator(self, q: VectorArray) -> Operator:
         assert q in self.Q

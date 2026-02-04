@@ -15,7 +15,7 @@ from pymor.reductors.basic import ProjectionBasedReductor
 from pymor.algorithms.projection import project, project_to_subbasis
 from pymor.vectorarrays.interface import VectorArray, VectorSpace
 from pymor.vectorarrays.numpy import NumpyVectorSpace
-from pymor.operators.constructions import LincombOperator
+from pymor.operators.constructions import LincombOperator, ZeroOperator
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.parameters.functionals import ProjectionParameterFunctional
 from pymor.parameters.base import Parameters
@@ -46,6 +46,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                  check_tol: float = 1e-9,
                  residual_image_basis_mode: str = 'none',
                  parallel: bool = False,
+                 active_bases: List[str] = None,
                  use_adjoint_space: bool = False,
                  logger: logging.Logger = None):
 
@@ -61,7 +62,14 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             self._logger.setLevel(logging.DEBUG)
         self.logger.debug(f"Setting up {self.__class__.__name__}")
 
-        if parallel:
+        self.active_bases = active_bases
+        self.FOM = FOM
+        self.parallel = parallel
+        self.use_adjoint_space = use_adjoint_space
+        if self.use_adjoint_space:
+            assert 'adjoint_basis' not in self.active_bases
+
+        if self.parallel:
             self.logger.debug(f"Using parallelizatzion for ROM-projection.")
 
         bases = {
@@ -69,6 +77,9 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'state_basis' : FOM.V.empty(),
             'adjoint_basis' : FOM.V.empty(),
         }
+        assert set(self.active_bases).issubset(bases.keys())
+
+        self.dims_history = {key : [0] for key in bases.keys()}
 
         products = {
             'parameter_basis' : FOM.products['prod_Q'],
@@ -82,22 +93,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'A_r_adjoint' : None,
             'A_r_adjoint_state' : None
         }
-
-        self.dims_history = {
-            'parameter_basis' : [0],
-            'state_basis' : [0],
-            'adjoint_basis' : [0],
-        }
-
-        if use_adjoint_space:
-            self.bases_names = ['parameter_basis', 'state_basis', 'adjoint_basis']
-        else:
-            self.bases_names = ['parameter_basis', 'state_basis']
-        
-
-        self.FOM = FOM
-        self.parallel = parallel
-        self.use_adjoint_space = use_adjoint_space
+ 
         super().__init__(FOM,
                          bases,
                          products,
@@ -156,7 +152,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
 
         assert isinstance(x, VectorArray)
-        assert basis in self.bases_names
+        assert basis in self.active_bases
         _basis = self.bases[basis]
 
         if normalize:
@@ -178,7 +174,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
 
         assert isinstance(x, VectorArray)
-        assert basis in self.bases_names
+        assert basis in self.active_bases
         _basis = self.bases[basis]
 
         if normalize:
@@ -198,7 +194,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                             basis: str) -> np.ndarray:
 
         assert isinstance(x, VectorArray)
-        assert basis in self.bases_names
+        assert basis in self.active_bases
         _basis = self.bases[basis]
 
         if len(_basis) == 0:
@@ -238,7 +234,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             start = 0
             translation_operator = self.FOM.A.get_translation_operator()
 
-            if translation_operator:
+            if not isinstance(translation_operator, ZeroOperator):
                 operators = [translation_operator]
                 coefficients = [1]
             else:
@@ -247,7 +243,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         else:
             operators = list(self._cached_operators['A'].operators)
 
-            if self.FOM.A.get_translation_operator():
+            translation_operator = self.FOM.A.get_translation_operator()
+            if not isinstance(translation_operator, ZeroOperator):
                 coefficients = [1]
                 start = len(operators) - 1
             else:
@@ -444,7 +441,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                                    range_V_old : VectorArray, 
                                    range_W : VectorArray) -> np.ndarray:
             A = base_operators[i]           # (n, n)
-
             if i < dim_Q_old:
                 VTAV_old = cached_blocks[i]  # (dim_V_old, dim_V_old)
 
@@ -545,7 +541,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         )
         return self._cached_operators[cache_key]
     
-    
     def project_operators(self,
                           parameter_reduced_A: LincombOperator,
                           Q : VectorSpace,
@@ -579,28 +574,16 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             translation_operator = translation_operator
         )
 
-        # B = ROMEvaluatorB(
-        #     source = Q,
-        #     range = V,
-        #     Q = Q,
-        #     V = V,
-        #     parameteric_operator = parameteric_operator,
-        #     translation_operator = translation_operator
-        # )
-        # B = None
         
         if state_basis:
             if isinstance(self.FOM.L, VectorArray):
                 L = V.make_array(
-                    #L.inner(self.bases['state_basis'])
                     self.FOM.L.inner(self.bases['state_basis'])
                 )
             else:
                 L = project(self.FOM.L, state_basis, None)
         else:
             L = self.FOM.L
-
-        #print(timer() - t)
 
         prod_Q = project(self.FOM.products['prod_Q'], parameter_basis, parameter_basis)
         prod_V = project(self.FOM.products['prod_V'], state_basis, state_basis)
@@ -676,23 +659,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                     )
             else:
                 projected_initial_data[key] = self.FOM.initial_data[key]
-
-        # if len(self.bases['state_basis']) > 0:
-        #     projected_initial_data = {
-        #         key: {
-        #             order: V.make_array(
-        #                 #self.project_vectorarray(val, basis='state_basis')
-        #                 val.inner(self.bases['state_basis'])
-        #             )
-        #             for order, val in subdict.items()
-        #         }
-        #         for key, subdict in self.FOM.initial_data.items()
-        #     }
-        #     linear_cost_term = self.FOM.linear_cost_term.inner(self.bases['state_basis'])
-        #     linear_cost_term = V.make_array(linear_cost_term)
-        # else:
-        #     projected_initial_data = self.FOM.initial_data
-        #     linear_cost_term = self.FOM.linear_cost_term
 
         projected_operators = {
             'initial_data' : projected_initial_data,

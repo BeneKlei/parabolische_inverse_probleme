@@ -20,16 +20,14 @@ class EvaluatorA(ABC):
                 source : VectorSpace,
                 range : VectorSpace,
                 Q : VectorSpace,
-                parameter_names: List[str] | None,
-                translation_operator: bool = False,
+                A_affine: bool = False,
                 A_q_linear: bool = False):
 
         assert source == range
         self.Q = Q
         self.source = source
-        self.range = range
-        self.parameter_names = parameter_names
-        self.translation_operator = translation_operator
+        self.range = range        
+        self.A_affine = A_affine
         self.A_q_linear = A_q_linear
 
     @abstractmethod
@@ -76,15 +74,15 @@ class FOMEvaluatorA(EvaluatorA):
                  source : VectorSpace,
                  range : VectorSpace,
                  Q : VectorSpace,
-                 parameter_names: List[str] | None,
+                 A_affine: bool = False,
                  A_q_linear: bool = False):
                 
         super().__init__(
             source, 
             range, 
             Q, 
-            parameter_names, 
-            A_q_linear = A_q_linear
+            A_affine, 
+            A_q_linear
         )
 
     @abstractmethod
@@ -108,20 +106,6 @@ class FOMEvaluatorA(EvaluatorA):
     @abstractmethod
     def flip_vector_array(self, vector_array: VectorArray) -> VectorArray:
         pass
-
-# class FOMEvaluatorB(EvaluatorB):
-#     def __init__(self,
-#                  source : VectorSpace,
-#                  range : VectorSpace,
-#                  Q : VectorSpace,
-#                  V : VectorSpace):
-
-#         super().__init__(source, range, Q, V)
-
-
-#     @abstractmethod
-#     def __call__(self, u: VectorArray) -> B_u:
-#         pass
 
 class ROMEvaluatorA(EvaluatorA):
     def __init__(self,
@@ -165,7 +149,17 @@ class ROMEvaluatorA(EvaluatorA):
 
         return NumpyMatrixOperator(
             matrix = matrix
-        )
+       )
+
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+        assert q in self.Q
+        assert len(q) == 1
+
+        if u is not None:
+            assert u in self.source
+            assert len(u) == 1
+
+        return self.get_A_q(q)
 
     def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
         assert q in self.Q
@@ -188,14 +182,6 @@ class ROMEvaluatorA(EvaluatorA):
         return NumpyMatrixOperator(
             matrix = partial_q_A_q_u_mat.T
         )
-
-    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
-        assert q in self.Q
-        assert len(q) == 1
-
-        assert u is None
-
-        return self.get_A_q(q)
 
     def clear_rhs_boundary_dofs(self,
                                 rhs: VectorArray,

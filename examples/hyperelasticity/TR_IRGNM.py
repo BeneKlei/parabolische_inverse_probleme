@@ -20,23 +20,28 @@ import RBInvParam.problems.shared.material_model as mm
 #import material_model as mm
 #import hyperelasticity_model as hm
 
-from RBInvParam.optimizer import FOMOptimizer
+from RBInvParam.optimizer import QrVrROMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.problems.hyperelasticity.build import build_HyperElasticityModelIP
+
+from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimatorType
+from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimatorType
+from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
 
 from RBInvParam.timestepping import TimeStepperType
 
 from RBInvParam.utils.create_q_exact import *
 
+from RBInvParam.optimizer import LoggerErrorChoice
 #########################################################################################''
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-save_path = Path('./dumps') / (timestamp + '_FOM_IRGNM')
+save_path = Path('./dumps') / (timestamp + '_TR_IRGNM')
 os.mkdir(save_path)
-logfile_path= save_path / 'FOM_IRGNM.log'
+logfile_path= save_path / 'TR_IRGNM.log'
 
-logger = get_default_logger(logger_name='FOM_IRGNM',
+logger = get_default_logger(logger_name='TR_IRGNM',
                             logfile_path=logfile_path, 
                             use_timestemp=False)
 logger.setLevel(logging.DEBUG)
@@ -282,30 +287,106 @@ def main():
     # sys.exit()
 
     optimizer_parameter = {
-        'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                          # Initial regularization parameter
-        #'alpha_0': 1e-14,                                          # Initial regularization parameter
-        'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
-        'tau': 1.50,                                              # Relative (to the noise) convergence tolerance for optimization
-        'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
-        'theta': 0.4,                                         # Lower tolerance for the direction acceptance condition
-        'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
+        'q_0': q_start,                                              # Initial guess for the parameter to be optimized
+        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
+        #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
+        'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
+        'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
+        #'tau': 3.50,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
+        'theta': 0.40,
+        'Theta': 1.95,                                               # Upper bound for step acceptance condition
+        #'Theta': 1.50,                                               # Upper bound for step acceptance condition
+        'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
-        'i_max': 250,                                             # Maximum number of outer optimization iterations
-        'reg_loop_max': 25,                                      # Maximum number of regularization updates per step
-        'i_max_inner': 10,                                       # Maximum number of inner iterations
-        ####################
+        'i_max': 250,                                                 # Max number of outer optimization iterations
+        'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
+        #'i_max_inner': 15,                                           # Max number of inner iterations
+        'i_max_inner': 30,                                           # Max number of inner iterations
+        'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region
+        'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
+        #####################
+        'use_error_estimator' : False,
+        'use_adjoint_space' : False,
+        #'use_adjoint_space' : True,
+        #'offline_parallel' : True,
+        'offline_parallel' : False,
+        'reg_AGC_step' : False,
+        #'TR_enforcement' : 'check_error',
+        'TR_enforcement' : 'backtracking',
+        #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
+            #'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver            
+            #'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
-            'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
+            'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
         },
-        'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
-        'dump_every_nth_loop': 1,                                # Dump intermediate results every n optimization iterations
+        'enrichment': {
+            'parameter_basis' : {
+                'reduced_basis' : True,
+                'additional_snapshots' :{
+                    'include_lin_grad' : False,
+                    'include_each_nabla_J_time_step' : True,
+                    'include_each_nabla_lin_J_time_step' : False,
+                    'include_krylov_directions' : False,
+                },
+                'compression' : {
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'eps': 1e-1,
+                        'omega' : 0.1,
+                    },
+                },
+                'coarsing' : {
+                    'rel_tol_coeff_nabla_J' : 1e-2,
+                }
+            },
+            'state_basis' : {
+                'additional_snapshots' :{
+                    'include_lin_states' : False,
+                    'include_krylov_sensitivites' : False,
+                },
+                'compression' : {
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'eps': 1e-3,
+                        'omega' : 0.1,
+                    },
+                },
+                'coarsing' : None,
+            },
+            'adjoint_basis' : None
+            
+        },
+        'error_estimator_types' : {
+            'state' : StateErrorEstimatorType.HYPERBOLIC,
+            'adjoint' : AdjointErrorEstimatorType.NONE,
+            'objective' : ObjectiveErrorEstimatorType.NAIVE,
+        },
+        'logging' : {
+            'errors' : LoggerErrorChoice.OBJECTIVE,
+        },
+        #####################
+        'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
+        'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
+        #####################
+        # 'eta0': 0.05,                                                # Initial trust region tolerance
+        # 'eta_min' : 1e-5,
+        # 'eta_max' : 0.15,
+        'eta0': 0.10,                                                # Initial trust region tolerance
+        'eta_min' : 1e-5,
+        'eta_max' : 0.30,
+        'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
+        'beta_1': 0.80,                                              # Trust region edge tolerance.
+        'beta_2': 3/4,                                               # Tolerance for the trustworthiness.
+        'beta_3': 0.5                                                # Shrinking/Enlarging factor for the trust region.
     }
+
 
 
     logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
@@ -318,7 +399,7 @@ def main():
                         data = optimizer_parameter,
                         use_timestamp=False)
 
-    optimizer = FOMOptimizer(
+    optimizer = QrVrROMOptimizer(
         FOM = FOM,
         optimizer_parameter = optimizer_parameter,
         logger = logger,

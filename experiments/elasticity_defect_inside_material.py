@@ -193,7 +193,7 @@ TR_optimizer_parameter = {
         },
         'state_basis' : {
             'additional_snapshots' :{
-                'include_lins' : False,
+                'include_lin_states' : False,
                 'include_krylov_sensitivites' : False,
             },
             'compression' : {                
