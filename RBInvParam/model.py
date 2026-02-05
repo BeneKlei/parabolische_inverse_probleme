@@ -588,6 +588,7 @@ class InstationaryModelIP(ImmutableObject):
     
         required_cache_keys = [A_ad_q_key] 
         required_cache_keys += list(_time_stepper.time_dep_cache_policy.keys())
+
         self.update_cache(
             q = q,
             u = u,
@@ -598,14 +599,8 @@ class InstationaryModelIP(ImmutableObject):
         rhs = self.A_ad.clear_rhs_boundary_dofs(
             rhs = rhs,
             flip = True
-        )
+        )        
 
-        # print(self.bilinear_cost_term_ad.apply(u).to_numpy())
-        # print(len(rhs))
-        # print(rhs.to_numpy())
-        # import sys
-        # sys.exit()
-        
         rhs = (-1) * rhs
         iterator = _time_stepper.iterate(initial_data = self.initial_data['adjoint'], 
                                          q=q,
@@ -623,8 +618,8 @@ class InstationaryModelIP(ImmutableObject):
             p.append(p_n)
             p_dot.append(p_dot_n)
 
-        p = self.A_ad.flip_vector_array(p)
-        p_dot = self.A_ad.flip_vector_array(p_dot)
+        p = p[::-1]
+        p_dot = p_dot[::-1]
 
         if return_higher_orders:
             return p, p_dot
@@ -764,9 +759,8 @@ class InstationaryModelIP(ImmutableObject):
             lin_p.append(lin_p_n)
             lin_p_dot.append(lin_p_dot_n)
         
-
-        lin_p = self.A_ad.flip_vector_array(lin_p)
-        lin_p_dot = self.A_ad.flip_vector_array(lin_p_dot)
+        lin_p = lin_p[::-1]
+        lin_p_dot = lin_p_dot[::-1]
 
         if return_higher_orders:
             return lin_p, lin_p_dot
@@ -906,6 +900,7 @@ class InstationaryModelIP(ImmutableObject):
         grad = partial_q_A_ad_q_u[0].source.empty(reserve=(self.nt + 1))
         for idx in range(0, self.nt + 1):
             grad.append(partial_q_A_ad_q_u[idx].apply_adjoint(p[idx]))
+
         grad = self.Q.make_array(grad.to_numpy())
 
         if not self.q_time_dep:

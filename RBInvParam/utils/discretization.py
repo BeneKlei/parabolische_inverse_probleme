@@ -59,7 +59,6 @@ def build_projection(grid):
 def split_constant_and_parameterized_operator(
         complete_operator : LincombOperator
     ):
-    print(complete_operator)
     assert isinstance(complete_operator, LincombOperator)
     operators, coefficients = [], []
     constant_operators, constant_coefficients = [], []
@@ -89,8 +88,6 @@ def split_constant_and_parameterized_operator(
 
     parameterized_operator = LincombOperator(operators, coefficients, name='true_parameterized_operator')
 
-    
-    
     return parameterized_operator, constant_operator
 
 def interpolate_between_grids(N_fine, refinement_factor):

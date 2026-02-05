@@ -81,11 +81,11 @@ def main():
     #par_dim = 3
     T_initial = 0
 
-    # T_final = 1.0
-    # nt = 10
+    T_final = 1.0
+    nt = 10
 
-    T_final = 5.0
-    nt = 50    
+    #T_final = 5.0
+    #nt = 50    
 
     # T_final = 1
     # nt = 20
@@ -328,7 +328,6 @@ def main():
         },
         'enrichment': {
             'parameter_basis' : {
-                'reduced_basis' : True,
                 'additional_snapshots' :{
                     'include_lin_grad' : False,
                     'include_each_nabla_J_time_step' : True,
@@ -346,20 +345,7 @@ def main():
                     'rel_tol_coeff_nabla_J' : 1e-2,
                 }
             },
-            'state_basis' : {
-                'additional_snapshots' :{
-                    'include_lin_states' : False,
-                    'include_krylov_sensitivites' : False,
-                },
-                'compression' : {
-                    'normalize' : True,
-                    'HaPOD' : {
-                        'eps': 1e-3,
-                        'omega' : 0.1,
-                    },
-                },
-                'coarsing' : None,
-            },
+            'state_basis' : None,
             'adjoint_basis' : None
             
         },

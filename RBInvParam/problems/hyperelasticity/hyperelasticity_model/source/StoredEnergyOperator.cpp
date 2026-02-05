@@ -51,8 +51,6 @@ template <int dim, typename Number>
 void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
                                               const Vector<Number> &u) const
 {
-  // std::cout << this->m_state_space_context.quad_points_flat()[0] << std::endl;
-  // std::exit(-1);
   AssertDimension(u.size(), dim_source());
   y.reinit(dim_range());
   y = Number(0);

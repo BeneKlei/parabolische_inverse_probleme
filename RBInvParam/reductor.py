@@ -24,7 +24,7 @@ from pymor.operators.constructions import InverseOperator
 from pymor.parallel.default import new_parallel_pool
 
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.evaluators import ROMEvaluatorA
+from RBInvParam.evaluators import ROMEvaluatorA, EvaluatorLincomb
 #, ROMEvaluatorB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator
 from RBInvParam.products import BochnerProductOperator
@@ -144,7 +144,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             self.dims_history[basis] = len(idxes_keep)
         else:
             raise NotImplementedError
-        
+
     def calc_projection_residuum(self,
                                  x: VectorArray,
                                  basis: str,
@@ -201,7 +201,20 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             return x.to_numpy()
         else:
             return x.inner(_basis, self.products[basis])
+        
+    def reconstruct(self,
+                    x: VectorArray,
+                    basis: str) -> VectorArray:
 
+        assert isinstance(x, VectorArray)
+        _basis = self.bases[basis]
+
+        if len(_basis) == 0:
+            assert x in _basis.space
+            return x
+        else:
+            return _basis[:x.dim].lincomb(x.to_numpy())
+        
     def get_bases_dim(self, basis: str) -> int:
         assert basis in self.bases.keys()
         _basis = self.bases[basis]
@@ -259,17 +272,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         self.logger.info("Constructing A(q).")
         if self.parallel:
-
-            # def timed_get_op(q):
-            #     tid = threading.get_ident()
-            #     tname = threading.current_thread().name
-            #     t0 = time.perf_counter()
-            #     op = self.FOM.A.get_parameteric_operator(q)
-            #     dt = time.perf_counter() - t0
-            #     self.logger.info("thread=%s tid=%s get_parameteric_operator dt=%.6f", tname, tid, dt)
-            #     return op
-            
-            #max_workers = min(os.cpu_count() or 1, len(to_build))
             max_workers = min(4 or 1, len(to_build))
             self.logger.info(f"Using ThreadPoolExecutor; max_workers={max_workers}")
             with ThreadPoolExecutor(max_workers=max_workers) as ex:
@@ -296,7 +298,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                     len(parameter_basis), i
                 )
             )
-
 
         self._cached_operators['A'] = LincombOperator(operators, coefficients)
         return self._cached_operators['A']
@@ -402,36 +403,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         coefficients = parameter_reduced_A.coefficients
         base_operators = parameter_reduced_A.operators  # list of full-order operators
         n_ops = len(base_operators)
-
-        # # worker uses ONLY numpy arrays, no self, no methods
-        # def build_reduced_operator(i: int) -> NumpyMatrixOperator:
-        #     A = base_operators[i]           # (n, n)
-
-        #     if i < dim_Q_old:
-        #         VTAV_old = cached_blocks[i]  # (dim_V_old, dim_V_old)
-
-        #         AW = A.apply(source_W)
-        #         VTAW = range_V_old.inner(AW)
-
-        #         if source_basis == range_basis:
-        #             WTAV = VTAW.T
-        #         else:
-        #             AV = A.apply(source_V_old)
-        #             WTAV = range_W.inner(AV)
-
-        #         WTAW = range_W.inner(AW)
-
-        #         # assemble
-        #         M = np.empty((dim_range_new, dim_source_new), dtype=np.float64)
-        #         M[:dim_range_old, :dim_source_old] = VTAV_old
-        #         M[:dim_range_old, dim_source_old:] = VTAW
-        #         M[dim_range_old:, :dim_source_old] = WTAV
-        #         M[dim_range_old:, dim_source_old:] = WTAW
-        #     else:
-        #         AV = A.apply(_source_basis)
-        #         M  = _range_basis.inner(AV)
-
-        #     return NumpyMatrixOperator(matrix=M)
         
         def build_reduced_operator(i: int, 
                                    base_operators : List, 
@@ -551,29 +522,37 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         assert isinstance(parameter_reduced_A, LincombOperator)
         if self.use_adjoint_space:
             assert V_ad is not None
+            raise NotImplementedError
         
         parameter_basis = self._get_projection_basis('parameter_basis')
         state_basis = self._get_projection_basis('state_basis')
         adjoint_basis = self._get_projection_basis('adjoint_basis')
 
-        A_r = self._project_A(
-            parameter_reduced_A = parameter_reduced_A,
-            source_basis = 'state_basis',
-            range_basis = 'state_basis'
-        )
 
-        parameteric_operator, translation_operator = split_constant_and_parameterized_operator(
-            complete_operator=A_r
-        )
+        if state_basis:
+            A_r = self._project_A(
+                parameter_reduced_A = parameter_reduced_A,
+                source_basis = 'state_basis',
+                range_basis = 'state_basis'
+            )
 
-        A = ROMEvaluatorA(
-            source = V,
-            range = V,
-            Q = Q,
-            parameteric_operator = parameteric_operator,
-            translation_operator = translation_operator
-        )
+            parameteric_operator, translation_operator = split_constant_and_parameterized_operator(
+                complete_operator=A_r
+            )
 
+            A = ROMEvaluatorA(
+                source = V,
+                range = V,
+                Q = Q,
+                parameteric_operator = parameteric_operator,
+                translation_operator = translation_operator
+            )
+        else:
+            A = EvaluatorLincomb(
+                op = parameter_reduced_A,
+                Q = Q,
+                A_affine = self.FOM.A.A_affine
+            )
         
         if state_basis:
             if isinstance(self.FOM.L, VectorArray):

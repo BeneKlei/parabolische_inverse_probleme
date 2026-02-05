@@ -1,10 +1,10 @@
 import numpy as np
-from typing import List
+from typing import Tuple 
 from abc import ABC, abstractmethod
-from typing import Protocol, Callable, runtime_checkable, Dict
-from types import SimpleNamespace
+from numbers import Number
 
 from pymor.operators.interface import Operator
+from pymor.operators.constructions import LincombOperator, ZeroOperator, VectorArrayOperator
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.vectorarrays.interface import VectorSpace, VectorArray
 from pymor.vectorarrays.numpy import NumpyVectorArray
@@ -42,31 +42,12 @@ class EvaluatorA(ABC):
     def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
         pass
 
-    def get_parameter_names(self) -> List[str] | None:
-        return self.parameter_names
-
     @abstractmethod
     def get_translation_operator(self) -> Operator | None:
         pass
 
     @abstractmethod
     def get_parameteric_operator(self) -> Operator:
-        pass
-
-class EvaluatorB(ABC):
-    def __init__(self,
-                 source : VectorSpace,
-                 range : VectorSpace,
-                 Q : VectorSpace,
-                 V : VectorSpace):
-
-        self.Q = Q
-        self.V = V
-        self.source = source
-        self.range = range
-
-    @abstractmethod
-    def __call__(self, u: VectorArray) -> Struct:
         pass
 
 class FOMEvaluatorA(EvaluatorA):
@@ -101,10 +82,6 @@ class FOMEvaluatorA(EvaluatorA):
     def clear_rhs_boundary_dofs(self,
                                 rhs: VectorArray,
                                 flip: bool = False) -> VectorArray:
-        pass
-
-    @abstractmethod
-    def flip_vector_array(self, vector_array: VectorArray) -> VectorArray:
         pass
 
 class ROMEvaluatorA(EvaluatorA):
@@ -205,56 +182,121 @@ class ROMEvaluatorA(EvaluatorA):
         return self.parameteric_operator
 
 
-# class ROMEvaluatorB(EvaluatorB):
-#     def __init__(self,
-#                  source : VectorSpace,
-#                  range : VectorSpace,
-#                  Q : VectorSpace,
-#                  V : VectorSpace,
-#                  parameteric_operator: Operator,
-#                  translation_operator : Operator | None):
+class EvaluatorLincomb(EvaluatorA):
+    def __init__(self, op: LincombOperator, Q: VectorSpace, A_affine: bool = True):
+        assert isinstance(op, LincombOperator)
 
-#         assert parameteric_operator.parametric
-#         assert parameteric_operator.source == range
-#         assert parameteric_operator.range == V
+        linear_op, constant_op = self._split_affine_lincomb(op, A_affine=A_affine)
 
-#         if translation_operator:
-#             assert not translation_operator.parametric
-#             assert parameteric_operator.source == range
-#             assert parameteric_operator.range == V
+        self.op = op
+        self.linear_op = linear_op
+        self.constant_op = constant_op
 
-#         self.parameters = parameteric_operator.parameters
-#         self.parameteric_operator = parameteric_operator
-#         self.translation_operator = translation_operator
+        super().__init__(
+            Q=Q,
+            source=self.op.source,
+            range=self.op.range,
+            A_affine=A_affine,
+            A_q_linear=self.op.linear,
+        )
 
-#         super().__init__(source = source,
-#                          range = range,
-#                          Q = Q,
-#                          V = V)
+    def _split_affine_lincomb(
+        self, op: LincombOperator, *, A_affine: bool
+    ) -> Tuple[LincombOperator, Operator]:
+        """Return (linear_op, constant_op) where constant_op is either ZeroOperator or exactly one constant summand."""
+        is_const = lambda c: isinstance(c, Number) or getattr(c, "is_constant", False) or (
+            hasattr(c, "parameters") and len(c.parameters) == 0
+        )
 
-    # def __call__(self, u: VectorArray, parameter_basis_idx: int) -> B_u:
-    #     assert u in self.V
-    #     assert len(u) == 1
-    #     if not self.parameteric_operator:
-    #         raise NotImplementedError
+        const_idx = [i for i, c in enumerate(op.coefficients) if is_const(c)]
 
-    #     DoFs = self.range.dim
-    #     ops = self.parameteric_operator.operators
-    #     T = len(ops)
+        if not A_affine:
+            # no constant part allowed
+            assert len(const_idx) == 0, f"A_affine=False but found {len(const_idx)} constant term(s)"
+            return op, ZeroOperator(op.source, op.range)
 
-    #     B_u_mat = np.empty((T, DoFs))
-    #     for i, op in enumerate(ops):
-    #         B_u_mat[i] = op.apply_adjoint(u).to_numpy()[0, :]
+        # affine allowed: require exactly one constant summand
+        assert len(const_idx) == 1, f"Expected exactly one constant term, got {len(const_idx)}"
+        i = const_idx[0]
 
-    #     def _B_u(d: VectorArray) -> VectorArray:
-    #         d_np = d.to_numpy()[0]          # shape (T,)
-    #         out = np.einsum("ti,t->i", B_u_mat, d_np)  # (DoFs,)
-    #         return out[None, :][0]     # (1, DoFs)
+        constant_op = LincombOperator([op.operators[i]], [op.coefficients[i]])
+        ops = [o for j, o in enumerate(op.operators) if j != i]
+        coefs = [c for j, c in enumerate(op.coefficients) if j != i]
+        linear_op = LincombOperator(ops, coefs) if ops else ZeroOperator(op.source, op.range)
 
-    #     def _B_u_ad(p: VectorArray) -> VectorArray:
-    #         p_np = p.to_numpy()[0]          # shape (DoFs,)
-    #         out = np.einsum("ti,i->t", B_u_mat, p_np)  # (T,)
-    #         return out[None, :]     # (1, T)
+        return linear_op, constant_op
 
-    #     # Return a simple object that satisfies the B_u protocol
-    #     return SimpleNamespace(B_u=_B_u, B_u_ad=_B_u_ad)
+    def get_A_q(self, q: VectorArray) -> Operator:
+        assert q in self.Q
+        assert len(q) == 1
+
+        q_as_par = self.op.parameters.parse(q.to_numpy()[0])
+        return self.op.assemble(q_as_par)
+    
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, A_q: Operator = None) -> Operator:
+        assert q in self.Q
+        assert len(q) == 1
+        if u is not None:
+            assert u in self.source
+            assert len(u) == 1
+
+        if A_q is None:
+            A_q = self.get_A_q(q)
+
+        assert isinstance(A_q, LincombOperator)
+        
+        #try:
+            # print("##########################################")
+            # op = A_q.jacobian(U=u)
+            # print("------------------------------------------")
+            # print(op.apply_adjoint(op.range.ones()))
+            # import sys
+            # sys.exit()
+            #return
+            #return A_q.jacobian(U=u)
+
+        jacobians = [op.jacobian(U=u) for op in A_q.operators]
+        options = A_q.solver_options.get('jacobian') if A_q.solver_options else None
+        op = LincombOperator(jacobians, A_q.coefficients, solver_options=options,
+                             name=A_q.name + '_jacobian')
+        op.apply_adjoint(op.range.ones())
+        import sys
+        sys.exit()
+            # return 
+        # except:
+        #     raise InvalidAssemblyArgument
+
+    def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+        assert q in self.Q
+        assert len(q) == 1
+
+        assert u in self.source
+        assert len(u) == 1
+
+        ops = self.linear_op.operators
+        partial_q_A_q_u_array = self.range.empty(reserve=len(ops))
+
+        for op in ops:
+            partial_q_A_q_u_array.append(op.apply(u))
+        
+        return VectorArrayOperator(
+            array = partial_q_A_q_u_array
+        )
+    
+    def clear_rhs_boundary_dofs(self,
+                                rhs: VectorArray,
+                                flip: bool = False) -> VectorArray:
+        if flip:
+            return rhs[::-1]
+        else:
+           return rhs
+        
+    def get_translation_operator(self) -> Operator:
+        return self.constant_op.assemble()
+    
+    def get_parameteric_operator(self, q: VectorArray) -> Operator:
+        assert q in self.Q
+        assert len(q) == 1
+
+        q_as_par = self.op.parameters.parse(q.to_numpy()[0])
+        return self.linear_op.assemble(q_as_par)

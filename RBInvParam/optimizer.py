@@ -450,6 +450,7 @@ class Optimizer(BasicObject):
             'rel_est_err_nabla_lin_J' : rel_est_err_nabla_lin_J
         }
 
+    # TODO Move into own class for managing / defining the TR
     def _calc_errors(self,
                      model: InstationaryModelIP,
                      reductor : InstationaryModelIPReductor,
@@ -541,8 +542,7 @@ class Optimizer(BasicObject):
                 
                 _u_r = reductor.reconstruct(u_r, basis='state_basis')
                 u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-
-
+                
                 diff = u - _u_r
                 err_u = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(diff, diff))[0,0]
                 self._logger.debug(f'Actual err_u = {err_u:3.4e}')
@@ -1707,13 +1707,6 @@ class QrVrROMOptimizer(Optimizer):
         beta_1 = self.optimizer_parameter["beta_1"]
         beta_2 = self.optimizer_parameter["beta_2"]
         beta_3 = self.optimizer_parameter["beta_3"]
-
-        lin_u = None
-        lin_p = None
-        nabla_lin_J = None
-        time_steps_nabla_J = None
-        time_steps_nabla_lin_J = None
-
 
         start_time = timer()
         i = 0

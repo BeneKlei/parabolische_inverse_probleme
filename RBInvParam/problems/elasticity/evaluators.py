@@ -76,8 +76,7 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
                 u = u.vectors[0].impl
             )
         )
-        
-    
+         
     def clear_rhs_boundary_dofs(self, 
                                 rhs: VectorArray,
                                 flip: bool = False) -> VectorArray:
@@ -87,14 +86,9 @@ class ElasticitiyFOMEvaluatorA(FOMEvaluatorA):
             self.elasticity_model.clear_rhs_boundary_dofs(v.impl)
 
         if flip:
-            return self.flip_vector_array(rhs)
+            return rhs[::-1]
         else:
             return rhs
-
-    def flip_vector_array(self, vector_array: VectorArray) -> VectorArray:
-        assert isinstance(vector_array, ListVectorArray)
-        vector_array = vector_array.space.make_array(vector_array.vectors[::-1])
-        return vector_array
 
     def get_translation_operator(self) -> Operator | None:
         if self.A_affine:

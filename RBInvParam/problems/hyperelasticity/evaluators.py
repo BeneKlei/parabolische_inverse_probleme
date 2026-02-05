@@ -45,7 +45,7 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
             assert u in self.source
             assert len(u) == 1
 
-        if A_q is None:        
+        if A_q is None:
              A_q = DealIIBaseOperator(
                 op = self.hyperelasticity_model.assemble_A_q(
                     q_np = q.to_numpy().flatten()
@@ -83,19 +83,13 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
             self.hyperelasticity_model.clear_rhs_boundary_dofs(v.impl)
 
         if flip:
-            return self.flip_vector_array(rhs)
+            return rhs[::-1]
         else:
             return rhs
 
-    def flip_vector_array(self, vector_array: VectorArray) -> VectorArray:
-        assert isinstance(vector_array, ListVectorArray)
-        vector_array = vector_array.space.make_array(vector_array.vectors[::-1])
-        return vector_array
-
     def get_translation_operator(self) -> Operator:
-        if self.A_affine:
-            _q = self.Q.zeros()
-            return self.get_A_q(_q)
+        if self.A_affine:            
+            return self.get_A_q(self.Q.zeros())
         else:
             return ZeroOperator(source=self.source, range=self.range)
 

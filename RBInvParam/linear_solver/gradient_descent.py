@@ -8,7 +8,6 @@ from pymor.vectorarrays.interface import VectorArray
 from pymor.operators.numpy import NumpyMatrixOperator
 
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.reductor import InstationaryModelIPReductor
 from RBInvParam.domain_projector import SimpleBoundDomainProjector
 
 
@@ -123,10 +122,6 @@ def barzilai_borwein_line_serach(previous_iterate: NumpyVectorArray,
     
     current_iterate = previous_iterate - step_size * search_direction
 
-    # print("SD:")
-    # print(search_direction)
-    
-
     if projector: 
         current_iterate = projector.project_domain(q, current_iterate) - q
         
@@ -208,8 +203,6 @@ def gradient_descent_linearized_problem(
             ) - q
         else:
             terminaton_lhs = -grad
-
-       # print(terminaton_lhs)
 
         terminaton_lhs = model.compute_gradient_norm(terminaton_lhs)
         if (terminaton_lhs < lin_solver_tol) and i > 0:
