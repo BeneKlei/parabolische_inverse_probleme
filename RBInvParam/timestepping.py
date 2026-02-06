@@ -300,7 +300,6 @@ class SecondOrderCrankNicolson(TimeStepper):
         zeta = self.zeta
 
         ################################### First step ###################################
-
         U_cur = initial_data['zeroth_order']
         U_dot_cur = initial_data['first_order']
         if not self.apply_adjoint:
@@ -311,12 +310,15 @@ class SecondOrderCrankNicolson(TimeStepper):
         t = self.T_initial
         yield U_cur, U_dot_cur, t
 
-        U_pre = U_cur.copy()
-        M_U_dot_pre = M_U_dot_cur.copy()
+        rhs_pre = rhs[0]
+        rhs_cur = rhs[0]
 
-        rhs_pre = rhs[0].copy()
-        rhs_cur = rhs[0].copy()
+        dt_R = rhs[0].copy()
+        dt_R.scal(0.0)
 
+        if not rhs_time_dep:
+            dt_R.axpy(dt, rhs_cur)   # dt_R = dt * rhs
+                
         if use_cached_operators:
             A_q = cached_operators[self.A_q_key][0]
             S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][0]
@@ -331,19 +333,30 @@ class SecondOrderCrankNicolson(TimeStepper):
         S_zeta = S_zeta.assemble()
         S_zeta_minus_one = S_zeta_minus_one.assemble()
 
-        if not rhs_time_dep:
-            dt_R = dt * rhs
 
         ################################### Stepping ###################################
 
         for n in range(1,self.nt+1):
             t += dt
-            U_pre = U_cur
-            M_U_dot_pre = M_U_dot_cur
 
+            # NOTE: U_pre does not need a copy (U_cur is not modified in-place before it's no longer needed)
+            U_pre = U_cur.copy()
+            M_U_dot_pre = M_U_dot_cur.copy()
+
+            # ---- RHS combination (no allocations) ----
             if rhs_time_dep:
                 rhs_pre = rhs_cur
+                rhs_cur = rhs[n]
+
+                dt_R.scal(0.0)
+                if implicit_euler_rhs:
+                    dt_R.axpy(1.0, rhs_cur)
+                else:
+                    dt_R.axpy(zeta, rhs_cur)
+                    dt_R.axpy(1.0 - zeta, rhs_pre)
+                dt_R.scal(dt)
             
+            # ---- operator update if q_time_dep ----
             if self.q_time_dep:
                 # Otherwise the values set above are never updated
                 if use_cached_operators:
@@ -359,29 +372,12 @@ class SecondOrderCrankNicolson(TimeStepper):
                 S_zeta = S_zeta.assemble()
                 S_zeta_minus_one = S_zeta_minus_one.assemble()
 
-            if rhs_time_dep:#
-                rhs_cur = rhs[n]
-
-                if implicit_euler_rhs:
-                    dt_R = rhs_cur
-                else:
-                    dt_R = zeta * rhs_cur
-                    dt_R += (1.0 - zeta) * rhs_pre
-                
-                dt_R *= dt
 
             # --------------------------------------------------------------
             _lhs = S_zeta
-
-            # if not self.apply_adjoint:
-            #     _rhs = S_zeta_minus_one.apply(U_pre)
-                
-            # else:
-            #     _rhs = S_zeta_minus_one.apply_adjoint(U_pre)
-
             _rhs = self.M.apply(U_pre)
-            _rhs += (zeta * dt * M_U_dot_pre)
-            _rhs += (zeta * zeta * dt_R)
+            _rhs.axpy(zeta * dt, M_U_dot_pre)
+            _rhs.axpy(zeta * zeta, dt_R)
 
             if not self.apply_adjoint:
                 # TODO rework s.t. the the deal.ii solver is used
@@ -393,15 +389,15 @@ class SecondOrderCrankNicolson(TimeStepper):
 
 
             # --------------------------------------------------------------
-            M_U_dot_cur = M_U_dot_pre
-            #_U = zeta * U_cur + (1 - zeta) * U_pre
             if not self.apply_adjoint:
                 A_q_U = A_q.apply(_U)
             else:
                 A_q_U = A_q.apply_adjoint(_U)
 
-            M_U_dot_cur += (-1) * dt * A_q_U
-            M_U_dot_cur += dt_R
+            M_U_dot_cur.scal(0.0)
+            M_U_dot_cur.axpy(1.0, M_U_dot_pre)
+            M_U_dot_cur.axpy(-dt, A_q_U)
+            M_U_dot_cur.axpy(1.0, dt_R)
 
             if not self.apply_adjoint:
                 U_dot_cur = self.M.apply_inverse(M_U_dot_cur)
@@ -410,8 +406,8 @@ class SecondOrderCrankNicolson(TimeStepper):
 
             # --------------------------------------------------------------
             U_cur = _U
-            U_cur += (-1) * (1 - zeta) * U_pre
-            U_cur *= (1 / zeta)
+            U_cur.axpy(-(1.0 - zeta), U_pre)
+            U_cur.scal(1.0 / zeta)
 
             yield U_cur, U_dot_cur, t
 
