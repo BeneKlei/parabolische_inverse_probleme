@@ -44,8 +44,6 @@ private:
     ) const;
 
     std::unique_ptr<StoredEnergyFunction<dim, Number>> m_stored_energy_function;
-    bool m_q_time_dep = false;
-
     const HyperElasticityModelConfig m_hyperelasticity_config;
 
 };

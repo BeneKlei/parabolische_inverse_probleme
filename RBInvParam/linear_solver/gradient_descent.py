@@ -245,8 +245,8 @@ def gradient_descent_linearized_problem(
             
         
         
-        #if (i % 100 == 0):
-        if (i % 1 == 0):
+        if (i % 100 == 0):
+        #if (i % 1 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {terminaton_lhs:3.4e}.")
             
 

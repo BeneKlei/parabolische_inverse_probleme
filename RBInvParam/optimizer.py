@@ -1728,6 +1728,7 @@ class QrVrROMOptimizer(Optimizer):
                                                         return_per_time_step = True)
 
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
+
         self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
         for basis in self.active_bases:
             self.statistics["outer_loop_runtime"]['extend_runtime'][basis].append(0.0)
@@ -1838,7 +1839,6 @@ class QrVrROMOptimizer(Optimizer):
 
         ############################################################
 
-
         q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
         q_r = self.QrVrROM.Q.make_array(q_r)
 
@@ -1851,8 +1851,7 @@ class QrVrROMOptimizer(Optimizer):
                                                   return_higher_orders = True)
         J_r = self.QrVrROM.objective(u_r)
         nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
-        norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
-        
+        norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)        
 
         # p_r_start = self.reductor.reconstruct(p_r, basis='state_basis')
         # self.FOM.A.material_model.save_time_series(

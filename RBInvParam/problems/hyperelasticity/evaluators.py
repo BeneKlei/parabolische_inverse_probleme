@@ -25,16 +25,22 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         
         assert isinstance(hyperelasticity_model, HyperElasticityModel)
         self.hyperelasticity_model = hyperelasticity_model
-        super().__init__(source, range, Q, True, False)
-        
+        super().__init__(
+            source = source, 
+            range = range, 
+            Q = Q, 
+            A_affine = self.hyperelasticity_model.A_affine(), 
+            A_q_linear = self.hyperelasticity_model.A_q_linear())
+
+        self._OperatorCls = SparseMatrixOperator if self.A_q_linear else DealIIBaseOperator    
 
     def get_A_q(self, q: VectorArray) -> Operator:
         assert q in self.Q
         assert len(q) == 1
     
-        return DealIIBaseOperator(
-            op = self.hyperelasticity_model.assemble_A_q(
-                q_np = q.to_numpy().flatten()
+        return self._OperatorCls(
+            op=self.hyperelasticity_model.assemble_A_q(
+                q_np=q.to_numpy().ravel()
             )
         )
         
@@ -46,9 +52,9 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
             assert len(u) == 1
 
         if A_q is None:
-             A_q = DealIIBaseOperator(
+             A_q = self._OperatorCls(
                 op = self.hyperelasticity_model.assemble_A_q(
-                    q_np = q.to_numpy().flatten()
+                    q_np = q.to_numpy().ravel()
                 )
             )
             
@@ -67,7 +73,7 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
 
         return DealIIBaseOperator(
             op = self.hyperelasticity_model.assemble_partial_q_A_q_u(
-                q_np = q.to_numpy().flatten(),
+                q_np = q.to_numpy().ravel(),
                 u = u.vectors[0].impl
             ),
             source_space="numpy",
@@ -98,9 +104,9 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         assert q in self.Q
         assert len(q) == 1
     
-        return DealIIBaseOperator(
+        return self._OperatorCls(
             op = self.hyperelasticity_model.assemble_A_q(
-                q_np = q.to_numpy().flatten(),
+                q_np = q.to_numpy().ravel(),
                 param_linear_part_only = True
             )
         )

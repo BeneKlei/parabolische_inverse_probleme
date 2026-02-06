@@ -239,8 +239,11 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
         return self._range_adapter.from_native(r_native)
 
     def jacobian(self, U, mu=None):
-
-        if U not in self.source:
+        if U is None:
+            assert self.op.linear
+            U = self.source.zeros(1)
+            
+        if U not in self.source:            
             raise ValueError("U must be an element of self.source.")
         if len(U) != 1:
             raise ValueError("jacobian expects a single-vector VectorArray (len(U) == 1).")
@@ -265,8 +268,6 @@ class SparseMatrixOperator(DealIIBaseOperator):
         if not isinstance(op, pd2.SparseMatrixOperator):
             raise TypeError(f"op must be pd2.SparseMatrixOperator, got {type(op).__name__}")
         super().__init__(op, name=name, source_space=source_space, range_space=range_space)
-
-    # IMPORTANT: remove jacobian override; base implementation is adapter-safe and preserves config
 
     def _assemble_lincomb(
         self,

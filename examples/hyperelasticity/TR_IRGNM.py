@@ -48,10 +48,10 @@ logger.setLevel(logging.DEBUG)
 
 #########################################################################################''
 set_log_levels({
-    'pymor.operators.constructions.LincombOperator' : 'ERROR',
-    'pymor.operators.constructions.AdjointOperator' : 'ERROR',
+    #'pymor.operators.constructions.LincombOperator' : 'ERROR',
+    #'pymor.operators.constructions.AdjointOperator' : 'ERROR',
     #'pymor.algorithms.genericsolvers.lgmres' : 'ERROR',
-    'pymor.algorithms' : 'ERROR'
+    #'pymor.algorithms' : 'ERROR'
 })
 
 set_defaults({
@@ -70,8 +70,8 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    state_y_res = 8
-    state_z_res = 8
+    state_y_res = 30
+    state_z_res = 30
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -94,15 +94,15 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    # q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
-    # q_exact = q_exact.T
+    q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
+    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    q_exact = q_exact.T
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    q_exact[0,50] = 2.0
+    #q_exact[0,50] = 2.0
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -329,14 +329,14 @@ def main():
             'parameter_basis' : {
                 'additional_snapshots' :{
                     'include_lin_grad' : False,
-                    'include_each_nabla_J_time_step' : False,
+                    'include_each_nabla_J_time_step' : True,
                     'include_each_nabla_lin_J_time_step' : False,
                     'include_krylov_directions' : False,
                 },
                 'compression' : {
                     'normalize' : True,
                     'HaPOD' : {
-                        'eps': 1e-17,
+                        'eps': 1e-1,
                         'omega' : 0.1,
                     },
                 },

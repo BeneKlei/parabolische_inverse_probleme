@@ -56,12 +56,18 @@ PYBIND11_MODULE(material_model, m) {
          .def_readonly("observation_operator", &MaterialModel::m_observation_operator)
          .def_readonly("bilinear_cost_operator", &MaterialModel::m_bilinear_cost_operator)
          .def_readonly("force_list", &MaterialModel::m_force_list)
-         //.def_readonly("m_state_sp", &MaterialModel::m_state_sp)
 
          .def("get_component_dofs", &MaterialModel::get_component_dofs, py::return_value_policy::reference_internal)
          .def("clear_rhs_boundary_dofs", &MaterialModel::clear_rhs_boundary_dofs, py::return_value_policy::reference_internal)
          .def("save_state", &MaterialModel::save_state, py::return_value_policy::reference_internal)
-         .def("save_time_series", &MaterialModel::save_time_series, py::return_value_policy::reference_internal);
+         .def("save_time_series", &MaterialModel::save_time_series, py::return_value_policy::reference_internal)
+         
+         .def("state_space_context", &MaterialModel::state_space_context, py::return_value_policy::reference_internal)
+         .def("param_space_context", &MaterialModel::param_space_context, py::return_value_policy::reference_internal)
+         .def("q_time_dep", &MaterialModel::q_time_dep, py::return_value_policy::reference_internal)
+         .def("A_affine", &MaterialModel::A_affine, py::return_value_policy::reference_internal)
+         .def("A_q_linear", &MaterialModel::A_q_linear, py::return_value_policy::reference_internal)
+         ;
 
       py::enum_<MaterialOperatorType>(m, "MaterialOperatorType")
          .value("Cosserat", MaterialOperatorType::Cosserat)

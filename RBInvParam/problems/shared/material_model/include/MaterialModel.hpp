@@ -116,6 +116,17 @@ public:
     return m_param_space_context;
   }
 
+  const bool& q_time_dep() const {
+      return m_q_time_dep;
+  }
+
+  const bool& A_affine() const {
+      return m_A_affine;
+  }
+
+  const bool& A_q_linear() const {
+      return m_A_q_linear;
+  }
 
   // --------------------------------------------------
 
@@ -150,12 +161,12 @@ public:
   SparsityPattern m_obs_space_product_sp;
 
   Number delta_t; 
-  
+
+
 protected:
   const MaterialModelBaseConfig m_base_config;
 
   // ---------------------- State FE ----------------------
-  // TODO Rename to x_state
   Triangulation<dim> m_state_triangulation;
   FESystem<dim> m_state_fe;
   DoFHandler<dim> m_state_dof_handler;
@@ -190,6 +201,12 @@ protected:
   AffineConstraints<Number> m_BC_constraints;
   std::unique_ptr<BodyForce> m_body_force;
 
+  // ------------------------------------------------------
+  
+  bool m_q_time_dep = false;
+  bool m_A_affine = true;
+  bool m_A_q_linear = false;
+
 private:  
   void setup_param_grid();
   void setup_state_grid();
@@ -201,5 +218,4 @@ private:
   
   void assemble_force_list();
   void assemble_force(Vector<Number>& result, double time);
-  
 };

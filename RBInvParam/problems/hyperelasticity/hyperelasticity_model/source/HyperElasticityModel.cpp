@@ -40,6 +40,8 @@ void HyperElasticityModel::setup_material_operator() {
         throw std::runtime_error("Unknown StoredEnergyFunctionType.");
     }
 
+    m_A_q_linear = m_stored_energy_function->m_linear;
+    m_A_affine = true;
 };
 
 std::unique_ptr<typename HyperElasticityModel::BaseOp> 
@@ -53,7 +55,7 @@ HyperElasticityModel::assemble_A_q(
     if (!q_np.is_none())
       _unpack_q_1d(q_np.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>(), q);
     
-    if (m_stored_energy_function->m_linear) 
+    if (m_A_q_linear) 
         return std::make_unique<HyperElasticityModel::LinSEOp>(
             q,
             full_q,
