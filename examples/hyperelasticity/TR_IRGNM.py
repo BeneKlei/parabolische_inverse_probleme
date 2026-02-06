@@ -49,7 +49,7 @@ logger.setLevel(logging.DEBUG)
 #########################################################################################''
 set_log_levels({
     'pymor.operators.constructions.LincombOperator' : 'ERROR',
-    #'pymor.operators.constructions.AdjointOperator' : 'ERROR',
+    'pymor.operators.constructions.AdjointOperator' : 'ERROR',
     #'pymor.algorithms.genericsolvers.lgmres' : 'ERROR',
     'pymor.algorithms' : 'ERROR'
 })
@@ -83,6 +83,8 @@ def main():
 
     T_final = 5.0
     nt = 50    
+    # T_final = 1.0
+    # nt = 10    
 
     # T_final = 1
     # nt = 20
@@ -118,13 +120,13 @@ def main():
             'hyperparameter' : {}
         },
         'stored_energy' : {
-            #'type' : hm.StoredEnergyFunctionType.Hookean,
-            'type' : hm.StoredEnergyFunctionType.NeoHookean,
+            'type' : hm.StoredEnergyFunctionType.Hookean,
+            #'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                'mu' : 26.32, 
-                'kappa' : 68.60
-                # 'mu' : 1e1, 
-                # 'lambda' : 1e1
+                # 'mu' : 26.32, 
+                # 'kappa' : 68.60
+                'mu' : 1e1, 
+                'lambda' : 1e1
             }
         },
         'observation_operator': {
@@ -288,8 +290,8 @@ def main():
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
-        #'tau': 3.50,                                                  # Relative (to the noise) convergence tolerance for optimization
+        #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
@@ -327,20 +329,18 @@ def main():
             'parameter_basis' : {
                 'additional_snapshots' :{
                     'include_lin_grad' : False,
-                    'include_each_nabla_J_time_step' : True,
+                    'include_each_nabla_J_time_step' : False,
                     'include_each_nabla_lin_J_time_step' : False,
                     'include_krylov_directions' : False,
                 },
                 'compression' : {
                     'normalize' : True,
                     'HaPOD' : {
-                        'eps': 1e-1,
+                        'eps': 1e-17,
                         'omega' : 0.1,
                     },
                 },
-                'coarsing' : {
-                    'rel_tol_coeff_nabla_J' : 1e-2,
-                }
+                'coarsing' : None,
             },
             'state_basis' : None,
             'adjoint_basis' : None

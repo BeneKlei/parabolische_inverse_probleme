@@ -21,31 +21,48 @@ void bind_operator(py::module_& m)
     using BaseOp   = BaseOperator<Number>;
     using SpMatOp  = SparseMatrixOperator<Number>;
 
+    using LinStorEneOp   = LinearStoredEnergyOperator<3, Number>;
     using StorEneOp      = StoredEnergyOperator<3, Number>;
     using StorEneJacOp   = StoredEnergyJacobianOperator<3, Number>;
     using StorEneParOp   = StoredEnergyParamDerivOperator<3, Number>;
 
-    // --- StoredEnergyOperator ---
-    py::class_<StorEneOp, BaseOp, std::unique_ptr<StorEneOp>>(m, "StoredEnergyOperator")
-        .def("apply", &StorEneOp::apply, py::arg("y"), py::arg("x"))
-        .def("dim_source", &StorEneOp::dim_source)
-        .def("dim_range", &StorEneOp::dim_range)
-        .def("jacobian", &StorEneOp::jacobian)
-        .def_readonly("linear", &BaseOp::m_linear);
+    py::class_<LinStorEneOp, SpMatOp, std::unique_ptr<LinStorEneOp>>(m, "LinearStoredEnergyOperator");
+    py::class_<StorEneOp, BaseOp, std::unique_ptr<StorEneOp>>(m, "StoredEnergyOperator");
+    py::class_<StorEneJacOp, SpMatOp, std::unique_ptr<StorEneJacOp>>(m, "StoredEnergyJacobianOperator");
+    py::class_<StorEneParOp, BaseOp, std::unique_ptr<StorEneParOp>>(m, "StoredEnergyParamDerivOperator");
 
-    // --- StoredEnergyJacobianOperator ---    
-    py::class_<StorEneJacOp, SpMatOp, std::unique_ptr<StorEneJacOp>>(m, "StoredEnergyJacobianOperator")
-        .def("apply", &SpMatOp::apply, py::arg("y"), py::arg("x"))
-        .def("dim_source", &SpMatOp::dim_source)
-        .def("dim_range", &SpMatOp::dim_range)
-        .def_readonly("linear", &BaseOp::m_linear);
+    // // --- StoredEnergyOperator ---
+    // py::class_<LinStorEneOp, BaseOp, std::unique_ptr<LinStorEneOp>>(m, "LinearStoredEnergyOperator")
+    //     .def("apply", &StorEneOp::apply, py::arg("y"), py::arg("x"))
+    //     .def("dim_source", &StorEneOp::dim_source)
+    //     .def("dim_range", &StorEneOp::dim_range)
+    //     .def("jacobian", &StorEneOp::jacobian)
+    //     .def_readonly("linear", &BaseOp::m_linear);
 
-    // --- StoredEnergyParamDerivOperator ---
-    py::class_<StorEneParOp, BaseOp, std::unique_ptr<StorEneParOp>>(m, "StoredEnergyParamDerivOperator")
-        .def("apply", &StorEneParOp::apply, py::arg("y"), py::arg("d"))
-        .def("dim_source", &StorEneParOp::dim_source)
-        .def("dim_range", &StorEneParOp::dim_range)
-        .def_readonly("linear", &BaseOp::m_linear);
+    // // --- StoredEnergyOperator ---
+    // py::class_<StorEneOp, BaseOp, std::unique_ptr<StorEneOp>>(m, "StoredEnergyOperator")
+    //     .def("apply", &StorEneOp::apply, py::arg("y"), py::arg("x"))
+    //     .def("dim_source", &StorEneOp::dim_source)
+    //     .def("dim_range", &StorEneOp::dim_range)
+    //     .def("jacobian", &StorEneOp::jacobian)
+    //     .def_readonly("linear", &BaseOp::m_linear);
+
+    // // // --- StoredEnergyJacobianOperator ---    
+    // // py::class_<StorEneJacOp, SpMatOp, std::unique_ptr<StorEneJacOp>>(m, "StoredEnergyJacobianOperator")
+    // //     .def("apply", &SpMatOp::apply, py::arg("y"), py::arg("x"))
+    // //     .def("dim_source", &SpMatOp::dim_source)
+    // //     .def("dim_range", &SpMatOp::dim_range)
+    // //     .def_readonly("linear", &BaseOp::m_linear);
+
+    // // --- StoredEnergyJacobianOperator ---    
+    // py::class_<StorEneJacOp, SpMatOp, std::unique_ptr<StorEneJacOp>>(m, "StoredEnergyJacobianOperator");
+
+    // // --- StoredEnergyParamDerivOperator ---
+    // py::class_<StorEneParOp, BaseOp, std::unique_ptr<StorEneParOp>>(m, "StoredEnergyParamDerivOperator")
+    //     .def("apply", &StorEneParOp::apply, py::arg("y"), py::arg("d"))
+    //     .def("dim_source", &StorEneParOp::dim_source)
+    //     .def("dim_range", &StorEneParOp::dim_range)
+    //     .def_readonly("linear", &BaseOp::m_linear);
 }
 
 PYBIND11_MODULE(hyperelasticity_model, m) {

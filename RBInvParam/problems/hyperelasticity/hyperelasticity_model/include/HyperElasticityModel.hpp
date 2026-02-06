@@ -19,25 +19,20 @@ typedef double Number;
 class HyperElasticityModel : public MaterialModel
 {
 public:
-    using SEOp       = StoredEnergyOperator<dim, Number>;
-    using SEJacOp    = StoredEnergyJacobianOperator<dim, Number>;
-    using SEParamOp  = StoredEnergyParamDerivOperator<dim, Number>;
-    using SpasMatOp = SparseMatrixOperator<Number>;
+    using BaseOp         = BaseOperator<Number>;
+    using LinSEOp        = LinearStoredEnergyOperator<dim, Number>;
+    using SEOp           = StoredEnergyOperator<dim, Number>;
+    using SEParamDerivOp = StoredEnergyParamDerivOperator<dim, Number>;
 
     explicit HyperElasticityModel(const HyperElasticityModelConfig& config);
     void setup_material_operator();
 
-    std::unique_ptr<SEOp> assemble_A_q(
+    std::unique_ptr<BaseOp> assemble_A_q(
         const py::object q_np,
         bool param_linear_part_only = false
     );
 
-    // std::unique_ptr<SEJacOp> assemble_partial_u_A_q_u(
-    //     const py::object q_np,
-    //     const Vector<Number>& u
-    // );
-
-    std::unique_ptr<SEParamOp> assemble_partial_q_A_q_u(
+    std::unique_ptr<BaseOp> assemble_partial_q_A_q_u(
         const py::object q_np,
         const Vector<Number>& u
     );

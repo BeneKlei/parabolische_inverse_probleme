@@ -42,7 +42,7 @@ void HyperElasticityModel::setup_material_operator() {
 
 };
 
-std::unique_ptr<typename HyperElasticityModel::SEOp> 
+std::unique_ptr<typename HyperElasticityModel::BaseOp> 
 HyperElasticityModel::assemble_A_q(
     py::object q_np,
     bool param_linear_part_only
@@ -53,14 +53,24 @@ HyperElasticityModel::assemble_A_q(
     if (!q_np.is_none())
       _unpack_q_1d(q_np.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>(), q);
     
-    return std::make_unique<HyperElasticityModel::SEOp>(
-        q,
-        full_q,
-        this->m_state_space_context,
-        this->m_param_space_context,
-        *m_stored_energy_function,
-        param_linear_part_only
-    );
+    if (m_stored_energy_function->m_linear) 
+        return std::make_unique<HyperElasticityModel::LinSEOp>(
+            q,
+            full_q,
+            this->m_state_space_context,
+            this->m_param_space_context,
+            *m_stored_energy_function,
+            param_linear_part_only
+        );
+    else 
+        return std::make_unique<HyperElasticityModel::SEOp>(
+            q,
+            full_q,
+            this->m_state_space_context,
+            this->m_param_space_context,
+            *m_stored_energy_function,
+            param_linear_part_only
+        );
 }
 
 // std::unique_ptr<typename HyperElasticityModel::SEJacOp> 
@@ -84,7 +94,7 @@ HyperElasticityModel::assemble_A_q(
 //     );
 // }
 
-std::unique_ptr<typename HyperElasticityModel::SEParamOp> 
+std::unique_ptr<typename HyperElasticityModel::BaseOp> 
 HyperElasticityModel::assemble_partial_q_A_q_u(
     py::object q_np,
     const Vector<Number>& u
@@ -95,7 +105,7 @@ HyperElasticityModel::assemble_partial_q_A_q_u(
     if (!q_np.is_none())
       _unpack_q_1d(q_np.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>(), q);
     
-    return std::make_unique<HyperElasticityModel::SEParamOp>(
+    return std::make_unique<HyperElasticityModel::SEParamDerivOp>(
         u,
         q,
         full_q,

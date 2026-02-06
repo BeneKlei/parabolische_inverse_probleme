@@ -393,6 +393,9 @@ class SnapshotPreprocessor(BasicObject):
 
         self.logger.debug("Starting snapshot preprocessing")
 
+        if not config:
+            return snapshots
+
         # --- Normalize
         if config.get("normalize", False):
             self.logger.debug("  Applying 'normalize'")

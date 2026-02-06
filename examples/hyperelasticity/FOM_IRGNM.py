@@ -116,13 +116,13 @@ def main():
             'hyperparameter' : {}
         },
         'stored_energy' : {
-            #'type' : hm.StoredEnergyFunctionType.Hookean,
-            'type' : hm.StoredEnergyFunctionType.NeoHookean,
+            'type' : hm.StoredEnergyFunctionType.Hookean,
+            #'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                'mu' : 26.32, 
-                'kappa' : 68.60
-                # 'mu' : 1e1, 
-                # 'lambda' : 1e1
+                # 'mu' : 26.32, 
+                # 'kappa' : 68.60
+                'mu' : 1e1, 
+                'lambda' : 1e1
             }
         },
         'observation_operator': {
@@ -286,7 +286,8 @@ def main():
         'alpha_0': 1e-5,                                          # Initial regularization parameter
         #'alpha_0': 1e-14,                                          # Initial regularization parameter
         'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
-        'tau': 1.50,                                              # Relative (to the noise) convergence tolerance for optimization
+        #'tau': 1.50,                                              # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.00,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
         'theta': 0.4,                                         # Lower tolerance for the direction acceptance condition
         'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition

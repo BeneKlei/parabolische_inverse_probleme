@@ -1622,6 +1622,9 @@ class QrVrROMOptimizer(Optimizer):
             snapshots = self.snapshots[basis]
 
             base_cfg = enrichment[basis]["compression"]
+            if not base_cfg:
+                base_cfg = {}
+
             if compression_override and basis in compression_override:
                 # shallow merge is enough because we're only overriding 1–2 keys
                 cfg = {**base_cfg, **compression_override[basis]}
@@ -1849,6 +1852,7 @@ class QrVrROMOptimizer(Optimizer):
         J_r = self.QrVrROM.objective(u_r)
         nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
         norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
+        
 
         # p_r_start = self.reductor.reconstruct(p_r, basis='state_basis')
         # self.FOM.A.material_model.save_time_series(

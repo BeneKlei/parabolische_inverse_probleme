@@ -16,14 +16,7 @@
 
 using namespace dealii;
 
-// // ---- forward declarations ----
-// template <int dim, typename Number>
-// class StoredEnergyJacobianOperator;
-
-// template <int dim, typename Number>
-// class StoredEnergyParamDerivOperator; // optional, only if referenced early
-// // ------------------------------
-
+// ---------------------------------- StoredEnergyOperatorBase ----------------------------------
 template <int dim, typename Number>
 class StoredEnergyOperatorBase
 {
@@ -33,6 +26,13 @@ protected:
                            const StateSpaceContext<dim, Number>    &state_space_context,
                            const ParamSpaceContext<dim, Number>    &param_space_context,
                            const StoredEnergyFunction<dim, Number> &stored_energy_function);
+  
+  SparseMatrix<Number> assemble_hessian_matrix(bool param_linear_part_only = false);
+  SparseMatrix<Number> assemble_hessian_matrix(
+    const Vector<Number> &u, 
+    bool param_linear_part_only = false
+  );
+
 
   const Vector<Number>                     m_q;
   const Vector<Number>                     m_full_q;
@@ -41,9 +41,29 @@ protected:
   const StoredEnergyFunction<dim, Number> &m_stored_energy_function;
 };
 
+// ---------------------------------- LinearStoredEnergyOperator ----------------------------------
 template <int dim, typename Number>
-class StoredEnergyOperator : public BaseOperator<Number>,
-                             public StoredEnergyOperatorBase<dim, Number>
+class LinearStoredEnergyOperator : public StoredEnergyOperatorBase<dim, Number>,
+                                   public SparseMatrixOperator<Number>
+                                   
+{
+public:
+  LinearStoredEnergyOperator(const Vector<Number>                    &q,
+                             const Vector<Number>                    &full_q,
+                             const StateSpaceContext<dim, Number>    &state_space_context,
+                             const ParamSpaceContext<dim, Number>    &param_space_context,
+                             const StoredEnergyFunction<dim, Number> &stored_energy_function,
+                             const bool                              &param_linear_part_only = false);
+         
+private:
+  const bool m_param_linear_part_only;
+};
+
+// ---------------------------------- StoredEnergyOperator ----------------------------------
+template <int dim, typename Number>
+class StoredEnergyOperator : public StoredEnergyOperatorBase<dim, Number>,
+                             public BaseOperator<Number>
+                             
 {
 public:
   StoredEnergyOperator(const Vector<Number>                    &q,
@@ -67,6 +87,7 @@ private:
   const bool m_param_linear_part_only;
 };
 
+// ---------------------------------- StoredEnergyJacobianOperator ----------------------------------
 template <int dim, typename Number>
 class StoredEnergyJacobianOperator : public StoredEnergyOperatorBase<dim, Number>,
                                      public SparseMatrixOperator<Number>
@@ -81,15 +102,14 @@ public:
                                const bool                              &param_linear_part_only = false);
 
 private:
-  SparseMatrix<Number> assemble_jacobian(const Vector<Number> &u);
-
   const Vector<Number> m_u;  
   const bool m_param_linear_part_only;
 };
 
+// ---------------------------------- StoredEnergyParamDerivOperator ----------------------------------
 template <int dim, typename Number>
-class StoredEnergyParamDerivOperator : public BaseOperator<Number>,
-                                       public StoredEnergyOperatorBase<dim, Number>
+class StoredEnergyParamDerivOperator : public StoredEnergyOperatorBase<dim, Number>,
+                                       public BaseOperator<Number>
 {
 public:
   StoredEnergyParamDerivOperator(const Vector<Number>                    &u,
