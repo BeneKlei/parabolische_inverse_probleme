@@ -81,58 +81,40 @@ void ParamSpaceContext<dim, Number>::evaluate_values(
   }
 }
 
-
-
-
-
-// // TODO This implementation is maximal quick and dirty and should be replaced later!
-// template <int dim, typename Number>
-// void ParamSpaceContext<dim, Number>::evaluate_values(
-//   const Vector<Number>          &param_full,
-//   const std::vector<Point<dim>> &points,
-//   std::vector<Number>           &values) const
-// {
-//   std::cout << "Enter" << std::endl;
-
-//   AssertDimension(param_full.size(), m_dof_handler.n_dofs());
-  
-//   //m_rpe.reinit(points, m_dof_handler.get_triangulation(), m_mapping);
-//   values.resize(points.size());
-//   const Number threshold = Number(0.2) / Number(30);
-          
-//   std::cout << "Set up" << std::endl;
-  
-//   for (std::size_t i = 0; i < points.size(); ++i)
-//   {
-//     const auto &p = points[i];
-//     // values[i] = (p[0] >= threshold) ? Number(1.0) : 
-//     // VectorTools::point_value(
-//     //   m_mapping,
-//     //   m_dof_handler,
-//     //   param_full,
-//     //   p
-//     // );
-//   }
-
-//   std::cout << "Leave" << std::endl;
-// }
-
-
 template <int dim, typename Number>
-void ParamSpaceContext<dim, Number>::reconstruct_full_param(
-  const Vector<Number>          &param,
-  Vector<Number>                &param_full
-) const
+void ParamSpaceContext<dim, Number>::project_to_free_param(
+  const Vector<Number> &full_param,
+  Vector<Number>       &free_param) const
 {
-  AssertDimension(param_full.size(), m_free_dofs.size());
-  
-  param_full.reinit(m_dof_handler.n_dofs());
+  AssertDimension(full_param.size(), m_dof_handler.n_dofs());
+  free_param.reinit(m_free_dofs.size()); 
 
-  for (std::size_t k = 0; k < m_free_dofs.size(); ++k)
-    param_full[m_free_dofs[k]] = param[k];
+  unsigned int fi = 0;
+  for (types::global_dof_index gi = 0; gi < m_dof_handler.n_dofs(); ++gi)
+    if (!m_constraints.is_constrained(gi))
+    {
+      AssertIndexRange(fi, free_param.size());
+      free_param[fi++] = full_param[gi];
+    }
 
-  m_constraints.distribute(param_full);
+  AssertDimension(fi, free_param.size());
 }
+
+// template <int dim, typename Number>
+// void ParamSpaceContext<dim, Number>::reconstruct_full_param(
+//   const Vector<Number>          &param,
+//   Vector<Number>                &param_full
+// ) const
+// {
+//   AssertDimension(param_full.size(), m_free_dofs.size());
+  
+//   param_full.reinit(m_dof_handler.n_dofs());
+
+//   for (std::size_t k = 0; k < m_free_dofs.size(); ++k)
+//     param_full[m_free_dofs[k]] = param[k];
+
+//   m_constraints.distribute(param_full);
+// }
 
 // explicit instantiations (since definitions are in a .cpp)
 template class ParamSpaceContext<2, double>;

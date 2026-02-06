@@ -162,8 +162,6 @@ template <class Number, class MatrixType>
 void MatrixOperator<Number, MatrixType>::apply_inverse(Vector<Number> &y,
                                                        const Vector<Number> &f) const
 {
-  std::cout << "deal.ii apply_inverse" << std::endl;
-
   AssertDimension(f.size(), this->dim_range());
   y.reinit(this->dim_source());
   y = 0;
@@ -176,9 +174,7 @@ void MatrixOperator<Number, MatrixType>::apply_inverse(Vector<Number> &y,
 
     PreconditionSSOR<SparseMatrix<Number>> preconditioner;
     preconditioner.initialize(m_matrix, 1.2);
-    std::cout << "solve sparse" << std::endl;
     solver.solve(m_matrix, y, f, preconditioner);
-    std::cout << "done" << std::endl;
   }
   else
   {

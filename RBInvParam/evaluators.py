@@ -243,7 +243,6 @@ class EvaluatorLincomb(EvaluatorA):
         if A_q is None:
             A_q = self.get_A_q(q)
 
-        assert isinstance(A_q, LincombOperator)
         
         #try:
             # print("##########################################")

@@ -44,7 +44,8 @@ SparseMatrix<Number> StoredEnergyOperatorBase<dim, Number>::assemble_hessian_mat
 {
   const unsigned int n_q = m_state_space_context.quadrature().size();
   // --- FEValues for state ---
-  FEValues<dim> fe_values_state(m_state_space_context.fe(),
+  FEValues<dim> fe_values_state(m_state_space_context.mapping(),
+                                m_state_space_context.fe(),
                                 m_state_space_context.quadrature(),
                                 update_gradients | update_JxW_values |
                                 update_quadrature_points | update_values);
@@ -197,7 +198,8 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
   y = Number(0);
 
   const unsigned int n_q = this->m_state_space_context.quadrature().size();
-  FEValues<dim> fe_values_state(this->m_state_space_context.fe(),
+  FEValues<dim> fe_values_state(this->m_state_space_context.mapping(),
+                                this->m_state_space_context.fe(),
                                 this->m_state_space_context.quadrature(),
                                 update_gradients | update_JxW_values |
                                 update_quadrature_points | update_values);
@@ -348,7 +350,8 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply(Vector<Number>       &y,
   y = Number(0);
 
   const unsigned int n_q = this->m_state_space_context.quadrature().size();
-  FEValues<dim> fe_values_state(this->m_state_space_context.fe(),
+  FEValues<dim> fe_values_state(this->m_state_space_context.mapping(),
+                                this->m_state_space_context.fe(),
                                 this->m_state_space_context.quadrature(),
                                 update_gradients | update_JxW_values |
                                 update_quadrature_points | update_values);
@@ -420,6 +423,102 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply(Vector<Number>       &y,
 }
 
 
+// template <int dim, typename Number>
+// void StoredEnergyParamDerivOperator<dim, Number>::apply_adjoint(Vector<Number>       &y,
+//                                                                 const Vector<Number> &p) const
+// {
+//   AssertDimension(d.size(), dim_range());
+//   y.reinit(this->dim_source());
+//   y = Number(0);
+
+//   const unsigned int n_q = this->m_state_space_context.quadrature().size();
+
+//   FEValues<dim> fe_values_state(this->m_state_space_context.mapping(),
+//                                 this->m_state_space_context.fe(),
+//                                 this->m_state_space_context.quadrature(),
+//                                 update_gradients | update_JxW_values |
+//                                 update_quadrature_points | update_values);
+
+//   FEValues<dim> fe_values_param(this->m_param_space_context.mapping(),
+//                                 this->m_param_space_context.fe(),
+//                                 this->m_param_space_context.quadrature(),
+//                                 update_gradients | update_JxW_values |
+//                                 update_quadrature_points | update_values);
+
+//   const unsigned int dofs_per_cell_state = this->m_state_space_context.fe().dofs_per_cell;
+//   const unsigned int dofs_per_cell_param = this->m_param_space_context.fe().dofs_per_cell;
+
+//   // --- local storage ---
+//   Vector<Number> local_y(dofs_per_cell_param);
+//   std::vector<types::global_dof_index> local_dof_indices_param(dofs_per_cell_param);
+  
+//   const FEValuesExtractors::Vector vel(0);
+
+//   // TODO Multi query scenario. Alloc once and reuse.
+//   std::vector<Tensor<2, dim>> u_gradients(n_q);
+//   std::vector<Tensor<2, dim>> p_gradients(n_q);
+
+//   const Tensor<2, dim> I(unit_symmetric_tensor<dim, Number>());
+  
+//   const auto &dh_state = this->m_state_space_context.dof_handler();
+//   const auto &dh_param = this->m_param_space_context.dof_handler();
+//   const auto &tria     = dh_state.get_triangulation();
+
+//   Vector<Number> y_full;
+//   y_full.reinit(dh_param.n_dofs());
+//   y_full = Number(0);
+
+//   for (const auto &cell : tria.active_cell_iterators())
+//   {
+//     local_y = Number(0);
+
+//     const auto cell_state = typename DoFHandler<dim>::active_cell_iterator(&tria,
+//                           cell->level(), cell->index(), &dh_state);
+//     const auto cell_param = typename DoFHandler<dim>::active_cell_iterator(&tria,
+//                           cell->level(), cell->index(), &dh_param);
+
+//     fe_values_state.reinit(cell_state);
+//     fe_values_param.reinit(cell_param);
+
+//     fe_values_state[vel].get_function_gradients(this->m_u, u_gradients);
+//     fe_values_state[vel].get_function_gradients(p,         p_gradients);
+
+//     const auto &q_points = fe_values_state.get_quadrature_points();
+    
+//     for (unsigned int q = 0; q < n_q; ++q)
+//     {
+//       const auto &q_point        = q_points[q];
+//       const auto &u_grad         = u_gradients[q];
+//       const auto &p_grad         = p_gradients[q];
+
+//       Number param_value = Number(0.0);
+
+//       const Tensor<2, dim> DY = this->m_stored_energy_function.gradient(q_point, u_grad + I);
+//       const Number w = scalar_product(DY, p_grad) * fe_values_state.JxW(q);
+
+//       if (w == Number(0))
+//         continue;
+
+//       for (unsigned int i = 0; i < dofs_per_cell_param; ++i)
+//       {
+//         const Number phi_i = fe_values_param.shape_value(i, q);
+//         local_y(i) += phi_i * w;
+//       }
+//     }
+
+//     cell_param->get_dof_indices(local_dof_indices_param);
+//     this->m_param_space_context.constraints().distribute_local_to_global(
+//       local_y,
+//       local_dof_indices_param,
+//       y_full
+//     );
+//   }
+
+//   y_full.compress(VectorOperation::add);
+//   this->m_param_space_context.constraints().set_zero(y_full);
+//   this->m_param_space_context.project_to_free_param(y_full, y);
+// }
+
 template <int dim, typename Number>
 void StoredEnergyParamDerivOperator<dim, Number>::apply_adjoint(Vector<Number>       &y,
                                                                 const Vector<Number> &p) const
@@ -479,14 +578,12 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply_adjoint(Vector<Number>  
           true
         );
 
-        if (param_value == Number(0.0))
-          continue;
-
         y(i) += param_value * DYp_grad * fe_values_state.JxW(q);
       }
     }
   }
 }
+
 
 // ---------------------------------------------------------------------------------------------------- 
 template class LinearStoredEnergyOperator<2, double>;

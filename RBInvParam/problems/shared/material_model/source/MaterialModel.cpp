@@ -32,21 +32,24 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
   , m_state_fe(FE_Q<dim>(1), dim)
   , m_state_dof_handler(m_state_triangulation)
   , m_state_quadrature(QGaussLobatto<dim>(2))
-  , m_param_fe(FE_Q<dim>(1))
-  , m_param_dof_handler(m_param_triangulation)
   , m_state_space_context(m_state_triangulation,
                           m_state_fe,
                           m_state_dof_handler,
+                          m_state_mapping,
                           m_state_quadrature,
                           m_state_sp, 
                           m_BC_constraints,
                           m_base_config.state_grid_resolution, 
                           m_base_config.p1, 
                           m_base_config.p2)
-  , m_param_space_context(m_param_triangulation,
+  , m_param_fe(FE_Q<dim>(1))
+  , m_param_dof_handler(m_param_triangulation)                          
+  , m_param_quadrature(QGaussLobatto<dim>(2))
+  , m_param_space_context(m_state_triangulation, // For the moment this must coincide for state and param space
                           m_param_fe,
                           m_param_dof_handler,
-                          m_param_mapping,
+                          m_state_mapping,  // For the moment this must coincide for state and param space
+                          m_state_quadrature,  // For the moment this must coincide for state and param space
                           //m_param_rpe,
                           m_param_constraints,
                           m_param_free_dofs,

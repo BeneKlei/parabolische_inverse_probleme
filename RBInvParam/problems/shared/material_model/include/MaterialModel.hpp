@@ -168,22 +168,24 @@ protected:
 
   // ---------------------- State FE ----------------------
   Triangulation<dim> m_state_triangulation;
-  FESystem<dim> m_state_fe;
-  DoFHandler<dim> m_state_dof_handler;
+  FESystem<dim>      m_state_fe;
+  DoFHandler<dim>    m_state_dof_handler;
   QGaussLobatto<dim> m_state_quadrature;
-  SparsityPattern m_state_sp;
-  MappingQ1<dim> m_state_mapping;  
+  SparsityPattern    m_state_sp;
+  MappingQ1<dim>     m_state_mapping;
 
   // ---------------------- Param FE ----------------------
-  Triangulation<dim> m_param_triangulation;
-  FE_Q<dim> m_param_fe;
-  DoFHandler<dim> m_param_dof_handler;
-  MappingQ1<dim> m_param_mapping;  
-  
-  //Utilities::MPI::RemotePointEvaluation<dim, dim> m_param_rpe;
+  Triangulation<dim>  m_param_triangulation;
+  FE_Q<dim>           m_param_fe;
+  DoFHandler<dim>     m_param_dof_handler;
+  QGaussLobatto<dim>  m_param_quadrature;
+  MappingQ1<dim>      m_param_mapping;
 
-  AffineConstraints<Number> m_param_constraints;
+  // Utilities::MPI::RemotePointEvaluation<dim, dim> m_param_rpe;
+
+  AffineConstraints<Number>            m_param_constraints;
   std::vector<types::global_dof_index> m_param_free_dofs; // reduced index -> global DoF index
+
 
   // ---------------------- Contexts ----------------------
   StateSpaceContext<dim, Number> m_state_space_context;

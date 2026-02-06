@@ -20,6 +20,8 @@ class HyperElasticityModel : public MaterialModel
 {
 public:
     using BaseOp         = BaseOperator<Number>;
+    using FullMatOp         = FullMatrixOperator<Number>;
+
     using LinSEOp        = LinearStoredEnergyOperator<dim, Number>;
     using SEOp           = StoredEnergyOperator<dim, Number>;
     using SEParamDerivOp = StoredEnergyParamDerivOperator<dim, Number>;
@@ -29,6 +31,11 @@ public:
 
     std::unique_ptr<BaseOp> assemble_A_q(
         const py::object q_np,
+        bool param_linear_part_only = false
+    );
+
+    std::unique_ptr<BaseOp> _assemble_A_q(
+        const Vector<Number>& q,
         bool param_linear_part_only = false
     );
 

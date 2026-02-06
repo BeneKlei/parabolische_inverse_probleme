@@ -6,6 +6,7 @@
 
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/lac/sparsity_pattern.h>
 
@@ -18,16 +19,17 @@ public:
   StateSpaceContext(const Triangulation<dim>        &triangulation,
                     const FESystem<dim>             &fe,
                     const DoFHandler<dim>           &dof_handler,
+                    const Mapping<dim>              &mapping,
                     const Quadrature<dim>           &quadrature,
                     const SparsityPattern           &state_sp,
                     const AffineConstraints<Number> &BC_constraints,
                     const std::vector<unsigned int>  grid_resolution,
                     const Point<dim>                 p1,
                     const Point<dim>                 p2)
-
-    : m_state_triangulation(triangulation)
+    : m_triangulation(triangulation)
     , m_fe(fe)
     , m_dof_handler(dof_handler)
+    , m_mapping(mapping)
     , m_quadrature(quadrature)
     , m_state_sp(state_sp)
     , m_BC_constraints(BC_constraints)
@@ -36,9 +38,10 @@ public:
     , m_p2(p2)
   {}
 
-  const Triangulation<dim>           & triangulation()  const { return m_state_triangulation; }
+  const Triangulation<dim>           & triangulation()  const { return m_triangulation; }
   const FESystem<dim>                & fe()             const { return m_fe; }
   const DoFHandler<dim>              & dof_handler()    const { return m_dof_handler; }
+  const Mapping<dim>                 & mapping()        const { return m_mapping; }
   const Quadrature<dim>              & quadrature()     const { return m_quadrature; }
   const SparsityPattern              & state_sp()       const { return m_state_sp; }
   const AffineConstraints<Number>    & BC_constraints() const { return m_BC_constraints; }
@@ -60,18 +63,23 @@ public:
 private:
   void pre_compute_quad_points_flat();
 
-  const Triangulation<dim>        & m_state_triangulation;
-  const FESystem<dim>             & m_fe;
-  const DoFHandler<dim>           & m_dof_handler;
-  const Quadrature<dim>           & m_quadrature;
-  const SparsityPattern           & m_state_sp;
-  const AffineConstraints<Number> & m_BC_constraints;
-  const std::vector<unsigned int>   m_grid_resolution;
-  const Point<dim>                  m_p1;
-  const Point<dim>                  m_p2;
+  // Geometry / discretization
+  const Triangulation<dim>                       &m_triangulation;
+  const Mapping<dim>                             &m_mapping;
+  const FESystem<dim>                            &m_fe;
+  const DoFHandler<dim>                          &m_dof_handler;
+  const Quadrature<dim>                          &m_quadrature;
+  const SparsityPattern                          & m_state_sp;
 
-  std::vector<Point<dim>>           m_quad_points_flat;
-  //std::vector<unsigned int>         m_cell_offsets;
+  // Constraints and parameter indexing
+  const AffineConstraints<Number>                &m_BC_constraints;
+
+  // Parameter grid metadata (owned by this context)
+  const std::vector<unsigned int>                 m_grid_resolution;
+  const Point<dim>                                m_p1;
+  const Point<dim>                                m_p2;
+
+  std::vector<Point<dim>>                         m_quad_points_flat;
 
   bool m_pre_computed = false;
 };

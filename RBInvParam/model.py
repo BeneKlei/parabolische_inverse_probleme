@@ -890,10 +890,17 @@ class InstationaryModelIP(ImmutableObject):
         if use_cached_operators:
             partial_q_A_ad_q_u = self._cached_operators[partial_q_A_ad_q_u_key]
         else:
-            partial_q_A_ad_q_u = [self.A.get_partial_q_A_q_u(
-                q[time_step] if self.q_time_dep else q,
-                u[time_step]
-            ) for time_step in range(len(u))]
+            partial_q_A_ad_q_u = []
+            for time_step in range(len(u)):
+                partial_q_A_ad_q_u.append(self.A.get_partial_q_A_q_u(
+                    q[time_step] if self.q_time_dep else q,
+                    u[time_step]
+                ))
+
+            # partial_q_A_ad_q_u = [self.A.get_partial_q_A_q_u(
+            #     q[time_step] if self.q_time_dep else q,
+            #     u[time_step]
+            # ) for time_step in range(len(u))]
 
         self.num_calls['gradient'] += 1
 

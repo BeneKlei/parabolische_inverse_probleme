@@ -65,8 +65,8 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    state_y_res = 8
-    state_z_res = 8
+    state_y_res = 10
+    state_z_res = 10
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -76,11 +76,11 @@ def main():
     #par_dim = 3
     T_initial = 0
 
-    # T_final = 1.0
-    # nt = 10
-
     T_final = 5.0
-    nt = 50    
+    nt = 10
+
+    # T_final = 5.0
+    # nt = 50    
 
     # T_final = 1
     # nt = 20
@@ -98,7 +98,7 @@ def main():
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    q_exact[0,50] = 2.0
+    q_exact[0,40:43] = 2.0
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -116,21 +116,21 @@ def main():
             'hyperparameter' : {}
         },
         'stored_energy' : {
-            'type' : hm.StoredEnergyFunctionType.Hookean,
-            #'type' : hm.StoredEnergyFunctionType.NeoHookean,
+            #'type' : hm.StoredEnergyFunctionType.Hookean,
+            'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                # 'mu' : 26.32, 
-                # 'kappa' : 68.60
-                'mu' : 1e1, 
-                'lambda' : 1e1
+                'mu' : 26.32, 
+                'kappa' : 68.60
+                # 'mu' : 1e1, 
+                # 'lambda' : 1e1
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Sensors,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
             'hyperparameter' : {
-                'spatial_resolution' : state_grid_resolution,
-                'radius' : 0.001,
-                'second_row' : False 
+                # 'spatial_resolution' : state_grid_resolution,
+                # 'radius' : 0.001,
+                # 'second_row' : False 
             }
         },
         'dims' : {
@@ -149,8 +149,8 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
-        #'noise_level': 0,                      # Absolute noise magnitude added to data
+        #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
+        'noise_level': 0,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -299,7 +299,8 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver
+            #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
