@@ -93,10 +93,15 @@ class HyperElasticitiyFOMEvaluatorA(FOMEvaluatorA):
         else:
             return ZeroOperator(source=self.source, range=self.range)
 
+    # TODO Rename this
     def get_parameteric_operator(self, q: VectorArray) -> Operator:
         assert q in self.Q
         assert len(q) == 1
-
-        param_op = self.get_A_q(q) - self.get_translation_operator()
-        return param_op.assemble()
+    
+        return DealIIBaseOperator(
+            op = self.hyperelasticity_model.assemble_A_q(
+                q_np = q.to_numpy().flatten(),
+                param_linear_part_only = True
+            )
+        )
    

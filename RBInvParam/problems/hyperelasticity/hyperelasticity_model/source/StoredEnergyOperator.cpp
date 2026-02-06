@@ -27,14 +27,17 @@ StoredEnergyOperator<dim, Number>::StoredEnergyOperator(
     const Vector<Number>                    &full_q,
     const StateSpaceContext<dim, Number>    &state_space_context,
     const ParamSpaceContext<dim, Number>    &param_space_context,
-    const StoredEnergyFunction<dim, Number> &stored_energy_function)
+    const StoredEnergyFunction<dim, Number> &stored_energy_function,
+    const bool                              &param_linear_part_only)
   : BaseOperator<Number>(stored_energy_function.m_linear)
   , StoredEnergyOperatorBase<dim, Number>(q,
                                           full_q,
                                           state_space_context,
                                           param_space_context,
                                           stored_energy_function)
+  , m_param_linear_part_only(param_linear_part_only)
 {}
+
 template <int dim, typename Number>
 std::size_t StoredEnergyOperator<dim, Number>::dim_source() const
 {
@@ -86,13 +89,21 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
     if (this->m_q.size() == 0)
       throw std::runtime_error("StoredEnergyOperator: q is required but is empty.");
       
-    this->m_param_space_context.evaluate_values(this->m_q, q_points, param_values);
+    this->m_param_space_context.evaluate_values(
+      this->m_q, 
+      q_points, 
+      param_values,
+      this->m_param_linear_part_only
+    );
 
     for (unsigned int q = 0; q < n_q; ++q)
     {      
       const auto &q_point        = q_points[q];
       const auto &u_grad         = u_gradients[q];
       const Number &param_value  = param_values[q];
+
+      if (param_value == Number(0.0))
+        continue;
 
       const Tensor<2, dim> DY = this->m_stored_energy_function.gradient(q_point, u_grad + I);
 
@@ -134,7 +145,8 @@ StoredEnergyOperator<dim, Number>::jacobian(const Vector<Number> &u) const
         this->m_full_q,
         this->m_state_space_context,
         this->m_param_space_context,
-        this->m_stored_energy_function
+        this->m_stored_energy_function,
+        this->m_param_linear_part_only
     );
 }
 
@@ -146,14 +158,16 @@ StoredEnergyJacobianOperator<dim, Number>::StoredEnergyJacobianOperator(
     const Vector<Number>                    &full_q,
     const StateSpaceContext<dim, Number>    &state_space_context,
     const ParamSpaceContext<dim, Number>    &param_space_context,
-    const StoredEnergyFunction<dim, Number> &stored_energy_function)
+    const StoredEnergyFunction<dim, Number> &stored_energy_function,
+    const bool                              &param_linear_part_only)
   : StoredEnergyOperatorBase<dim, Number>(q,
                                           full_q,
                                           state_space_context,
                                           param_space_context,
                                           stored_energy_function)
   , SparseMatrixOperator<Number>(assemble_jacobian(u))
-  , m_u(u)                                          
+  , m_u(u)
+  , m_param_linear_part_only(param_linear_part_only)                                         
 {}
 
 template <int dim, typename Number>
@@ -194,7 +208,13 @@ SparseMatrix<Number> StoredEnergyJacobianOperator<dim, Number>::assemble_jacobia
 
     if (this->m_q.size() == 0)
       throw std::runtime_error("StoredEnergyJacobianOperator: q is required but is empty.");
-    this->m_param_space_context.evaluate_values(this->m_q, q_points, param_values);
+    
+    this->m_param_space_context.evaluate_values(
+      this->m_q, 
+      q_points, 
+      param_values,
+      this->m_param_linear_part_only
+    );
 
     for (unsigned int q_point_id = 0; q_point_id < n_q; ++q_point_id)
     {
@@ -203,6 +223,9 @@ SparseMatrix<Number> StoredEnergyJacobianOperator<dim, Number>::assemble_jacobia
         const auto &q_point        = q_points[q_point_id];
         const auto &u_grad         = u_gradients[q_point_id];
         const Number &param_value  = param_values[q_point_id];
+
+        if (param_value == Number(0.0))
+          continue;
 
         const unsigned int component_i = 
           this->m_state_space_context.fe().system_to_component_index(i).first;
@@ -326,6 +349,9 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply(Vector<Number>       &y,
       const auto &u_grad         = u_gradients[q];
       const Number &param_value  = param_values[q];
 
+      if (param_value == Number(0.0))
+        continue;
+
       const Tensor<2, dim> DY = this->m_stored_energy_function.gradient(q_point, u_grad + I);
 
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
@@ -412,6 +438,9 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply_adjoint(Vector<Number>  
           q_point,
           true
         );
+
+        if (param_value == Number(0.0))
+          continue;
 
         y(i) += param_value * DYp_grad * fe_values_state.JxW(q);
       }

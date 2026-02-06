@@ -60,13 +60,13 @@ public:
     const Vector<Number>          &param,
     const std::vector<Point<dim>> &points,
     std::vector<Number>           &values,
-    bool                           derivative = false
+    bool                           linear_part = false
   ) const;
 
   Number evaluate_value(
     const Vector<Number>  &param,
     const Point<dim>      &point,
-    bool                   derivative = false
+    bool                   linear_part = false
   ) const;
 
   void reconstruct_full_param(

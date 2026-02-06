@@ -44,7 +44,8 @@ void HyperElasticityModel::setup_material_operator() {
 
 std::unique_ptr<typename HyperElasticityModel::SEOp> 
 HyperElasticityModel::assemble_A_q(
-    py::object q_np
+    py::object q_np,
+    bool param_linear_part_only
 ) 
 {
     Vector<Number> q;
@@ -57,7 +58,8 @@ HyperElasticityModel::assemble_A_q(
         full_q,
         this->m_state_space_context,
         this->m_param_space_context,
-        *m_stored_energy_function
+        *m_stored_energy_function,
+        param_linear_part_only
     );
 }
 

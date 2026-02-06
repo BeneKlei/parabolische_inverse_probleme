@@ -32,7 +32,7 @@ template <int dim, typename Number>
 Number ParamSpaceContext<dim, Number>::evaluate_value(
   const Vector<Number>  &param,
   const Point<dim>      &point,
-  bool                   derivative) const
+  bool                   linear_part) const
 {
   AssertDimension(param.size(), m_free_dofs.size());
   
@@ -42,7 +42,7 @@ Number ParamSpaceContext<dim, Number>::evaluate_value(
 
   if (point[0] != m_p1[0]) 
   { 
-    if (derivative) {
+    if (linear_part) {
       return Number(0.0); 
     }
     else
@@ -68,7 +68,7 @@ void ParamSpaceContext<dim, Number>::evaluate_values(
   const Vector<Number>          &param,
   const std::vector<Point<dim>> &points,
   std::vector<Number>           &values,
-  bool                           derivative) const
+  bool                           linear_part) const
 {
   AssertDimension(param.size(), m_free_dofs.size());
   values.resize(points.size());
@@ -77,7 +77,7 @@ void ParamSpaceContext<dim, Number>::evaluate_values(
   {    
     values[i] = evaluate_value(param,
                                points[i],
-                               derivative);
+                               linear_part);
   }
 }
 

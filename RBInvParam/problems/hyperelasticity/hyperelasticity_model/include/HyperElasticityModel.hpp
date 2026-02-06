@@ -27,9 +27,9 @@ public:
     explicit HyperElasticityModel(const HyperElasticityModelConfig& config);
     void setup_material_operator();
 
-    // TODO Mkae q_np const
     std::unique_ptr<SEOp> assemble_A_q(
-        const py::object q_np
+        const py::object q_np,
+        bool param_linear_part_only = false
     );
 
     // std::unique_ptr<SEJacOp> assemble_partial_u_A_q_u(

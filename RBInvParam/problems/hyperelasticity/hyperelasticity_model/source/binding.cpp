@@ -59,14 +59,9 @@ PYBIND11_MODULE(hyperelasticity_model, m) {
 
      .def("assemble_A_q", 
           &HyperElasticityModel::assemble_A_q, 
-          py::arg("q_np") = py::none()
+          py::arg("q_np") = py::none(),
+          py::arg("param_linear_part_only") = false
      )
-
-     // .def("assemble_partial_u_A_q_u", 
-     //      &HyperElasticityModel::assemble_partial_u_A_q_u, 
-     //      py::arg("q_np"),
-     //      py::arg("u")
-     // )
 
      .def("assemble_partial_q_A_q_u", 
           &HyperElasticityModel::assemble_partial_q_A_q_u, 
@@ -74,11 +69,6 @@ PYBIND11_MODULE(hyperelasticity_model, m) {
           py::arg("u")
      );
 
-    //   .def("get_translation_operator", 
-    //      &ElasticityModel::get_translation_operator
-    //   )
-      
-    //   .def_readonly("m_has_translation_operator", &ElasticityModel::m_has_translation_operator);
 
     py::class_<HyperElasticityModelConfig, MaterialModelBaseConfig>(m, "HyperElasticityModelConfig")
          .def(py::init<>())

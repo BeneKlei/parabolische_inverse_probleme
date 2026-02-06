@@ -255,16 +255,18 @@ class EvaluatorLincomb(EvaluatorA):
             #return
             #return A_q.jacobian(U=u)
 
-        jacobians = [op.jacobian(U=u) for op in A_q.operators]
-        options = A_q.solver_options.get('jacobian') if A_q.solver_options else None
-        op = LincombOperator(jacobians, A_q.coefficients, solver_options=options,
-                             name=A_q.name + '_jacobian')
-        op.apply_adjoint(op.range.ones())
-        import sys
-        sys.exit()
-            # return 
-        # except:
-        #     raise InvalidAssemblyArgument
+        # jacobians = [op.jacobian(U=u) for op in A_q.operators]
+        # options = A_q.solver_options.get('jacobian') if A_q.solver_options else None
+        # op = LincombOperator(jacobians, A_q.coefficients, solver_options=options,
+        #                      name=A_q.name + '_jacobian')
+        # op.apply_adjoint(op.range.ones())
+        # import sys
+        # sys.exit()
+
+        try:
+            return A_q.jacobian(U=u) 
+        except:
+            raise InvalidAssemblyArgument
 
     def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
         assert q in self.Q

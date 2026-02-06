@@ -50,7 +50,8 @@ public:
                        const Vector<Number>                    &full_q,
                        const StateSpaceContext<dim, Number>    &state_space_context,
                        const ParamSpaceContext<dim, Number>    &param_space_context,
-                       const StoredEnergyFunction<dim, Number> &stored_energy_function);
+                       const StoredEnergyFunction<dim, Number> &stored_energy_function,
+                       const bool                              &param_linear_part_only = false);
   
   std::size_t dim_source() const override;
   std::size_t dim_range()  const override;
@@ -61,6 +62,9 @@ public:
   std::unique_ptr<BaseOperator<Number>> jacobian(
     const Vector<Number> &u
   ) const override;
+
+private:
+  const bool m_param_linear_part_only;
 };
 
 template <int dim, typename Number>
@@ -73,12 +77,14 @@ public:
                                const Vector<Number>                    &full_q,
                                const StateSpaceContext<dim, Number>    &state_space_context,
                                const ParamSpaceContext<dim, Number>    &param_space_context,
-                               const StoredEnergyFunction<dim, Number> &stored_energy_function);
+                               const StoredEnergyFunction<dim, Number> &stored_energy_function,
+                               const bool                              &param_linear_part_only = false);
 
 private:
   SparseMatrix<Number> assemble_jacobian(const Vector<Number> &u);
 
-  const Vector<Number> m_u;
+  const Vector<Number> m_u;  
+  const bool m_param_linear_part_only;
 };
 
 template <int dim, typename Number>
