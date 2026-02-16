@@ -3,7 +3,7 @@ import numpy as np
 import copy
 
 from abc import abstractmethod
-from typing import Dict, Union, Tuple, List, Optional
+from typing import Dict, Union, Tuple, List, Optional, Any
 from timeit import default_timer as timer
 from pathlib import Path
 from enum import Enum
@@ -25,6 +25,8 @@ from RBInvParam.snapshot_preprocessor import SnapshotPreprocessor
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.io import save_dict_to_pkl, dealii_vector_space_to_numpy
 from RBInvParam.domain_projector import SimpleBoundDomainProjector
+from RBInvParam.trust_region import TR, TRType
+
  
 
 MACHINE_EPS = 1e-16
@@ -82,6 +84,8 @@ class Optimizer(BasicObject):
 
         self.linear_solver_operator = None
         self.last_update_q = None
+
+        self.TR = TR.from_type(TRType.NONE, {})
  
         self.I = 0
         self.FOM_projector = SimpleBoundDomainProjector(
@@ -123,201 +127,348 @@ class Optimizer(BasicObject):
         if "beta_3" in keys:
             assert 0 < self.optimizer_parameter["beta_3"] < 1    
     
-    def _armijo_TR_line_serach(self,
-                               model: InstationaryModelIP, 
-                               previous_q: NumpyVectorArray,
-                               previous_J: float,
-                               search_direction : NumpyVectorArray,
-                               max_iter: int,
-                               inital_step_size: float,
-                               eta: float,
-                               beta: float,
-                               kappa_arm: float,
-                               use_cached_operators: bool = False,
-                               projector: SimpleBoundDomainProjector = None,
-                               alpha: float = 0.0,
-                               use_error_estimator: bool = False) -> Tuple[NumpyVectorArray, float, bool, Dict]:
+    def _eval_bt_step(
+        self,
+        model: InstationaryModelIP,
+        previous_q: NumpyVectorArray,
+        step_size: float,
+        search_direction: NumpyVectorArray,
+        projector: Optional[SimpleBoundDomainProjector],
+        use_cached_operators: bool,
+        alpha: float,
+        use_error_estimator: bool
+    ) -> Tuple[NumpyVectorArray, float, float, Dict[str, Any]]:
 
-        assert 0 <= beta < 1
-        assert 0 < eta
-        
-        i = 0
-        model_unsufficent = False
-        TR_max_iter_cond = False
-
-        self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
-        step_size = inital_step_size
-        #search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
-
-        if projector:
+        if projector is not None:
             projector.pre_compute(center=previous_q)
-            current_q = projector.project_domain(previous_q, step_size * search_direction)
+            current_q: NumpyVectorArray = projector.project_domain(
+                previous_q,
+                step_size * search_direction,
+            )
         else:
             current_q = previous_q + step_size * search_direction
-        
-        u, u_dot = model.solve_state(q=current_q, 
-                                     use_cached_operators=use_cached_operators,
-                                     return_higher_orders=True)
 
-        p, p_dot = model.solve_adjoint(q=current_q, 
-                                       u=u, 
-                                       use_cached_operators=use_cached_operators,
-                                       return_higher_orders=True)
+        u, u_dot = model.solve_state(
+            q=current_q,
+            use_cached_operators=use_cached_operators,
+            return_higher_orders=True,
+        )
 
-        current_J = model.objective(u=u,
-                                    q=current_q,
-                                    alpha=alpha)
-        
-        
-        norm_d = model.compute_gradient_norm(previous_q - current_q)
-        lhs =  previous_J - current_J
-        rhs = kappa_arm / step_size * norm_d**2
-        
-        if abs(lhs) <= MACHINE_EPS:
-            lhs = 0
+        p, p_dot = model.solve_adjoint(
+            q=current_q,
+            u=u,
+            use_cached_operators=use_cached_operators,
+            return_higher_orders=True,
+        )
 
-        if abs(rhs) <= MACHINE_EPS:
-            rhs = 0
+        current_J: float = model.objective(
+            u=u,
+            q=current_q,
+            alpha=alpha,
+        )
 
-        armijo_condition = lhs >= rhs
-        if current_J > 0:
-            errors = \
-            self.estimate_errors(
-                model = model,
-                reductor=self.reductor,
-                q_r = current_q,
-                d_r = (current_q - previous_q),
-                u_r = u,
-                p_r = p,
-                u_dot_r = u_dot,
-                p_dot_r = p_dot,
-                J_r = current_J,
-                targets=self.error_estimate_targets_inner,
+        errors: Dict[str, Any] = self.estimate_errors(
+            model=model,
+            reductor=self.reductor,
+            q_r=current_q,
+            d_r=current_q - previous_q,
+            u_r=u,
+            p_r=p,
+            u_dot_r=u_dot,
+            p_dot_r=p_dot,
+            J_r=current_J,
+            targets=self.error_estimate_targets_inner,
+            use_cached_operators=use_cached_operators,
+            use_error_estimator=use_error_estimator,
+        )
+
+        abs_est_error_J: float = float(errors["err_J"])
+
+        return current_q, current_J, abs_est_error_J, errors
+
+    def _armijo_TR_line_serach(
+        self,
+        model: InstationaryModelIP,
+        previous_q: NumpyVectorArray,
+        previous_J: float,
+        search_direction: NumpyVectorArray,
+        max_iter: int,
+        inital_step_size: float,
+        kappa_arm: float,
+        use_cached_operators: bool = False,
+        projector: Optional[SimpleBoundDomainProjector] = None,
+        alpha: float = 0.0,
+        use_error_estimator: bool = False,
+    ) -> Tuple[NumpyVectorArray, float, bool, bool, float, Dict[str, Any]]:
+        
+        if max_iter <= 0:
+            raise ValueError("max_iter must be > 0")
+
+        self.logger.info("Start Armijo backtracking, with J = %3.4e.", previous_J)
+
+        step_size = inital_step_size
+        errors: Dict[str, Any] = {}
+
+        # initialize to keep type-checkers + avoid unbound locals
+        current_q = previous_q
+        current_J = previous_J
+        abs_err_J = float("inf")
+        armijo_ok = False
+        tr_ok = False
+
+        i = 0
+        while i < max_iter:
+            current_q, current_J, abs_err_J, errors = self._eval_bt_step(
+                model=model,
+                previous_q=previous_q,
+                step_size=step_size,
+                search_direction=search_direction,
+                projector=projector,
                 use_cached_operators=use_cached_operators,
-                use_error_estimator = use_error_estimator
+                alpha=alpha,
+                use_error_estimator=use_error_estimator,
             )
-            abs_est_error_J_r = errors['err_J']
-            J_rel_error = abs_est_error_J_r / current_J
-        else:
-            J_rel_error = np.inf
-            
-        TR_condition = J_rel_error <= eta
-        condition = armijo_condition & TR_condition
-        i += 1
 
-        print("############")
-        print(model.compute_gradient_norm(current_q-previous_q))
-        print(step_size)
-        print(previous_J)
-        print(current_J)
-        print(lhs)
-        print(rhs)
-        print(abs_est_error_J_r)
-        print(eta)
-        print(f"{J_rel_error:3.4e}")
-        print(armijo_condition)
-        print(TR_condition)
-
-        while (not condition) and (i < max_iter):
-            step_size = 0.5 * step_size
-            
-            if projector: 
-                projector.pre_compute(center=previous_q)
-                current_q = projector.project_domain(previous_q, step_size * search_direction)
-            else:
-                current_q = previous_q + step_size * search_direction
-
-            u, u_dot = model.solve_state(q=current_q, 
-                                         use_cached_operators=use_cached_operators, 
-                                         return_higher_orders=True)
-            p, p_dot = model.solve_adjoint(q=current_q, 
-                                           u=u, 
-                                           use_cached_operators=use_cached_operators, 
-                                           return_higher_orders=True)
-
-            current_J = model.objective(u=u,
-                                        q=current_q,
-                                        alpha=alpha)
-            
+            # Armijo part
             norm_d = model.compute_gradient_norm(previous_q - current_q)
             lhs = previous_J - current_J
             rhs = kappa_arm / step_size * norm_d**2
 
-            # print("A")
-            # print(previous_J)
-            # print(current_J)
-            # print(lhs)
-            # print(rhs)
-            
             if abs(lhs) <= MACHINE_EPS:
-                lhs = 0
-
+                lhs = 0.0
             if abs(rhs) <= MACHINE_EPS:
-                rhs = 0
+                rhs = 0.0
 
-            # print("############")
-            # print(lhs)
-            # print(rhs)
-            # print(step_size)
+            armijo_ok = lhs >= rhs
 
-            armijo_condition = lhs >= rhs
+            tr_ok = self.TR.check(objective=current_J, abs_error=abs_err_J)
 
-            if current_J > 0:
-                errors = \
-                self.estimate_errors(
-                    model = model,
-                    reductor=self.reductor,
-                    q_r = current_q,
-                    d_r = (current_q - previous_q),
-                    u_r = u,
-                    p_r = p,
-                    u_dot_r = u_dot,
-                    p_dot_r = p_dot,
-                    J_r = current_J,
-                    targets=self.error_estimate_targets_inner,
-                    use_cached_operators=use_cached_operators,
-                    use_error_estimator=use_error_estimator
-                )                
-                abs_est_error_J_r = errors['err_J']
-                J_rel_error = abs_est_error_J_r / current_J
-            else:
-                J_rel_error = np.inf
+            if armijo_ok and tr_ok:
+                break
 
-            TR_condition = J_rel_error <= eta
-            condition = armijo_condition & TR_condition
-
-            print("############")
-            print(model.compute_gradient_norm(current_q-previous_q))
-            print(step_size)
-            print(previous_J)
-            print(current_J)
-            print(lhs)
-            print(rhs)
-            print(abs_est_error_J_r)
-            print(eta)
-            print(f"{J_rel_error:3.4e}")
-            print(armijo_condition)
-            print(TR_condition)
-            # print(step_size)
-
-            
+            step_size *= 0.5
             i += 1
 
-        if (J_rel_error > beta * eta):
-            model_unsufficent = True
+        TR_max_iter_cond = (i >= max_iter)
+
+        if current_J > 0:
+            J_rel_error = abs_err_J / current_J
+        else:
+            J_rel_error = np.inf
+
+        model_unsufficent = (J_rel_error > self.TR.beta_1 * self.TR.eta)
+
+        condition = (armijo_ok and tr_ok)
+        if not condition:
+            self.logger.error(
+                "Armijo backtracking did NOT terminate normally. step_size=%3.4e; J=%3.4e",
+                step_size, current_J
+            )
+            self.logger.debug("armijo_ok=%s, tr_ok=%s, eta=%3.4e", armijo_ok, tr_ok, self.TR.eta)
+        else:
+            self.logger.debug(
+                "Armijo backtracking terminated. step_size=%3.4e; J=%3.4e; eta=%3.4e",
+                step_size, current_J, self.TR.eta
+            )
+
+        return current_q, current_J, model_unsufficent, TR_max_iter_cond, step_size, errors
+
+
+
+    # def _armijo_TR_line_serach(self,
+    #                            model: InstationaryModelIP, 
+    #                            previous_q: NumpyVectorArray,
+    #                            previous_J: float,
+    #                            search_direction : NumpyVectorArray,
+    #                            max_iter: int,
+    #                            inital_step_size: float,
+    #                            eta: float,
+    #                            beta: float,
+    #                            kappa_arm: float,
+    #                            use_cached_operators: bool = False,
+    #                            projector: SimpleBoundDomainProjector = None,
+    #                            alpha: float = 0.0,
+    #                            use_error_estimator: bool = False) -> Tuple[NumpyVectorArray, float, bool, Dict]:
+
+    #     assert 0 <= beta < 1
+    #     assert 0 < eta
         
-        if i == max_iter:
-            TR_max_iter_cond = True
+    #     i = 0
+    #     model_unsufficent = False
+    #     TR_max_iter_cond = False
+
+    #     self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
+    #     step_size = inital_step_size
+    #     #search_direction.scal(1.0 / model.compute_gradient_norm(search_direction))
+
+    #     if projector:
+    #         projector.pre_compute(center=previous_q)
+    #         current_q = projector.project_domain(previous_q, step_size * search_direction)
+    #     else:
+    #         current_q = previous_q + step_size * search_direction
+        
+    #     u, u_dot = model.solve_state(q=current_q, 
+    #                                  use_cached_operators=use_cached_operators,
+    #                                  return_higher_orders=True)
+
+    #     p, p_dot = model.solve_adjoint(q=current_q, 
+    #                                    u=u, 
+    #                                    use_cached_operators=use_cached_operators,
+    #                                    return_higher_orders=True)
+
+    #     current_J = model.objective(u=u,
+    #                                 q=current_q,
+    #                                 alpha=alpha)
+        
+        
+    #     norm_d = model.compute_gradient_norm(previous_q - current_q)
+    #     lhs =  previous_J - current_J
+    #     rhs = kappa_arm / step_size * norm_d**2
+        
+    #     if abs(lhs) <= MACHINE_EPS:
+    #         lhs = 0
+
+    #     if abs(rhs) <= MACHINE_EPS:
+    #         rhs = 0
+
+    #     armijo_condition = lhs >= rhs
+    #     if current_J > 0:
+    #         errors = \
+    #         self.estimate_errors(
+    #             model = model,
+    #             reductor=self.reductor,
+    #             q_r = current_q,
+    #             d_r = (current_q - previous_q),
+    #             u_r = u,
+    #             p_r = p,
+    #             u_dot_r = u_dot,
+    #             p_dot_r = p_dot,
+    #             J_r = current_J,
+    #             targets=self.error_estimate_targets_inner,
+    #             use_cached_operators=use_cached_operators,
+    #             use_error_estimator = use_error_estimator
+    #         )
+    #         abs_est_error_J_r = errors['err_J']
+    #         J_rel_error = abs_est_error_J_r / current_J
+    #     else:
+    #         J_rel_error = np.inf
+            
+    #     TR_condition = J_rel_error <= eta
+    #     condition = armijo_condition & TR_condition
+    #     i += 1
+
+    #     print("############")
+    #     print(model.compute_gradient_norm(current_q-previous_q))
+    #     print(step_size)
+    #     print(previous_J)
+    #     print(current_J)
+    #     print(lhs)
+    #     print(rhs)
+    #     print(abs_est_error_J_r)
+    #     print(eta)
+    #     print(f"{J_rel_error:3.4e}")
+    #     print(armijo_condition)
+    #     print(TR_condition)
+
+    #     while (not condition) and (i < max_iter):
+    #         step_size = 0.5 * step_size
+            
+    #         if projector: 
+    #             projector.pre_compute(center=previous_q)
+    #             current_q = projector.project_domain(previous_q, step_size * search_direction)
+    #         else:
+    #             current_q = previous_q + step_size * search_direction
+
+    #         u, u_dot = model.solve_state(q=current_q, 
+    #                                      use_cached_operators=use_cached_operators, 
+    #                                      return_higher_orders=True)
+    #         p, p_dot = model.solve_adjoint(q=current_q, 
+    #                                        u=u, 
+    #                                        use_cached_operators=use_cached_operators, 
+    #                                        return_higher_orders=True)
+
+    #         current_J = model.objective(u=u,
+    #                                     q=current_q,
+    #                                     alpha=alpha)
+            
+    #         norm_d = model.compute_gradient_norm(previous_q - current_q)
+    #         lhs = previous_J - current_J
+    #         rhs = kappa_arm / step_size * norm_d**2
+
+    #         # print("A")
+    #         # print(previous_J)
+    #         # print(current_J)
+    #         # print(lhs)
+    #         # print(rhs)
+            
+    #         if abs(lhs) <= MACHINE_EPS:
+    #             lhs = 0
+
+    #         if abs(rhs) <= MACHINE_EPS:
+    #             rhs = 0
+
+    #         # print("############")
+    #         # print(lhs)
+    #         # print(rhs)
+    #         # print(step_size)
+
+    #         armijo_condition = lhs >= rhs
+
+    #         if current_J > 0:
+    #             errors = \
+    #             self.estimate_errors(
+    #                 model = model,
+    #                 reductor=self.reductor,
+    #                 q_r = current_q,
+    #                 d_r = (current_q - previous_q),
+    #                 u_r = u,
+    #                 p_r = p,
+    #                 u_dot_r = u_dot,
+    #                 p_dot_r = p_dot,
+    #                 J_r = current_J,
+    #                 targets=self.error_estimate_targets_inner,
+    #                 use_cached_operators=use_cached_operators,
+    #                 use_error_estimator=use_error_estimator
+    #             )                
+    #             abs_est_error_J_r = errors['err_J']
+    #             J_rel_error = abs_est_error_J_r / current_J
+    #         else:
+    #             J_rel_error = np.inf
+
+    #         TR_condition = J_rel_error <= eta
+    #         condition = armijo_condition & TR_condition
+
+    #         print("############")
+    #         print(model.compute_gradient_norm(current_q-previous_q))
+    #         print(step_size)
+    #         print(previous_J)
+    #         print(current_J)
+    #         print(lhs)
+    #         print(rhs)
+    #         print(abs_est_error_J_r)
+    #         print(eta)
+    #         print(f"{J_rel_error:3.4e}")
+    #         print(armijo_condition)
+    #         print(TR_condition)
+    #         # print(step_size)
+  
+    #         i += 1
+
+    #     if (J_rel_error > beta * eta):
+    #         model_unsufficent = True
+        
+    #     if i == max_iter:
+    #         TR_max_iter_cond = True
     
 
-        if not condition:
-            self.logger.error(f"Armijo backtracking does NOT terminate normally. step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
-            self.logger.debug(f"armijo_condition = {armijo_condition}, TR_condition = {TR_condition}")
+    #     if not condition:
+    #         self.logger.error(f"Armijo backtracking does NOT terminate normally. step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
+    #         self.logger.debug(f"armijo_condition = {armijo_condition}, TR_condition = {TR_condition}")
 
-        else:
-            self.logger.debug(f"Armijo backtracking does terminate normally with step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
+    #     else:
+    #         self.logger.debug(f"Armijo backtracking does terminate normally with step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
 
-        return (current_q, current_J, model_unsufficent, TR_max_iter_cond, step_size, errors)
+    #     return (current_q, current_J, model_unsufficent, TR_max_iter_cond, step_size, errors)
 
     def estimate_errors(self,
                         model: InstationaryModelIP,
@@ -449,7 +600,7 @@ class Optimizer(BasicObject):
             'err_nabla_lin_J' : est_err_nabla_lin_J,
             'rel_est_err_nabla_lin_J' : rel_est_err_nabla_lin_J
         }
-
+    
     # TODO Move into own class for managing / defining the TR
     def _calc_errors(self,
                      model: InstationaryModelIP,
@@ -884,11 +1035,6 @@ class Optimizer(BasicObject):
                 else:
                     self.logger.info(f"------------------------------------------------------------------------------------------------------------------------------")
 
-            # print(".........................")
-            # print(q)
-            # print(d)
-            # print(q+d)
-
             loop_terminated = loop_terminated or (count >= reg_loop_max)
 
             counts['reg_loop_iter'].append(count)
@@ -904,12 +1050,6 @@ class Optimizer(BasicObject):
                 
             ########################################### Armijo ###########################################
 
-            # u_prev = self.FOM.solve_state(
-            #     q = self.FOM_projector.project_domain(center=
-            #         self.reductor.reconstruct(q, basis='parameter_basis')
-            #     )
-            # )
-            
             TR_max_iter_cond = False
             model_unsufficent = False
 
@@ -974,89 +1114,8 @@ class Optimizer(BasicObject):
                 if (J_rel_error > beta * eta):
                     model_unsufficent = True
 
-                print("############")
-                print(next_J)
-                print(abs_est_error_J_r)
-                print(eta)
-                print(f"{J_rel_error:3.4e}")
-                print(J_rel_error <= eta)
-                print(J_rel_error <= beta * eta)
-
             else:
                 q += d
-                # projector.pre_compute(center=q)
-                # next_q = projector.project_domain(q, d)
-            
-            # _u = self.FOM.solve_state(q = self.reductor.reconstruct(q, basis='parameter_basis'))
-            # _p = self.FOM.solve_adjoint(q = self.reductor.reconstruct(q, basis='parameter_basis'), u = _u)
-
-
-            # u_r = self.reductor.reconstruct(u, basis='state_basis')        
-            # p_r = self.reductor.reconstruct(p, basis='state_basis')
-            
-
-            # self.I += 1
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in u_r.vectors],
-            #     str(f'u_r_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
-
-            # diff = _u - u_r
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in diff.vectors],
-            #     str(f'diff_u_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
-
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in p_r.vectors],
-            #     str(f'p_r_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
-
-            # diff = _p -p_r
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in diff.vectors],
-            #     str(f'diff_p_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-            # )
-     
-            # basis = 'state_basis'
-            # _basis = self.reductor.bases[basis]
-            
-            # coeff_u = np.sum((_u.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-            # err_i_u = np.sum(self.reductor.products[basis].pairwise_apply2(_u,_u)) - np.cumsum(coeff_u)
-            
-            # coeff_p = np.sum((_p.inner(_basis, self.reductor.products[basis]))**2, axis=0)
-            # err_i_p = np.sum(self.reductor.products[basis].pairwise_apply2(_p,_p)) - np.cumsum(coeff_p)
-
-            # self.I += 1
-            # #color = cmap(self.I)
-            # color = cmap(i)
-            # ax_1.semilogy(err_i_u, color=color)
-            # ax_1.semilogy(err_i_p, color=color, linestyle="--")
-            # ax_1.set_ylim([1e-8, 1e3])
-            # ax_1.grid(True)
-
-            # fig_1.savefig(self.save_path / "inner_plot.pdf")
-
-
-            # _u_r = model.solve_state(q)
-            # u_r = self.reductor.reconstruct(_u_r, basis='state_basis')
-
-            #self.I += 1
-            # diff_u = _u - u_r
-            # self.FOM.A.material_model.save_time_series(
-            #     [v.real_part.impl for v in diff_u.vectors],
-            #     str(f'diff_u_{self.I}'),
-            #     str(self.save_path),
-            #     np.linspace(0, len(_basis), len(_basis))
-            # )
 
             ########################################### Final ###########################################
 
@@ -1112,23 +1171,6 @@ class Optimizer(BasicObject):
             if model_unsufficent:
                 break
         
-        # u = self.FOM.solve_state(
-        #     q = self.FOM_projector.project_domain(center=
-        #         self.reductor.reconstruct(q, basis='parameter_basis')
-        #     )
-        # )
-        # u_r = self.reductor.reconstruct(model.solve_state(q), basis='state_basis')
-
-
-        # self.I += 1
-        # diff = u - u_r
-        # self.FOM.A.material_model.save_time_series(
-        #     [v.real_part.impl for v in diff.vectors],
-        #     str(f'diff_u_{self.I}_last'),
-        #     str(self.save_path),
-        #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-        # )
-
         self.logger.info(f'Final {method_name} Statistics:')
         if loop_terminated:
             self.logger.info(f'     {method_name} No sufficient regularization constant found i = {i}')
@@ -1536,6 +1578,8 @@ class QrVrROMOptimizer(Optimizer):
             active_bases = self.active_bases,
             use_adjoint_space = optimizer_parameter["use_adjoint_space"]
         )
+
+        # self.TR =
 
         self.all_snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
         self.snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
@@ -2042,7 +2086,9 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics["stagnation_flag"] = True
                 self.logger.info(f"Trust region tolerance eta = {eta:3.4e} falls below eta_min = {eta_min:3.4e}.")
                 break
-                    
+            
+            ########################################### q^{(i)} in TR ###########################################
+
             proj_q_in_tr = rel_est_error_J_r <= eta
         
             if AGC_jump_back: 
@@ -2166,8 +2212,6 @@ class QrVrROMOptimizer(Optimizer):
                 search_direction = search_direction,
                 max_iter = agc_armijo_max_iter,
                 inital_step_size = inital_agc_armijo_step_size,
-                eta = eta,
-                beta = beta_1,
                 kappa_arm = kappa_arm,
                 use_cached_operators=use_cached_operators,
                 projector = projector,
