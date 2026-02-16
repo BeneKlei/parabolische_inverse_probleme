@@ -65,8 +65,8 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    state_y_res = 10
-    state_z_res = 10
+    state_y_res = 30
+    state_z_res = 30
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -90,15 +90,16 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    # q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
+    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    #
     # q_exact = q_exact.T
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    q_exact[0,40:43] = 2.0
+    #q_exact[0,40:43] = 2.0
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -195,7 +196,7 @@ def main():
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
-    # _q_start = FOM.Q.make_array(q_start)
+    _q_start = FOM.Q.make_array(q_start)
     # print(FOM.compute_objective(_q_start))
 
     # for i in range(8):
@@ -220,16 +221,24 @@ def main():
     # _q_exact = FOM.Q.make_array(q_exact)
     # print(FOM.compute_objective(_q_exact))
 
+    # grad = FOM.compute_gradient(_q_start).to_numpy()
+    # import matplotlib.pyplot as plt
+    # plt.imshow(grad.reshape((11,11)))
+    # plt.savefig('./grad_2.png')
+
+    # # plt.imshow(q_exact.reshape((11,11)))
+    # # plt.savefig('./q_exact.png')
+
     # import sys
     # sys.exit()
 
-    # u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
-    # FOM.A.hyperelasticity_model.save_time_series(
-    #     [v.impl for v in u_exact.vectors],
-    #     str('u_exact'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
+    FOM.A.hyperelasticity_model.save_time_series(
+        [v.impl for v in u_exact.vectors],
+        str('u_exact'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
     # p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
     # FOM.A.hyperelasticity_model.save_time_series(
@@ -239,13 +248,13 @@ def main():
     #     np.linspace(T_initial, T_final, nt+1)
     # )
 
-    # u_start = FOM.solve_state(FOM.Q.make_array(q_start))
-    # FOM.A.hyperelasticity_model.save_time_series(
-    #     [v.impl for v in u_start.vectors],
-    #     str('u_start'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
+    FOM.A.hyperelasticity_model.save_time_series(
+        [v.impl for v in u_start.vectors],
+        str('u_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
 
     # p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
@@ -256,13 +265,13 @@ def main():
     #     np.linspace(T_initial, T_final, nt+1)
     # )
 
-    # diff = u_start - u_exact
-    # FOM.A.hyperelasticity_model.save_time_series(
-    #     [v.impl for v in diff.vectors],
-    #     str('diff'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    diff = u_start - u_exact
+    FOM.A.hyperelasticity_model.save_time_series(
+        [v.impl for v in diff.vectors],
+        str('diff'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
     # _q_start = FOM.Q.make_array(q_start)
     # _q_exact = FOM.Q.make_array(q_exact)

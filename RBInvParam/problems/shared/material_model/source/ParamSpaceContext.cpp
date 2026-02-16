@@ -38,7 +38,8 @@ Number ParamSpaceContext<dim, Number>::evaluate_value(
   
   const unsigned int Ny = m_grid_resolution[1];
   const unsigned int Nz = m_grid_resolution[2];
-  const unsigned int stride = Nz + 1;
+  //const unsigned int stride = Nz + 1;
+  const unsigned int stride = Ny + 1;
 
   if (point[0] != m_p1[0]) 
   { 
@@ -59,7 +60,7 @@ Number ParamSpaceContext<dim, Number>::evaluate_value(
   int iy = clamp((int)std::lround((point[1]-y_min)/(y_max-y_min) * Ny), 0, (int)Ny);
   int iz = clamp((int)std::lround((point[2]-z_min)/(z_max-z_min) * Nz), 0, (int)Nz);
 
-  return Number(param[iy * stride + iz]);  
+  return Number(param[iy + iz * stride]);  
 }
 
 
@@ -88,16 +89,11 @@ void ParamSpaceContext<dim, Number>::project_to_free_param(
 {
   AssertDimension(full_param.size(), m_dof_handler.n_dofs());
   free_param.reinit(m_free_dofs.size()); 
-
-  unsigned int fi = 0;
-  for (types::global_dof_index gi = 0; gi < m_dof_handler.n_dofs(); ++gi)
-    if (!m_constraints.is_constrained(gi))
-    {
-      AssertIndexRange(fi, free_param.size());
-      free_param[fi++] = full_param[gi];
-    }
-
-  AssertDimension(fi, free_param.size());
+  
+  for (unsigned int i = 0; i < m_free_dofs.size(); i++)
+  {
+    free_param[i] = full_param[m_free_dofs[i]];
+  }
 }
 
 // template <int dim, typename Number>
