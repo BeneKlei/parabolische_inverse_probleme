@@ -1,25 +1,53 @@
+# trust_region.py  (FULL refactor)
+
 from __future__ import annotations
 
 import logging
 import sys
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Type
 
 import numpy as np
 
+from pymor.operators.interface import Operator
+from pymor.vectorarrays.interface import VectorArray
+
 from RBInvParam.utils.logger import get_default_logger
+from RBInvParam.products import BochnerProductOperator
+
+MACHINE_EPS = sys.float_info.epsilon
 
 # ----------------------------
-# Contracts
+# Result contract
 # ----------------------------
 
 @dataclass(frozen=True)
 class TRCheckResult:
     tr_ok: bool
     model_insufficient: bool
+
+
+# ----------------------------
+# Context contract (Optimizer passes this)
+# ----------------------------
+
+@dataclass(frozen=True)
+class TRContext:
+    # error-type TRs
+    objective: float = np.nan
+    abs_error: Optional[float] = None
+
+    # radius/step-type TRs
+    center_q: Optional[VectorArray] = None
+    current_q: Optional[VectorArray] = None
+    product: Optional[Operator] = None
+
+    # optional extras for custom TRs
+    step_size: Optional[float] = None
+    meta: Optional[Dict[str, Any]] = None
+
 
 # ----------------------------
 # Enum
@@ -28,9 +56,11 @@ class TRCheckResult:
 class TRType(str, Enum):
     NONE = "none"
     RELATIVE_OBJECTIVE_ERROR = "relative_objective_error"
-    
+    RADIUS = "radius"
+
+
 # ----------------------------
-# Config
+# Default config (for “eta-based” TRs)
 # ----------------------------
 
 @dataclass(frozen=True)
@@ -55,7 +85,7 @@ class TrustRegionConfig:
 
     def validate(self) -> None:
         if self.eta_initial <= 0:
-            raise ValueError("eta must be > 0")
+            raise ValueError("eta_initial must be > 0")
         if not (0 <= self.eta_min <= self.eta_max):
             raise ValueError("Require 0 <= eta_min <= eta_max")
         if self.beta_1 <= 0 or self.beta_2 <= 0 or self.beta_3 <= 0:
@@ -85,30 +115,40 @@ class TrustRegionConfig:
         cfg.validate()
         return cfg
 
+
 # ----------------------------
-# Base class
+# Base class + registry
 # ----------------------------
 
 class TR(ABC):
     """
     Base trust-region controller.
 
-    Design:
-      - self.config is immutable (frozen dataclass)
-      - self._eta is the only mutable state
-      - all constants are accessed via self.config
+    Key points:
+      - Optimizer always calls check(ctx: TRContext)
+      - TR decides what it needs (objective error? radius?)
+      - eta/betas stored in config; only eta is mutable state
     """
-    _registry: Dict[TRType, type["TR"]] = {}
+    requires_objective_error: bool = True
+    _registry: Dict[TRType, Type["TR"]] = {}
 
     def __init_subclass__(cls, *, tr_type: Optional[TRType] = None, **kwargs):
         super().__init_subclass__(**kwargs)
         if tr_type is not None:
             TR._registry[tr_type] = cls
 
-    def __init__(self, config: TrustRegionConfig, logger: Optional[logging.Logger] = None):
-        config.validate()
+    # subclasses can override this to support custom configs
+    @classmethod
+    def parse_config(cls, config_dict: Optional[Dict[str, Any]]):
+        return TrustRegionConfig.from_dict(config_dict)
+
+    def __init__(self, config: Any, logger: Optional[logging.Logger] = None):
+        # config may be TrustRegionConfig or a subclass-specific config
+        if hasattr(config, "validate"):
+            config.validate()
+
         self.config = config
-        self._eta = config.eta_initial
+        self._eta = float(getattr(config, "eta_initial", 1.0))
 
         self._logger = logger or get_default_logger(self.__class__.__name__)
         self._logger.setLevel(logging.DEBUG)
@@ -120,15 +160,16 @@ class TR(ABC):
         tr_type: TRType,
         config_dict: Optional[Dict[str, Any]] = None,
         logger: Optional[logging.Logger] = None,
+        **kwargs,
     ) -> "TR":
-        config = TrustRegionConfig.from_dict(config_dict)
-
         try:
             tr_class = cls._registry[tr_type]
         except KeyError:
             raise ValueError(f"No TR registered for type {tr_type}")
 
-        return tr_class(config=config, logger=logger)
+        cfg = tr_class.parse_config(config_dict)
+        # kwargs allow TRs that need extra ctor args (e.g. q_time_dep for RadiusTR)
+        return tr_class(config=cfg, logger=logger, **kwargs)
 
     @property
     def logger(self) -> logging.Logger:
@@ -138,30 +179,29 @@ class TR(ABC):
     def eta(self) -> float:
         return self._eta
 
-    # Convenience passthroughs (no "unpacking"; read from config)
+    # Convenience passthroughs (read from config)
     @property
     def eta_min(self) -> float:
-        return self.config.eta_min
+        return float(getattr(self.config, "eta_min", 0.0))
 
     @property
     def eta_max(self) -> float:
-        return self.config.eta_max
+        return float(getattr(self.config, "eta_max", float("inf")))
 
     @property
     def beta_1(self) -> float:
-        return self.config.beta_1
+        return float(getattr(self.config, "beta_1", 0.25))
 
     @property
     def beta_2(self) -> float:
-        return self.config.beta_2
+        return float(getattr(self.config, "beta_2", 0.75))
 
     @property
     def beta_3(self) -> float:
-        return self.config.beta_3
+        return float(getattr(self.config, "beta_3", 0.5))
 
     @abstractmethod
-    def check(self, **kwargs) -> TRCheckResult:
-        """Return True if the current trust-region criterion is satisfied."""
+    def check(self, ctx: TRContext) -> TRCheckResult:
         raise NotImplementedError
 
     @staticmethod
@@ -216,7 +256,9 @@ class TR(ABC):
 # ----------------------------
 
 class NoneTR(TR, tr_type=TRType.NONE):
-    def check(self, **kwargs) -> TRCheckResult:
+    requires_objective_error = False
+
+    def check(self, ctx: TRContext) -> TRCheckResult:
         return TRCheckResult(True, False)
 
     def shrink(self) -> None:
@@ -227,47 +269,71 @@ class NoneTR(TR, tr_type=TRType.NONE):
 
 
 # ----------------------------
+# RadiusTR
+# ----------------------------
+
+class RadiusTR(TR, tr_type=TRType.RADIUS):
+    requires_objective_error = False
+
+    def __init__(self, config: TrustRegionConfig, q_time_dep: bool, logger: Optional[logging.Logger] = None):
+        super().__init__(config=config, logger=logger)
+        self.q_time_dep = bool(q_time_dep)
+
+    def check(self, ctx: TRContext) -> TRCheckResult:
+        if ctx.center_q is None or ctx.current_q is None or ctx.product is None:
+            raise ValueError("RadiusTR requires center_q/current_q/product in TRContext")
+
+        if self.q_time_dep:
+            if not isinstance(ctx.product, BochnerProductOperator):
+                raise TypeError("For q_time_dep=True, product must be a BochnerProductOperator")
+
+        delta_q = ctx.center_q - ctx.current_q
+        norm_delta_q = float(np.sqrt(ctx.product.apply2(delta_q, delta_q)))
+
+        tr_ok = norm_delta_q <= self.eta
+        model_insufficient = norm_delta_q > (self.beta_1 * self.eta)
+        return TRCheckResult(tr_ok, model_insufficient)
+
+
+# ----------------------------
 # RelativeObjectiveErrorTR
 # ----------------------------
 
 class RelativeObjectiveErrorTR(TR, tr_type=TRType.RELATIVE_OBJECTIVE_ERROR):
+    requires_objective_error = True
+
     def __init__(self, config: TrustRegionConfig, logger: Optional[logging.Logger] = None):
         super().__init__(config=config, logger=logger)
 
-    def check(self, *, objective: float, abs_error: float) -> TRCheckResult:
-        # Robustify scalar types (numpy scalars, etc.)
-        objective = float(objective)
-        abs_error = float(abs_error)
+    def check(self, ctx: TRContext) -> TRCheckResult:
+        
 
-    def check(self, *, objective: float, abs_error: float) -> TRCheckResult:
-        eps = sys.float_info.epsilon
+        if np.isnan(ctx.abs_error):
+            raise RuntimeError(
+                "TrustRegion requires objective error but error was not computed."
+            )
 
-        objective = float(objective)
-        abs_error = float(abs_error)
+        objective = float(ctx.objective)
+        abs_error = float(ctx.abs_error if ctx.abs_error is not None else 0.0)
 
-        # Clamp tiny negative values caused by roundoff
+        # Clamp tiny negatives due to roundoff
         if objective < 0.0:
-            if objective >= -eps:
+            if objective >= -MACHINE_EPS:
                 objective = 0.0
             else:
                 raise ValueError(f"Objective must be >= 0, got {objective:3.4e}")
 
         if abs_error < 0.0:
-            if abs_error >= -eps:
+            if abs_error >= -MACHINE_EPS:
                 abs_error = 0.0
             else:
                 raise ValueError(f"abs_error must be >= 0, got {abs_error:3.4e}")
 
-        # Degenerate objective case
-        if objective <= eps:
-            tr_ok = abs_error <= eps
-            model_insufficient = abs_error > eps
-            return TRCheckResult(tr_ok, model_insufficient)
+        if objective <= MACHINE_EPS:
+            tr_ok = abs_error <= MACHINE_EPS
+            return TRCheckResult(tr_ok, not tr_ok)
 
         rel_err = abs_error / objective
-
         tr_ok = rel_err <= self.eta
         model_insufficient = rel_err > (self.beta_1 * self.eta)
-
         return TRCheckResult(tr_ok, model_insufficient)
-
