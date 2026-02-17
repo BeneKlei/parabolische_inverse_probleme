@@ -20,7 +20,7 @@ import RBInvParam.problems.shared.material_model as mm
 #import material_model as mm
 #import hyperelasticity_model as hm
 
-from RBInvParam.optimizer import QrVrROMOptimizer
+from RBInvParam.optimizer.optimizer import QrVrROMOptimizer, LoggerErrorChoice
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.problems.hyperelasticity.build import build_HyperElasticityModelIP
@@ -28,12 +28,12 @@ from RBInvParam.problems.hyperelasticity.build import build_HyperElasticityModel
 from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimatorType
 from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimatorType
 from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
+from RBInvParam.trust_region import TRType
 
 from RBInvParam.timestepping import TimeStepperType
 
 from RBInvParam.utils.create_q_exact import *
 
-from RBInvParam.optimizer import LoggerErrorChoice
 #########################################################################################''
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -70,8 +70,8 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    state_y_res = 30
-    state_z_res = 30
+    state_y_res = 10
+    state_z_res = 10
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -94,15 +94,15 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    # q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
+    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
     #q_exact = q_exact.T
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    #q_exact[0,40:43] = 2.0
+    q_exact[0,40:43] = 2.0
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -302,9 +302,31 @@ def main():
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
-        'TR_armijo_max_iter': 5,                                     # Max iterations Armijo condition to enforce the trust-region
-        'agc_armijo_max_iter': 50,                                  # Max iterations for computing the AGC
+        'AGC_armijo_cfg' : {
+            "max_iter": 50,
+            "initial_step_size": 1.0,
+            "kappa_arm": 1e-12,
+            "shrink": 0.5,
+        },
+        'TR_armijo_cfg' : {
+            "max_iter": 5,
+            "initial_step_size": 1.0,
+            "kappa_arm": 1e-12,
+            "shrink": 0.5,
+        },
+        'TR': {
+            'type': TRType.RELATIVE_OBJECTIVE_ERROR,
+
+            # TR config
+            'eta_initial': 0.30,        
+            'eta_min': 1e-5,
+            'eta_max': 0.30,
+            'beta_1': 0.80,
+            'beta_2': 0.75,
+            'beta_3': 0.5,
+        },
         #####################
+        'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
         'use_error_estimator' : False,
         'use_adjoint_space' : False,
         #'use_adjoint_space' : True,
@@ -313,13 +335,11 @@ def main():
         'reg_AGC_step' : False,
         #'TR_enforcement' : 'check_error',
         'TR_enforcement' : 'backtracking',
+        'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
-            #'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver            
-            #'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
-            #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
@@ -354,21 +374,7 @@ def main():
         },
         'logging' : {
             'errors' : LoggerErrorChoice.OBJECTIVE,
-        },
-        #####################
-        'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
-        'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
-        #####################
-        # 'eta0': 0.05,                                                # Initial trust region tolerance
-        # 'eta_min' : 1e-5,
-        # 'eta_max' : 0.15,
-        'eta0': 0.10,                                                # Initial trust region tolerance
-        'eta_min' : 1e-5,
-        'eta_max' : 0.30,
-        'kappa_arm': 1e-12,                                          # Armijo condition constant for sufficient decrease
-        'beta_1': 0.80,                                              # Trust region edge tolerance.
-        'beta_2': 3/4,                                               # Tolerance for the trustworthiness.
-        'beta_3': 0.5                                                # Shrinking/Enlarging factor for the trust region.
+        },        
     }
 
 

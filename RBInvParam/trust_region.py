@@ -1,23 +1,41 @@
 from __future__ import annotations
 
 import logging
+import sys
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
 from RBInvParam.utils.logger import get_default_logger
 
+# ----------------------------
+# Contracts
+# ----------------------------
 
+@dataclass(frozen=True)
+class TRCheckResult:
+    tr_ok: bool
+    model_insufficient: bool
+
+# ----------------------------
+# Enum
+# ----------------------------
+
+class TRType(str, Enum):
+    NONE = "none"
+    RELATIVE_OBJECTIVE_ERROR = "relative_objective_error"
+    
 # ----------------------------
 # Config
 # ----------------------------
 
 @dataclass(frozen=True)
 class TrustRegionConfig:
-    eta: float
+    eta_initial: float
     eta_min: float
     eta_max: float
     beta_1: float
@@ -27,7 +45,7 @@ class TrustRegionConfig:
     @classmethod
     def defaults(cls) -> "TrustRegionConfig":
         return cls(
-            eta=1.0,
+            eta_initial=1.0,
             eta_min=0.0,
             eta_max=float("inf"),
             beta_1=0.25,
@@ -36,7 +54,7 @@ class TrustRegionConfig:
         )
 
     def validate(self) -> None:
-        if self.eta <= 0:
+        if self.eta_initial <= 0:
             raise ValueError("eta must be > 0")
         if not (0 <= self.eta_min <= self.eta_max):
             raise ValueError("Require 0 <= eta_min <= eta_max")
@@ -57,7 +75,7 @@ class TrustRegionConfig:
 
         cfg = replace(
             base,
-            eta=float(data.get("eta", base.eta)),
+            eta_initial=float(data.get("eta_initial", base.eta_initial)),
             eta_min=float(data.get("eta_min", base.eta_min)),
             eta_max=float(data.get("eta_max", base.eta_max)),
             beta_1=float(data.get("beta_1", base.beta_1)),
@@ -66,16 +84,6 @@ class TrustRegionConfig:
         )
         cfg.validate()
         return cfg
-
-
-# ----------------------------
-# Enum
-# ----------------------------
-
-class TRType(str, Enum):
-    NONE = "none"
-    RELATIVE_OBJECTIVE_ERROR = "relative_objective_error"
-
 
 # ----------------------------
 # Base class
@@ -100,7 +108,7 @@ class TR(ABC):
     def __init__(self, config: TrustRegionConfig, logger: Optional[logging.Logger] = None):
         config.validate()
         self.config = config
-        self._eta = config.eta
+        self._eta = config.eta_initial
 
         self._logger = logger or get_default_logger(self.__class__.__name__)
         self._logger.setLevel(logging.DEBUG)
@@ -130,10 +138,6 @@ class TR(ABC):
     def eta(self) -> float:
         return self._eta
 
-    @eta.setter
-    def eta(self, value: float) -> None:
-        self._eta = float(value)
-
     # Convenience passthroughs (no "unpacking"; read from config)
     @property
     def eta_min(self) -> float:
@@ -156,7 +160,7 @@ class TR(ABC):
         return self.config.beta_3
 
     @abstractmethod
-    def check(self, **kwargs) -> bool:
+    def check(self, **kwargs) -> TRCheckResult:
         """Return True if the current trust-region criterion is satisfied."""
         raise NotImplementedError
 
@@ -167,10 +171,10 @@ class TR(ABC):
         return (delta_obj / delta_obj_r) if (delta_obj_r > 0) else np.inf
 
     def shrink(self) -> None:
-        self.eta = max(self.eta * self.beta_3, self.eta_min)
+        self._eta = max(self._eta * self.beta_3, self.eta_min)
 
     def enlarge(self) -> None:
-        self.eta = min(self.eta / self.beta_3, self.eta_max)
+        self._eta = min(self._eta / self.beta_3, self.eta_max)
 
     def eta_too_small(self) -> bool:
         if self.eta <= self.eta_min:
@@ -212,8 +216,8 @@ class TR(ABC):
 # ----------------------------
 
 class NoneTR(TR, tr_type=TRType.NONE):
-    def check(self, **kwargs) -> bool:
-        return True
+    def check(self, **kwargs) -> TRCheckResult:
+        return TRCheckResult(True, False)
 
     def shrink(self) -> None:
         return
@@ -230,9 +234,40 @@ class RelativeObjectiveErrorTR(TR, tr_type=TRType.RELATIVE_OBJECTIVE_ERROR):
     def __init__(self, config: TrustRegionConfig, logger: Optional[logging.Logger] = None):
         super().__init__(config=config, logger=logger)
 
-    def check(self, *, objective: float, abs_error: float) -> bool:
-        assert objective >= 0
-        if objective == 0:
-            return False
-        return (abs_error / objective) <= self.eta
+    def check(self, *, objective: float, abs_error: float) -> TRCheckResult:
+        # Robustify scalar types (numpy scalars, etc.)
+        objective = float(objective)
+        abs_error = float(abs_error)
+
+    def check(self, *, objective: float, abs_error: float) -> TRCheckResult:
+        eps = sys.float_info.epsilon
+
+        objective = float(objective)
+        abs_error = float(abs_error)
+
+        # Clamp tiny negative values caused by roundoff
+        if objective < 0.0:
+            if objective >= -eps:
+                objective = 0.0
+            else:
+                raise ValueError(f"Objective must be >= 0, got {objective:3.4e}")
+
+        if abs_error < 0.0:
+            if abs_error >= -eps:
+                abs_error = 0.0
+            else:
+                raise ValueError(f"abs_error must be >= 0, got {abs_error:3.4e}")
+
+        # Degenerate objective case
+        if objective <= eps:
+            tr_ok = abs_error <= eps
+            model_insufficient = abs_error > eps
+            return TRCheckResult(tr_ok, model_insufficient)
+
+        rel_err = abs_error / objective
+
+        tr_ok = rel_err <= self.eta
+        model_insufficient = rel_err > (self.beta_1 * self.eta)
+
+        return TRCheckResult(tr_ok, model_insufficient)
 

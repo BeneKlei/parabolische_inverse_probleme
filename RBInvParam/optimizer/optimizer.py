@@ -1,12 +1,13 @@
 import logging
 import numpy as np
-import copy
+import sys
 
 from abc import abstractmethod
 from typing import Dict, Union, Tuple, List, Optional, Any
 from timeit import default_timer as timer
 from pathlib import Path
 from enum import Enum
+from dataclasses import replace
 
 import pymor_dealii_bindings as pd2
 
@@ -27,7 +28,8 @@ from RBInvParam.utils.io import save_dict_to_pkl, dealii_vector_space_to_numpy
 from RBInvParam.domain_projector import SimpleBoundDomainProjector
 from RBInvParam.trust_region import TR, TRType
 
- 
+from RBInvParam.optimizer.optimizer_schema import FOMOptimizerCfg, TROptimizerCfg, ArmijoConfig 
+from RBInvParam.optimizer.logging_utils import log_fom_opt_config, log_tr_opt_config
 
 MACHINE_EPS = 1e-16
 STAGNATION_TOL = 1e-6
@@ -85,7 +87,22 @@ class Optimizer(BasicObject):
         self.linear_solver_operator = None
         self.last_update_q = None
 
-        self.TR = TR.from_type(TRType.NONE, {})
+        tr_type = TRType.NONE
+        tr_cfg = optimizer_parameter.get("TR")
+
+        if not tr_cfg:
+            self.TR = TR.from_type(TRType.NONE, {}, logger=self.logger)
+        else:
+            tr_type = tr_cfg.get("type", TRType.NONE)
+            tr_cfg_no_type = {k: v for k, v in tr_cfg.items() if k != "type"}
+            self.TR = TR.from_type(tr_type, tr_cfg_no_type, logger=self.logger)
+
+        self.logger.info(
+            "TR configured: type=%s eta=%g eta_min=%g eta_max=%g beta_1=%g beta_2=%g beta_3=%g",
+            getattr(tr_type, "value", str(tr_type)),
+            self.TR.eta, self.TR.eta_min, self.TR.eta_max,
+            self.TR.beta_1, self.TR.beta_2, self.TR.beta_3,
+        )
  
         self.I = 0
         self.FOM_projector = SimpleBoundDomainProjector(
@@ -192,21 +209,23 @@ class Optimizer(BasicObject):
         previous_q: NumpyVectorArray,
         previous_J: float,
         search_direction: NumpyVectorArray,
-        max_iter: int,
-        inital_step_size: float,
-        kappa_arm: float,
+        armijo_cfg: ArmijoConfig,
         use_cached_operators: bool = False,
         projector: Optional[SimpleBoundDomainProjector] = None,
         alpha: float = 0.0,
         use_error_estimator: bool = False,
     ) -> Tuple[NumpyVectorArray, float, bool, bool, float, Dict[str, Any]]:
         
-        if max_iter <= 0:
-            raise ValueError("max_iter must be > 0")
+        step_size = armijo_cfg.initial_step_size
+
+        if armijo_cfg.max_iter <= 0:
+            raise ValueError("armijo.max_iter must be > 0")
+        if step_size <= 0:
+            raise ValueError("armijo.initial_step_size must be > 0")
+        if not (0.0 < armijo_cfg.shrink < 1.0):
+            raise ValueError("armijo.shrink must be in (0,1)")
 
         self.logger.info("Start Armijo backtracking, with J = %3.4e.", previous_J)
-
-        step_size = inital_step_size
         errors: Dict[str, Any] = {}
 
         # initialize to keep type-checkers + avoid unbound locals
@@ -217,7 +236,7 @@ class Optimizer(BasicObject):
         tr_ok = False
 
         i = 0
-        while i < max_iter:
+        while i < armijo_cfg.max_iter:
             current_q, current_J, abs_err_J, errors = self._eval_bt_step(
                 model=model,
                 previous_q=previous_q,
@@ -232,7 +251,7 @@ class Optimizer(BasicObject):
             # Armijo part
             norm_d = model.compute_gradient_norm(previous_q - current_q)
             lhs = previous_J - current_J
-            rhs = kappa_arm / step_size * norm_d**2
+            rhs = armijo_cfg.kappa_arm / step_size * norm_d**2
 
             if abs(lhs) <= MACHINE_EPS:
                 lhs = 0.0
@@ -241,22 +260,17 @@ class Optimizer(BasicObject):
 
             armijo_ok = lhs >= rhs
 
-            tr_ok = self.TR.check(objective=current_J, abs_error=abs_err_J)
+            tr_res = self.TR.check(objective=current_J, abs_error=abs_err_J)
+            tr_ok = tr_res.tr_ok
+            model_insufficient = tr_res.model_insufficient
 
             if armijo_ok and tr_ok:
                 break
 
-            step_size *= 0.5
+            step_size *= armijo_cfg.shrink
             i += 1
 
-        TR_max_iter_cond = (i >= max_iter)
-
-        if current_J > 0:
-            J_rel_error = abs_err_J / current_J
-        else:
-            J_rel_error = np.inf
-
-        model_unsufficent = (J_rel_error > self.TR.beta_1 * self.TR.eta)
+        TR_max_iter_cond = (i >= armijo_cfg.max_iter)
 
         condition = (armijo_ok and tr_ok)
         if not condition:
@@ -271,9 +285,7 @@ class Optimizer(BasicObject):
                 step_size, current_J, self.TR.eta
             )
 
-        return current_q, current_J, model_unsufficent, TR_max_iter_cond, step_size, errors
-
-
+        return current_q, current_J, model_insufficient, TR_max_iter_cond, step_size, errors
 
     # def _armijo_TR_line_serach(self,
     #                            model: InstationaryModelIP, 
@@ -294,7 +306,7 @@ class Optimizer(BasicObject):
     #     assert 0 < eta
         
     #     i = 0
-    #     model_unsufficent = False
+    #     model_insufficient = False
     #     TR_max_iter_cond = False
 
     #     self.logger.info(f"Start Armijo backtracking, with J = {previous_J:3.4e}.")
@@ -455,7 +467,7 @@ class Optimizer(BasicObject):
     #         i += 1
 
     #     if (J_rel_error > beta * eta):
-    #         model_unsufficent = True
+    #         model_insufficient = True
         
     #     if i == max_iter:
     #         TR_max_iter_cond = True
@@ -468,7 +480,7 @@ class Optimizer(BasicObject):
     #     else:
     #         self.logger.debug(f"Armijo backtracking does terminate normally with step_size = {step_size:3.4e}; Stopping at J = {current_J:3.4e}")
 
-    #     return (current_q, current_J, model_unsufficent, TR_max_iter_cond, step_size, errors)
+    #     return (current_q, current_J, model_insufficient, TR_max_iter_cond, step_size, errors)
 
     def estimate_errors(self,
                         model: InstationaryModelIP,
@@ -850,8 +862,8 @@ class Optimizer(BasicObject):
               i_max : int,
               reg_loop_max: int,
               TR_enforcement: str | None = None,
+              TR_armijo_cfg: ArmijoConfig | None = None,
               lin_solver_parms: Dict = None,
-              TR_params: Dict = None,
               use_cached_operators: bool = False,
               dump_IRGNM_intermed_stats: bool = False,
               dump_every_nth_loop: int = 0,
@@ -868,7 +880,7 @@ class Optimizer(BasicObject):
 
         if TR_enforcement is not None:
             assert TR_enforcement in ['check_error', 'backtracking']
-            assert TR_params is not None
+            assert TR_armijo_cfg is not None
             method_name = 'TR-IRGNM'
         else:
             method_name = 'IRGNM'
@@ -916,7 +928,7 @@ class Optimizer(BasicObject):
         start_time = timer()
         i = 0
 
-        model_unsufficent = False
+        model_insufficient = False
         
         alpha = alpha_0
         q = q_0.copy()
@@ -1051,16 +1063,16 @@ class Optimizer(BasicObject):
             ########################################### Armijo ###########################################
 
             TR_max_iter_cond = False
-            model_unsufficent = False
+            model_insufficient = False
 
             if TR_enforcement == 'backtracking':
                 self.logger.info(f"Enforcing TR condition using 'backtracking'.")
-                q_TR, _, model_unsufficent, TR_max_iter_cond, step_size, errors = self._armijo_TR_line_serach(
+                q_TR, _, model_insufficient, TR_max_iter_cond, step_size, errors = self._armijo_TR_line_serach(
                     model = model,
                     previous_q = q,
                     previous_J = J,
                     search_direction = d,
-                    **TR_params,
+                    armijo_cfg = TR_armijo_cfg,
                     use_cached_operators=use_cached_operators,
                     projector=projector,
                     use_error_estimator=use_error_estimator
@@ -1084,35 +1096,59 @@ class Optimizer(BasicObject):
                 p, p_dot = model.solve_adjoint(q=next_q, u=u, use_cached_operators=use_cached_operators)
                 next_J = model.objective(u=u,q=next_q)
 
-                if next_J > 0:
-                    errors = \
-                    self.estimate_errors(
-                        model = model,
-                        reductor=self.reductor,
-                        q_r = next_q,
-                        d_r = d,
-                        u_r = u,
-                        p_r = p,
-                        u_dot_r = u_dot,
-                        p_dot_r = p_dot,
-                        J_r = J,
-                        targets = self.error_estimate_targets_inner,
-                        use_cached_operators=use_cached_operators,
-                        use_error_estimator=use_error_estimator
-                    )
-                    abs_est_error_J_r = errors['err_J']
-                    J_rel_error = abs_est_error_J_r / next_J
-                else:
-                    J_rel_error = np.inf
+                errors = \
+                self.estimate_errors(
+                    model = model,
+                    reductor=self.reductor,
+                    q_r = next_q,
+                    d_r = d,
+                    u_r = u,
+                    p_r = p,
+                    u_dot_r = u_dot,
+                    p_dot_r = p_dot,
+                    J_r = next_J,
+                    targets = self.error_estimate_targets_inner,
+                    use_cached_operators=use_cached_operators,
+                    use_error_estimator=use_error_estimator
+                )
 
-                eta = TR_params['eta']
-                beta = TR_params['beta']
+                tr_res = self.TR.check(objective=next_J, abs_error=float(errors["err_J"]))
+                tr_ok = tr_res.tr_ok
+                model_insufficient = tr_res.model_insufficient
 
-                if J_rel_error <= eta:
+                if tr_ok:
                     q = next_q
 
-                if (J_rel_error > beta * eta):
-                    model_unsufficent = True
+
+                # if next_J > 0:
+                #     errors = \
+                #     self.estimate_errors(
+                #         model = model,
+                #         reductor=self.reductor,
+                #         q_r = next_q,
+                #         d_r = d,
+                #         u_r = u,
+                #         p_r = p,
+                #         u_dot_r = u_dot,
+                #         p_dot_r = p_dot,
+                #         J_r = J,
+                #         targets = self.error_estimate_targets_inner,
+                #         use_cached_operators=use_cached_operators,
+                #         use_error_estimator=use_error_estimator
+                #     )
+                #     abs_est_error_J_r = errors['err_J']
+                #     J_rel_error = abs_est_error_J_r / next_J
+                # else:
+                #     J_rel_error = np.inf
+
+                # eta = TR_params['eta']
+                # beta = TR_params['beta']
+
+                # if J_rel_error <= eta:
+                #     q = next_q
+
+                # if (J_rel_error > beta * eta):
+                #     model_insufficient = True
 
             else:
                 q += d
@@ -1168,19 +1204,19 @@ class Optimizer(BasicObject):
 
             self.IRGNM_statistics["total_runtime"].append(timer() - start_time) 
 
-            if model_unsufficent:
+            if model_insufficient:
                 break
         
         self.logger.info(f'Final {method_name} Statistics:')
         if loop_terminated:
             self.logger.info(f'     {method_name} No sufficient regularization constant found i = {i}')
-        elif i == i_max and not model_unsufficent:
+        elif i == i_max and not model_insufficient:
             self.logger.info(f'     {method_name} reached maxit at i = {i}')
-        elif i < i_max and not model_unsufficent:
+        elif i < i_max and not model_insufficient:
             self.logger.info(f'     {method_name} converged at i = {i}')
         elif TR_max_iter_cond:
             self.logger.info(f'     {method_name} TR backtracking reach maximum iteration number at i = {i}')
-        elif model_unsufficent:
+        elif model_insufficient:
             self.logger.info(f'     {method_name} TR boundary criterium triggered at i = {i}')
         elif stagnation_flag:
             self.logger.info(f'     {method_name} TR stagnated at i = {i}')
@@ -1288,67 +1324,46 @@ class FOMOptimizer(Optimizer):
         }
 
     def solve(self) -> VectorArray:
-        q_0 = self.optimizer_parameter["q_0"].copy()
-        alpha_0 = self.optimizer_parameter["alpha_0"]
-        tol = self.optimizer_parameter["tol"]
-        tau = self.optimizer_parameter["tau"]
-        noise_level = self.optimizer_parameter["noise_level"]
-        theta = self.optimizer_parameter["theta"]
-        Theta = self.optimizer_parameter["Theta"]
+        # --- schema parse/validate (TR optimizer style) ---
+        cfg = FOMOptimizerCfg.from_dict(self.optimizer_parameter)
 
-        i_max = self.optimizer_parameter["i_max"]
-        reg_loop_max = self.optimizer_parameter["reg_loop_max"]
-
-        lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
-        use_cached_operators = self.optimizer_parameter['use_cached_operators']
-
-        dump_every_nth_loop = self.optimizer_parameter['dump_every_nth_loop']
-    
-        q = self.FOM.Q.make_array(q_0)
+        # --- build initial q ---
+        q = self.FOM.Q.make_array(cfg.q_0)
         self.last_update_q = q.copy()
-        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-        p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+
+        # --- initial evaluation (same as before, but uses cfg) ---
+        u = self.FOM.solve_state(q, use_cached_operators=cfg.use_cached_operators)
+        p = self.FOM.solve_adjoint(q, u, use_cached_operators=cfg.use_cached_operators)
         J = self.FOM.objective(u)
-        nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
+        nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=cfg.use_cached_operators)
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
 
-        self.logger.debug("Running FOM-IRGNM:")
-        self.logger.debug(f"  J : {J:3.4e}")
-        self.logger.debug(f"  norm_nabla_J : {norm_nabla_J:3.4e}")
-        self.logger.debug(f"                ")
-        self.logger.debug(f"  alpha_0 : {alpha_0:3.4e}")
-        self.logger.debug(f"  tol : {tol:3.4e}")
-        self.logger.debug(f"  tau : {tau:3.4e}")
-        self.logger.debug(f"  noise_level : {noise_level:3.4e}")
-        self.logger.debug(f"  theta : {theta:3.4e}")
-        self.logger.debug(f"  Theta : {Theta:3.4e}")
-        self.logger.debug(f"                ")
-        self.logger.debug(f"  i_max : {i_max:3.4e}")
-        self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
-        self.logger.debug(f"  lin_solver_parms : ")
-        for (key,val) in lin_solver_parms.items():
-            self.logger.debug(f"        {key} : {val}")
-        self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
+        # --- centralized logging ---
+        self.name = "FOM"
+        log_fom_opt_config(self.logger, cfg, J=J, norm_nabla_J=norm_nabla_J)
 
-        self.name = 'FOM'
-        q, IRGNM_statistic = self.IRGNM(model = self.FOM,
-                                        q_0 = q,
-                                        alpha_0 = alpha_0,
-                                        tol = tol,
-                                        tau = tau,
-                                        noise_level = noise_level,
-                                        theta = theta,
-                                        Theta = Theta,
-                                        i_max = i_max,
-                                        reg_loop_max = reg_loop_max,
-                                        lin_solver_parms = lin_solver_parms,
-                                        use_cached_operators = use_cached_operators,
-                                        dump_IRGNM_intermed_stats = True,
-                                        dump_every_nth_loop=dump_every_nth_loop,
-                                        projector=self.FOM_projector)
+        # --- run IRGNM (no TR enforcement here) ---
+        q, IRGNM_statistic = self.IRGNM(
+            model=self.FOM,
+            q_0=q,
+            alpha_0=cfg.alpha_0,
+            tol=cfg.tol,
+            tau=cfg.tau,
+            noise_level=cfg.noise_level,
+            theta=cfg.theta,
+            Theta=cfg.Theta,
+            i_max=cfg.i_max,
+            reg_loop_max=cfg.reg_loop_max,
+            lin_solver_parms=cfg.lin_solver_parms,
+            use_cached_operators=cfg.use_cached_operators,
+            dump_IRGNM_intermed_stats=True,
+            dump_every_nth_loop=cfg.dump_every_nth_loop,
+            projector=self.FOM_projector,
+            use_error_estimator=False,  # FOM run usually doesn't need estimators
+        )
 
+        # --- store + dump statistics (unchanged semantics) ---
         self.statistics["q"] = IRGNM_statistic["q"]
-        #self.statistics['time_steps'] = IRGNM_statistic['time_steps']
         self.statistics["alpha"] = IRGNM_statistic["alpha"]
         self.statistics["J"] = IRGNM_statistic["J"]
         self.statistics["norm_nabla_J"] = IRGNM_statistic["norm_nabla_J"]
@@ -1357,187 +1372,12 @@ class FOMOptimizer(Optimizer):
         self.statistics["FOM_num_calls"] = IRGNM_statistic["FOM_num_calls"]
         self.statistics["counts"] = IRGNM_statistic["counts"]
 
-        self.dump_stats(data=self.statistics,
-                        save_path = self.save_path / f'FOM_IRGNM_final.pkl')
-
-        return q
-        
-class QrFOMOptimizer(Optimizer):
-    def __init__(self, 
-                 optimizer_parameter: Dict, 
-                 FOM : InstationaryModelIP,
-                 save_path : Path,
-                 logger: logging.Logger = None) -> None:
-        raise Exception("QrFOMOptimizer is deprecated.")
-        super().__init__(optimizer_parameter = optimizer_parameter, 
-                         FOM = FOM, 
-                         logger = logger, 
-                         save_path = save_path)
-
-        self.reductor = InstationaryModelIPReductor(
-            FOM
+        self.dump_stats(
+            data=self.statistics,
+            save_path=self.save_path / "FOM_IRGNM_final.pkl"
         )
-        self.QrFOM = None
-
-        self.statistics = {
-            "q" : [],
-            "alpha" : [],
-            "J" : [],
-            "norm_nabla_J" : [],
-            "total_runtime" : np.nan,
-            #'inner_loop_time_steps' : [],
-            "stagnation_flag" : False,
-            "optimizer_parameter" : self.optimizer_parameter.copy(),
-            "FOM_num_calls" : {}
-        }
-    
-
-    def solve(self) -> VectorArray:
-        q_0 = self.optimizer_parameter["q_0"].copy()
-        alpha_0 = self.optimizer_parameter["alpha_0"]
-        tol = self.optimizer_parameter["tol"]
-        tau = self.optimizer_parameter["tau"]
-        noise_level = self.optimizer_parameter["noise_level"]
-        theta = self.optimizer_parameter["theta"]
-        Theta = self.optimizer_parameter["Theta"]
-
-        i_max = self.optimizer_parameter["i_max"]
-        reg_loop_max = self.optimizer_parameter["reg_loop_max"]
-        i_max_inner = self.optimizer_parameter["i_max_inner"]
-
-        lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
-        use_cached_operators = self.optimizer_parameter['use_cached_operators']
-
-        start_time = timer()
-        i = 0
-        alpha = alpha_0
-        delta = noise_level
-
-        q = self.FOM.Q.make_array(q_0)
-        u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-        p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
-        J = self.FOM.objective(u)
-        nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
-        norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
-        
-        self.statistics["q"].append(q)
-        self.statistics["alpha"].append(alpha)
-        self.statistics["J"].append(J)
-        self.statistics["norm_nabla_J"].append(norm_nabla_J)
-
-
-        self.logger.debug("Running Qr-IRGNM:")
-        self.logger.debug(f"  J : {J:3.4e}")
-        self.logger.debug(f"  norm_nabla_J : {norm_nabla_J:3.4e}")
-        self.logger.debug(f"                ")
-        self.logger.debug(f"  alpha_0 : {alpha_0:3.4e}")
-        self.logger.debug(f"  tol : {tol:3.4e}")
-        self.logger.debug(f"  tau : {tau:3.4e}")
-        self.logger.debug(f"  noise_level : {noise_level:3.4e}")
-        self.logger.debug(f"  theta : {theta:3.4e}")
-        self.logger.debug(f"  Theta : {Theta:3.4e}")
-        self.logger.debug(f"                ")
-        self.logger.debug(f"  i_max : {i_max:3.4e}")
-        self.logger.debug(f"  i_max_inner : {i_max_inner:3.4e}")
-        self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
-        self.logger.debug(f"  lin_solver_parms : ")
-        for (key,val) in lin_solver_parms.items():
-            self.logger.debug(f"        {key} : {val}")
-        self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
-        
-        self.logger.debug(f"Extending Qr-space")
-        self.parameter_snapshots = self.FOM.Q.empty()
-        self.parameter_snapshots.append(nabla_J)
-        self.parameter_snapshots.append(q)
-        self.parameter_snapshots.append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
-
-        if self.FOM.setup['q_time_dep']:
-            self.logger.debug(f"Performing HaPOD on parameter snapshots.")
-            _parameter_snapshots, _ = self._HaPOD(snapshots=self.parameter_snapshots, 
-                                                  basis='parameter_basis',
-                                                  product=self.FOM.products['prod_Q'])
-
-        self.reductor.extend_basis(
-             U = _parameter_snapshots,
-             basis = 'parameter_basis'
-        )
-        self.QrFOM = self.reductor.reduce()
-        IRGNM_statistic = {}
-
-        while np.sqrt(2 * J) >= tol+tau*noise_level and i<i_max:
-            self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-            self.logger.warning(f"Qr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
-            self.logger.info(f'Start Qr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
-            self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-
-            q_r = self.reductor.project_vectorarray(q, 'parameter_basis')
-            q_r = self.QrFOM.Q.make_array(q_r)
-            
-            self.IRGNM_idx += 1
-            
-            inner_loop_start_time = timer()
-            q_r, IRGNM_statistic_ = self.IRGNM(model = self.QrFOM,
-                                               q_0 = q_r,
-                                               alpha_0 = alpha,
-                                               tol = tol,
-                                               tau = tau,
-                                               noise_level = delta,
-                                               i_max = i_max_inner,
-                                               theta = theta,
-                                               Theta = Theta,
-                                               reg_loop_max = reg_loop_max,
-                                               lin_solver_parms = lin_solver_parms,
-                                               use_cached_operators = use_cached_operators,
-                                               use_error_estimator=False)
-            
-            q = self.reductor.reconstruct(q_r, basis='parameter_basis')
-            assert self.FOM_projector.project_domain(center=q) == q
-            u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-            p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
-            J = self.FOM.objective(u)
-            nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
-            alpha = IRGNM_statistic["alpha"][1]
-
-            self.statistics["q"].append(q)
-            self.statistics["alpha"].append(alpha)
-            self.statistics["J"].append(J)
-            self.statistics["norm_nabla_J"].append(self.FOM.compute_gradient_norm(nabla_J))
-
-            if i > 3:
-                buffer = self.statistics["J"][-3:]
-                if abs(buffer[0] - buffer[1]) < MACHINE_EPS and abs(buffer[1] - buffer[2]) < MACHINE_EPS:
-                    self.statistics["stagnation_flag"] = True
-                    self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
-                    break
-            
-            self.statistics["FOM_num_calls"] = self.FOM.num_calls
-            self.dump_stats(data=self.statistics,
-                            save_path = self.save_path / f'QrFOM_IRGNM_{i}.pkl')
-            
-            self.logger.debug(f"Extending Qr-space")
-            self.parameter_snapshots = self.FOM.Q.empty()
-            self.parameter_snapshots.append(nabla_J)
-            
-            if self.FOM.q_time_dep:
-                self.logger.debug(f"Performing HaPOD on parameter snapshots.")
-                _parameter_snapshots, _ = self._HaPOD(snapshots=self.parameter_snapshots, 
-                                                      basis='parameter_basis',
-                                                      product=self.FOM.products['prod_Q'])
-
-            self.reductor.extend_basis(
-                U = _parameter_snapshots,
-                basis = 'parameter_basis'
-            )
-            self.QrFOM = self.reductor.reduce()
-            self.logger.debug(f"Dim Qr-space = {self.reductor.get_bases_dim('parameter_basis')}")
-            self.logger.debug(f"Dim Vr-space = {self.reductor.get_bases_dim('state_basis')}")
-
-        self.statistics["total_runtime"] = (timer() - start_time)
-        self.statistics["FOM_num_calls"] = self.FOM.num_calls
-        self.dump_stats(data=self.statistics,
-                        save_path = self.save_path / f'QrFOM_IRGNM_final.pkl')
         return q
-        
+
 class QrVrROMOptimizer(Optimizer):
     def __init__(self, 
                  optimizer_parameter: Dict, 
@@ -1563,7 +1403,7 @@ class QrVrROMOptimizer(Optimizer):
                 self.active_bases.append(key)    
 
         if self.use_adjoint_space:
-            assert 'adjoint_basis' not in self.active_bas
+            assert 'adjoint_basis' not in self.active_bases
 
         self.reductor = InstationaryModelIPReductor(
             FOM,
@@ -1578,8 +1418,6 @@ class QrVrROMOptimizer(Optimizer):
             active_bases = self.active_bases,
             use_adjoint_space = optimizer_parameter["use_adjoint_space"]
         )
-
-        # self.TR =
 
         self.all_snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
         self.snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
@@ -1611,7 +1449,7 @@ class QrVrROMOptimizer(Optimizer):
             "flags" : {
                 "proj_q_in_tr" : [],
                 "AGC_decay_cond" : [],
-                "model_unsufficent" : [],
+                "model_insufficient" : [],
                 "check_conditions" : [],
                 "rejected" : [],
             },
@@ -1717,58 +1555,25 @@ class QrVrROMOptimizer(Optimizer):
         
     def _reset_snapshots(self) -> None:
         self.snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
-       
+
     def solve(self) -> VectorArray:
-        q_0 = self.optimizer_parameter["q_0"].copy()
-        alpha_0 = self.optimizer_parameter["alpha_0"]
-        tol = self.optimizer_parameter["tol"]
-        tau = self.optimizer_parameter["tau"]
-        noise_level = self.optimizer_parameter["noise_level"]
-        theta = self.optimizer_parameter["theta"]
-        Theta = self.optimizer_parameter["Theta"]
-        tau_tilde = self.optimizer_parameter["tau_tilde"]
-
-        i_max = self.optimizer_parameter["i_max"]
-        reg_loop_max = self.optimizer_parameter["reg_loop_max"]
-        i_max_inner = self.optimizer_parameter["i_max_inner"]
-        agc_armijo_max_iter = self.optimizer_parameter["agc_armijo_max_iter"]
-        TR_armijo_max_iter = self.optimizer_parameter["TR_armijo_max_iter"]
-
-        use_error_estimator = self.optimizer_parameter["use_error_estimator"]
-        use_adjoint_space = self.optimizer_parameter["use_adjoint_space"]
-        offline_parallel = self.optimizer_parameter["offline_parallel"]
-        reg_AGC_step = self.optimizer_parameter["reg_AGC_step"]
-        TR_enforcement = self.optimizer_parameter["TR_enforcement"]
-        assert TR_enforcement in ['check_error', 'backtracking']
-
-        lin_solver_parms = self.optimizer_parameter['lin_solver_parms']
-        use_cached_operators = self.optimizer_parameter['use_cached_operators']        
-        enrichment = self.optimizer_parameter['enrichment']
-
-        dump_every_nth_loop = self.optimizer_parameter['dump_every_nth_loop']
-
-        eta0 = self.optimizer_parameter["eta0"]
-        eta_min = self.optimizer_parameter["eta_min"]
-        eta_max = self.optimizer_parameter["eta_max"]
-        kappa_arm = self.optimizer_parameter["kappa_arm"]
-        beta_1 = self.optimizer_parameter["beta_1"]
-        beta_2 = self.optimizer_parameter["beta_2"]
-        beta_3 = self.optimizer_parameter["beta_3"]
+        opt_cfg = TROptimizerCfg.from_dict(self.optimizer_parameter)
 
         start_time = timer()
         i = 0
-        alpha = alpha_0
-        delta = noise_level
+        alpha = opt_cfg.alpha_0
+        #eta = self.TR.eta
+        delta = opt_cfg.noise_level
 
         solve_snapshot_FOM_start_time = timer()
-        q = self.FOM.Q.make_array(q_0)
+        q = self.FOM.Q.make_array(opt_cfg.q_0)
         u = self.FOM.solve_state(q, use_cached_operators=False)        
         p = self.FOM.solve_adjoint(q, u, use_cached_operators=False)
         J = self.FOM.objective(u)
         nabla_J, time_steps_nabla_J = self.FOM.gradient(u, 
                                                         p, 
                                                         q, 
-                                                        use_cached_operators=use_cached_operators,
+                                                        use_cached_operators=opt_cfg.use_cached_operators,
                                                         return_per_time_step = True)
 
         norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
@@ -1778,66 +1583,31 @@ class QrVrROMOptimizer(Optimizer):
             self.statistics["outer_loop_runtime"]['extend_runtime'][basis].append(0.0)
         self.statistics["outer_loop_runtime"]['reduce_runtime'].append(0.0)
 
-        inital_agc_armijo_step_size = 0.5 / norm_nabla_J
-        inital_agc_armijo_step_size = np.min([inital_agc_armijo_step_size, 1e-3])
-        eta = eta0
+        agc_initial = min(0.5 / norm_nabla_J, 1e-3)
+        AGC_armijo_cfg = replace(opt_cfg.AGC_armijo_cfg, initial_step_size=agc_initial)
                     
-        self.logger.debug("Running Qr-Vr-IRGNM:")
-        self.logger.debug(f"  J : {J:3.4e}")
-        self.logger.debug(f"  norm_nabla_J : {norm_nabla_J:3.4e}")
-        self.logger.debug(f"                ")
-        self.logger.debug(f"  alpha_0 : {alpha_0:3.4e}")
-        self.logger.debug(f"  tol : {tol:3.4e}")
-        self.logger.debug(f"  tau : {tau:3.4e}")
-        self.logger.debug(f"  noise_level : {noise_level:3.4e}")
-        self.logger.debug(f"  theta : {theta:3.4e}")
-        self.logger.debug(f"  Theta : {Theta:3.4e}")
-        self.logger.debug(f"  tau_tilde : {tau_tilde:3.4e}")
-        self.logger.debug(f"                ")
-        self.logger.debug(f"  i_max : {i_max:3.4e}")
-        self.logger.debug(f"  i_max_inner : {i_max_inner:3.4e}")
-        self.logger.debug(f"  reg_loop_max : {reg_loop_max:3.4e}")
-        self.logger.debug(f"  agc_armijo_max_iter : {agc_armijo_max_iter:3.4e}")
-        self.logger.debug(f"  TR_armijo_max_iter : {TR_armijo_max_iter:3.4e}")
-        self.logger.debug(f"                ")
-        self.logger.debug(f"  use_error_estimator : {use_error_estimator}")
-        self.logger.debug(f"  use_adjoint_space : {use_adjoint_space}")        
-        self.logger.debug(f"  offline_parallel : {offline_parallel}")
-        self.logger.debug(f"  reg_AGC_step : {reg_AGC_step}")
-        self.logger.debug(f"  TR_enforcement : {TR_enforcement}")
-        self.logger.debug(f"                ")
-        self.logger.debug(f"  lin_solver_parms : ")
-        for (key,val) in lin_solver_parms.items():
-            self.logger.debug(f"        {key} : {val}")
-        self.logger.debug(f"  enrichment : ")
-        for (key,val) in enrichment.items():
-            self.logger.debug(f"        {key} : {val}")
-        self.logger.debug(f"  use_cached_operators : {use_cached_operators}")
-        self.logger.debug(f"                ")
-        self.logger.debug(f"  eta0 : {eta0:3.4e}")
-        self.logger.debug(f"  eta_min : {eta_min:3.4e}")
-        self.logger.debug(f"  eta_max : {eta_max:3.4e}")
-        self.logger.debug(f"  kappa_arm : {kappa_arm:3.4e}")
-        self.logger.debug(f"  beta_1 : {beta_1:3.4e}")
-        self.logger.debug(f"  beta_2 : {beta_2:3.4e}")
-        self.logger.debug(f"  beta_3 : {beta_3:3.4e}")
+        log_tr_opt_config(self.logger, opt_cfg, J=J, norm_nabla_J=norm_nabla_J, AGC_armijo_cfg=AGC_armijo_cfg)
 
+        # ------------------------------------------------------------
+        # Initial snapshots + build initial ROM
+        # ------------------------------------------------------------
+        
         self._reset_snapshots()
 
         self.snapshots = self.snapshot_preprocessor.get_snapshots(
-            config = enrichment,
+            config = opt_cfg.enrichment,
             bases = self.active_bases,
             q = q,
             u = u,
             p = p,
             nabla_J = nabla_J,
             time_steps_nabla_J = time_steps_nabla_J,
-            use_cached_operators = use_cached_operators
+            use_cached_operators = opt_cfg.use_cached_operators
         )
 
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             bases=self.active_bases,
-            enrichment=enrichment
+            enrichment=opt_cfg.enrichment
         )
 
         self._reset_snapshots()
@@ -1847,7 +1617,7 @@ class QrVrROMOptimizer(Optimizer):
 
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             bases=["parameter_basis"],
-            enrichment=enrichment,
+            enrichment=opt_cfg.enrichment,
             compression_override={
                 "parameter_basis": {
                     "normalize": True,
@@ -1887,11 +1657,11 @@ class QrVrROMOptimizer(Optimizer):
         q_r = self.QrVrROM.Q.make_array(q_r)
 
         u_r, u_dot_r = self.QrVrROM.solve_state(q_r,
-                                                use_cached_operators = use_cached_operators,
+                                                use_cached_operators = opt_cfg.use_cached_operators,
                                                 return_higher_orders = True)
         p_r, p_dot_r = self.QrVrROM.solve_adjoint(q_r, 
                                                   u_r,
-                                                  use_cached_operators = use_cached_operators,
+                                                  use_cached_operators = opt_cfg.use_cached_operators,
                                                   return_higher_orders = True)
         J_r = self.QrVrROM.objective(u_r)
         nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
@@ -1932,10 +1702,10 @@ class QrVrROMOptimizer(Optimizer):
             p_r = p_r,
             u_dot_r = u_dot_r,
             p_dot_r = p_dot_r,
-            J_r = J,
+            J_r = J_r,
             targets = self.error_estimate_targets_outer,
-            use_cached_operators=use_cached_operators,
-            use_error_estimator=use_error_estimator
+            use_cached_operators=opt_cfg.use_cached_operators,
+            use_error_estimator=opt_cfg.use_error_estimator
         )
 
         if J_r > 0:
@@ -1951,7 +1721,7 @@ class QrVrROMOptimizer(Optimizer):
             rel_est_error_nabla_J_r = np.inf
 
         self.statistics["q"].append(q)
-        self.statistics["eta"].append(eta)
+        self.statistics["eta"].append(self.TR.eta)
         self.statistics["alpha"].append(alpha)
         self.statistics["J"].append(J)
         self.statistics["norm_nabla_J"].append(norm_nabla_J)
@@ -1963,7 +1733,7 @@ class QrVrROMOptimizer(Optimizer):
         self.statistics['dim_Q_r'].append(self.reductor.get_bases_dim('parameter_basis'))
         self.statistics['dim_V_r'].append(self.reductor.get_bases_dim('state_basis'))
 
-        convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
+        convergence_criterium = np.sqrt(2 * J) < opt_cfg.tol+opt_cfg.tau*opt_cfg.noise_level
         AGC_jump_back = False
         last_inner_alpha = None
         IRGNM_statistics = {}
@@ -2006,10 +1776,10 @@ class QrVrROMOptimizer(Optimizer):
         # print("!!!!!!!!!!!!!!!!!!!!!!!!!!")
         # print(self.reductor.reconstruct(lin_p_r, basis=_basis).to_numpy())
 
-        while not convergence_criterium and i<i_max:            
+        while not convergence_criterium and i<opt_cfg.i_max:            
             outer_loop_start_time = timer()
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-            self.logger.warning(f"Qr-Vr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(tol+tau*noise_level):3.4e}.")
+            self.logger.warning(f"Qr-Vr-IRGNM iteration {i}: J = {J:3.4e} is not sufficent: {np.sqrt(2 * J):3.4e} > {(opt_cfg.tol+opt_cfg.tau*opt_cfg.noise_level):3.4e}.")
             self.logger.info(f'Start Qr-Vr-IRGNM iteration {i}: J = {J:3.4e}, norm_nabla_J = {norm_nabla_J:3.4e}, alpha = {alpha:1.4e}')
             self.logger.info(f"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             
@@ -2049,17 +1819,17 @@ class QrVrROMOptimizer(Optimizer):
             q_r = self.QrVrROM.Q.make_array(q_r)
 
             u_r, u_dot_r = self.QrVrROM.solve_state(q_r, 
-                                                    use_cached_operators=use_cached_operators,
+                                                    use_cached_operators=opt_cfg.use_cached_operators,
                                                     return_higher_orders = True)
             p_r, p_dot_r = self.QrVrROM.solve_adjoint(q_r, 
                                                       u_r, 
-                                                      use_cached_operators=use_cached_operators,
+                                                      use_cached_operators=opt_cfg.use_cached_operators,
                                                       return_higher_orders = True)
             J_r = self.QrVrROM.objective(u_r)
 
             #print(f"ROM sparsity = {self.QrVrROM.compute_sparsity(q_r)}")
             
-            nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
+            nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r, use_cached_operators=opt_cfg.use_cached_operators)
             
             errors = \
             self.estimate_errors(
@@ -2070,26 +1840,26 @@ class QrVrROMOptimizer(Optimizer):
                 p_r = p_r,
                 u_dot_r = u_dot_r,
                 p_dot_r = p_dot_r,
-                J_r = J,
+                J_r = J_r,
                 targets=self.error_estimate_targets_outer,
-                use_cached_operators=use_cached_operators,
-                use_error_estimator=use_error_estimator)
+                use_cached_operators=opt_cfg.use_cached_operators,
+                use_error_estimator=opt_cfg.use_error_estimator)
             
-            if J_r > 0:
-                abs_est_error_J_r = errors['err_J']
-                rel_est_error_J_r = abs_est_error_J_r / J_r
-            else:
-                rel_est_error_J_r = np.inf
+            # if J_r > 0:
+            #     abs_est_error_J_r = errors['err_J']
+            #     rel_est_error_J_r = abs_est_error_J_r / J_r
+            # else:
+            #     rel_est_error_J_r = np.inf
 
 
-            if eta <= eta_min:
+            if self.TR.eta_too_small():
                 self.statistics["stagnation_flag"] = True
-                self.logger.info(f"Trust region tolerance eta = {eta:3.4e} falls below eta_min = {eta_min:3.4e}.")
                 break
             
             ########################################### q^{(i)} in TR ###########################################
 
-            proj_q_in_tr = rel_est_error_J_r <= eta
+            tr_center = self.TR.check(objective=J_r, abs_error=float(errors['err_J']))
+            proj_q_in_tr = tr_center.tr_ok
         
             if AGC_jump_back: 
                 self.statistics['flags']['proj_q_in_tr'][-1] = proj_q_in_tr
@@ -2102,7 +1872,7 @@ class QrVrROMOptimizer(Optimizer):
 
                 self._reset_snapshots()
                 self.snapshots = self.snapshot_preprocessor.get_snapshots(
-                    config = enrichment,
+                    config = opt_cfg.enrichment,
                     bases = self.active_bases,
                     q = q,
                     u = u,
@@ -2110,12 +1880,12 @@ class QrVrROMOptimizer(Optimizer):
                     nabla_J = nabla_J,
                     time_steps_nabla_J = None,
                     add_additional_snapshots = False,
-                    use_cached_operators = use_cached_operators
+                    use_cached_operators = opt_cfg.use_cached_operators
                 )
 
                 self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                     bases=self.active_bases,
-                    enrichment=enrichment,
+                    enrichment=opt_cfg.enrichment,
                     compression_override={
                         basis: {
                             "normalize": True,
@@ -2152,10 +1922,10 @@ class QrVrROMOptimizer(Optimizer):
                     p_r = p_r,
                     u_dot_r = u_dot_r,
                     p_dot_r = p_dot_r,
-                    J_r = J,
+                    J_r = J_r,
                     targets=self.error_estimate_targets_outer,
-                    use_cached_operators=use_cached_operators,
-                    use_error_estimator=use_error_estimator)
+                    use_cached_operators=opt_cfg.use_cached_operators,
+                    use_error_estimator=opt_cfg.use_error_estimator)
                 
                 if J_r > 0:
                     abs_est_error_J_r = errors['err_J']
@@ -2166,8 +1936,9 @@ class QrVrROMOptimizer(Optimizer):
             print(abs_est_error_J_r)
             print(J_r)
             print(rel_est_error_J_r)
-            print(eta)
-            assert (rel_est_error_J_r - 1e-14) <= eta 
+            print(self.TR.eta)
+            #assert (rel_est_error_J_r - 1e-14) <= self.TR.eta 
+            assert rel_est_error_J_r <= self.TR.eta + sys.float_info.epsilon
 
             projector = SimpleBoundDomainProjector(
                 model = self.QrVrROM,
@@ -2185,7 +1956,7 @@ class QrVrROMOptimizer(Optimizer):
 
             AGC_start_time = timer()
 
-            if reg_AGC_step:                
+            if opt_cfg.reg_AGC_step:                
                 if last_inner_alpha is not None:
                     AGC_alpha = last_inner_alpha
                 else:
@@ -2205,18 +1976,16 @@ class QrVrROMOptimizer(Optimizer):
 
             self.logger.warning(f"Using AGC_alpha = {AGC_alpha}.")
 
-            q_agc, J_r_AGC, model_unsufficent, AGC_max_iter_cond, _, errors = self._armijo_TR_line_serach(
+            q_agc, J_r_AGC, model_insufficient, AGC_max_iter_cond, _, errors = self._armijo_TR_line_serach(
                 model = self.QrVrROM,
                 previous_q = q_r,
                 previous_J = previous_J,
                 search_direction = search_direction,
-                max_iter = agc_armijo_max_iter,
-                inital_step_size = inital_agc_armijo_step_size,
-                kappa_arm = kappa_arm,
-                use_cached_operators=use_cached_operators,
+                armijo_cfg = AGC_armijo_cfg,
+                use_cached_operators=opt_cfg.use_cached_operators,
                 projector = projector,
                 alpha = AGC_alpha,
-                use_error_estimator=use_error_estimator
+                use_error_estimator=opt_cfg.use_error_estimator
             )
 
             print("$$$$$$$$$$$$$$$$$$$$$")
@@ -2229,7 +1998,7 @@ class QrVrROMOptimizer(Optimizer):
             if not AGC_jump_back:
                 self.statistics['flags']['AGC_decay_cond'].append(AGC_decay_cond)
 
-            if reg_AGC_step:
+            if opt_cfg.reg_AGC_step:
                 AGC_decay_cond = True
                         
             if not AGC_decay_cond:
@@ -2243,7 +2012,7 @@ class QrVrROMOptimizer(Optimizer):
 
                 self._reset_snapshots()
                 self.snapshots = self.snapshot_preprocessor.get_snapshots(
-                    config = enrichment,
+                    config = opt_cfg.enrichment,
                     bases = self.active_bases,
                     q = q,
                     u = u,
@@ -2251,12 +2020,12 @@ class QrVrROMOptimizer(Optimizer):
                     nabla_J = nabla_J,
                     time_steps_nabla_J = None,
                     add_additional_snapshots = False,
-                    use_cached_operators = use_cached_operators
+                    use_cached_operators = opt_cfg.use_cached_operators
                 )
 
                 self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                     bases=self.active_bases,
-                    enrichment=enrichment,
+                    enrichment=opt_cfg.enrichment,
                     compression_override={
                         basis: {
                             "normalize": True,
@@ -2270,15 +2039,16 @@ class QrVrROMOptimizer(Optimizer):
                 self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
 
                 AGC_jump_back = True
-                eta = beta_3 * eta 
+                #eta = self.TR.beta_3 * eta 
+                self.TR.shrink()
                 continue
             
-            if not reg_AGC_step:
+            if not opt_cfg.reg_AGC_step:
                 assert not AGC_max_iter_cond
 
             AGC_jump_back = False
                 
-            self.statistics['flags']['model_unsufficent'].append(model_unsufficent)
+            self.statistics['flags']['model_insufficient'].append(model_insufficient)
             self.statistics["outer_loop_runtime"]['AGC_runtime'].append(timer() - AGC_start_time)
 
             q_r = q_agc.copy()
@@ -2286,32 +2056,31 @@ class QrVrROMOptimizer(Optimizer):
             ########################################### IRGNM ###########################################
             IRGNM_start_time = timer()
 
-            TR_params = {
-                'max_iter' : TR_armijo_max_iter, 
-                'inital_step_size' : 1, 
-                'eta' : eta, 
-                'beta' : beta_1, 
-                "kappa_arm" : kappa_arm
-            }
-            #projector = None
+            # TR_params = {
+            #     'max_iter' : TR_armijo_max_iter, 
+            #     'inital_step_size' : 1, 
+            #     'eta' : eta, 
+            #     'beta' : beta_1, 
+            #     "kappa_arm" : kappa_arm
+            # }
 
-            if not model_unsufficent:
+            if not model_insufficient:
                 q_r, IRGNM_statistic = self.IRGNM(model = self.QrVrROM,
                                                   q_0 = q_r,
                                                   alpha_0 = alpha,
-                                                  tol = tol,
-                                                  tau = tau,
+                                                  tol = opt_cfg.tol,
+                                                  tau = opt_cfg.tau,
                                                   noise_level = delta,
-                                                  i_max = i_max_inner,
-                                                  theta = theta,
-                                                  Theta = Theta,
-                                                  reg_loop_max = reg_loop_max,
-                                                  TR_enforcement=TR_enforcement,
-                                                  TR_params=TR_params,
-                                                  lin_solver_parms=lin_solver_parms,
-                                                  use_cached_operators=use_cached_operators,
+                                                  i_max = opt_cfg.i_max_inner,
+                                                  theta = opt_cfg.theta,
+                                                  Theta = opt_cfg.Theta,
+                                                  reg_loop_max = opt_cfg.reg_loop_max,
+                                                  TR_enforcement=opt_cfg.TR_enforcement,
+                                                  TR_armijo_cfg=opt_cfg.TR_armijo_cfg,
+                                                  lin_solver_parms=opt_cfg.lin_solver_parms,
+                                                  use_cached_operators=opt_cfg.use_cached_operators,
                                                   projector=projector,
-                                                  use_error_estimator=use_error_estimator)
+                                                  use_error_estimator=opt_cfg.use_error_estimator)
             
             
             self.statistics["outer_loop_runtime"]['IRGNM_runtime'].append(timer() - IRGNM_start_time)
@@ -2329,11 +2098,11 @@ class QrVrROMOptimizer(Optimizer):
                 self.logger.debug("Decide on q; Either accept or reject")
 
                 u_r, u_dot_r = self.QrVrROM.solve_state(q_r,
-                                                        use_cached_operators=use_cached_operators, 
+                                                        use_cached_operators=opt_cfg.use_cached_operators, 
                                                         return_higher_orders=True)
                 p_r, p_dot_r = self.QrVrROM.solve_adjoint(q_r, 
                                                           u_r,
-                                                          use_cached_operators=use_cached_operators, 
+                                                          use_cached_operators=opt_cfg.use_cached_operators, 
                                                           return_higher_orders=True)
                 J_r = self.QrVrROM.objective(u_r)
                 nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
@@ -2348,10 +2117,10 @@ class QrVrROMOptimizer(Optimizer):
                     p_r = p_r,
                     u_dot_r = u_dot_r,
                     p_dot_r = p_dot_r,
-                    J_r = J,
+                    J_r = J_r,
                     targets = self.error_estimate_targets_outer,
-                    use_cached_operators=use_cached_operators,
-                    use_error_estimator=use_error_estimator
+                    use_cached_operators=opt_cfg.use_cached_operators,
+                    use_error_estimator=opt_cfg.use_error_estimator
                 )
                 
                 if J_r > 0:
@@ -2386,37 +2155,47 @@ class QrVrROMOptimizer(Optimizer):
                     solve_snapshot_FOM_start_time = timer()
                     q = self.reductor.reconstruct(q_r, basis='parameter_basis')
                     q = self.FOM_projector.project_domain(center=q)
-                    u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-                    p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+                    u = self.FOM.solve_state(q, use_cached_operators=opt_cfg.use_cached_operators)
+                    p = self.FOM.solve_adjoint(q, u, use_cached_operators=opt_cfg.use_cached_operators)
                     J = self.FOM.objective(u)
                     nabla_J, time_steps_nabla_J = self.FOM.gradient(u, 
                                                                    p, 
                                                                    q, 
-                                                                   use_cached_operators=use_cached_operators,
+                                                                   use_cached_operators=opt_cfg.use_cached_operators,
                                                                    return_per_time_step = True)
         
                     norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
                     self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
 
-                    delta_J = self.statistics["J"][-1] - J
-                    delta_J_r = self.statistics["J_r"][-1]-J_r
+                    self.TR.update_by_trustworthiness(
+                        obj_r = J_r,
+                        obj_r_center = self.statistics["J_r"][-1],
+                        obj = J,
+                        obj_center = self.statistics["J"][-1]
+                    )
 
-                    if delta_J_r > 0:
-                        rho = delta_J / delta_J_r
-                    else:
-                        rho = np.inf
+                    # delta_J = self.statistics["J"][-1] - J
+                    # delta_J_r = self.statistics["J_r"][-1]-J_r
 
-                    if rho > beta_2:
-                        eta = 1/ beta_3 * eta
-                        eta = np.min([eta, eta_max])
-                        self.logger.info(f"    rho = {rho:3.4e} is greater than beta_2 = {beta_2:3.4e}; updating eta to {eta:3.4e}.")
-                    else:
-                        self.logger.info(f"    rho = {rho:3.4e} is smaller than beta_2 = {beta_2:3.4e}; keeping eta at {eta:3.4e}.")
+                    # if delta_J_r > 0:
+                    #     rho = delta_J / delta_J_r
+                    # else:
+                    #     rho = np.inf
+
+                    # if rho > self.TR.beta_2:
+                    #     eta = 1/ self.TR.beta_3 * eta
+                    #     eta = np.min([eta, self.TR.eta_max])
+                    #     self.logger.info(f"    rho = {rho:3.4e} is greater than beta_2 = {self.TR.beta_2:3.4e}; updating eta to {eta:3.4e}.")
+                    # else:
+                    #     self.logger.info(f"    rho = {rho:3.4e} is smaller than beta_2 = {self.TR.beta_2:3.4e}; keeping eta at {eta:3.4e}.")
+
+
                 elif not necessary_condition:
                     self.logger.info(f"    Reject q.")
                     rejected = True
                     # q remains unchanged
-                    eta = beta_3 * eta
+                    #eta = self.TR.beta_3 * eta
+                    self.TR.shrink()
                     
                     solve_snapshot_FOM_start_time = timer()
                     self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
@@ -2424,13 +2203,13 @@ class QrVrROMOptimizer(Optimizer):
                     solve_snapshot_FOM_start_time = timer()
                     q_ = self.reductor.reconstruct(q_r, basis='parameter_basis')
                     q_ = self.FOM_projector.project_domain(center=q_)
-                    u_ = self.FOM.solve_state(q_, use_cached_operators=use_cached_operators)
-                    p_ = self.FOM.solve_adjoint(q_, u_, use_cached_operators=use_cached_operators)
+                    u_ = self.FOM.solve_state(q_, use_cached_operators=opt_cfg.use_cached_operators)
+                    p_ = self.FOM.solve_adjoint(q_, u_, use_cached_operators=opt_cfg.use_cached_operators)
                     J_ = self.FOM.objective(u_)
                     nabla_J_, time_step_nabla_J_ = self.FOM.gradient(u, 
                                                                      p, 
                                                                      q, 
-                                                                     use_cached_operators=use_cached_operators,
+                                                                     use_cached_operators=opt_cfg.use_cached_operators,
                                                                      return_per_time_step = True)
                     norm_nabla_J_ = self.FOM.compute_gradient_norm(nabla_J_)
                     self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
@@ -2450,24 +2229,33 @@ class QrVrROMOptimizer(Optimizer):
                         time_steps_nabla_J = time_step_nabla_J_ 
                         norm_nabla_J = norm_nabla_J_
 
-                        delta_J = self.statistics["J"][-1] - J
-                        delta_J_r = self.statistics["J_r"][-1] - J_r
+                        self.TR.update_by_trustworthiness(
+                            obj_r = J_r,
+                            obj_r_center = self.statistics["J"][-1],
+                            obj = J,
+                            obj_center = self.statistics["J_r"][-1]
+                        )
 
-                        if delta_J_r > 0:
-                            rho = delta_J / delta_J_r
-                        else:
-                            rho = np.inf
+                        # delta_J = self.statistics["J"][-1] - J
+                        # delta_J_r = self.statistics["J_r"][-1] - J_r
 
-                        if rho > beta_2:
-                            eta = 1/ beta_3 * eta
-                            eta = np.min([eta, eta_max])
+                        # if delta_J_r > 0:
+                        #     rho = delta_J / delta_J_r
+                        # else:
+                        #     rho = np.inf
+
+                        # if rho > self.TR.beta_2:
+                        #     eta = 1/ self.TR.beta_3 * eta
+                        #     eta = np.min([eta, self.TR.eta_max])
+
                     else:
                         self.logger.info(f"    Reject q.")
                         # q remain unchanged
                         rejected = True
-                        eta = beta_3 * eta
+                        #eta = self.TR.beta_3 * eta
+                        self.TR.shrink()
                     
-                    self.logger.info(f"    eta = {eta:3.4e}.")
+                    self.logger.info(f"    eta = {self.TR.eta:3.4e}.")
             else:
                 self.logger.debug("Not found q_trial; Using AGC.")
                 rejected = False
@@ -2476,19 +2264,20 @@ class QrVrROMOptimizer(Optimizer):
                 solve_snapshot_FOM_start_time = timer()
                 q = self.reductor.reconstruct(q_r, basis='parameter_basis')
                 q = self.FOM_projector.project_domain(center=q)
-                u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-                p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+                u = self.FOM.solve_state(q, use_cached_operators=opt_cfg.use_cached_operators)
+                p = self.FOM.solve_adjoint(q, u, use_cached_operators=opt_cfg.use_cached_operators)
                 J = self.FOM.objective(u)
                 self.statistics['outer_loop_runtime']['solve_snapshot_FOM_runtime'].append(timer()  - solve_snapshot_FOM_start_time)
 
                 nabla_J, time_steps_nabla_J = self.FOM.gradient(u, 
                                                                 p, 
                                                                 q, 
-                                                                use_cached_operators=use_cached_operators,
+                                                                use_cached_operators=opt_cfg.use_cached_operators,
                                                                 return_per_time_step = True)
                 
                 norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
-                eta = beta_3 * eta
+                #eta = self.TR.beta_3 * eta
+                self.TR.shrink()
 
             for basis in self.active_bases:
                 self.statistics["outer_loop_runtime"]['extend_runtime'][basis].append(0.0)
@@ -2496,7 +2285,7 @@ class QrVrROMOptimizer(Optimizer):
 
             ########################################### Final ###########################################
 
-            convergence_criterium = np.sqrt(2 * J) < tol+tau*noise_level
+            convergence_criterium = np.sqrt(2 * J) < opt_cfg.tol+opt_cfg.tau*opt_cfg.noise_level
             self.statistics['flags']['rejected'].append(rejected)
             
             if not rejected:
@@ -2512,19 +2301,19 @@ class QrVrROMOptimizer(Optimizer):
                 if not convergence_criterium:
                     self._reset_snapshots()
                     self.snapshots = self.snapshot_preprocessor.get_snapshots(
-                        config = enrichment,
+                        config = opt_cfg.enrichment,
                         bases = self.active_bases,
                         q = q,
                         u = u,
                         p = p,
                         nabla_J = nabla_J,
                         time_steps_nabla_J = time_steps_nabla_J,
-                        use_cached_operators = use_cached_operators
+                        use_cached_operators = opt_cfg.use_cached_operators
                     )
 
                     ############################################################
 
-                    if enrichment['parameter_basis']['coarsing']:
+                    if opt_cfg.enrichment['parameter_basis']['coarsing']:
 
                         rel_tol_coeff_nabla_J = 1e-2
 
@@ -2568,7 +2357,7 @@ class QrVrROMOptimizer(Optimizer):
 
                     ############################################################
                     
-                    if enrichment['state_basis']['coarsing']:
+                    if opt_cfg.enrichment['state_basis']['coarsing']:
                         np.set_printoptions(threshold=np.inf)
                         rel_tol_coeff_u = enrichment['state_basis']['coarsing']['rel_tol_coeff_u']
                         rel_tol_coeff_p = enrichment['state_basis']['coarsing']['rel_tol_coeff_p']
@@ -2601,7 +2390,7 @@ class QrVrROMOptimizer(Optimizer):
 
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.active_bases,
-                        enrichment=enrichment
+                        enrichment=opt_cfg.enrichment
                     )
                     self.last_update_q = self.reductor.project_vectorarray(q.copy(), 'parameter_basis')
                     self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
@@ -2661,7 +2450,7 @@ class QrVrROMOptimizer(Optimizer):
                     q_r = self.QrVrROM.Q.make_array(q_r)
 
                 self.statistics["q"].append(q)
-                self.statistics["eta"].append(eta)
+                self.statistics["eta"].append(self.TR.eta)
                 self.statistics["alpha"].append(alpha)
                 self.statistics["J"].append(J)
                 self.statistics["norm_nabla_J"].append(norm_nabla_J)
@@ -2682,7 +2471,7 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics["total_runtime"].append(timer() - start_time)    
                 self.statistics["outer_loop_runtime"]['total_runtime'].append(timer() - outer_loop_start_time)
 
-            if (i % dump_every_nth_loop == 0) or (i == 1):
+            if (i % opt_cfg.dump_every_nth_loop == 0) or (i == 1):
                 
                 # self.statistics["snapshots"] = self.all_snapshots
                 # self.statistics["reduced_bases"] = self.reductor.bases
@@ -2698,7 +2487,7 @@ class QrVrROMOptimizer(Optimizer):
                 buffer = self.statistics["J"][-3:]
                 if abs(buffer[0] - buffer[1]) / abs(buffer[0]) < STAGNATION_TOL and abs(buffer[1] - buffer[2]) / abs(buffer[1])< STAGNATION_TOL:
                     self.statistics["stagnation_flag"] = True
-                    self.logger.info(f"Stop at iteration {i+1} of {int(i_max)}, due to stagnation.")
+                    self.logger.info(f"Stop at iteration {i+1} of {int(opt_cfg.i_max)}, due to stagnation.")
                     break
 
             if convergence_criterium:
