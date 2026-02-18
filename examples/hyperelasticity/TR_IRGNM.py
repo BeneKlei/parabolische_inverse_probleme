@@ -120,13 +120,13 @@ def main():
             'hyperparameter' : {}
         },
         'stored_energy' : {
-            'type' : hm.StoredEnergyFunctionType.Hookean,
-            #'type' : hm.StoredEnergyFunctionType.NeoHookean,
+            #'type' : hm.StoredEnergyFunctionType.Hookean,
+            'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                # 'mu' : 26.32, 
-                # 'kappa' : 68.60
-                'mu' : 1e1, 
-                'lambda' : 1e1
+                'mu' : 26.32, 
+                'kappa' : 68.60
+                # 'mu' : 1e1, 
+                # 'lambda' : 1e1
             }
         },
         'observation_operator': {
@@ -315,7 +315,6 @@ def main():
             "shrink": 0.5,
         },
         'TR': {
-            #'type': TRType.RELATIVE_OBJECTIVE_ERROR,
             'type': TRType.RELATIVE_OBJECTIVE_ERROR,
 
             # TR config

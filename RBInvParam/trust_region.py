@@ -16,6 +16,7 @@ from pymor.vectorarrays.interface import VectorArray
 
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.products import BochnerProductOperator
+from RBInvParam.optimizer.numerics import GLOBAL_OBJ_POLICY as OBJ
 
 MACHINE_EPS = sys.float_info.epsilon
 
@@ -306,34 +307,13 @@ class RelativeObjectiveErrorTR(TR, tr_type=TRType.RELATIVE_OBJECTIVE_ERROR):
         super().__init__(config=config, logger=logger)
 
     def check(self, ctx: TRContext) -> TRCheckResult:
-        
+        J = OBJ.sanitize_objective(ctx.objective, name="objective")
+        err = OBJ.sanitize_error(ctx.abs_error, name="abs_error")
 
-        if np.isnan(ctx.abs_error):
-            raise RuntimeError(
-                "TrustRegion requires objective error but error was not computed."
-            )
+        if np.isnan(err):
+            raise RuntimeError("RelativeObjectiveErrorTR requires objective error, but got NaN.")
 
-        objective = float(ctx.objective)
-        abs_error = float(ctx.abs_error if ctx.abs_error is not None else 0.0)
-
-        # Clamp tiny negatives due to roundoff
-        if objective < 0.0:
-            if objective >= -MACHINE_EPS:
-                objective = 0.0
-            else:
-                raise ValueError(f"Objective must be >= 0, got {objective:3.4e}")
-
-        if abs_error < 0.0:
-            if abs_error >= -MACHINE_EPS:
-                abs_error = 0.0
-            else:
-                raise ValueError(f"abs_error must be >= 0, got {abs_error:3.4e}")
-
-        if objective <= MACHINE_EPS:
-            tr_ok = abs_error <= MACHINE_EPS
-            return TRCheckResult(tr_ok, not tr_ok)
-
-        rel_err = abs_error / objective
+        rel_err = OBJ.rel_error(abs_error=err, objective=J)
         tr_ok = rel_err <= self.eta
         model_insufficient = rel_err > (self.beta_1 * self.eta)
         return TRCheckResult(tr_ok, model_insufficient)

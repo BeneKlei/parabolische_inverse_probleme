@@ -29,6 +29,7 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 from RBInvParam.trust_region import *
 
 from RBInvParam.optimizer.optimizer_schema import FOMOptimizerCfg, TROptimizerCfg, ArmijoConfig 
+from RBInvParam.optimizer.numerics import GLOBAL_OBJ_POLICY as OBJ
 from RBInvParam.optimizer.logging_utils import log_fom_opt_config, log_tr_opt_config
 
 MACHINE_EPS = sys.float_info.epsilon
@@ -353,7 +354,7 @@ class Optimizer(BasicObject):
                 "Armijo backtracking terminated. step_size=%3.4e; J=%3.4e; eta=%3.4e",
                 step_size, current_J, self.TR.eta
             )
-
+        
         return current_q, current_J, model_insufficient, TR_max_iter_cond, step_size, errors
 
     def estimate_errors(self,
@@ -487,7 +488,6 @@ class Optimizer(BasicObject):
             'rel_est_err_nabla_lin_J' : rel_est_err_nabla_lin_J
         }
     
-    # TODO Move into own class for managing / defining the TR
     def _calc_errors(self,
                      model: InstationaryModelIP,
                      reductor : InstationaryModelIPReductor,
@@ -1004,37 +1004,6 @@ class Optimizer(BasicObject):
                 if tr_ok:
                     q = next_q
 
-
-                # if next_J > 0:
-                #     errors = \
-                #     self.estimate_errors(
-                #         model = model,
-                #         reductor=self.reductor,
-                #         q_r = next_q,
-                #         d_r = d,
-                #         u_r = u,
-                #         p_r = p,
-                #         u_dot_r = u_dot,
-                #         p_dot_r = p_dot,
-                #         J_r = J,
-                #         targets = self.error_estimate_targets_inner,
-                #         use_cached_operators=use_cached_operators,
-                #         use_error_estimator=use_error_estimator
-                #     )
-                #     abs_est_error_J_r = errors['err_J']
-                #     J_rel_error = abs_est_error_J_r / next_J
-                # else:
-                #     J_rel_error = np.inf
-
-                # eta = TR_params['eta']
-                # beta = TR_params['beta']
-
-                # if J_rel_error <= eta:
-                #     q = next_q
-
-                # if (J_rel_error > beta * eta):
-                #     model_insufficient = True
-
             else:
                 q += d
 
@@ -1472,8 +1441,8 @@ class QrVrROMOptimizer(Optimizer):
             self.statistics["outer_loop_runtime"]["extend_runtime"][basis].append(0.0)
         self.statistics["outer_loop_runtime"]["reduce_runtime"].append(0.0)
 
-        agc_initial = min(0.5 / norm_nabla_J, 1e-3)
-        AGC_armijo_cfg = replace(opt_cfg.AGC_armijo_cfg, initial_step_size=agc_initial)
+        AGC_initial = min(0.5 / norm_nabla_J, 1e-3)
+        AGC_armijo_cfg = replace(opt_cfg.AGC_armijo_cfg, initial_step_size=AGC_initial)
 
         log_tr_opt_config(self.logger, opt_cfg, J=J, norm_nabla_J=norm_nabla_J, AGC_armijo_cfg=AGC_armijo_cfg)
 
@@ -1577,14 +1546,13 @@ class QrVrROMOptimizer(Optimizer):
             use_error_estimator=opt_cfg.use_error_estimator
         )
 
-        # TODO Enforce same logic as in TR.check
-        abs_est_error_J_r = errors.get("err_J", np.nan)
-        rel_est_error_J_r = (abs_est_error_J_r / J_r) if (J_r > 0) else np.inf
+    
+        abs_est_error_J_r = OBJ.sanitize_error(errors.get("err_J", np.nan), name="err_J")
+        rel_est_error_J_r = OBJ.rel_error(abs_error = abs_est_error_J_r, objective=J_r)
 
-        abs_est_error_nabla_J_r = errors.get("err_nabla_J", np.nan)
-        rel_est_error_nabla_J_r = (
-            (abs_est_error_nabla_J_r / norm_nabla_J_r) if (norm_nabla_J_r > 0) else np.inf
-        )
+        abs_est_error_nabla_J_r = OBJ.sanitize_error(errors.get("err_nabla_J", np.nan), name="err_nabla_J")
+        rel_est_error_nabla_J_r = OBJ.rel_error(abs_error = abs_est_error_nabla_J_r, objective=norm_nabla_J_r)
+        
 
         self.statistics["q"].append(q)
         self.statistics["eta"].append(self.TR.eta)
@@ -1796,7 +1764,7 @@ class QrVrROMOptimizer(Optimizer):
 
             self.logger.warning(f"Using AGC_alpha = {AGC_alpha}.")
 
-            q_agc, J_r_AGC, model_insufficient, AGC_max_iter_cond, _, errors = self._armijo_TR_line_serach(
+            q_AGC, J_r_AGC, model_insufficient, max_iter_cond_AGC, _, errors_AGC = self._armijo_TR_line_serach(
                 model = self.QrVrROM,
                 previous_q = q_r,
                 tr_center_q=self.last_update_q,
@@ -1859,13 +1827,13 @@ class QrVrROMOptimizer(Optimizer):
                 continue
             
             if not opt_cfg.reg_AGC_step:
-                assert not AGC_max_iter_cond
+                assert not max_iter_cond_AGC
 
             AGC_jump_back = False
             self.statistics['flags']['model_insufficient'].append(model_insufficient)
             self.statistics["outer_loop_runtime"]['AGC_runtime'].append(timer() - AGC_start_time)
 
-            q_r = q_agc.copy()
+            q_r = q_AGC.copy()
 
             # ------------------------------------------------------------
             # IRGNM inner loop
@@ -1929,58 +1897,11 @@ class QrVrROMOptimizer(Optimizer):
                     use_error_estimator=opt_cfg.use_error_estimator,
                 )
 
-                J_r = float(J_r)
-                if J_r < 0.0:
-                    if J_r >= -MACHINE_EPS:
-                        J_r = 0.0
-                    else:
-                        raise ValueError(f"Objective must be >= 0, got {J_r:3.4e}")
+                abs_est_error_J_r = OBJ.sanitize_error(errors.get("err_J", np.nan), name="err_J")
+                rel_est_error_J_r = OBJ.rel_error(abs_error = abs_est_error_J_r, objective=J_r)
 
-                abs_est_error_J_r = float(errors.get("err_J", np.inf))
-                if not np.isfinite(abs_est_error_J_r):
-                    abs_est_error_J_r = np.inf
-                elif abs_est_error_J_r < 0.0:
-                    if abs_est_error_J_r >= -MACHINE_EPS:
-                        abs_est_error_J_r = 0.0
-                    else:
-                        raise ValueError(f"abs_est_error_J_r must be >= 0, got {abs_est_error_J_r:3.4e}")
-
-                if abs_est_error_J_r <= MACHINE_EPS:
-                    abs_est_error_J_r = 0.0
-
-                if J_r <= MACHINE_EPS:
-                    rel_est_error_J_r = 0.0 if abs_est_error_J_r <= MACHINE_EPS else np.inf
-                else:
-                    rel_est_error_J_r = abs_est_error_J_r / J_r
-
-                abs_est_error_nabla_J_r = float(errors.get("err_nabla_J", np.nan))
-                if np.isfinite(abs_est_error_nabla_J_r):
-                    if abs_est_error_nabla_J_r < 0.0:
-                        if abs_est_error_nabla_J_r >= -MACHINE_EPS:
-                            abs_est_error_nabla_J_r = 0.0
-                        else:
-                            raise ValueError(
-                                f"abs_est_error_nabla_J_r must be >= 0, got {abs_est_error_nabla_J_r:3.4e}"
-                            )
-                    if abs_est_error_nabla_J_r <= MACHINE_EPS:
-                        abs_est_error_nabla_J_r = 0.0
-
-                norm_nabla_J_r = float(norm_nabla_J_r)
-                if norm_nabla_J_r < 0.0:
-                    if norm_nabla_J_r >= -MACHINE_EPS:
-                        norm_nabla_J_r = 0.0
-                    else:
-                        raise ValueError(f"norm_nabla_J_r must be >= 0, got {norm_nabla_J_r:3.4e}")
-
-                if norm_nabla_J_r <= MACHINE_EPS:
-                    if np.isfinite(abs_est_error_nabla_J_r):
-                        rel_est_error_nabla_J_r = 0.0 if abs_est_error_nabla_J_r <= MACHINE_EPS else np.inf
-                    else:
-                        rel_est_error_nabla_J_r = np.nan
-                else:
-                    rel_est_error_nabla_J_r = (
-                        abs_est_error_nabla_J_r / norm_nabla_J_r if np.isfinite(abs_est_error_nabla_J_r) else np.nan
-                    )
+                abs_est_error_nabla_J_r = OBJ.sanitize_error(errors.get("err_nabla_J", np.nan), name="err_nabla_J")
+                rel_est_error_nabla_J_r = OBJ.rel_error(abs_error = abs_est_error_nabla_J_r, objective=norm_nabla_J_r)
 
                 sufficent_condition = (J_r + abs_est_error_J_r) < J_r_AGC
                 necessary_condition = (J_r - abs_est_error_J_r) <= J_r_AGC
@@ -2083,7 +2004,7 @@ class QrVrROMOptimizer(Optimizer):
             else:
                 self.logger.debug("Not found q_trial; Using AGC.")
                 rejected = False
-                q_r = q_agc.copy()
+                q_r = q_AGC.copy()
 
                 solve_snapshot_FOM_start_time = timer()
                 q = self.reductor.reconstruct(q_r, basis="parameter_basis")
@@ -2106,6 +2027,21 @@ class QrVrROMOptimizer(Optimizer):
                 )
                 norm_nabla_J = self.FOM.compute_gradient_norm(nabla_J)
                 self.TR.shrink()
+
+                #For the statistics
+                nabla_J_r = self.QrVrROM.compute_gradient(
+                    q=q_r,
+                    alpha=alpha,
+                    use_cached_operators = opt_cfg.use_cached_operators
+                )
+                norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
+
+                abs_est_error_J_r = OBJ.sanitize_error(errors_AGC.get("err_J", np.nan), name="err_J")
+                rel_est_error_J_r = OBJ.rel_error(abs_error = abs_est_error_J_r, objective=J_r_AGC)
+
+                abs_est_error_nabla_J_r = OBJ.sanitize_error(errors_AGC.get("err_nabla_J", np.nan), name="err_nabla_J")
+                rel_est_error_nabla_J_r = OBJ.rel_error(abs_error = abs_est_error_nabla_J_r, objective=norm_nabla_J_r)
+
 
             for basis in self.active_bases:
                 self.statistics["outer_loop_runtime"]["extend_runtime"][basis].append(0.0)
