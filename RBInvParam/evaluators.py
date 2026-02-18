@@ -243,25 +243,6 @@ class EvaluatorLincomb(EvaluatorA):
         if A_q is None:
             A_q = self.get_A_q(q)
 
-        
-        #try:
-            # print("##########################################")
-            # op = A_q.jacobian(U=u)
-            # print("------------------------------------------")
-            # print(op.apply_adjoint(op.range.ones()))
-            # import sys
-            # sys.exit()
-            #return
-            #return A_q.jacobian(U=u)
-
-        # jacobians = [op.jacobian(U=u) for op in A_q.operators]
-        # options = A_q.solver_options.get('jacobian') if A_q.solver_options else None
-        # op = LincombOperator(jacobians, A_q.coefficients, solver_options=options,
-        #                      name=A_q.name + '_jacobian')
-        # op.apply_adjoint(op.range.ones())
-        # import sys
-        # sys.exit()
-
         try:
             return A_q.jacobian(U=u) 
         except:

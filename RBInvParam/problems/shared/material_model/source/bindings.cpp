@@ -10,6 +10,7 @@
 
 #include "MaterialModel.hpp"
 #include "BodyForceFactory.hpp"
+#include "BoundaryConditionFactory.hpp"
 #include "ObservationOperatorFactory.hpp"
 #include "StateProductFactory.hpp"
 #include "ObservationSpaceProductFactory.hpp"
@@ -21,12 +22,12 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(material_model, m) {
       py::module::import("pymor_dealii_bindings");
-      m.def("_mpi_info", []() {
-         return py::make_tuple(
-            dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD),
-            dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD)
-         );
-      });
+      // m.def("_mpi_info", []() {
+      //    return py::make_tuple(
+      //       dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD),
+      //       dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD)
+      //    );
+      // });
 
       py::class_<MaterialModel>(m, "MaterialModel")
          //.def(py::init<const MaterialModelBaseConfig&>())
@@ -57,7 +58,7 @@ PYBIND11_MODULE(material_model, m) {
          .def_readonly("bilinear_cost_operator", &MaterialModel::m_bilinear_cost_operator)
          .def_readonly("force_list", &MaterialModel::m_force_list)
 
-         .def("get_component_dofs", &MaterialModel::get_component_dofs, py::return_value_policy::reference_internal)
+         //.def("get_component_dofs", &MaterialModel::get_component_dofs, py::return_value_policy::reference_internal)
          .def("clear_rhs_boundary_dofs", &MaterialModel::clear_rhs_boundary_dofs, py::return_value_policy::reference_internal)
          .def("save_state", &MaterialModel::save_state, py::return_value_policy::reference_internal)
          .def("save_time_series", &MaterialModel::save_time_series, py::return_value_policy::reference_internal)
@@ -108,6 +109,11 @@ PYBIND11_MODULE(material_model, m) {
          .value("STATE_H1_0", ObservationSpaceProductType::STATE_H1_0)
          .export_values();
 
+      py::enum_<BoundaryConditionType>(m, "BoundaryConditionType")
+         .value("AllNeumann", BoundaryConditionType::AllNeumann)
+         .value("DirichletOnYandZ", BoundaryConditionType::DirichletOnYandZ)
+         .export_values();
+
      py::class_<MaterialModelBaseConfig>(m, "MaterialModelBaseConfig")
           .def(py::init<>())
           .def_readwrite("nt", &MaterialModelBaseConfig::nt)
@@ -118,5 +124,7 @@ PYBIND11_MODULE(material_model, m) {
           .def_readwrite("param_grid_resolution", &MaterialModelBaseConfig::param_grid_resolution)
           .def_readwrite("state_grid_resolution", &MaterialModelBaseConfig::state_grid_resolution)
           .def_readwrite("body_force_type", &MaterialModelBaseConfig::body_force_type)
-          .def_readwrite("body_force_hyperparameter", &MaterialModelBaseConfig::body_force_hyperparameter);
+          .def_readwrite("body_force_hyperparameter", &MaterialModelBaseConfig::body_force_hyperparameter)
+          .def_readwrite("BC_type", &MaterialModelBaseConfig::BC_type)
+          .def_readwrite("BC_hyperparameter", &MaterialModelBaseConfig::BC_hyperparameter);
 }

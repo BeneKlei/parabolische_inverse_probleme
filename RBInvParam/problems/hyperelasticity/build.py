@@ -42,6 +42,10 @@ def build_HyperElasticityModelIP(setup : Dict,
     if setup['body_force']['hyperparameter']: 
         hyperelasticity_model_config.body_force_hyperparameter = setup['body_force']['hyperparameter']
 
+    hyperelasticity_model_config.BC_type = setup['boundary_condition']['type']
+    if setup['boundary_condition']['hyperparameter']: 
+        hyperelasticity_model_config.BC_hyperparameter = setup['boundary_condition']['hyperparameter']
+
     hyperelasticity_model = hm.HyperElasticityModel(hyperelasticity_model_config)
     hyperelasticity_model.setup_system()
 

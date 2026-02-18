@@ -72,35 +72,47 @@ void MaterialModel::setup_param_grid()
 
 void MaterialModel::setup_state_grid()
 {
-    GridGenerator::subdivided_hyper_rectangle(
-        m_state_triangulation, 
-        m_base_config.state_grid_resolution, 
-        m_base_config.p1, 
-        m_base_config.p2
-    ); 
+  GridGenerator::subdivided_hyper_rectangle(
+      m_state_triangulation,
+      m_base_config.state_grid_resolution,
+      m_base_config.p1,
+      m_base_config.p2);
 
-    for (const auto &face : m_state_triangulation.active_face_iterators())
+  const double tol = 1e-12;
+
+  for (const auto &face : m_state_triangulation.active_face_iterators())
+  {
+    if (!face->at_boundary())
+      continue;
+
+    bool x_min = true, x_max = true;
+    bool y_min = true, y_max = true;
+    bool z_min = true, z_max = true;
+
+    for (unsigned int v = 0; v < GeometryInfo<dim>::vertices_per_face; ++v)
     {
-        if (face->at_boundary())
-        {
-            bool is_left  = true;
-            bool is_right = true;
+      const auto &P = face->vertex(v);
 
-            for (unsigned int v = 0; v < GeometryInfo<dim>::vertices_per_face; ++v)
-            {
-                if (std::fabs(face->vertex(v)[0] - m_base_config.p1[0]) > 1e-12)
-                    is_left = false;
-                if (std::fabs(face->vertex(v)[0] - m_base_config.p2[0]) > 1e-12)
-                    is_right = false;
-            }
+      if (std::fabs(P[0] - m_base_config.p1[0]) > tol) x_min = false;
+      if (std::fabs(P[0] - m_base_config.p2[0]) > tol) x_max = false;
 
-            if (is_left)
-                face->set_boundary_id(1); // left x-plane
-            else if (is_right)
-                face->set_boundary_id(2); // right x-plane
-        }
+      if (std::fabs(P[1] - m_base_config.p1[1]) > tol) y_min = false;
+      if (std::fabs(P[1] - m_base_config.p2[1]) > tol) y_max = false;
+
+      if (std::fabs(P[2] - m_base_config.p1[2]) > tol) z_min = false;
+      if (std::fabs(P[2] - m_base_config.p2[2]) > tol) z_max = false;
     }
+
+    // pick your own ID convention; just be consistent:
+    if      (x_min) face->set_boundary_id(1); // x = p1[0]
+    else if (x_max) face->set_boundary_id(2); // x = p2[0]
+    else if (y_min) face->set_boundary_id(3); // y = p1[1]
+    else if (y_max) face->set_boundary_id(4); // y = p2[1]
+    else if (z_min) face->set_boundary_id(5); // z = p1[2]
+    else if (z_max) face->set_boundary_id(6); // z = p2[2]
+  }
 }
+
 
 void MaterialModel::setup_param_space()
 {
@@ -174,7 +186,6 @@ void MaterialModel::setup_system()
   std::cout << "\t Setting up function spaces." << std::endl;
   setup_param_space();
   setup_state_space();
-  m_state_space_context.pre_compute();
   
   std::cout << "\t ---------------------- " << std::endl;
   std::cout << "\t #State DoFs: " << m_state_dim << std::endl;
@@ -184,7 +195,12 @@ void MaterialModel::setup_system()
 
   std::cout << "\t Setting up BC constraints." << std::endl;
   setup_BC_constraints();
-  
+
+  // --------------------------------------------------
+
+  std::cout << "\t Precomputing for State Context ." << std::endl;
+  m_state_space_context.pre_compute();
+
   // --------------------------------------------------
 
   std::cout << "\t Setting up material operator." << std::endl;
@@ -237,37 +253,14 @@ void MaterialModel::setup_system()
 
 void MaterialModel::setup_BC_constraints()
 {
-  m_BC_constraints.clear();  
-  // Functions::ZeroFunction<dim> dirichlet_bc_function(m_state_fe.n_components()); 
-  // uint32_t boundary_id = 0;
-
-  // VectorTools::interpolate_boundary_values(
-  //   m_state_dof_handler, 
-  //   boundary_id, 
-  //   dirichlet_bc_function, 
-  //   m_BC_constraints
-  // );
-
-  // boundary_id = 1;
-
-  // VectorTools::interpolate_boundary_values(
-  //   m_state_dof_handler, 
-  //   boundary_id, 
-  //   dirichlet_bc_function, 
-  //   m_BC_constraints
-  // );
-
-  // boundary_id = 2;
-
-  // VectorTools::interpolate_boundary_values(
-  //   m_state_dof_handler, 
-  //   boundary_id, 
-  //   dirichlet_bc_function, 
-  //   m_BC_constraints
-  // );
-
-  m_BC_constraints.close();
+  m_bc_factory.assemble_constraints(
+    m_state_space_context, 
+    m_base_config.BC_type,
+    m_base_config.BC_hyperparameter,
+    m_BC_constraints
+  );
 }
+
 
 // void MaterialModel::get_component_dofs(Vector<Number>& state_DoFs, size_t component_idx)
 // {

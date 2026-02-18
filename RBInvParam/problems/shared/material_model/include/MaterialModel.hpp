@@ -27,13 +27,12 @@
 
 // your project headers (types appear in members / signatures)
 #include "BodyForceFactory.hpp"
+#include "BoundaryConditionFactory.hpp"
 #include "ObservationOperatorFactory.hpp"
 #include "ObservationSpaceProductFactory.hpp"
 #include "StateProductFactory.hpp"
 #include "ParamSpaceContext.hpp"
 #include "StateSpaceContext.hpp"
-
-using namespace dealii;
 
 typedef double Number;
 
@@ -52,7 +51,9 @@ struct MaterialModelBaseConfig {
     std::vector<unsigned int> param_grid_resolution = {4,30,30};
     std::vector<unsigned int> state_grid_resolution = {4,30,30};
     BodyForceType body_force_type = BodyForceType::CenterExcite;
-    BodyForceHyperparameter body_force_hyperparameter = {};    
+    BodyForceHyperparameter body_force_hyperparameter = {};
+    BoundaryConditionType BC_type = BoundaryConditionType::DirichletOnYandZ;
+    BoundaryConditionHyperparameter BC_hyperparameter = {};
 };
 
 // ======================================================
@@ -90,7 +91,7 @@ public:
 
   // --------------------------------------------------
 
-  void get_component_dofs(Vector<Number>& state_DoFs, size_t component_idx);  
+  //void get_component_dofs(Vector<Number>& state_DoFs, size_t component_idx);  
   void clear_rhs_boundary_dofs(Vector<Number>& v);  
   void save_state(
     const Vector<Number>& v, 
@@ -181,13 +182,11 @@ protected:
   QGaussLobatto<dim>  m_param_quadrature;
   MappingQ1<dim>      m_param_mapping;
 
-  // Utilities::MPI::RemotePointEvaluation<dim, dim> m_param_rpe;
-
   AffineConstraints<Number>            m_param_constraints;
   std::vector<types::global_dof_index> m_param_free_dofs; // reduced index -> global DoF index
 
-
   // ---------------------- Contexts ----------------------
+
   StateSpaceContext<dim, Number> m_state_space_context;
   ParamSpaceContext<dim, Number> m_param_space_context;
 
@@ -197,6 +196,7 @@ protected:
   StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
   ObservationSpaceProductFactory<dim, Number> m_observation_space_product_factory = ObservationSpaceProductFactory<3, Number>();
   BodyForceFactory<dim, Number> m_body_force_factory = BodyForceFactory<3, Number>();
+  BoundaryConditionFactory<dim, Number> m_bc_factory = BoundaryConditionFactory<3, Number>();
 
   // ------------------------------------------------------
 

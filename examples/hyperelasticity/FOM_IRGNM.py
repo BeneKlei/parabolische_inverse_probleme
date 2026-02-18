@@ -126,6 +126,10 @@ def main():
                 'lambda' : 1e1
             }
         },
+        'boundary_condition' : {
+            'type': mm.BoundaryConditionType.AllNeumann,
+            'hyperparameter' : {}
+        },
         'observation_operator': {
             #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
             'type': mm.ObservationOperatorType.Sensors,
@@ -310,7 +314,7 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
             #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
