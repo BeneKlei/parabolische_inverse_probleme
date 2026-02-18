@@ -181,7 +181,7 @@ TR_optimizer_parameter = {
     #     'atol': 1e-12,                                         # Absolute convergence tolerance
     #     'maxiter': 1e3                                         # Max iterations for BiCGSTAB solver
     # },
-        'enrichment': {
+    'enrichment': {
         'parameter_basis' : {
             'reduced_basis' : True,
             'additional_snapshots' : {

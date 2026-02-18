@@ -660,8 +660,12 @@ class Optimizer(BasicObject):
             for key in self.IRGNM_statistics["errors"].keys():
                 if key == 'norm_delta_q':
                     continue
+                
+                if TR_enforcement is not None:
+                    self.IRGNM_statistics["errors"][key].append(errors[key])
+                else:
+                    self.IRGNM_statistics["errors"][key].append(np.nan)
 
-                self.IRGNM_statistics["errors"][key].append(errors.get(key, np.nan))
                 
             #stagnation check
             if i > 3:

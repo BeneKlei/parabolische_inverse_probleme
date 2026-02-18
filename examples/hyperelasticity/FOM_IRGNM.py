@@ -65,8 +65,8 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    state_y_res = 10
-    state_z_res = 10
+    state_y_res = 30
+    state_z_res = 30
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -77,7 +77,7 @@ def main():
     T_initial = 0
 
     T_final = 5.0
-    nt = 10
+    nt = 50
 
     # T_final = 5.0
     # nt = 50    
@@ -90,16 +90,16 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    # q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    # add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    # add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
+    q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
+    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
+    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
     #
     # q_exact = q_exact.T
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    q_exact[0,40:43] = 2.0
+    #q_exact[0,40:43] = 2.0
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -117,21 +117,22 @@ def main():
             'hyperparameter' : {}
         },
         'stored_energy' : {
-            #'type' : hm.StoredEnergyFunctionType.Hookean,
-            'type' : hm.StoredEnergyFunctionType.NeoHookean,
+            'type' : hm.StoredEnergyFunctionType.Hookean,
+            #'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                'mu' : 26.32, 
-                'kappa' : 68.60
-                # 'mu' : 1e1, 
-                # 'lambda' : 1e1
+                # 'mu' : 26.32, 
+                # 'kappa' : 68.60
+                'mu' : 1e1, 
+                'lambda' : 1e1
             }
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Sensors,
             'hyperparameter' : {
-                # 'spatial_resolution' : state_grid_resolution,
-                # 'radius' : 0.001,
-                # 'second_row' : False 
+                'spatial_resolution' : state_grid_resolution,
+                'radius' : 0.001,
+                'second_row' : False 
             }
         },
         'dims' : {
@@ -150,8 +151,8 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
-        'noise_level': 0,                      # Absolute noise magnitude added to data
+        'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
+        #'noise_level': 0,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -190,7 +191,6 @@ def main():
             },
         }
     }
-
 
     FOM = build_HyperElasticityModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
@@ -295,8 +295,8 @@ def main():
         'alpha_0': 1e-5,                                          # Initial regularization parameter
         #'alpha_0': 1e-14,                                          # Initial regularization parameter
         'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
-        #'tau': 1.50,                                              # Relative (to the noise) convergence tolerance for optimization
-        'tau': 1.00,                                              # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.50,                                              # Relative (to the noise) convergence tolerance for optimization
+        #'tau': 1.00,                                              # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
         'theta': 0.4,                                         # Lower tolerance for the direction acceptance condition
         'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition

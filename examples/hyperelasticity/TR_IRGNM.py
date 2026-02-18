@@ -82,9 +82,9 @@ def main():
     T_initial = 0
 
     T_final = 5.0
-    #nt = 50    
+    nt = 50    
     # T_final = 1.0
-    nt = 10    
+    #nt = 10    
 
     # T_final = 1
     # nt = 20
@@ -291,8 +291,8 @@ def main():
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
+        #'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
@@ -319,20 +319,20 @@ def main():
             'type': TRType.RELATIVE_OBJECTIVE_ERROR,
 
             # TR config
-            'eta_initial': 0.30,        
+            'eta_initial': 0.15,        
             'eta_min': 1e-5,
             'eta_max': 0.30,
             'beta_1': 0.80,
-            'beta_2': 0.75,
-            'beta_3': 0.5,
+            'beta_2': 0.80,
+            'beta_3': 0.75,
         },
         #####################
         'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
         'use_error_estimator' : False,
         'use_adjoint_space' : False,
         #'use_adjoint_space' : True,
-        #'offline_parallel' : True,
-        'offline_parallel' : False,
+        'offline_parallel' : True,
+        #'offline_parallel' : False,
         'reg_AGC_step' : False,
         #'TR_enforcement' : 'check_error',
         'TR_enforcement' : 'backtracking',
@@ -341,7 +341,7 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 5 * 1e-8,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
@@ -356,11 +356,12 @@ def main():
                 },
                 'compression' : {
                     'normalize' : True,
-                    'HaPOD' : None,
-                    # {
-                    #     'eps': 1e-1,
-                    #     'omega' : 0.1,
-                    # },
+                    #'HaPOD' : None,
+                    'HaPOD' : 
+                    {
+                        'eps': 1e-1,
+                        'omega' : 0.1,
+                    },
                 },
                 'coarsing' : None,
             },

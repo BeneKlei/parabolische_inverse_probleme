@@ -269,19 +269,19 @@ void MaterialModel::setup_BC_constraints()
   m_BC_constraints.close();
 }
 
-void MaterialModel::get_component_dofs(Vector<Number>& state_DoFs, size_t component_idx)
-{
-  const FEValuesExtractors::Scalar comp(component_idx);
-  const ComponentMask mask = m_state_fe.component_mask(comp);
+// void MaterialModel::get_component_dofs(Vector<Number>& state_DoFs, size_t component_idx)
+// {
+//   const FEValuesExtractors::Scalar comp(component_idx);
+//   const ComponentMask mask = m_state_fe.component_mask(comp);
 
-  // Get all global DoF indices belonging to this component
-  const IndexSet comp_dofs = DoFTools::extract_dofs(m_state_dof_handler, mask);
+//   // Get all global DoF indices belonging to this component
+//   const IndexSet comp_dofs = DoFTools::extract_dofs(m_state_dof_handler, mask);
 
-  // Zero out all other entries
-  for (unsigned int i = 0; i < state_DoFs.size(); ++i)
-    if (!comp_dofs.is_element(i))
-      state_DoFs[i] = Number(0);
-}
+//   // Zero out all other entries
+//   for (unsigned int i = 0; i < state_DoFs.size(); ++i)
+//     if (!comp_dofs.is_element(i))
+//       state_DoFs[i] = Number(0);
+// }
 
 void MaterialModel::assemble_force(Vector<Number>& result, double time) 
 {
@@ -428,26 +428,6 @@ void MaterialModel::clear_rhs_boundary_dofs(Vector<Number>& v)
   m_BC_constraints.distribute(v);
 }
 
-// void MaterialModel::assemble_system_matrix_derivative(const Vector<Number>& state_DoFs, size_t parameter_basis_idx)
-// {    
-//     m_system_matrix_derivatives[parameter_basis_idx].reinit(m_state_dim, m_param_dim);
-//     m_system_matrix_derivatives[parameter_basis_idx] = 0;
-//     assert(m_system_matrices.m_param_dim == m_param_dim &&
-//        "Mismatch between system matrices count and parameter dimension");
-    
-//     // m_system_matrix_derivative = 0;
-//     unsigned int offset = m_system_matrices.m_affine ? 1 : 0;
-//     Vector<Number> A_q_basis_u;
-    
-//     for (size_t i = 0; i < m_param_dim; i++) {
-//         A_q_basis_u.reinit(m_state_dim);
-//         m_system_matrices.m_matrices[i + offset].vmult(A_q_basis_u, state_DoFs);
-//         for (size_t j = 0; j < m_state_dim; j++) {
-//           m_system_matrix_derivatives[parameter_basis_idx].set(j,i, A_q_basis_u[j]);
-//         }        
-//     }
-// }
-
 void MaterialModel::assemble_bilinear_cost_matrix()
 {
   SparseMatrix<Number> buf;
@@ -461,7 +441,6 @@ void MaterialModel::assemble_bilinear_cost_matrix()
 
   m_observation_operator.Tmmult(m_bilinear_cost_operator, buf, Vector<Number>(), false); 
 }
-
 
 void MaterialModel::save_state(const Vector<Number>& v, 
                                const std::string save_path)
@@ -534,35 +513,3 @@ void MaterialModel::save_time_series(const std::vector<Vector<double>> &v,
     pvd << "  </Collection>\n";
     pvd << "</VTKFile>\n";
 }
-
-// void MaterialModel::evaluate_param_values(
-//   const std::vector<Number> &param,
-//   const std::vector<Point<dim>> &points,  
-//   std::vector<Number> &values
-// ) const
-// {
-//   AssertThrow(
-//     m_param_grid_cache.get() != nullptr, 
-//     ExcMessage("m_param_grid_cache not initialized.")
-//   );
-//   AssertDimension(points.size(), m_param_dim);
-  
-//   // values.clear();
-//   // values.resize(points.size());
-
-//   // // m_full_param_buffer = Number(1.0);
-  
-//   // // // TODO move this into own function
-//   // // for (unsigned int k = 0; k < m_param_free_dofs.size(); ++k)
-//   // //   m_full_param_buffer[m_param_free_dofs[k]] = param[k];
-
-//   // // m_param_constraints.distribute(m_full_param_buffer);
-
-//   // for (std::size_t i = 0; i < points.size(); ++i)
-//   // {
-//   //   const auto &p = points[i];
-//   //   m_param_evaluator.reinit(*m_param_grid_cache, m_param_dof_handler, p);
-//   //   m_param_evaluator.evaluate(param, EvaluationFlags::values);
-//   //   values[i] = m_param_evaluator.get_value(0);
-//   // }
-// }
