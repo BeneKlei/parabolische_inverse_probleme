@@ -29,6 +29,7 @@ from RBInvParam.domain_projector import SimpleBoundDomainProjector
 from RBInvParam.trust_region import *
 
 from RBInvParam.optimizer.optimizer_schema import FOMOptimizerCfg, TROptimizerCfg, ArmijoConfig 
+from RBInvParam.optimizer.error_evaluator import ErrorEvaluator 
 from RBInvParam.optimizer.numerics import GLOBAL_OBJ_POLICY as OBJ
 from RBInvParam.optimizer.logging_utils import log_fom_opt_config, log_tr_opt_config
 
@@ -82,6 +83,7 @@ class Optimizer(BasicObject):
         self.save_path = save_path
 
         self._setup_TR(optimizer_parameter)
+        self.error_evaluator = ErrorEvaluator(FOM=self.FOM, logger=self.logger)
 
         self.name = None
         self.IRGNM_idx = 0
@@ -190,7 +192,7 @@ class Optimizer(BasicObject):
         diff = current_q - previous_q
         d_r = diff if diff.norm().max() > MACHINE_EPS else None
 
-        errors = self.estimate_errors(
+        errors = self.error_evaluator.estimate_errors(
             model=model,
             reductor = getattr(self, "reductor", None),
             q_r=current_q,
@@ -356,373 +358,6 @@ class Optimizer(BasicObject):
             )
         
         return current_q, current_J, model_insufficient, TR_max_iter_cond, step_size, errors
-
-    def estimate_errors(self,
-                        model: InstationaryModelIP,
-                        reductor : InstationaryModelIPReductor,
-                        q_r : VectorArray,
-                        d_r : VectorArray = None,
-                        u_r : VectorArray = None,
-                        p_r : VectorArray = None,
-                        u_dot_r : VectorArray = None,
-                        p_dot_r : VectorArray = None,
-                        lin_u_r : VectorArray = None,
-                        lin_p_r : VectorArray = None,
-                        J_r: float = None,
-                        targets : str | List[str] = 'all',
-                        use_error_estimator: bool = True,
-                        use_cached_operators: bool = True) -> Dict:
-
-        if id(model) == id(self.FOM):
-            return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-        
-        if use_error_estimator:
-            return self._estimate_error(
-                model = model,
-                q_r = q_r,
-                d_r = d_r,
-                u_r = u_r,
-                p_r = p_r,
-                u_dot_r = u_dot_r,
-                p_dot_r = p_dot_r,
-                lin_u_r = lin_u_r,
-                lin_p_r = lin_p_r,
-                J_r = J_r,
-                targets = targets,
-                use_cached_operators = use_cached_operators
-            )        
-        else:
-            return self._calc_errors(
-                model = model,
-                reductor = reductor,
-                q_r = q_r,
-                d_r = d_r,
-                u_r = u_r,
-                p_r = p_r,
-                lin_u_r = lin_u_r,
-                lin_p_r = lin_p_r,
-                targets = targets,
-                use_cached_operators = use_cached_operators,
-            )
-    
-    def _estimate_error(self,
-                        model: InstationaryModelIP,
-                        q_r : VectorArray,
-                        d_r : VectorArray = None,
-                        u_r : VectorArray = None,
-                        p_r : VectorArray = None,
-                        u_dot_r : VectorArray = None,
-                        p_dot_r : VectorArray = None,
-                        lin_u_r : VectorArray = None,
-                        lin_p_r : VectorArray = None,
-                        J_r: float = None,
-                        targets : str | List[str] = 'all',
-                        use_error_estimator: bool = True,
-                        use_cached_operators: bool = True) -> Dict:
-
-        ordered_targets = ['u', 'p', 'lin_u', 'lin_p', 'J', 'nabla_J', 'lin_J', 'nabla_lin_J']
-        implemented_targets = ['J']
-
-        if targets == 'all':
-            targets = ordered_targets
-
-        assert set(targets).issubset(implemented_targets)
-        est_err_u = np.nan
-        rel_est_err_u = np.nan
-        est_err_p = np.nan
-        rel_est_err_p = np.nan
-        est_err_lin_u = np.nan
-        rel_est_err_lin_u = np.nan
-        est_err_lin_p = np.nan
-        rel_est_err_lin_p = np.nan
-        est_err_J = np.nan
-        rel_est_err_J = np.nan
-        est_err_nabla_J = np.nan
-        rel_est_err_nabla_J = np.nan
-        est_err_lin_J = np.nan
-        rel_est_err_lin_J = np.nan
-        est_err_nabla_lin_J = np.nan
-        rel_est_err_nabla_lin_J = np.nan
-
-        
-
-        for target in targets:
-            if target == 'J':
-                assert q_r is not None
-                assert u_r is not None
-                assert u_dot_r is not None
-                assert J_r is not None
-                assert J_r > 0
-
-                est_err_J = model.estimate_objective_error(
-                    q = q_r,
-                    u = u_r,
-                    u_dot = u_dot_r,
-                    J = J_r,
-                    use_cached_operators = use_cached_operators,
-                )
-
-                self._logger.debug(f'Estimated err_J = {est_err_J:3.4e}')
-                rel_est_err_J = est_err_J / J_r
-                self._logger.debug(f'Estimated rel_err_J = {rel_est_err_J:3.4e}')
-                continue
-                
-            raise ValueError
-
-        return {
-            'err_u' : est_err_u,
-            'rel_est_err_u' : rel_est_err_u,
-            'err_p' : est_err_p,
-            'rel_est_err_p' : rel_est_err_p,
-            'err_lin_u' : est_err_lin_u,
-            'rel_est_err_lin_u' : rel_est_err_lin_u,
-            'err_lin_p' : est_err_lin_p,
-            'rel_est_err_lin_p' : rel_est_err_lin_p,
-            'err_J' : est_err_J,
-            'rel_est_err_J' : rel_est_err_J,
-            'err_nabla_J' : est_err_nabla_J,
-            'rel_est_err_nabla_J' : rel_est_err_nabla_J,
-            'err_lin_J' : est_err_lin_J,
-            'rel_est_err_lin_J' : rel_est_err_lin_J,
-            'err_nabla_lin_J' : est_err_nabla_lin_J,
-            'rel_est_err_nabla_lin_J' : rel_est_err_nabla_lin_J
-        }
-    
-    def _calc_errors(self,
-                     model: InstationaryModelIP,
-                     reductor : InstationaryModelIPReductor,
-                     q_r : VectorArray,
-                     d_r : VectorArray = None,
-                     u_r : VectorArray = None,
-                     p_r : VectorArray = None,
-                     lin_u_r : VectorArray = None,
-                     lin_p_r : VectorArray = None,
-                     targets : str | List[str] = 'all',
-                     use_cached_operators: bool = True) -> Dict:
-
-        
-                
-        ordered_targets = ['u', 'p', 'lin_u', 'lin_p', 'J', 'nabla_J', 'lin_J', 'nabla_lin_J']
-
-        if targets == 'all':
-            targets = ordered_targets
-
-        
-        assert set(targets).issubset(
-            ['u', 'p', 'lin_u', 'lin_p', 'J', 'nabla_J', 'lin_J', 'nabla_lin_J']
-        )
-    
-        if set(targets).issubset(['lin_u', 'lin_p', 'lin_J', 'nabla_lin_J']):
-            assert d_r is not None
-
-        err_u = np.nan
-        rel_err_u = np.nan
-        err_p = np.nan
-        rel_err_p = np.nan
-        err_lin_u = np.nan
-        rel_err_lin_u = np.nan
-        err_lin_p = np.nan
-        rel_err_lin_p = np.nan
-        err_J = np.nan
-        rel_err_J = np.nan
-        err_nabla_J = np.nan
-        rel_err_nabla_J = np.nan
-        err_lin_J = np.nan
-        rel_err_lin_J = np.nan
-        err_nabla_lin_J = np.nan
-        rel_err_nabla_lin_J = np.nan
-
-        q = reductor.reconstruct(q_r, basis='parameter_basis')
-        if d_r is not None:
-            d = reductor.reconstruct(d_r, basis='parameter_basis')
-
-        u = None
-        p = None
-        lin_u = None
-        lin_p = None
-        J = None
-        nabla_J = None
-        lin_J = None
-        nabla_lin_J = None
-
-        J_r = None
-        nabla_J_r = None
-        lin_J_r = None
-        nabla_lin_J_r = None
-
-        required_quantities = []
-
-        for target in targets:
-            if target == 'u':
-                required_quantities += ['u']
-            elif target == 'p':
-                required_quantities += ['u', 'p']
-            elif target == 'lin_u':
-                required_quantities += ['u', 'lin_u']
-            elif target == 'lin_p':
-                required_quantities += ['lin_u', 'lin_p']
-            elif target == 'J':
-                required_quantities += ['u', 'J']
-            elif target == 'nabla_J':
-                required_quantities += ['u', 'p', 'nabla_J']
-            elif target == 'lin_J':
-                required_quantities += ['lin_u', 'lin_J']
-            elif target == 'nabla_lin_J':
-                required_quantities += ['u', 'lin_p', 'nabla_lin_J']
-
-        required_quantities = [item for item in ordered_targets if item in required_quantities]
-
-        for required_quantity in required_quantities:
-            if required_quantity == 'u':
-                if u_r is None:
-                    u_r = model.solve_state(q_r, use_cached_operators=use_cached_operators)
-                
-                _u_r = reductor.reconstruct(u_r, basis='state_basis')
-                u = self.FOM.solve_state(q, use_cached_operators=use_cached_operators)
-                
-                diff = u - _u_r
-                err_u = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(diff, diff))[0,0]
-                self._logger.debug(f'Actual err_u = {err_u:3.4e}')
-
-                norm_u = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(u, u))[0,0]
-                rel_err_u = err_u / norm_u
-                self._logger.debug(f'Actual rel_err_u = {rel_err_u:3.4e}')
-                continue
-
-            if required_quantity == 'p':
-                if p_r is None:
-                    p_r = model.solve_adjoint(q_r, u_r, use_cached_operators=use_cached_operators)
-                
-                _p_r = reductor.reconstruct(p_r, basis='state_basis')
-                p = self.FOM.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
-                
-                diff = p - _p_r
-                err_p = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(diff, diff))[0,0]
-                self._logger.debug(f'Actual err_p = {err_p:3.4e}')
-
-                norm_p = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(p, p))[0,0]
-                rel_err_p = err_p / norm_p
-                self._logger.debug(f'Actual rel_err_p = {rel_err_p:3.4e}')
-                continue
-            
-            if required_quantity == 'lin_u':
-                if lin_u_r is None:
-                    lin_u_r = model.solve_linearized_state(q_r, d_r, u_r, use_cached_operators=use_cached_operators)
-                
-                _lin_u_r = reductor.reconstruct(lin_u_r, basis='state_basis')
-                lin_u = self.FOM.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
-
-                diff = lin_u - _lin_u_r
-                err_lin_u = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(diff, diff))[0,0]
-                self._logger.debug(f'Actual err_lin_u = {err_lin_u:3.4e}')
-                
-                norm_lin_u = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(lin_u, lin_u))[0,0]
-                rel_err_lin_u = err_lin_u / norm_lin_u
-                self._logger.debug(f'Actual rel_err_lin_u = {rel_err_lin_u:3.4e}')
-                continue
-
-            if required_quantity == 'lin_p':
-                if lin_p_r is None:
-                    lin_p_r = model.solve_linearized_adjoint(q_r, u_r, lin_u_r, use_cached_operators=use_cached_operators)
-                
-                _lin_p_r = reductor.reconstruct(lin_p_r, basis='state_basis')
-                lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
-
-                diff = lin_p - _lin_p_r
-                err_lin_p = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(diff, diff))[0,0]
-                self._logger.debug(f'Actual err_lin_p = {err_lin_p:3.4e}')
-
-                norm_lin_p = np.sqrt(self.FOM.products['bochner_prod_V'].apply2(lin_p, lin_p))[0,0]
-                rel_err_lin_p = err_lin_p / norm_lin_p
-                self._logger.debug(f'Actual rel_err_lin_p = {rel_err_lin_p:3.4e}')
-                
-                continue
-            
-            if required_quantity == 'J':
-                if J_r is None:
-                    J_r = model.objective(u_r, q_r)
-
-                J = self.FOM.objective(u, q)
-                err_J = np.abs(J - J_r)
-                self._logger.debug(f'Actual err_J = {err_J:3.4e}')
-
-                rel_err_J = err_J / np.abs(J)
-                self._logger.debug(f'Actual rel_err_J = {rel_err_J:3.4e}')
-                continue
-
-
-            if required_quantity == 'nabla_J':
-                if nabla_J_r is None:
-                    nabla_J_r = model.gradient(u_r, p_r, q_r, use_cached_operators=use_cached_operators)
-                
-                _nabla_J_r = reductor.reconstruct(nabla_J_r, basis='parameter_basis')
-                nabla_J = self.FOM.gradient(u, p, q, use_cached_operators=use_cached_operators)
-                
-                diff = nabla_J - _nabla_J_r
-                if self.FOM.q_time_dep:
-                    err_nabla_J = np.sqrt(self.FOM.products['bochner_prod_Q'].apply2(diff, diff))[0,0]
-                    norm_nabla_J = np.sqrt(self.FOM.products['bochner_prod_Q'].apply2(nabla_J, nabla_J))[0,0]
-                else:
-                    err_nabla_J = np.sqrt(self.FOM.products['prod_Q'].apply2(diff, diff))[0,0]
-                    norm_nabla_J = np.sqrt(self.FOM.products['prod_Q'].apply2(nabla_J, nabla_J))[0,0]
-
-                self._logger.debug(f'Actual err_nabla_J = {err_nabla_J:3.4e}')
-                rel_err_nabla_J = err_nabla_J / norm_nabla_J
-                self._logger.debug(f'Actual rel_err_nabla_J = {rel_err_nabla_J:3.4e}')
-                continue
-
-            if required_quantity == 'lin_J':
-                if lin_J_r is None:
-                    lin_J_r = model.linearized_objective(q_r, d_r, u_r, lin_u_r, 0.0, use_cached_operators=use_cached_operators)
-                
-                lin_J = self.FOM.linearized_objective(q, d, u, lin_u, 0.0, use_cached_operators=use_cached_operators)
-                err_lin_J = np.abs(lin_J - lin_J_r)
-                self._logger.debug(f'Actual err_lin_J = {err_lin_J:3.4e}')
-
-                rel_err_lin_J = err_lin_J / np.abs(lin_J)
-                self._logger.debug(f'Actual rel_err_lin_J = {rel_err_lin_J:3.4e}')
-                continue
-  
-            if required_quantity == 'nabla_lin_J':
-                if nabla_lin_J_r is None:
-                    nabla_lin_J_r = model.linearized_gradient(q_r, d_r, u_r, lin_p_r, 0.0, use_cached_operators=use_cached_operators)
-                
-                _nabla_lin_J_r = reductor.reconstruct(nabla_lin_J_r, basis='parameter_basis')
-                nabla_lin_J = self.FOM.linearized_gradient(q, d, u, lin_u, 0.0, use_cached_operators=use_cached_operators)
-
-                diff = nabla_lin_J - _nabla_lin_J_r
-                if self.FOM.q_time_dep:
-                    err_nabla_lin_J = np.sqrt(self.FOM.products['bochner_prod_Q'].apply2(diff, diff))[0,0]
-                    norm_nabla_lin_J = np.sqrt(self.FOM.products['bochner_prod_Q'].apply2(nabla_lin_J, nabla_lin_J))[0,0]
-                else:
-                    err_nabla_lin_J = np.sqrt(self.FOM.products['prod_Q'].apply2(diff, diff))[0,0]
-                    norm_nabla_lin_J = np.sqrt(self.FOM.products['prod_Q'].apply2(nabla_lin_J, nabla_lin_J))[0,0]
-
-                self._logger.debug(f'Actual err_nabla_lin_J = {err_nabla_lin_J:3.4e}')
-                rel_err_nabla_lin_J = err_nabla_lin_J / norm_nabla_lin_J
-                self._logger.debug(f'Actual rel_err_nabla_lin_J = {rel_err_nabla_lin_J:3.4e}')
-                continue
-                    
-            raise ValueError
-        
-        return {
-            'err_u' : err_u,
-            'rel_err_u' : rel_err_u,
-            'err_p' : err_p,
-            'rel_err_p' : rel_err_p,
-            'err_lin_u' : err_lin_u,
-            'rel_err_lin_u' : rel_err_lin_u,
-            'err_lin_p' : err_lin_p,
-            'rel_err_lin_p' : rel_err_lin_p,
-            'err_J' : err_J,
-            'rel_err_J' : rel_err_J,
-            'err_nabla_J' : err_nabla_J,
-            'rel_err_nabla_J' : rel_err_nabla_J,
-            'err_lin_J' : err_lin_J,
-            'rel_err_lin_J' : rel_err_lin_J,
-            'err_nabla_lin_J' : err_nabla_lin_J,
-            'rel_err_nabla_lin_J' : rel_err_nabla_lin_J
-        }
     
     def IRGNM(self,
               model: InstationaryModelIP,
@@ -1532,7 +1167,7 @@ class QrVrROMOptimizer(Optimizer):
         norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)     
 
         errors = \
-        self.estimate_errors(
+        self.error_evaluator.estimate_errors(
             model=self.QrVrROM,
             reductor=self.reductor,
             q_r = q_r,
@@ -1883,7 +1518,7 @@ class QrVrROMOptimizer(Optimizer):
                 nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
                 norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
 
-                errors = self.estimate_errors(
+                errors = self.error_evaluator.estimate_errors(
                     model=self.QrVrROM,
                     reductor=self.reductor,
                     q_r=q_r,
