@@ -7,12 +7,13 @@ from pathlib import Path
 from pymor.basic import *
 from pymor.core.pickle import load
 
-from RBInvParam.optimizer import *
+from RBInvParam.optimizer.optimizer import *
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger, reset_logger
 
 #from RBInvParam.problems.problems import build_InstationaryModelIP
-from RBInvParam.problems.elasticity.build import build_InstationaryModelIP
+#from RBInvParam.problems.elasticity.build import build_InstationaryModelIP
+from RBInvParam.problems.hyperelasticity.build import build_HyperElasticityModelIP
 
 def run_optimization(
     setup: Dict,
@@ -43,7 +44,7 @@ def run_optimization(
 
     ####################################### SETUP FOM #######################################
 
-    FOM = build_InstationaryModelIP(setup, logger)
+    FOM = build_HyperElasticityModelIP(setup, logger)
 
     setup_path = save_path / 'setup.pkl'
     if not setup_path.exists():
@@ -66,14 +67,6 @@ def run_optimization(
 
     if method == 'FOM_IRGNM':
         optimizer = FOMOptimizer(
-            FOM = FOM,
-            optimizer_parameter = optimizer_parameter,
-            logger = logger,
-            save_path = save_path
-        )
-
-    elif method == 'Qr_IRGNM':
-        optimizer = QrFOMOptimizer(
             FOM = FOM,
             optimizer_parameter = optimizer_parameter,
             logger = logger,

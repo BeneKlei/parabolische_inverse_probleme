@@ -132,13 +132,13 @@ def main():
             'hyperparameter' : {}
         },
         'stored_energy' : {
-            'type' : hm.StoredEnergyFunctionType.Hookean,
-            #'type' : hm.StoredEnergyFunctionType.NeoHookean,
+            #'type' : hm.StoredEnergyFunctionType.Hookean,
+            'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                # 'mu' : 26.32, 
-                # 'kappa' : 68.60
-                'mu' : 1e1, 
-                'lambda' : 1e1
+                'mu' : 26.32, 
+                'kappa' : 68.60
+                # 'mu' : 1e1, 
+                # 'lambda' : 1e1
             }
         },
         'boundary_condition' : {
@@ -329,13 +329,24 @@ def main():
             "kappa_arm": 1e-12,
             "shrink": 0.5,
         },
+        # 'TR': {
+        #     'type': TRType.RELATIVE_OBJECTIVE_ERROR,
+
+        #     # TR config
+        #     'eta_initial': 0.15,        
+        #     'eta_min': 1e-5,
+        #     'eta_max': 0.30,
+        #     'beta_1': 0.80,
+        #     'beta_2': 0.80,
+        #     'beta_3': 0.75,
+        # },
         'TR': {
-            'type': TRType.RELATIVE_OBJECTIVE_ERROR,
+            'type': TRType.RADIUS,
 
             # TR config
-            'eta_initial': 0.15,        
+            'eta_initial': 0.30,        
             'eta_min': 1e-5,
-            'eta_max': 0.30,
+            'eta_max': 0.50,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,

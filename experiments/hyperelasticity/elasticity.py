@@ -13,7 +13,7 @@ from RBInvParam.timestepping import TimeStepperType
 
 from RBInvParam.utils.create_q_exact import *
 
-from RBInvParam.optimizer import LoggerErrorChoice
+from RBInvParam.optimizer.optimizer import LoggerErrorChoice
 
 p1 = (-0.1, -15.0, -15.0)
 p2 = ( 0.1,  15.0,  15.0)
