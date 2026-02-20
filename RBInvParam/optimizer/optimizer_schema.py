@@ -98,6 +98,7 @@ class TRBlock:
 
 @dataclass(frozen=True)
 class FOMOptimizerCfg:
+    method: str
     q_0: Any
     alpha_0: float
     tol: float
@@ -123,7 +124,7 @@ class FOMOptimizerCfg:
         _require(
             data,
             [
-                "q_0", "alpha_0", "tol", "tau", "noise_level", "theta", "Theta",
+                "method", "q_0", "alpha_0", "tol", "tau", "noise_level", "theta", "Theta",
                 "i_max", "reg_loop_max", "i_max_inner",
                 "use_cached_operators", "dump_every_nth_loop",
                 "lin_solver_parms",
@@ -132,6 +133,7 @@ class FOMOptimizerCfg:
         )
 
         cfg = cls(
+            method = str(data["method"]),
             q_0=data["q_0"].copy(),
             alpha_0=float(data["alpha_0"]),
             tol=float(data["tol"]),
@@ -173,6 +175,7 @@ class FOMOptimizerCfg:
 
 @dataclass(frozen=True)
 class TROptimizerCfg:
+    method: str
     q_0: Any
     alpha_0: float
     tol: float
@@ -213,7 +216,7 @@ class TROptimizerCfg:
         _require(
             data,
             [
-                "q_0", "alpha_0", "tol", "tau", "noise_level", "theta", "Theta", "tau_tilde",
+                "method", "q_0", "alpha_0", "tol", "tau", "noise_level", "theta", "Theta", "tau_tilde",
                 "i_max", "reg_loop_max", "i_max_inner",
                 "AGC_armijo_cfg", "TR_armijo_cfg", "TR",
                 "use_cached_operators", "use_error_estimator", "use_adjoint_space", "offline_parallel",
@@ -240,6 +243,7 @@ class TROptimizerCfg:
         tr = TRBlock(type=tr_type, config=tr_cfg)
 
         cfg = cls(
+            method = str(data["method"]),
             q_0=data["q_0"].copy(),
             alpha_0=float(data["alpha_0"]),
             tol=float(data["tol"]),

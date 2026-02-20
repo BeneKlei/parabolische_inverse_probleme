@@ -77,8 +77,8 @@ def main():
     z_bounds = (p1[2], p2[2])
 
 
-    state_y_res = 30
-    state_z_res = 30
+    state_y_res = 10
+    state_z_res = 10
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -132,13 +132,13 @@ def main():
             'hyperparameter' : {}
         },
         'stored_energy' : {
-            #'type' : hm.StoredEnergyFunctionType.Hookean,
-            'type' : hm.StoredEnergyFunctionType.NeoHookean,
+            'type' : hm.StoredEnergyFunctionType.Hookean,
+            #'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                'mu' : 26.32, 
-                'kappa' : 68.60
-                # 'mu' : 1e1, 
-                # 'lambda' : 1e1
+                # 'mu' : 26.32, 
+                # 'kappa' : 68.60
+                'mu' : 1e1, 
+                'lambda' : 1e1
             }
         },
         'boundary_condition' : {
@@ -301,6 +301,7 @@ def main():
 
 
     optimizer_parameter = {
+        'method' : 'TR_IRGNM',
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
@@ -390,27 +391,27 @@ def main():
                 },
                 'coarsing' : None,
             },
-            'state_basis' : {
-                'additional_snapshots' :{
-                    'include_lin_states' : False,
-                    'include_krylov_sensitivites' : False,
-                },
-                'compression' : {
-                    'normalize' : True,
-                    'HaPOD' : {
-                        'eps': 1e-3,
-                        'omega' : 0.1,
-                    },
-                    # 'normalize' : None,
-                    # 'HaPOD' : None,
-                },
-                'coarsing' : None,
-                # 'coarsing' : {
-                #     'rel_tol_coeff_u' : 1e-2,
-                #     'rel_tol_coeff_p' : 1e-2
-                # }
-            },
-            #'state_basis' : None,
+            # 'state_basis' : {
+            #     'additional_snapshots' :{
+            #         'include_lin_states' : False,
+            #         'include_krylov_sensitivites' : False,
+            #     },
+            #     'compression' : {
+            #         'normalize' : True,
+            #         'HaPOD' : {
+            #             'eps': 1e-3,
+            #             'omega' : 0.1,
+            #         },
+            #         # 'normalize' : None,
+            #         # 'HaPOD' : None,
+            #     },
+            #     'coarsing' : None,
+            #     # 'coarsing' : {
+            #     #     'rel_tol_coeff_u' : 1e-2,
+            #     #     'rel_tol_coeff_p' : 1e-2
+            #     # }
+            # },
+            'state_basis' : None,
             'adjoint_basis' : None
             
         },

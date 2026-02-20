@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Mapping, Optional
 
-from RBInvParam.optimizer.optimizer_schema import FOMOptimizerCfg, TROptimizerCfg
+from RBInvParam.optimizer.optimizer_schema import FOMOptimizerCfg, TROptimizerCfg, ArmijoConfig
 
 ##########################
 # utils
