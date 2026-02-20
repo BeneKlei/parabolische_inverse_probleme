@@ -1,25 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Any, Dict, Optional, Mapping, Iterable
+from typing import Any, Dict, Optional
 
-from RBInvParam.trust_region import TRType, TrustRegionConfig
-
-
-# ----------------------------
-# helpers
-# ----------------------------
-
-def _unknown_keys(data: Mapping[str, Any], allowed: Iterable[str], *, where: str) -> None:
-    unknown = set(data.keys()) - set(allowed)
-    if unknown:
-        raise ValueError(f"Unknown keys in {where}: {sorted(unknown)}")
-
-
-def _require(data: Mapping[str, Any], keys: Iterable[str], *, where: str) -> None:
-    missing = [k for k in keys if k not in data]
-    if missing:
-        raise KeyError(f"Missing keys in {where}: {missing}")
+from RBInvParam.trust_region import TRType
+from RBInvParam.schemas.trust_region import TrustRegionConfig
+from RBInvParam.schemas.reductor import InstationaryReductorConfig
+from RBInvParam.schemas.utils import unknown_keys, require
 
 
 # ----------------------------
@@ -54,7 +41,7 @@ class ArmijoConfig:
             base.validate()
             return base
 
-        _unknown_keys(data, cls.__dataclass_fields__.keys(), where=where)
+        unknown_keys(data, cls.__dataclass_fields__.keys(), where=where)
 
         cfg = replace(
             base,
@@ -73,28 +60,36 @@ class ArmijoConfig:
 
 @dataclass(frozen=True)
 class TRBlock:
-    """
-    Combines TR 'type' + the actual TrustRegionConfig so callers can do:
-
-        opt_cfg.TR.type
-        opt_cfg.TR.eta_initial   (via passthrough)
-        opt_cfg.TR.config        (explicit TrustRegionConfig)
-
-    """
+    """Combine TR 'type' + TrustRegionConfig; forward attribute access to config."""
     type: TRType
     config: TrustRegionConfig
 
     def validate(self) -> None:
         self.config.validate()
 
-    # Convenience passthrough so you can keep writing opt_cfg.TR.eta_initial etc.
     def __getattr__(self, name: str) -> Any:
         return getattr(self.config, name)
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], *, where: str) -> "TRBlock":
+        if not isinstance(data, dict):
+            raise TypeError(f"{where} must be a dict")
 
-# ----------------------------
-# Normal run schema
-# ----------------------------
+        if "type" not in data:
+            raise KeyError(f"Missing keys in {where}: ['type']")
+
+        block = dict(data)  # copy
+        type_raw = block.pop("type")
+
+        tr_type = TRType(type_raw) if isinstance(type_raw, str) else type_raw
+        if not isinstance(tr_type, TRType):
+            raise TypeError(f"{where}['type'] must be TRType or str convertible to TRType")
+
+        # remaining keys belong to TrustRegionConfig
+        tr_cfg = TrustRegionConfig.from_dict(block)
+        tr = cls(type=tr_type, config=tr_cfg)
+        tr.validate()
+        return tr
 
 @dataclass(frozen=True)
 class FOMOptimizerCfg:
@@ -116,25 +111,38 @@ class FOMOptimizerCfg:
 
     lin_solver_parms: Dict[str, Any]
 
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any], *, where: str = "optimizer_parameter") -> "FOMOptimizerCfg":
-        allowed = set(cls.__dataclass_fields__.keys())
-        _unknown_keys(data, allowed, where=where)
+    # ----------------------------
+    # Construction
+    # ----------------------------
 
-        _require(
+    @classmethod
+    def from_dict(
+        cls,
+        data: Dict[str, Any],
+        *,
+        where: str = "optimizer_parameter",
+    ) -> "FOMOptimizerCfg":
+
+        allowed = set(cls.__dataclass_fields__.keys())
+        unknown_keys(data, allowed, where=where)
+
+        require(
             data,
             [
-                "method", "q_0", "alpha_0", "tol", "tau", "noise_level", "theta", "Theta",
+                "method", "q_0",
+                "alpha_0", "tol", "tau", "noise_level",
+                "theta", "Theta",
                 "i_max", "reg_loop_max", "i_max_inner",
                 "use_cached_operators", "dump_every_nth_loop",
                 "lin_solver_parms",
             ],
-            where=where
+            where=where,
         )
 
         cfg = cls(
-            method = str(data["method"]),
-            q_0=data["q_0"].copy(),
+            method=str(data["method"]),
+            q_0=data["q_0"].copy() if hasattr(data["q_0"], "copy") else data["q_0"],
+
             alpha_0=float(data["alpha_0"]),
             tol=float(data["tol"]),
             tau=float(data["tau"]),
@@ -151,23 +159,35 @@ class FOMOptimizerCfg:
 
             lin_solver_parms=dict(data["lin_solver_parms"]),
         )
+
         cfg.validate()
         return cfg
+
+    # ----------------------------
+    # Validation
+    # ----------------------------
 
     def validate(self) -> None:
         if self.alpha_0 < 0:
             raise ValueError("alpha_0 must be >= 0")
+
         if self.tol <= 0:
             raise ValueError("tol must be > 0")
+
         if self.tau <= 0:
             raise ValueError("tau must be > 0")
+
         if self.noise_level < 0:
             raise ValueError("noise_level must be >= 0")
+
         if not (0 < self.theta < self.Theta):
             raise ValueError("Require 0 < theta < Theta")
+
         if self.i_max < 1 or self.i_max_inner < 1 or self.reg_loop_max < 1:
             raise ValueError("i_max, i_max_inner, reg_loop_max must be >= 1")
 
+        if not isinstance(self.lin_solver_parms, dict):
+            raise ValueError("lin_solver_parms must be a dict")
 
 # ----------------------------
 # TR run schema
@@ -196,55 +216,44 @@ class TROptimizerCfg:
 
     use_cached_operators: bool
     use_error_estimator: bool
-    use_adjoint_space: bool
-    offline_parallel: bool
     reg_AGC_step: bool
     TR_enforcement: str
     dump_every_nth_loop: int
 
+    reductor: InstationaryReductorConfig
+
     lin_solver_parms: Dict[str, Any]
     enrichment: Dict[str, Any]
-
-    error_estimator_types: Dict[str, Any]
     logging: Dict[str, Any]
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any], *, where: str = "optimizer_parameter") -> "TROptimizerCfg":
         allowed = set(cls.__dataclass_fields__.keys())
-        _unknown_keys(data, allowed, where=where)
+        unknown_keys(data, allowed, where=where)
 
-        _require(
+        require(
             data,
             [
                 "method", "q_0", "alpha_0", "tol", "tau", "noise_level", "theta", "Theta", "tau_tilde",
                 "i_max", "reg_loop_max", "i_max_inner",
                 "AGC_armijo_cfg", "TR_armijo_cfg", "TR",
-                "use_cached_operators", "use_error_estimator", "use_adjoint_space", "offline_parallel",
+                "use_cached_operators", "use_error_estimator",
                 "reg_AGC_step", "TR_enforcement", "dump_every_nth_loop",
+                "reductor",
                 "lin_solver_parms", "enrichment",
-                "error_estimator_types", "logging",
+                "logging",
             ],
-            where=where
+            where=where,
         )
 
         agc = ArmijoConfig.from_dict(data["AGC_armijo_cfg"], where=f"{where}['AGC_armijo_cfg']")
         tr_arm = ArmijoConfig.from_dict(data["TR_armijo_cfg"], where=f"{where}['TR_armijo_cfg']")
-
-        # --- TR block: keep "type" and config together ---
-        tr_block = dict(data["TR"])
-
-        if "type" not in tr_block:
-            raise KeyError(f"Missing keys in {where}['TR']: ['type']")
-
-        tr_type_raw = tr_block.pop("type")
-        tr_type = TRType(tr_type_raw) if isinstance(tr_type_raw, str) else tr_type_raw
-
-        tr_cfg = TrustRegionConfig.from_dict(tr_block)
-        tr = TRBlock(type=tr_type, config=tr_cfg)
+        tr = TRBlock.from_dict(data["TR"], where=f"{where}['TR']")
+        red = InstationaryReductorConfig.from_dict(data["reductor"], where=f"{where}['reductor']")
 
         cfg = cls(
-            method = str(data["method"]),
-            q_0=data["q_0"].copy(),
+            method=str(data["method"]),
+            q_0=data["q_0"].copy() if hasattr(data["q_0"], "copy") else data["q_0"],
             alpha_0=float(data["alpha_0"]),
             tol=float(data["tol"]),
             tau=float(data["tau"]),
@@ -264,16 +273,14 @@ class TROptimizerCfg:
 
             use_cached_operators=bool(data["use_cached_operators"]),
             use_error_estimator=bool(data["use_error_estimator"]),
-            use_adjoint_space=bool(data["use_adjoint_space"]),
-            offline_parallel=bool(data["offline_parallel"]),
             reg_AGC_step=bool(data["reg_AGC_step"]),
             TR_enforcement=str(data["TR_enforcement"]),
             dump_every_nth_loop=int(data["dump_every_nth_loop"]),
 
+            reductor=red,
+
             lin_solver_parms=dict(data["lin_solver_parms"]),
             enrichment=dict(data["enrichment"]),
-
-            error_estimator_types=dict(data["error_estimator_types"]),
             logging=dict(data["logging"]),
         )
         cfg.validate()
@@ -299,13 +306,10 @@ class TROptimizerCfg:
         if self.TR_enforcement not in ("check_error", "backtracking"):
             raise ValueError("TR_enforcement must be 'check_error' or 'backtracking'")
 
-        # nested validate
         self.AGC_armijo_cfg.validate()
         self.TR_armijo_cfg.validate()
         self.TR.validate()
+        self.reductor.validate()
 
-        # light sanity checks for the pass-through dicts
         if "errors" not in self.logging:
             raise ValueError("logging must contain key 'errors'")
-        if not isinstance(self.error_estimator_types, dict):
-            raise ValueError("error_estimator_types must be a dict")

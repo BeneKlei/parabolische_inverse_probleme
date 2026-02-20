@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Union, List
+from typing import Dict, Tuple, Union, List, Optional
 import numpy as np
 import logging
 import scipy
@@ -18,14 +18,11 @@ from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.operators.constructions import LincombOperator, ZeroOperator
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.parameters.functionals import ProjectionParameterFunctional
-from pymor.parameters.base import Parameters
 from pymor.tools.floatcmp import float_cmp_all
-from pymor.operators.constructions import InverseOperator
 from pymor.parallel.default import new_parallel_pool
 
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.evaluators import ROMEvaluatorA, EvaluatorLincomb
-#, ROMEvaluatorB
 from RBInvParam.utils.discretization import split_constant_and_parameterized_operator
 from RBInvParam.products import BochnerProductOperator
 from RBInvParam.utils.logger import get_default_logger
@@ -34,25 +31,23 @@ from RBInvParam.error_estimators.adjoint_error_estimators import create_adjoint_
 from RBInvParam.error_estimators.objective_error_estimators import create_objective_error_estimator
 from RBInvParam.error_estimators.residuals import StateResidualOperator, AdjointResidualOperator
 
-
-from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIIMatrixOperator
-from RBInvParam.problems.shared.pymor_dealii_bindings.vectorarray import DealIIVectorSpace
+from RBInvParam.schemas.reductor import InstationaryReductorConfig
 
 class InstationaryModelIPReductor(ProjectionBasedReductor):
-    def __init__(self,
-                 FOM: InstationaryModelIP,
-                 error_estimator_types: Dict,
-                 check_orthonormality: bool = True,
-                 check_tol: float = 1e-9,
-                 residual_image_basis_mode: str = 'none',
-                 parallel: bool = False,
-                 active_bases: List[str] = None,
-                 use_adjoint_space: bool = False,
-                 logger: logging.Logger = None):
+    def __init__(
+        self,
+        FOM: "InstationaryModelIP",
+        active_bases: List[str],
+        config: InstationaryReductorConfig,
+        logger: Optional[logging.Logger] = None,
+    ):
+        if not isinstance(FOM, InstationaryModelIP):
+            raise TypeError(f"FOM must be InstationaryModelIP, got {type(FOM)}")
 
-        assert isinstance(FOM, InstationaryModelIP)
-        assert 'prod_V' in FOM.products.keys()
-        assert 'prod_Q' in FOM.products.keys()
+        required_products = {"prod_V", "prod_Q"}
+        missing = required_products.difference(FOM.products.keys())
+        if missing:
+            raise KeyError(f"FOM.products missing required keys: {sorted(missing)}")
 
         logging.basicConfig()
         if logger:
@@ -61,49 +56,67 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             self._logger = get_default_logger(logger_name=self.__class__.__name__)
             self._logger.setLevel(logging.DEBUG)
         self.logger.debug(f"Setting up {self.__class__.__name__}")
-
-        self.active_bases = active_bases
+        
         self.FOM = FOM
-        self.parallel = parallel
-        self.use_adjoint_space = use_adjoint_space
-        if self.use_adjoint_space:
-            assert 'adjoint_basis' not in self.active_bases
+        self.active_bases = list(active_bases)
 
-        if self.parallel:
-            self.logger.debug(f"Using parallelizatzion for ROM-projection.")
+        # validate config relative to active_bases
+        config.validate(self.active_bases)
+        self.config = config
+
+        if self.config.offline_parallel:
+            self.logger.debug("Using parallelization for ROM-projection.")
 
         bases = {
-            'parameter_basis' : FOM.Q.empty(),
-            'state_basis' : FOM.V.empty(),
-            'adjoint_basis' : FOM.V.empty(),
+            "parameter_basis": FOM.Q.empty(),
+            "state_basis": FOM.V.empty(),
+            "adjoint_basis": FOM.V.empty(),
+            "linearization_basis": FOM.V.empty(),
         }
-        assert set(self.active_bases).issubset(bases.keys())
 
-        self.dims_history = {key : [0] for key in bases.keys()}
+        if not set(self.active_bases).issubset(bases.keys()):
+            unknown = set(self.active_bases).difference(bases.keys())
+            raise KeyError(f"Unknown active_bases entries: {sorted(unknown)}")
+
+        self.dims_history = {key: [0] for key in bases.keys()}
 
         products = {
-            'parameter_basis' : FOM.products['prod_Q'],
-            'state_basis' : FOM.products['prod_V'],
-            'adjoint_basis' : FOM.products['prod_V'],
+            "parameter_basis": FOM.products["prod_Q"],
+            "state_basis": FOM.products["prod_V"],
+            "adjoint_basis": FOM.products["prod_V"],
+            "linearization_basis": FOM.products["prod_V"],
         }
 
         self._cached_operators = {
-            'A' : None,
-            'A_r_state' : None,
-            'A_r_adjoint' : None,
-            'A_r_adjoint_state' : None
+            "A": None,
+            "A_r_state": None,
+            "A_r_adjoint": None,
+            "A_r_adjoint_state": None,
         }
- 
-        super().__init__(FOM,
-                         bases,
-                         products,
-                         check_orthonormality=check_orthonormality,
-                         check_tol=check_tol)
 
-        assert residual_image_basis_mode in ['none']
-        self.residual_image_basis_mode = residual_image_basis_mode
-        self.error_estimator_types = error_estimator_types
-        self.logger.debug(f"Using residual image basis mode: '{residual_image_basis_mode}'.")
+        # keep direct attributes if you like (but sourced from config)
+        self.offline_parallel = self.config.offline_parallel
+        self.use_adjoint_space = self.config.use_adjoint_space
+        self.linearization_method = self.config.linearization_method
+
+        super().__init__(
+            FOM,
+            bases,
+            products,
+            check_orthonormality=self.config.check_orthonormality,
+            check_tol=self.config.check_tol,
+        )
+
+        self.residual_image_basis_mode = self.config.residual_image_basis_mode
+        self.error_estimator_types = {
+            "state": self.config.error_estimators.state,
+            "adjoint": self.config.error_estimators.adjoint,
+            "objective": self.config.error_estimators.objective,
+        }
+
+        self.logger.debug(
+            "Using residual image basis mode: %r.", self.residual_image_basis_mode
+        )
 
     def delete_cached_operators(self,
                                 targets: List[str] | str = 'all') -> None:
@@ -271,7 +284,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         t = timer()
 
         self.logger.info("Constructing A(q).")
-        if self.parallel:
+        if self.offline_parallel:
             max_workers = max(1, min(16 or 1, n_ops))
             self.logger.info(f"Using ThreadPoolExecutor; max_workers={max_workers}")
             with ThreadPoolExecutor(max_workers=max_workers) as ex:
@@ -349,6 +362,29 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         # problem_parameter['N'] = None
 
         return setup
+
+    def _linearize_A(self,
+                     parameter_reduced_A: LincombOperator) -> LincombOperator:
+        assert isinstance(parameter_reduced_A, LincombOperator)
+
+        new_operators = []
+        new_coefficients = parameter_reduced_A.coefficients
+
+        for op in parameter_reduced_A.operators:
+
+            # If operator is already linear, keep it
+            if op.linear:
+                new_operators.append(op)
+
+            # Otherwise linearize it
+            else:
+                # Typical pyMOR linearization call
+                lin_op, _ = op.linearize(self.u)   # self.u = current state
+                new_operators.append(lin_op)
+
+        return LincombOperator(new_operators, new_coefficients)
+        
+
 
     def _project_A(self, 
                    parameter_reduced_A: LincombOperator,
@@ -438,11 +474,11 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
             return M
 
-        # --- parallel / serial path ----------------------------------------------
+        # --- offline_parallel / serial path ----------------------------------------------
 
         self.logger.info("Projecting A(q).")
         t = timer()
-        if self.parallel:
+        if self.offline_parallel:
             self.logger.info("Projecting operator parallely.") 
 
             # pool = new_parallel_pool()
@@ -741,7 +777,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         t = timer()
         print(".............................................")
-        print(self.parallel)
+        print(self.offline_parallel)
         parameter_reduced_A = self._assemble_parameter_reduced_A()
         print(timer() - t)
 
