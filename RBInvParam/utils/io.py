@@ -40,7 +40,7 @@ def save_dict_to_pkl(path: Union[str, Path],
 
 def dealii_vector_space_to_numpy(vector_array: ListVectorArray) -> NumpyVectorArray:
     if len(vector_array) > 0:
-        assert isinstance(vector_array.vectors[0].real_part.impl, pd2.Vector)
+        assert isinstance(vector_array.vectors[0].impl, pd2.Vector)
         return NumpyVectorSpace(dim=vector_array.space.dim).from_numpy(
                 vector_array.to_numpy()
             )

@@ -87,7 +87,7 @@ def main():
     T_initial = 0
 
     T_final = 5.0
-    nt = 50    
+    nt = 50 
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
@@ -132,13 +132,13 @@ def main():
             'hyperparameter' : {}
         },
         'stored_energy' : {
-            'type' : hm.StoredEnergyFunctionType.Hookean,
-            #'type' : hm.StoredEnergyFunctionType.NeoHookean,
+            #'type' : hm.StoredEnergyFunctionType.Hookean,
+            'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-            #     'mu' : 26.32, 
-            #     'kappa' : 68.60
-                'mu' : 1e1, 
-                'lambda' : 1e1
+                'mu' : 26.32, 
+                'kappa' : 68.60
+                # 'mu' : 1e1, 
+                # 'lambda' : 1e1
             }
         },
         'boundary_condition' : {
@@ -303,7 +303,7 @@ def main():
     optimizer_parameter = {
         'method' : 'TR_IRGNM',
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
+        'alpha_0': 1e-4,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
@@ -330,28 +330,28 @@ def main():
             "kappa_arm": 1e-12,
             "shrink": 0.5,
         },
-        'TR': {
-            'type': TRType.RELATIVE_OBJECTIVE_ERROR,
-
-            # TR config
-            'eta_initial': 0.15,        
-            'eta_min': 1e-5,
-            'eta_max': 0.30,
-            'beta_1': 0.80,
-            'beta_2': 0.80,
-            'beta_3': 0.75,
-        },
         # 'TR': {
-        #     'type': TRType.RADIUS,
+        #     'type': TRType.RELATIVE_OBJECTIVE_ERROR,
 
         #     # TR config
-        #     'eta_initial': 1.00,        
-        #     'eta_min': 1e-2,
-        #     'eta_max': 3.00,
+        #     'eta_initial': 0.15,        
+        #     'eta_min': 1e-5,
+        #     'eta_max': 0.30,
         #     'beta_1': 0.80,
         #     'beta_2': 0.80,
         #     'beta_3': 0.75,
         # },
+        'TR': {
+            'type': TRType.RADIUS,
+
+            # TR config
+            'eta_initial': 0.25,        
+            'eta_min': 1e-2,
+            'eta_max': 1.00,
+            'beta_1': 0.80,
+            'beta_2': 0.80,
+            'beta_3': 0.75,
+        },
         #####################
         'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'use_error_estimator' : False,
@@ -367,7 +367,7 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
+            'lin_solver_tol': 5 * 1e-11,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
@@ -391,27 +391,27 @@ def main():
                 },
                 'coarsing' : None,
             },
-            'state_basis' : {
-                'additional_snapshots' :{
-                    'include_lin_states' : False,
-                    'include_krylov_sensitivites' : False,
-                },
-                'compression' : {
-                    'normalize' : True,
-                    'HaPOD' : {
-                        'eps': 1e-3,
-                        'omega' : 0.1,
-                    },
-                    # 'normalize' : None,
-                    # 'HaPOD' : None,
-                },
-                'coarsing' : None,
-                # 'coarsing' : {
-                #     'rel_tol_coeff_u' : 1e-2,
-                #     'rel_tol_coeff_p' : 1e-2
-                # }
-            },
-            #'state_basis' : None,
+            # 'state_basis' : {
+            #     'additional_snapshots' :{
+            #         'include_lin_states' : False,
+            #         'include_krylov_sensitivites' : False,
+            #     },
+            #     'compression' : {
+            #         'normalize' : True,
+            #         'HaPOD' : {
+            #             'eps': 1e-3,
+            #             'omega' : 0.1,
+            #         },
+            #         # 'normalize' : None,
+            #         # 'HaPOD' : None,
+            #     },
+            #     'coarsing' : None,
+            #     # 'coarsing' : {
+            #     #     'rel_tol_coeff_u' : 1e-2,
+            #     #     'rel_tol_coeff_p' : 1e-2
+            #     # }
+            # },
+            'state_basis' : None,
             'adjoint_basis' : None
             
         },

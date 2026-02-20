@@ -499,7 +499,6 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         
         operators = [NumpyMatrixOperator(matrix=M) for M in Ms]
 
-        print(timer() - t)
         # import sys
         # sys.exit()
 
