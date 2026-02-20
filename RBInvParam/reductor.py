@@ -272,7 +272,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         self.logger.info("Constructing A(q).")
         if self.parallel:
-            max_workers = min(4 or 1, len(to_build))
+            max_workers = max(1, min(16 or 1, n_ops))
             self.logger.info(f"Using ThreadPoolExecutor; max_workers={max_workers}")
             with ThreadPoolExecutor(max_workers=max_workers) as ex:
                 _params = (parameter_basis[i] for i in to_build)
@@ -478,7 +478,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
             # self.logger.info(f"Using ThreadPoolExecutor; max_workers={os.cpu_count()}")
 
-            # max_workers = min(os.cpu_count() or 1, n_ops)
+            # max_workers = max(1, min(16 or 1, n_ops))
             # with ThreadPoolExecutor(max_workers=max_workers) as ex:
             #     operators = list(ex.map(
             #         build_reduced_operator, 

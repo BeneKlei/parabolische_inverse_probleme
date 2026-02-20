@@ -77,8 +77,8 @@ def main():
     z_bounds = (p1[2], p2[2])
 
 
-    state_y_res = 10
-    state_z_res = 10
+    state_y_res = 30
+    state_z_res = 30
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -135,8 +135,8 @@ def main():
             'type' : hm.StoredEnergyFunctionType.Hookean,
             #'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                # 'mu' : 26.32, 
-                # 'kappa' : 68.60
+            #     'mu' : 26.32, 
+            #     'kappa' : 68.60
                 'mu' : 1e1, 
                 'lambda' : 1e1
             }
@@ -330,28 +330,28 @@ def main():
             "kappa_arm": 1e-12,
             "shrink": 0.5,
         },
-        # 'TR': {
-        #     'type': TRType.RELATIVE_OBJECTIVE_ERROR,
-
-        #     # TR config
-        #     'eta_initial': 0.15,        
-        #     'eta_min': 1e-5,
-        #     'eta_max': 0.30,
-        #     'beta_1': 0.80,
-        #     'beta_2': 0.80,
-        #     'beta_3': 0.75,
-        # },
         'TR': {
-            'type': TRType.RADIUS,
+            'type': TRType.RELATIVE_OBJECTIVE_ERROR,
 
             # TR config
-            'eta_initial': 0.30,        
+            'eta_initial': 0.15,        
             'eta_min': 1e-5,
-            'eta_max': 0.50,
+            'eta_max': 0.30,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
         },
+        # 'TR': {
+        #     'type': TRType.RADIUS,
+
+        #     # TR config
+        #     'eta_initial': 1.00,        
+        #     'eta_min': 1e-2,
+        #     'eta_max': 3.00,
+        #     'beta_1': 0.80,
+        #     'beta_2': 0.80,
+        #     'beta_3': 0.75,
+        # },
         #####################
         'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'use_error_estimator' : False,
@@ -391,27 +391,27 @@ def main():
                 },
                 'coarsing' : None,
             },
-            # 'state_basis' : {
-            #     'additional_snapshots' :{
-            #         'include_lin_states' : False,
-            #         'include_krylov_sensitivites' : False,
-            #     },
-            #     'compression' : {
-            #         'normalize' : True,
-            #         'HaPOD' : {
-            #             'eps': 1e-3,
-            #             'omega' : 0.1,
-            #         },
-            #         # 'normalize' : None,
-            #         # 'HaPOD' : None,
-            #     },
-            #     'coarsing' : None,
-            #     # 'coarsing' : {
-            #     #     'rel_tol_coeff_u' : 1e-2,
-            #     #     'rel_tol_coeff_p' : 1e-2
-            #     # }
-            # },
-            'state_basis' : None,
+            'state_basis' : {
+                'additional_snapshots' :{
+                    'include_lin_states' : False,
+                    'include_krylov_sensitivites' : False,
+                },
+                'compression' : {
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'eps': 1e-3,
+                        'omega' : 0.1,
+                    },
+                    # 'normalize' : None,
+                    # 'HaPOD' : None,
+                },
+                'coarsing' : None,
+                # 'coarsing' : {
+                #     'rel_tol_coeff_u' : 1e-2,
+                #     'rel_tol_coeff_p' : 1e-2
+                # }
+            },
+            #'state_basis' : None,
             'adjoint_basis' : None
             
         },
