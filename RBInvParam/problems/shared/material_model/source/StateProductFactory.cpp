@@ -161,7 +161,7 @@ void StateProductFactory<dim, Number>::assemble_h1_product(
 {
     auto h1_integrand = 
     [](unsigned int i, unsigned int j, unsigned int q, const FEValues<dim>& fe) {
-      return fe.shape_grad(i, q) * fe.shape_grad(j, q) + fe.shape_grad(i, q) * fe.shape_grad(j, q);;
+      return fe.shape_value(i, q) * fe.shape_value(j, q) + fe.shape_grad(i, q) * fe.shape_grad(j, q);;
     };
 
     AffineConstraints<Number> empty_BC_constraints;

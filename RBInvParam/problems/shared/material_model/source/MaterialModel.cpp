@@ -40,8 +40,8 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
                           m_state_sp, 
                           m_BC_constraints,
                           m_base_config.state_grid_resolution, 
-                          m_base_config.p1, 
-                          m_base_config.p2)
+                          utils::vec_to_point<dim>(m_base_config.p1), 
+                          utils::vec_to_point<dim>(m_base_config.p2))
   , m_param_fe(FE_Q<dim>(1))
   , m_param_dof_handler(m_param_triangulation)                          
   , m_param_quadrature(QGaussLobatto<dim>(2))
@@ -54,19 +54,19 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig& config)
                           m_param_constraints,
                           m_param_free_dofs,
                           m_base_config.state_grid_resolution, 
-                          m_base_config.p1, 
-                          m_base_config.p2)
+                          utils::vec_to_point<dim>(m_base_config.p1), 
+                          utils::vec_to_point<dim>(m_base_config.p2))
 {
   delta_t = (m_base_config.T_final - m_base_config.T_initial) / m_base_config.nt;
 }
 
 void MaterialModel::setup_param_grid()
-{
+{ 
     GridGenerator::subdivided_hyper_rectangle(
         m_param_triangulation, 
         m_base_config.param_grid_resolution,
-        m_base_config.p1, 
-        m_base_config.p2
+        utils::vec_to_point<dim>(m_base_config.p1), 
+        utils::vec_to_point<dim>(m_base_config.p2)
     ); 
 }
 
@@ -75,8 +75,8 @@ void MaterialModel::setup_state_grid()
   GridGenerator::subdivided_hyper_rectangle(
       m_state_triangulation,
       m_base_config.state_grid_resolution,
-      m_base_config.p1,
-      m_base_config.p2);
+      utils::vec_to_point<dim>(m_base_config.p1),
+      utils::vec_to_point<dim>(m_base_config.p2));
 
   const double tol = 1e-12;
 

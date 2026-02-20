@@ -128,7 +128,7 @@ class ROMEvaluatorA(EvaluatorA):
             matrix = matrix
        )
 
-    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
+    def get_partial_u_A_q_u(self, q: VectorArray , u: VectorArray, A_q: Operator = None) -> Operator:
         assert q in self.Q
         assert len(q) == 1
 
@@ -136,7 +136,12 @@ class ROMEvaluatorA(EvaluatorA):
             assert u in self.source
             assert len(u) == 1
 
-        return self.get_A_q(q)
+        if A_q is None:
+            A_q = self.get_A_q(q)
+
+        assert isinstance(A_q, Operator)
+
+        return A_q
 
     def get_partial_q_A_q_u(self, q: VectorArray , u: VectorArray) -> Operator:
         assert q in self.Q

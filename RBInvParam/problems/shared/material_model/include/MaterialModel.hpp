@@ -46,8 +46,8 @@ struct MaterialModelBaseConfig {
     int nt = 50;
     double T_initial = 0.0;
     double T_final = 1.0;
-    Point<dim> p1 = { -0.1, -15.0, -15.0 };
-    Point<dim> p2 = {  0.1,  15.0,  15.0 };
+    std::vector<double> p1 = { -0.1, -15.0, -15.0 };
+    std::vector<double> p2 = {  0.1,  15.0,  15.0 };
     std::vector<unsigned int> param_grid_resolution = {4,30,30};
     std::vector<unsigned int> state_grid_resolution = {4,30,30};
     BodyForceType body_force_type = BodyForceType::CenterExcite;

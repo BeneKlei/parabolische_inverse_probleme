@@ -70,6 +70,13 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
+    p1 = (-0.1, -15.0, -15.0)
+    p2 = ( 0.1,  15.0,  15.0)
+
+    y_bounds = (p1[1], p2[1])
+    z_bounds = (p1[2], p2[2])
+
+
     state_y_res = 30
     state_z_res = 30
 
@@ -77,32 +84,35 @@ def main():
     param_z_res = state_z_res
 
     par_dim = (param_y_res + 1) * (param_z_res + 1) 
-    #* 5 * 3
-    #par_dim = 3
     T_initial = 0
 
     T_final = 5.0
     nt = 50    
-    # T_final = 1.0
-    #nt = 10    
-
-    # T_final = 1
-    # nt = 20
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
+    half_size = 0
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
-    #q_exact = q_exact.T
+    add_constant_patch_coords(q_exact, 
+                              center_coords=( 5.0,  0.0), 
+                              value=3.0, 
+                              half_size=half_size,
+                              y_bounds=y_bounds, 
+                              z_bounds=z_bounds)
+
+    add_constant_patch_coords(q_exact, 
+                              center_coords=(-9.0, -1.0), 
+                              value=2.0, 
+                              half_size=half_size,
+                              y_bounds=y_bounds, 
+                              z_bounds=z_bounds)
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    #q_exact[0,40:43] = 2.0
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -113,6 +123,8 @@ def main():
     param_grid_resolution = [4,param_y_res,param_z_res]
 
     setup = {
+        'p1' : p1,
+        'p2' : p2,
         'param_grid_resolution' : param_grid_resolution,
         'state_grid_resolution' : state_grid_resolution,
         'body_force' : {
@@ -128,6 +140,10 @@ def main():
                 'mu' : 1e1, 
                 'lambda' : 1e1
             }
+        },
+        'boundary_condition' : {
+            'type': mm.BoundaryConditionType.DirichletOnYandZ,
+            'hyperparameter' : {}
         },
         'observation_operator': {
             #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
@@ -228,46 +244,46 @@ def main():
     # import sys
     # sys.exit()
 
-    # u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
-    # FOM.A.hyperelasticity_model.save_time_series(
-    #     [v.impl for v in u_exact.vectors],
-    #     str('u_exact'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
+    FOM.A.hyperelasticity_model.save_time_series(
+        [v.impl for v in u_exact.vectors],
+        str('u_exact'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
-    # p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
-    # FOM.A.hyperelasticity_model.save_time_series(
-    #     [v.impl for v in p_exact.vectors],
-    #     str('p_exact'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
+    FOM.A.hyperelasticity_model.save_time_series(
+        [v.impl for v in p_exact.vectors],
+        str('p_exact'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
-    # u_start = FOM.solve_state(FOM.Q.make_array(q_start))
-    # FOM.A.hyperelasticity_model.save_time_series(
-    #     [v.impl for v in u_start.vectors],
-    #     str('u_start'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
+    FOM.A.hyperelasticity_model.save_time_series(
+        [v.impl for v in u_start.vectors],
+        str('u_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
 
-    # p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
-    # FOM.A.hyperelasticity_model.save_time_series(
-    #     [v.impl for v in p_start.vectors],
-    #     str('p_start'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
+    FOM.A.hyperelasticity_model.save_time_series(
+        [v.impl for v in p_start.vectors],
+        str('p_start'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
-    # diff = u_start - u_exact
-    # FOM.A.hyperelasticity_model.save_time_series(
-    #     [v.impl for v in diff.vectors],
-    #     str('diff'),
-    #     str(save_path),
-    #     np.linspace(T_initial, T_final, nt+1)
-    # )
+    diff = u_start - u_exact
+    FOM.A.hyperelasticity_model.save_time_series(
+        [v.impl for v in diff.vectors],
+        str('diff'),
+        str(save_path),
+        np.linspace(T_initial, T_final, nt+1)
+    )
 
     # _q_start = FOM.Q.make_array(q_start)
     # _q_exact = FOM.Q.make_array(q_exact)
@@ -278,13 +294,11 @@ def main():
     # _d = FOM.Q.zeros()
     # print(FOM.compute_linearized_objective(_q_start, _d, 0.0))
     # print(FOM.compute_linearized_objective(_q_exact, _d, 0.0))
-    #print(np.sqrt(2 * J))
+    # print(np.sqrt(2 * J))
 
     # print(FOM.compute_gradient(_q_start))
     # print(FOM.compute_gradient(_q_exact))
 
-    # import sys
-    # sys.exit()
 
     optimizer_parameter = {
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
@@ -327,7 +341,7 @@ def main():
             'beta_3': 0.75,
         },
         #####################
-        'use_cached_operators': False,                               # Reuse previously assembled operators to save computation
+        'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'use_error_estimator' : False,
         'use_adjoint_space' : False,
         #'use_adjoint_space' : True,

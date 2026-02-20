@@ -31,6 +31,8 @@ def build_HyperElasticityModelIP(setup : Dict,
     hyperelasticity_model_config.nt = setup['dims']['nt']
     hyperelasticity_model_config.T_initial = setup['T_initial']
     hyperelasticity_model_config.T_final = setup['T_final']
+    hyperelasticity_model_config.p1 = setup['p1']
+    hyperelasticity_model_config.p2 = setup['p2']
     hyperelasticity_model_config.param_grid_resolution = setup['param_grid_resolution']
     hyperelasticity_model_config.state_grid_resolution = setup['state_grid_resolution']
 
