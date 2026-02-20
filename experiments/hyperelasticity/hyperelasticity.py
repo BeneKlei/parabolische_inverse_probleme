@@ -78,13 +78,13 @@ setup = {
         'hyperparameter' : {}
     },
     'stored_energy' : {
-        'type' : hm.StoredEnergyFunctionType.Hookean,
-        #'type' : hm.StoredEnergyFunctionType.NeoHookean,
+        #'type' : hm.StoredEnergyFunctionType.Hookean,
+        'type' : hm.StoredEnergyFunctionType.NeoHookean,
         'hyperparameter' : {
-            # 'mu' : 26.32, 
-            # 'kappa' : 68.60
-            'mu' : 1e1, 
-            'lambda' : 1e1
+            'mu' : 26.32, 
+            'kappa' : 68.60
+            # 'mu' : 1e1, 
+            # 'lambda' : 1e1
         }
     },
     'boundary_condition' : {
@@ -156,7 +156,7 @@ setup = {
 }
 
 q_start = q_circ
-lin_solver_tol = 5 * 1e-9
+lin_solver_tol = 5 * 1e-11
 tau = 1.50
 
 FOM_optimizer_parameter = {
@@ -189,7 +189,7 @@ FOM_optimizer_parameter = {
 TR_optimizer_parameter = {
     'method' : 'TR_IRGNM',
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
-    'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
+    'alpha_0': 1e-4,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
     'tau': tau,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
@@ -215,16 +215,16 @@ TR_optimizer_parameter = {
         "shrink": 0.5,
     },
     'TR': {
-        'type': TRType.RELATIVE_OBJECTIVE_ERROR,
+        'type': TRType.RADIUS,
 
         # TR config
-        'eta_initial': 0.15,        
-        'eta_min': 1e-5,
-        'eta_max': 0.30,
+        'eta_initial': 0.25,        
+        'eta_min': 1e-2,
+        'eta_max': 1.00,
         'beta_1': 0.80,
         'beta_2': 0.80,
         'beta_3': 0.75,
-    },                                 # Max iterations Armijo condition to enforce the trust-region 
+    },                                # Max iterations Armijo condition to enforce the trust-region 
     #####################
     'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
     'use_error_estimator' : False,
@@ -260,20 +260,7 @@ TR_optimizer_parameter = {
             },
             'coarsing' : None,
         },
-        'state_basis' : {
-            'additional_snapshots' :{
-                'include_lin_states' : False,
-                'include_krylov_sensitivites' : False,
-            },
-            'compression' : {                
-                'normalize' : True,
-                'HaPOD' : {
-                    'eps': 1e-3,
-                    'omega' : 0.1,    
-                },
-            },
-            'coarsing' : None,
-        },
+        'state_basis' : None,
         'adjoint_basis' : None
     },
     'error_estimator_types' : {
