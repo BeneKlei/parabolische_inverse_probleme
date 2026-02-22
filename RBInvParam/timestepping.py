@@ -411,7 +411,7 @@ class SecondOrderCrankNicolson(TimeStepper):
 
             yield U_cur, U_dot_cur, t
 
-# TODO Thats a legacy version of CN timestepper for linear operators ONLY. Should be merged or replaced by the more general CN timestepper
+# TODO Thats a ylegacy version of CN timestepper for linear operators ONLY. Should be merged or replaced by the more general CN timestepper
 class SecondOrderCrankNicolsonLinear(TimeStepper):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

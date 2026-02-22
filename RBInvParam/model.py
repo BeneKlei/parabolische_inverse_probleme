@@ -2,6 +2,7 @@ import logging
 from typing import Dict, Union, List, Tuple
 import numpy as np
 import itertools
+import sys
 
 from pymor.operators.numpy import NumpyMatrixOperator
 from pymor.vectorarrays.interface import VectorArray, VectorSpace
@@ -356,6 +357,8 @@ class InstationaryModelIP(ImmutableObject):
             targets = ['q'] + self.required_cache_keys
         )
 
+        self.cache_tol = sys.float_info.epsilon
+
 #%% cache methods
     def _cache_update_required(self,
                                q : VectorArray) -> bool:
@@ -364,7 +367,10 @@ class InstationaryModelIP(ImmutableObject):
         if all(x is None for x in self._cached_operators['q']):
             return True
         else:
-            return np.any((self._cached_operators['q']-q).norm() != 0)
+            diff = self._cached_operators['q'] - q
+            # norm() returns array of norms, one per vector entry
+            return bool((diff.norm() > self.cache_tol).any())
+    
     
     def _cache_jacobians(self,
                          A: EvaluatorA,
@@ -462,7 +468,8 @@ class InstationaryModelIP(ImmutableObject):
         assert target in self._cached_operators.keys()
         assert q in self.Q
         if len(self._cached_operators['q']) != 0:
-            assert np.all((self._cached_operators['q']-q).norm() == 0)
+            diff = self._cached_operators['q'] - q            
+            assert bool((diff.norm() <= self.cache_tol).any())
         
         if u:
             assert len(u) == (self.nt + 1)

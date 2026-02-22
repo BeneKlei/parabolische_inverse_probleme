@@ -26,7 +26,8 @@ def armijo_condition(
 
     norm_d = product.apply2(previous - current,previous - current)[0,0]
     lhs =  previous_J - current_J
-    rhs = kappa_arm / step_size * norm_d**2
+    #rhs = kappa_arm / step_size * norm_d**2
+    rhs = kappa_arm / step_size * norm_d
     
 
     if abs(lhs) <= MACHINE_EPS:
@@ -245,8 +246,8 @@ def gradient_descent_linearized_problem(
             
         
         
-        if (i % 100 == 0):
-        #if (i % 1 == 0):
+        #if (i % 100 == 0):
+        if (i % 1 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {terminaton_lhs:3.4e}.")
             
 
