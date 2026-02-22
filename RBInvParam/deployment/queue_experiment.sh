@@ -16,10 +16,10 @@
 #module load palma/2024a GCCcore/13.3.0 Python/3.12.3 foss/2024a 
 
 export LD_LIBRARY_PATH=/home/b/b_klei15/software/dealii_skylake/lib:$LD_LIBRARY_PATH
-export OMP_NUM_THREADS=14
-export MKL_NUM_THREADS=14
-export OPENBLAS_NUM_THREADS=14
-export NUMEXPR_NUM_THREADS=14
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
 
 #WORKING_DIR="/home/benedikt/Dokumente/parabolische_inverse_probleme"
 WORKING_DIR="/home/b/b_klei15/parabolische_inverse_probleme"

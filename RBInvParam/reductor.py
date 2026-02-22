@@ -93,6 +93,8 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
             'A_r_adjoint' : None,
             'A_r_adjoint_state' : None
         }
+
+        self.pool = new_parallel_pool() if parallel else None
  
         super().__init__(FOM,
                          bases,
@@ -272,7 +274,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
 
         self.logger.info("Constructing A(q).")
         if self.parallel:
-            max_workers = max(1, min(16 or 1, n_ops))
+            max_workers = min(16, n_ops) if n_ops > 0 else 1
             self.logger.info(f"Using ThreadPoolExecutor; max_workers={max_workers}")
             with ThreadPoolExecutor(max_workers=max_workers) as ex:
                 _params = (parameter_basis[i] for i in to_build)
@@ -445,35 +447,15 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
         if self.parallel:
             self.logger.info("Projecting operator parallely.") 
 
-            # pool = new_parallel_pool()
-            # base_ops_r = pool.push(base_operators)
-            # cached_r  = pool.push(cached_blocks)
-            # W_r       = pool.push(source_W)
-            # Vold_r    = pool.push(source_V_old)
-            # rV_r      = pool.push(range_V_old)
-            # rW_r      = pool.push(range_W)
-
-            # Ms = pool.map(
-            #     build_reduced_operator,
-            #     range(n_ops),
-            #     base_ops=base_ops_r,
-            #     cached_blocks=cached_r,
-            #     source_W=W_r,
-            #     source_V_old=Vold_r,
-            #     range_V_old=rV_r,
-            #     range_W=rW_r,
-            # )
-
-            pool = new_parallel_pool()
-            Ms = pool.map(
+            Ms = self.pool.map(
                 build_reduced_operator,
                 range(n_ops),
-                base_operators=pool.push(base_operators),
-                cached_blocks=pool.push(cached_blocks),
-                source_W=pool.push(source_W),
-                source_V_old=pool.push(source_V_old),
-                range_V_old=pool.push(range_V_old),
-                range_W=pool.push(range_W),
+                base_operators=self.pool.push(base_operators),
+                cached_blocks=self.pool.push(cached_blocks),
+                source_W=self.pool.push(source_W),
+                source_V_old=self.pool.push(source_V_old),
+                range_V_old=self.pool.push(range_V_old),
+                range_W=self.pool.push(range_W),
             )
 
             # self.logger.info(f"Using ThreadPoolExecutor; max_workers={os.cpu_count()}")
@@ -497,12 +479,7 @@ class InstationaryModelIPReductor(ProjectionBasedReductor):
                 range_W=range_W
             ) for i in range(n_ops)]
         
-        operators = [NumpyMatrixOperator(matrix=M) for M in Ms]
-
-        # import sys
-        # sys.exit()
-
-        
+        operators = [NumpyMatrixOperator(matrix=M) for M in Ms]        
 
         # save new reduced operator
         self._cached_operators[cache_key] = LincombOperator(

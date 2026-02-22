@@ -4,6 +4,7 @@ from typing import Union, List, Dict, Generator, Tuple
 from enum import Enum
 
 import numpy as np
+import sys
 
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.interface import VectorArray
@@ -34,7 +35,8 @@ class TimeStepper(ABC):
                 A_q_key: str = 'A_q',
                 apply_adjoint: bool = True,
                 key_prefix : str = '',
-                config : Dict = {}):
+                config : Dict = {},
+                cache_tol : float = sys.float_info.epsilon):
     
         self.nt = nt
         self.M = M 
@@ -50,6 +52,7 @@ class TimeStepper(ABC):
         self.apply_adjoint = apply_adjoint
         self.key_prefix = key_prefix
         self.config = config
+        self.cache_tol = cache_tol
 
         assert isinstance(self.M, Operator)
         assert isinstance(self.A, EvaluatorA)
@@ -99,9 +102,10 @@ class TimeStepper(ABC):
                      cached_operators: Dict = None):
         'q' in cached_operators.keys()
 
-        if len(cached_operators['q']) > 0:
-            assert ((cached_operators['q']-q).norm() <= 1e-16)[0]
-
+        if len(cached_operators['q']) != 0:
+            diff = cached_operators['q'] - q            
+            assert bool((diff.norm() <= self.cache_tol).any())
+        
     def _check_initial_data(self,
                             initial_data: dict,
                             key: str):

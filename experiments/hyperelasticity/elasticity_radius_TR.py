@@ -230,8 +230,8 @@ TR_optimizer_parameter = {
     'use_error_estimator' : False,
     'use_adjoint_space' : False,
     #'use_adjoint_space' : True,
-    'offline_parallel' : True,
-    #'offline_parallel' : False,
+    #'offline_parallel' : True,
+    'offline_parallel' : False,
     'reg_AGC_step' : False,
     #'TR_enforcement' : 'check_error',
     'TR_enforcement' : 'backtracking',
@@ -242,7 +242,7 @@ TR_optimizer_parameter = {
         'max_iter': 250,                                         # Maximum iterations for the linear solver
         'lin_solver_tol': lin_solver_tol,                                 # Convergence tolerance for the linear solver
         'kappa_arm' : 1e-12,
-        'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
+        'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
         'armijo_min_step_size' : 1e-20
     },
     'enrichment': {

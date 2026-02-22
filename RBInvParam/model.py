@@ -243,6 +243,8 @@ class InstationaryModelIP(ImmutableObject):
             assert self.linear_cost_term_ad in self.A_ad.range
             assert len(self.linear_cost_term_ad) == (self.nt + 1)
 
+        self.cache_tol = sys.float_info.epsilon
+
         ###############################################################
 
         state_time_stepper_config = {
@@ -257,7 +259,8 @@ class InstationaryModelIP(ImmutableObject):
             "A_q_key" : 'A_q',
             "apply_adjoint" : False,
             "key_prefix" : 'state_time_stepper',
-            "config" : self.setup['time_stepper']['state']['config']
+            "config" : self.setup['time_stepper']['state']['config'],
+            "cache_tol" : self.cache_tol
         }
         
         self.state_time_stepper = create_time_stepper(
@@ -278,7 +281,8 @@ class InstationaryModelIP(ImmutableObject):
             "A_q_key" : 'partial_u_A_q_u',
             "apply_adjoint" : False,
             "key_prefix" : 'lin_state_time_stepper',
-            "config" : self.setup['time_stepper']['state']['config']
+            "config" : self.setup['time_stepper']['state']['config'],
+            "cache_tol" : self.cache_tol
         }
         
         self.lin_state_time_stepper = create_time_stepper(
@@ -299,7 +303,8 @@ class InstationaryModelIP(ImmutableObject):
             "A_q_key" : adjoint_A_q_key,
             "apply_adjoint" : True,
             "key_prefix" : 'adjoint_time_stepper',
-            "config" : self.setup['time_stepper']['adjoint']['config']
+            "config" : self.setup['time_stepper']['adjoint']['config'],
+            "cache_tol" : self.cache_tol
         }
 
         self.adjoint_time_stepper = create_time_stepper(
@@ -319,7 +324,8 @@ class InstationaryModelIP(ImmutableObject):
             "A_q_key" : lin_adjoint_A_q_key,
             "apply_adjoint" : True,
             "key_prefix" : 'lin_adjoint_time_stepper',
-            "config" : self.setup['time_stepper']['adjoint']['config']
+            "config" : self.setup['time_stepper']['adjoint']['config'],
+            "cache_tol" : self.cache_tol
         }
 
         self.lin_adjoint_time_stepper = create_time_stepper(
@@ -356,8 +362,6 @@ class InstationaryModelIP(ImmutableObject):
         self.reset_cached_operators(
             targets = ['q'] + self.required_cache_keys
         )
-
-        self.cache_tol = sys.float_info.epsilon
 
 #%% cache methods
     def _cache_update_required(self,
@@ -860,7 +864,7 @@ class InstationaryModelIP(ImmutableObject):
         if alpha > 0:
             assert q is not None
             # add regularization term if alpha >0
-            # print(out)
+            # -out)
             # print(alpha * self.regularization_term(q))
             return out + alpha * self.regularization_term(q)
         else:

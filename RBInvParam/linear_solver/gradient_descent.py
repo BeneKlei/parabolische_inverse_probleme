@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 import logging
 from typing import Callable, Tuple, Dict
 from functools import partial
@@ -11,8 +12,9 @@ from RBInvParam.model import InstationaryModelIP
 from RBInvParam.domain_projector import SimpleBoundDomainProjector
 
 
-MACHINE_EPS = 1e-16
-CONV_TOL = 1e-16
+MACHINE_EPS = sys.float_info.epsilon
+ARMIJO_TOL = 1e2 * MACHINE_EPS
+CONV_TOL = MACHINE_EPS
 #CONV_TOL = 1e-3
 
 def armijo_condition(
@@ -30,13 +32,13 @@ def armijo_condition(
     rhs = kappa_arm / step_size * norm_d
     
 
-    if abs(lhs) <= MACHINE_EPS:
+    if abs(lhs) <= ARMIJO_TOL:
         lhs = 0
 
-    if abs(rhs) <= MACHINE_EPS:
+    if abs(rhs) <= ARMIJO_TOL:
         rhs = 0
 
-    return lhs >= rhs
+    return (lhs + ARMIJO_TOL) >= rhs
 
 def armijo_line_serach(previous_iterate: NumpyVectorArray,
                        previous_value: float,
