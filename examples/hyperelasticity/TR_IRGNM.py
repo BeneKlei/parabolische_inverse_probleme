@@ -303,7 +303,7 @@ def main():
     optimizer_parameter = {
         'method' : 'TR_IRGNM',
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-4,                                              # Initial regularization parameter (data fidelity vs. regularization)
+        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
