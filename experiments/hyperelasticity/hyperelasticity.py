@@ -8,6 +8,7 @@ from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimat
 from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimatorType
 from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
 from RBInvParam.trust_region import TRType
+from RBInvParam.schemas.reductor import LinearizationMethod
 
 from RBInvParam.timestepping import TimeStepperType
 
@@ -156,7 +157,7 @@ setup = {
 }
 
 q_start = q_circ
-lin_solver_tol = 5 * 1e-11
+lin_solver_tol = 5 * 1e-9
 tau = 1.50
 
 FOM_optimizer_parameter = {
@@ -174,11 +175,12 @@ FOM_optimizer_parameter = {
     'i_max_inner': 10,                                       # Maximum number of inner iterations
     ####################
     'lin_solver_parms': {
-        'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
-        'max_iter': 250,                                     # Max iterations for the linear solver
-        'lin_solver_tol': lin_solver_tol,                          # Tolerance for convergence in the linear solver
+        'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
+        'max_iter': 250,                                         # Maximum iterations for the linear solver
+        'abs_grad_tol' : 5 * 1e-9,        
+        'rel_change_obj_tol' : 1e-4,
         'kappa_arm' : 1e-12,
-        'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
+        'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
         'armijo_min_step_size' : 1e-20
     },
     'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
@@ -189,7 +191,7 @@ FOM_optimizer_parameter = {
 TR_optimizer_parameter = {
     'method' : 'TR_IRGNM',
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
-    'alpha_0': 1e-4,                                              # Initial regularization parameter (data fidelity vs. regularization)        
+    'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
     'tau': tau,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
@@ -215,34 +217,43 @@ TR_optimizer_parameter = {
         "shrink": 0.5,
     },
     'TR': {
-        'type': TRType.RADIUS,
+        'type': TRType.RELATIVE_OBJECTIVE_ERROR,
 
         # TR config
-        'eta_initial': 0.25,        
-        'eta_min': 1e-2,
-        'eta_max': 1.00,
+        'eta_initial': 0.15,        
+        'eta_min': 1e-5,
+        'eta_max': 0.30,
         'beta_1': 0.80,
         'beta_2': 0.80,
         'beta_3': 0.75,
-    },                                # Max iterations Armijo condition to enforce the trust-region 
+    },                                 # Max iterations Armijo condition to enforce the trust-region 
     #####################
     'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
     'use_error_estimator' : False,
-    'use_adjoint_space' : False,
-    #'use_adjoint_space' : True,
-    #'offline_parallel' : True,
-    'offline_parallel' : False,
     'reg_AGC_step' : False,
-    #'TR_enforcement' : 'check_error',
     'TR_enforcement' : 'backtracking',
-    'dump_every_nth_loop': 1,
+    'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
+    'reductor' : {
+        'type' : 'default',
+        'use_adjoint_space' : False,
+        'offline_parallel' : False,
+        'error_estimator_types' : {
+            'state' : StateErrorEstimatorType.HYPERBOLIC,
+            'adjoint' : AdjointErrorEstimatorType.NONE,
+            'objective' : ObjectiveErrorEstimatorType.NAIVE,
+        },
+        'check_orthonormality' : True,
+        'check_tol' : 1e-9,
+        'linearization_method' : LinearizationMethod.DEIM,
+    },
     #####################
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 250,                                         # Maximum iterations for the linear solver
-        'lin_solver_tol': lin_solver_tol,                                 # Convergence tolerance for the linear solver
+        'abs_grad_tol' : 5 * 1e-9,
+        'rel_change_obj_tol' : 1e-4,
         'kappa_arm' : 1e-12,
-        'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
+        'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
         'armijo_min_step_size' : 1e-20
     },
     'enrichment': {
@@ -260,13 +271,21 @@ TR_optimizer_parameter = {
             },
             'coarsing' : None,
         },
-        'state_basis' : None,
+        'state_basis' : {
+            'additional_snapshots' :{
+                'include_lin_states' : False,
+                'include_krylov_sensitivites' : False,
+            },
+            'compression' : {                
+                'normalize' : True,
+                'HaPOD' : {
+                    'eps': 1e-3,
+                    'omega' : 0.1,    
+                },
+            },
+            'coarsing' : None,
+        },
         'adjoint_basis' : None
-    },
-    'error_estimator_types' : {
-        'state' : StateErrorEstimatorType.HYPERBOLIC,
-        'adjoint' : AdjointErrorEstimatorType.NONE,
-        'objective' : ObjectiveErrorEstimatorType.NAIVE,
     },
     'logging' : {
         'errors' : LoggerErrorChoice.OBJECTIVE,
@@ -392,5 +411,5 @@ EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
 # EXPERIMENTS['TR_identity_time_step_lin'] = (setup_identity, TR_optimizer_parameter_identity)
 # EXPERIMENTS['TR_grid_time_step_lin'] = (setup_grid, TR_optimizer_parameter_grid)
 
-prefix = 'hyperelasticity'
+prefix = 'elasticity'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

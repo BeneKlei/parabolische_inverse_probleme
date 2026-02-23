@@ -234,8 +234,7 @@ TR_optimizer_parameter = {
     'TR_enforcement' : 'backtracking',
     'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
     'reductor' : {
-        #'type' : 'default',
-        'type' : 'material_model',
+        'type' : 'default',
         'use_adjoint_space' : False,
         'offline_parallel' : False,
         'error_estimator_types' : {
@@ -287,11 +286,6 @@ TR_optimizer_parameter = {
             'coarsing' : None,
         },
         'adjoint_basis' : None
-    },
-    'error_estimator_types' : {
-        'state' : StateErrorEstimatorType.HYPERBOLIC,
-        'adjoint' : AdjointErrorEstimatorType.NONE,
-        'objective' : ObjectiveErrorEstimatorType.NAIVE,
     },
     'logging' : {
         'errors' : LoggerErrorChoice.OBJECTIVE,
