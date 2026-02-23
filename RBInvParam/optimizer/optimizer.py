@@ -588,6 +588,12 @@ class Optimizer(BasicObject):
                     projector=projector,
                     use_error_estimator=use_error_estimator
                 )
+                
+                TR_armijo_cfg = replace(TR_armijo_cfg, initial_step_size=np.min([step_size * 2, 1]))
+                self.logger.info(
+                    f"Updated TR_armijo_cfg.initial_step_size = "
+                    f"{TR_armijo_cfg.initial_step_size:.4e}"
+                )
 
                 if TR_max_iter_cond:
                     break

@@ -317,7 +317,7 @@ def main():
             'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
             #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
             'kappa_arm' : 1e-12,
-            'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
+            'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
         },
     }

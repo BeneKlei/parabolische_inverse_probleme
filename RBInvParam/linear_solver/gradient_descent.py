@@ -142,13 +142,18 @@ def gradient_descent_linearized_problem(
     projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, int]:
 
     max_iter=lin_solver_parms['max_iter']
-    lin_solver_tol=lin_solver_parms['lin_solver_tol']
+    abs_grad_tol = lin_solver_parms['abs_grad_tol']
+    #abs_change_obj_tol  = lin_solver_parms['abs_change_obj_tol']
+    rel_change_obj_tol  = lin_solver_parms['rel_change_obj_tol']
+
     kappa_arm = lin_solver_parms['kappa_arm']
     armijo_inital_step_size = lin_solver_parms['armijo_inital_step_size']
     armijo_min_step_size = lin_solver_parms['armijo_min_step_size']
 
     assert alpha >= 0
-    assert lin_solver_tol > 0
+    assert abs_grad_tol > 0
+    #assert abs_change_obj_tol > 0
+    assert rel_change_obj_tol > 0
     assert kappa_arm > 0
     assert armijo_inital_step_size > 0
     assert armijo_min_step_size > 0
@@ -208,7 +213,7 @@ def gradient_descent_linearized_problem(
             terminaton_lhs = -grad
 
         terminaton_lhs = model.compute_gradient_norm(terminaton_lhs)
-        if (terminaton_lhs < lin_solver_tol) and i > 0:
+        if (terminaton_lhs < abs_grad_tol) and i > 0:
             last_i = i + 1
             converged = True
             break
@@ -271,8 +276,12 @@ def gradient_descent_linearized_problem(
             break
 
         if i > 5:
-            if abs(buffer_J[0] - buffer_J[1]) < CONV_TOL and abs(buffer_J[1] - buffer_J[2]) < CONV_TOL:
-                logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation.")
+            # if abs(buffer_J[0] - buffer_J[1])  < abs_change_obj_tol and abs(buffer_J[1] - buffer_J[2]) < abs_change_obj_tol:
+            #     logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation in the absolute objective.")
+            #     break
+
+            if abs(buffer_J[0] - buffer_J[1]) / abs(buffer_J[1]) < rel_change_obj_tol and abs(buffer_J[1] - buffer_J[2]) / abs(buffer_J[2]) < rel_change_obj_tol:
+                logger.info(f"Stop at iteration {i+1} of {int(max_iter)}, due to stagnation in the relative objective.")
                 break
         
     if converged:

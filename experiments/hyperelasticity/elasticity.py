@@ -174,11 +174,12 @@ FOM_optimizer_parameter = {
     'i_max_inner': 10,                                       # Maximum number of inner iterations
     ####################
     'lin_solver_parms': {
-        'method' : 'gd',                                     # Method for solving linear systems (e.g., gradient descent)
-        'max_iter': 250,                                     # Max iterations for the linear solver
-        'lin_solver_tol': lin_solver_tol,                          # Tolerance for convergence in the linear solver
+        'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
+        'max_iter': 250,                                         # Maximum iterations for the linear solver
+        'abs_grad_tol' : 5 * 1e-9,        
+        'rel_change_obj_tol' : 1e-2,
         'kappa_arm' : 1e-12,
-        'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
+        'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
         'armijo_min_step_size' : 1e-20
     },
     'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
@@ -240,9 +241,10 @@ TR_optimizer_parameter = {
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 250,                                         # Maximum iterations for the linear solver
-        'lin_solver_tol': lin_solver_tol,                                 # Convergence tolerance for the linear solver
+        'abs_grad_tol' : 5 * 1e-9,
+        'rel_change_obj_tol' : 1e-2,
         'kappa_arm' : 1e-12,
-        'armijo_inital_step_size': 1,                                    # Initial step size for iterative linear solver
+        'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
         'armijo_min_step_size' : 1e-20
     },
     'enrichment': {
