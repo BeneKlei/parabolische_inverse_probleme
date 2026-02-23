@@ -1,3 +1,4 @@
+// MaterialModel.hpp
 #pragma once
 
 // C++
@@ -6,8 +7,9 @@
 #include <string>
 #include <vector>
 
-// deal.II: core types used in the class interface
+// deal.II
 #include <deal.II/base/point.h>
+#include <deal.II/base/quadrature_lib.h>
 
 #include <deal.II/dofs/dof_handler.h>
 
@@ -16,45 +18,50 @@
 #include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/tria.h>
-#include <deal.II/grid/grid_tools_cache.h>
 
 #include <deal.II/lac/affine_constraints.h>
-#include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/vector.h>
 
-#include <deal.II/matrix_free/fe_point_evaluation.h>
-
-// your project headers (types appear in members / signatures)
+// project headers
 #include "BodyForceFactory.hpp"
 #include "BoundaryConditionFactory.hpp"
 #include "ObservationOperatorFactory.hpp"
 #include "ObservationSpaceProductFactory.hpp"
+
+// keep this include if you haven't refactored the product factory yet
 #include "StateProductFactory.hpp"
-#include "ParamSpaceContext.hpp"
-#include "StateSpaceContext.hpp"
+
+#include "FESpaceContext/ParamSpaceContext.hpp"
+#include "FESpaceContext/StateSpaceContext.hpp"
+
 #include "MatrixOperator.hpp"
 
-typedef double Number;
+using Number = double;
 
 // ======================================================
 // Material Model Base Config
 // ======================================================
 
-struct MaterialModelBaseConfig {
-    static constexpr size_t dim{3};
+struct MaterialModelBaseConfig
+{
+  static constexpr std::size_t dim{3};
 
-    int nt = 50;
-    double T_initial = 0.0;
-    double T_final = 1.0;
-    std::vector<double> p1 = { -0.1, -15.0, -15.0 };
-    std::vector<double> p2 = {  0.1,  15.0,  15.0 };
-    std::vector<unsigned int> param_grid_resolution = {4,30,30};
-    std::vector<unsigned int> state_grid_resolution = {4,30,30};
-    BodyForceType body_force_type = BodyForceType::CenterExcite;
-    BodyForceHyperparameter body_force_hyperparameter = {};
-    BoundaryConditionType BC_type = BoundaryConditionType::DirichletOnYandZ;
-    BoundaryConditionHyperparameter BC_hyperparameter = {};
+  int nt = 50;
+  double T_initial = 0.0;
+  double T_final = 1.0;
+
+  std::vector<double> p1 = {-0.1, -15.0, -15.0};
+  std::vector<double> p2 = { 0.1,  15.0,  15.0};
+
+  std::vector<unsigned int> param_grid_resolution = {4, 30, 30};
+  std::vector<unsigned int> state_grid_resolution = {4, 30, 30};
+
+  BodyForceType body_force_type = BodyForceType::CenterExcite;
+  BodyForceHyperparameter body_force_hyperparameter = {};
+
+  BoundaryConditionType BC_type = BoundaryConditionType::DirichletOnYandZ;
+  BoundaryConditionHyperparameter BC_hyperparameter = {};
 };
 
 // ======================================================
@@ -64,175 +71,124 @@ struct MaterialModelBaseConfig {
 class MaterialModel
 {
 public:
+  static constexpr std::size_t dim{3};
   using SparMatOp = SparseMatrixOperator<Number>;
 
-  static constexpr size_t dim{3};
-
-  explicit MaterialModel(const MaterialModelBaseConfig& config);
+  explicit MaterialModel(const MaterialModelBaseConfig &config);
   virtual ~MaterialModel() = default;
-  
-  void setup_system();
 
+  // lifecycle
+  void setup_system();
   virtual void setup_material_operator() = 0;
 
+  // assembly API exposed to Python
   std::unique_ptr<SparMatOp> assemble_mass_op() const;
-  
+
   std::unique_ptr<SparMatOp> assemble_observation_op(
-    const ObservationOperatorType observation_operator_type,
-    const ObservationOperatorHyperparameter hyperparameter
-  );
+      ObservationOperatorType observation_operator_type,
+      ObservationOperatorHyperparameter hyperparameter);
 
   std::unique_ptr<SparMatOp> assemble_bilinear_cost_op(
-    const SparMatOp& obs_op,
-    const SparMatOp& product_C_op
-  );
+      const SparMatOp &obs_op,
+      const SparMatOp &product_C_op);
 
-  //void assemble_bilinear_cost_matrix();
+  std::unique_ptr<SparMatOp> assemble_state_product_op(StateProductType state_product_type) const;
 
-  // --------------------------------------------------
-  
-  // TODO Return as unique_ptr direct to python
-  // void assemble_product_V(const StateProductType state_product_type);
-  // void assemble_product_H(const StateProductType state_product_type);
-  //void assemble_product_C(const ObservationSpaceProductType obs_space_product_type);
+  std::unique_ptr<SparMatOp> assemble_product_C_op(ObservationSpaceProductType obs_space_product_type);
 
-  std::unique_ptr<SparMatOp> assemble_state_product_op(
-    const StateProductType state_product_type
-  ) const; 
+  // utilities
+  void clear_rhs_boundary_dofs(dealii::Vector<Number> &v);
 
-  std::unique_ptr<SparMatOp> assemble_product_C_op(
-    const ObservationSpaceProductType obs_space_product_type
-  ); 
+  void save_state(const dealii::Vector<Number> &v,
+                  const std::string &save_path);
 
-  // --------------------------------------------------
+  void save_time_series(const std::vector<dealii::Vector<Number>> &v,
+                        const std::string &name,
+                        const std::string &save_path,
+                        const std::vector<double> &times);
 
-  //void get_component_dofs(Vector<Number>& state_DoFs, size_t component_idx);  
-  void clear_rhs_boundary_dofs(Vector<Number>& v);  
-  void save_state(
-    const Vector<Number>& v, 
-    const std::string save_path
-  );
+  // contexts (views)
+  const StateSpaceContext<dim, Number> &state_space_context() const { return m_state_space_context; }
+  const ParamSpaceContext<dim, Number> &param_space_context() const { return m_param_space_context; }
 
-  void save_time_series(
-    const std::vector<Vector<Number>> &v,
-    const std::string &name,
-    const std::string &save_path,
-    const std::vector<double> &times
-  );
+  // flags
+  const bool &q_time_dep() const { return m_q_time_dep; }
+  const bool &A_affine() const { return m_A_affine; }
+  const bool &A_q_linear() const { return m_A_q_linear; }
 
-  // --------------------------------------------------
+  // dimensions (kept public to minimize code churn; consider getters later)
+  std::size_t m_param_dim = 0;
+  std::size_t m_state_dim = 0;
+  std::size_t m_observation_space_dim = 0;
 
-  const StateSpaceContext<dim, Number>& state_space_context() const
-  {
-    return m_state_space_context;
-  }
-
-  const ParamSpaceContext<dim, Number>& param_space_context() const
-  {
-    return m_param_space_context;
-  }
-
-  const bool& q_time_dep() const {
-      return m_q_time_dep;
-  }
-
-  const bool& A_affine() const {
-      return m_A_affine;
-  }
-
-  const bool& A_q_linear() const {
-      return m_A_q_linear;
-  }
-
-  // --------------------------------------------------
-
-  size_t m_param_dim = 0;
-  size_t m_state_dim = 0;
-  size_t m_observation_space_dim = 0;
   bool m_has_translation_operator = false;
 
-  // --------------------------------------------------
+  // time step size
+  Number delta_t = 0.0;
 
-  std::vector<Vector<Number>> m_force_list;
-
-  // --------------------------------------------------
-
-  //SparseMatrix<Number> m_mass_matrix;  
-  //SparseMatrix<Number> m_system_matrix;
-  //SparseMatrix<Number> m_observation_operator;
-  //SparseMatrix<Number> m_bilinear_cost_operator;
-
-  // --------------------------------------------------
-
-  // SparseMatrix<Number> m_product_V;
-  // SparseMatrix<Number> m_product_H;
-  // //SparseMatrix<Number> m_product_C;
-
-  // SparseMatrix<Number> m_product_L2;
-  // SparseMatrix<Number> m_product_H1;
-
-  // --------------------------------------------------
-  SparsityPattern m_bilinear_cost_operator_sp;
-  SparsityPattern m_observation_operator_sp;
-  SparsityPattern m_obs_space_product_sp;
-
-  Number delta_t; 
-
+  // forcing time series
+  std::vector<dealii::Vector<Number>> m_force_list;
 
 protected:
+  // config
   const MaterialModelBaseConfig m_base_config;
 
   // ---------------------- State FE ----------------------
-  Triangulation<dim> m_state_triangulation;
-  FESystem<dim>      m_state_fe;
-  DoFHandler<dim>    m_state_dof_handler;
-  QGaussLobatto<dim> m_state_quadrature;
-  SparsityPattern    m_state_sp;
-  MappingQ1<dim>     m_state_mapping;
+  dealii::Triangulation<dim> m_state_triangulation;
+  dealii::FESystem<dim>      m_state_fe;
+  dealii::DoFHandler<dim>    m_state_dof_handler;
+  dealii::QGaussLobatto<dim> m_state_quadrature;
+  dealii::MappingQ1<dim>     m_state_mapping;
+  dealii::SparsityPattern    m_state_sp;
 
   // ---------------------- Param FE ----------------------
-  Triangulation<dim>  m_param_triangulation;
-  FE_Q<dim>           m_param_fe;
-  DoFHandler<dim>     m_param_dof_handler;
-  QGaussLobatto<dim>  m_param_quadrature;
-  MappingQ1<dim>      m_param_mapping;
+  dealii::Triangulation<dim>  m_param_triangulation;
+  dealii::FE_Q<dim>           m_param_fe;
+  dealii::DoFHandler<dim>     m_param_dof_handler;
+  dealii::QGaussLobatto<dim>  m_param_quadrature;
+  dealii::MappingQ1<dim>      m_param_mapping;
+  dealii::SparsityPattern     m_param_sp;   // NEW: needed for param products
 
-  AffineConstraints<Number>            m_param_constraints;
-  std::vector<types::global_dof_index> m_param_free_dofs; // reduced index -> global DoF index
+  dealii::AffineConstraints<Number>            m_param_constraints;
+  std::vector<dealii::types::global_dof_index> m_param_free_dofs;
+
+  // ---------------------- Constraints ----------------------
+  dealii::AffineConstraints<Number> m_BC_constraints;
 
   // ---------------------- Contexts ----------------------
-
   StateSpaceContext<dim, Number> m_state_space_context;
   ParamSpaceContext<dim, Number> m_param_space_context;
 
   // ---------------------- Factories ---------------------
+  ObservationOperatorFactory<dim, Number>      m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
+  ObservationSpaceProductFactory<dim, Number>  m_observation_space_product_factory = ObservationSpaceProductFactory<3, Number>();
+  StateProductFactory<dim, Number>             m_state_product_factory = StateProductFactory<3, Number>(); // replace later with generic factory
+  BodyForceFactory<dim, Number>                m_body_force_factory = BodyForceFactory<3, Number>();
+  BoundaryConditionFactory<dim, Number>        m_bc_factory = BoundaryConditionFactory<3, Number>();
 
-  ObservationOperatorFactory<dim, Number> m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
-  StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
-  ObservationSpaceProductFactory<dim, Number> m_observation_space_product_factory = ObservationSpaceProductFactory<3, Number>();
-  BodyForceFactory<dim, Number> m_body_force_factory = BodyForceFactory<3, Number>();
-  BoundaryConditionFactory<dim, Number> m_bc_factory = BoundaryConditionFactory<3, Number>();
-
-  // ------------------------------------------------------
-
-  AffineConstraints<Number> m_BC_constraints;
+  // body force
   std::unique_ptr<BodyForce> m_body_force;
 
-  // ------------------------------------------------------
-  
+  // ---------------------- Cost operator sparsity ----------------------
+  dealii::SparsityPattern m_bilinear_cost_operator_sp;
+  dealii::SparsityPattern m_observation_operator_sp;
+  dealii::SparsityPattern m_obs_space_product_sp;
+
+  // ---------------------- Model flags ----------------------
   bool m_q_time_dep = false;
-  bool m_A_affine = true;
+  bool m_A_affine   = true;
   bool m_A_q_linear = false;
 
-private:  
+private:
+  // setup steps
   void setup_param_grid();
   void setup_state_grid();
   void setup_param_space();
   void setup_state_space();
 
   void setup_BC_constraints();
-  void setup_body_force();
-  
+
+  // forcing
   void assemble_force_list();
-  void assemble_force(Vector<Number>& result, double time);
+  void assemble_force(dealii::Vector<Number> &result, double time);
 };

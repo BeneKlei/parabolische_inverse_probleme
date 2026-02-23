@@ -1,4 +1,5 @@
 #include "HyperElasticityModel.hpp"
+#include "utils.hpp"
 
 
 HyperElasticityModel::HyperElasticityModel(const HyperElasticityModelConfig& config)
@@ -43,14 +44,20 @@ void HyperElasticityModel::setup_material_operator() {
     m_A_q_linear = m_stored_energy_function->m_linear;
     m_A_affine = true;
 
-    if (&m_state_space_context.triangulation() != &m_param_space_context.triangulation())
-        throw std::runtime_error("State and parameter triangulation must be the same object.");
+    const auto &ts = m_state_space_context.triangulation();
+    const auto &tp = m_param_space_context.triangulation();
 
-    if (&m_state_space_context.quadrature() != &m_param_space_context.quadrature())
-        throw std::runtime_error("State and parameter quadrature must be the same object.");
+    if (!utils::same_tria_geometry_and_connectivity<dim>(ts, tp, /*tol=*/1e-14))
+        throw std::runtime_error("State and parameter triangulation must be equivalent (same mesh).");
 
-    if (&m_state_space_context.mapping() != &m_param_space_context.mapping())
-        throw std::runtime_error("State and parameter mapping must be the same object.");
+    if (!utils::same_quadrature<dim>(m_state_space_context.quadrature(),
+                                     m_param_space_context.quadrature(),
+                                     /*tol=*/1e-14))
+        throw std::runtime_error("State and parameter quadrature must be equivalent.");
+
+    if (!utils::same_mapping_configuration<dim>(m_state_space_context.mapping(),
+                                                m_param_space_context.mapping()))
+        throw std::runtime_error("State and parameter mapping must be equivalent.");
 };
 
 std::unique_ptr<typename HyperElasticityModel::BaseOp> 
@@ -93,8 +100,6 @@ HyperElasticityModel::_assemble_A_q(
             param_linear_part_only
         );
 }
-
-
 
 std::unique_ptr<typename HyperElasticityModel::BaseOp> 
 HyperElasticityModel::assemble_partial_q_A_q_u(

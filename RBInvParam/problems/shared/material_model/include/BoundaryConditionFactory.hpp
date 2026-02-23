@@ -9,7 +9,7 @@
 #include <deal.II/lac/affine_constraints.h>
 #include <deal.II/numerics/vector_tools.h>
 
-#include "StateSpaceContext.hpp"
+#include "FESpaceContext/StateSpaceContext.hpp"
 
 using namespace dealii;
 
@@ -31,9 +31,9 @@ public:
   void assemble_constraints(const StateSpaceContext<dim, Number> &state_space_context,
                             const BoundaryConditionType &bc_type,
                             const BoundaryConditionHyperparameter &hyperparameter,
-                            AffineConstraints<Number> &bc_constraints) const
+                            AffineConstraints<Number> &boundary_constraints) const
   {
-    bc_constraints.clear();
+    boundary_constraints.clear();
 
     switch (bc_type)
     {
@@ -48,7 +48,7 @@ public:
         std::cout << "\t\t BoundaryCondition: DirichletOnYandZ "
                   << "(boundary_ids = {3,4,5,6}, homogeneous)" << std::endl;
 
-        assemble_dirichlet_on_yz(state_space_context, hyperparameter, bc_constraints);
+        assemble_dirichlet_on_yz(state_space_context, hyperparameter, boundary_constraints);
         break;
       }
 
@@ -56,13 +56,13 @@ public:
         AssertThrow(false, ExcMessage("Unknown BoundaryConditionType"));
     }
 
-    bc_constraints.close();
+    boundary_constraints.close();
   }
 
 private:
   void assemble_dirichlet_on_yz(const StateSpaceContext<dim, Number> &state_space_context,
                                 const BoundaryConditionHyperparameter &hyperparameter,
-                                AffineConstraints<Number> &bc_constraints) const
+                                AffineConstraints<Number> &boundary_constraints) const
   {
     std::array<types::boundary_id, 4> ids{3,4,5,6};
 
@@ -82,6 +82,6 @@ private:
       VectorTools::interpolate_boundary_values(state_space_context.dof_handler(),
                                                id,
                                                zero,
-                                               bc_constraints);
+                                               boundary_constraints);
   }
 };

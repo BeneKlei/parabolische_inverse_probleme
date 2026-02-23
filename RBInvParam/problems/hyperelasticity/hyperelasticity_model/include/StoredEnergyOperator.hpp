@@ -11,8 +11,8 @@
 #include "Operators.hpp"
 #include "MatrixOperator.hpp"
 #include "StoredEnergyFunction.hpp"
-#include "ParamSpaceContext.hpp"
-#include "StateSpaceContext.hpp"
+#include "FESpaceContext/ParamSpaceContext.hpp"
+#include "FESpaceContext/StateSpaceContext.hpp"
 
 using namespace dealii;
 

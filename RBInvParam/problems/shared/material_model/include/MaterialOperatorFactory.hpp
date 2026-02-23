@@ -48,7 +48,7 @@ struct MaterialOperatorFactoryContext {
   const MaterialOperatorType           &system_operator_type;
   const FiniteElement<dim>             &fe;
   const DoFHandler<dim>                &dof_handler;
-  const AffineConstraints<Number>      &BC_constraints;
+  const AffineConstraints<Number>      &boundary_constraints;
   const SparsityPattern                &sparsity_pattern;
   const MaterialOperatorHyperparameter &hyperparameter;
 };

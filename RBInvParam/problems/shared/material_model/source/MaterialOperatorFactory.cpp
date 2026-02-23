@@ -103,7 +103,7 @@ void MaterialOperatorFactory<dim, Number>::assemble_cosserat_system(
     for (unsigned int m = 0; m < n_matrices; ++m)
     {
       //auto &global_matrix = std::get<SparseMatrix<Number>>(matrices[m]);
-      ctx.BC_constraints.distribute_local_to_global(cell_matrices[m],
+      ctx.boundary_constraints.distribute_local_to_global(cell_matrices[m],
                                                     local_dof_indices,
                                                     matrices[m]);
     }
@@ -112,7 +112,7 @@ void MaterialOperatorFactory<dim, Number>::assemble_cosserat_system(
   // Final condense to enforce constraints
   for (auto &matrix : matrices)
   {
-    ctx.BC_constraints.condense(matrix);
+    ctx.boundary_constraints.condense(matrix);
   }
 }
 
@@ -216,7 +216,7 @@ void MaterialOperatorFactory<dim, Number>::assemble_cosserat_spatial_system(
       }
 
       //auto &global_matrix = std::get<SparseMatrix<Number>>(matrices[vertex_idx]);
-      ctx.BC_constraints.distribute_local_to_global(cell_matrix,
+      ctx.boundary_constraints.distribute_local_to_global(cell_matrix,
                                                     local_dof_indices,
                                                     matrices[vertex_idx]);
     }
@@ -225,7 +225,7 @@ void MaterialOperatorFactory<dim, Number>::assemble_cosserat_spatial_system(
   // Final condense to enforce constraints
   for (auto &matrix : matrices)
   {
-    ctx.BC_constraints.condense(matrix);
+    ctx.boundary_constraints.condense(matrix);
   }
 }
 
@@ -353,7 +353,7 @@ void MaterialOperatorFactory<dim, Number>::assemble_cosserat_delamination_system
       }
 
       //auto &global_matrix = std::get<SparseMatrix<Number>>(matrices[boundary_idx]);
-      ctx.BC_constraints.distribute_local_to_global(cell_matrix,
+      ctx.boundary_constraints.distribute_local_to_global(cell_matrix,
                                                     local_dof_indices,
                                                     matrices[boundary_idx]);
     }
@@ -362,6 +362,6 @@ void MaterialOperatorFactory<dim, Number>::assemble_cosserat_delamination_system
   // Final condense to enforce constraints
   for (auto &matrix : matrices)
   {
-    ctx.BC_constraints.condense(matrix);
+    ctx.boundary_constraints.condense(matrix);
   }
 }
