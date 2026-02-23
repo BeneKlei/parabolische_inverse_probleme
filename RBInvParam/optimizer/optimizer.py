@@ -21,17 +21,20 @@ from pymor.core.exceptions import ExtensionError
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.linear_solver.gradient_descent import gradient_descent_linearized_problem
 from RBInvParam.linear_solver.BiCGSTAB import BiCGStab_linearized_problem
-from RBInvParam.reductor import InstationaryModelIPReductor
 from RBInvParam.snapshot_preprocessor import SnapshotPreprocessor
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.io import save_dict_to_pkl, dealii_vector_space_to_numpy
 from RBInvParam.domain_projector import SimpleBoundDomainProjector
 from RBInvParam.trust_region import *
 
-from RBInvParam.optimizer.optimizer_schema import FOMOptimizerCfg, TROptimizerCfg, ArmijoConfig 
+from RBInvParam.schemas.optimizer import FOMOptimizerCfg, TROptimizerCfg, ArmijoConfig 
 from RBInvParam.optimizer.error_evaluator import ErrorEvaluator 
 from RBInvParam.optimizer.numerics import GLOBAL_OBJ_POLICY as OBJ
-from RBInvParam.optimizer.logging_utils import log_fom_opt_config, log_tr_opt_config
+from RBInvParam.schemas.logging_optimizer import log_fom_opt_config, log_tr_opt_config
+
+from RBInvParam.reductor import InstationaryModelIPReductor
+from RBInvParam.schemas.reductor import InstationaryReductorConfig, LinearizationMethod
+
 
 MACHINE_EPS = sys.float_info.epsilon
 STAGNATION_TOL = 1e-6
@@ -888,7 +891,7 @@ class QrVrROMOptimizer(Optimizer):
         
         self.QrVrROM = None
 
-        self.use_adjoint_space = optimizer_parameter["use_adjoint_space"]
+        self.use_adjoint_space = optimizer_parameter["reductor"]["use_adjoint_space"]
         if self.use_adjoint_space:
             assert not optimizer_parameter['enrichment']['adjoint_basis']
 
@@ -901,18 +904,23 @@ class QrVrROMOptimizer(Optimizer):
         if self.use_adjoint_space:
             assert 'adjoint_basis' not in self.active_bases
 
+        reductor_cfg = InstationaryReductorConfig.from_dict(
+            optimizer_parameter["reductor"],
+            where="optimizer_parameter['reductor']",
+            active_bases=self.active_bases,
+            default_linearization_method=LinearizationMethod.DEIM,
+        )
+
         self.reductor = InstationaryModelIPReductor(
             FOM,
-            optimizer_parameter['error_estimator_types'],
-            parallel = optimizer_parameter["offline_parallel"],
-            active_bases = self.active_bases,
-            use_adjoint_space = optimizer_parameter["use_adjoint_space"],
+            active_bases=self.active_bases,
+            config=reductor_cfg,
         )
 
         self.snapshot_preprocessor = SnapshotPreprocessor(
             FOM = FOM,
             active_bases = self.active_bases,
-            use_adjoint_space = optimizer_parameter["use_adjoint_space"]
+            use_adjoint_space = self.use_adjoint_space
         )
 
         self.all_snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
@@ -1089,7 +1097,7 @@ class QrVrROMOptimizer(Optimizer):
         AGC_initial = min(0.5 / norm_nabla_J, 1e-3)
         AGC_armijo_cfg = replace(opt_cfg.AGC_armijo_cfg, initial_step_size=AGC_initial)
 
-        log_tr_opt_config(self.logger, opt_cfg, J=J, norm_nabla_J=norm_nabla_J, AGC_armijo_cfg=AGC_armijo_cfg)
+        log_tr_opt_config(self.logger, opt_cfg, J=J, norm_nabla_J=norm_nabla_J)
 
         # ------------------------------------------------------------
         # Initial snapshots + build initial ROM

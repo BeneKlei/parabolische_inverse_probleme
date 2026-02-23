@@ -29,6 +29,7 @@ from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimat
 from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimatorType
 from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
 from RBInvParam.trust_region import TRType
+from RBInvParam.schemas.reductor import LinearizationMethod
 
 from RBInvParam.timestepping import TimeStepperType
 
@@ -355,14 +356,21 @@ def main():
         #####################
         'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'use_error_estimator' : False,
-        'use_adjoint_space' : False,
-        #'use_adjoint_space' : True,
-        'offline_parallel' : False,
-        #'offline_parallel' : False,
         'reg_AGC_step' : False,
-        #'TR_enforcement' : 'check_error',
         'TR_enforcement' : 'backtracking',
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
+        'reductor' : {
+            'use_adjoint_space' : False,
+            'offline_parallel' : True,
+            'error_estimator_types' : {
+                'state' : StateErrorEstimatorType.HYPERBOLIC,
+                'adjoint' : AdjointErrorEstimatorType.NONE,
+                'objective' : ObjectiveErrorEstimatorType.NAIVE,
+            },
+            'check_orthonormality' : True,
+            'check_tol' : 1e-9,
+            'linearization_method' : LinearizationMethod.DEIM,
+        },
         #####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
@@ -416,11 +424,6 @@ def main():
             #'state_basis' : None,
             'adjoint_basis' : None
             
-        },
-        'error_estimator_types' : {
-            'state' : StateErrorEstimatorType.HYPERBOLIC,
-            'adjoint' : AdjointErrorEstimatorType.NONE,
-            'objective' : ObjectiveErrorEstimatorType.NAIVE,
         },
         'logging' : {
             'errors' : LoggerErrorChoice.OBJECTIVE,

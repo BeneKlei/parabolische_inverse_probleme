@@ -19,6 +19,7 @@
 //#include "utils.hpp"
 #include "Operators.hpp"
 #include "MatrixOperator.hpp"
+#include "ROMProjector.hpp"
 
 namespace py = pybind11;
 
@@ -299,6 +300,119 @@ void bind_operators(py::module_& m)
       .def_readonly("linear", &BaseOp::m_linear);
 }
 
+// bindings_rom_projector.cpp
+//
+// Drop this into your existing bindings.cpp (or compile as a separate TU and link)
+// and call bind_rom_projector<double>(m) from your module init.
+//
+// This version is "clean":
+// - It does NOT take py::object operators.
+// - It takes the *native C++* pd2::SparseMatrixOperator<Number> objects
+//   (the ones you already expose via pymor_dealii_bindings).
+// - It extracts &op.get_matrix() and stores SparseMatrix* pointers inside ReducedProjector.
+//
+// Python usage then becomes:
+//   proj.set_operators([A.op for A in python_sparse_matrix_operator_wrappers])
+// because A.op is the native pd2 operator.
+
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+#include <pybind11/stl.h>
+
+#include <Eigen/Dense>
+
+#include "ROMProjector.hpp"
+
+// IMPORTANT: include the header that declares your C++ SparseMatrixOperator template.
+// From your snippet, this is likely Operators.hpp or the header where
+// `template<class Number> using SparseMatrixOperator = MatrixOperator<Number, SparseMatrix<Number>>;`
+#include "Operators.hpp"   // <-- adjust to your actual include path
+
+namespace py = pybind11;
+
+template <class Number>
+void bind_rom_projector(py::module_ &m)
+{
+  using Basis = DenseBasis<Number>;
+  using Proj  = ReducedProjector<Number>;
+
+  // This is your *C++* deal.II-backed operator type (NOT the Python wrapper class)
+  using CppSparseOp = SparseMatrixOperator<Number>;
+  using Mat         = dealii::SparseMatrix<Number>;
+
+  py::class_<Basis, std::shared_ptr<Basis>>(m, "DenseBasis")
+    .def(py::init<int,int>(), py::arg("n_full"), py::arg("capacity"))
+    .def_property_readonly("n", &Basis::n)
+    .def_property_readonly("r", &Basis::r)
+    .def_property_readonly("capacity", &Basis::capacity)
+    .def("reserve", &Basis::reserve, py::arg("new_cap"))
+
+    // basis.append(W) where W is numpy (n×k)
+    .def("append", [](Basis &self, py::array_t<Number, py::array::c_style | py::array::forcecast> W) {
+        if (W.ndim() != 2)
+          throw std::runtime_error("DenseBasis.append: W must be 2D (n×k)");
+        const int n = static_cast<int>(W.shape(0));
+        const int k = static_cast<int>(W.shape(1));
+        const int s0 = static_cast<int>(W.strides(0) / (py::ssize_t)sizeof(Number));
+        const int s1 = static_cast<int>(W.strides(1) / (py::ssize_t)sizeof(Number));
+        self.append_from_numpy_ptr((const Number*)W.data(), n, k, s0, s1);
+      }, py::arg("W"))
+
+    // basis.remove([idxs])
+    .def("remove", [](Basis &self, py::array_t<int, py::array::c_style | py::array::forcecast> idxs) {
+        if (idxs.ndim() != 1)
+          throw std::runtime_error("DenseBasis.remove: idxs must be 1D");
+        self.remove_swap((const int*)idxs.data(), static_cast<int>(idxs.shape(0)));
+      }, py::arg("idxs"))
+    ;
+
+  py::class_<Proj>(m, "ReducedProjector")
+    .def(py::init<std::shared_ptr<Basis>, int, bool>(),
+         py::arg("basis"), py::arg("max_r"), py::arg("symmetric")=true)
+
+    .def_property_readonly("n", &Proj::n)
+    .def_property_readonly("r", &Proj::r)
+    .def_property_readonly("num_operators", &Proj::num_operators)
+
+    .def("notify_basis_changed", &Proj::notify_basis_changed)
+
+    // CLEAN: take a list of *native C++* SparseMatrixOperator<Number> objects
+    //
+    // Python will pass: [A.op for A in python_wrapper_ops]
+    // where A.op is pd2.SparseMatrixOperator (C++ object bound by pybind).
+    //
+    .def("set_operators", [](Proj &self, const std::vector<CppSparseOp> &ops) {
+        std::vector<const Mat*> mats;
+        mats.reserve(ops.size());
+        for (const auto &op : ops) {
+          mats.push_back(&op.get_matrix());
+        }
+        self.set_operators(mats);
+      }, py::arg("ops"))
+
+    .def("project_full", &Proj::project_full, py::arg("q"))
+    .def("project_full_all", &Proj::project_full_all)
+    .def("update_after_append", &Proj::update_after_append, py::arg("k"))
+
+    // Return numpy (r×r)
+    .def("get", [](Proj &self, int q) {
+        const int r = self.r();
+        py::array_t<Number> out({r, r});
+        auto o = out.template mutable_unchecked<2>();
+
+        Eigen::Matrix<Number, Eigen::Dynamic, Eigen::Dynamic> tmp(r, r);
+        self.get(q, tmp);
+
+        for (int i = 0; i < r; ++i)
+          for (int j = 0; j < r; ++j)
+            o(i, j) = tmp(i, j);
+
+        return out;
+      }, py::arg("q"))
+    ;
+}
+
+
 PYBIND11_MODULE(pymor_dealii_bindings, m) {
   m.doc() = "Python bindings for deal.II";
   bind_sparsity_pattern(m);
@@ -306,6 +420,7 @@ PYBIND11_MODULE(pymor_dealii_bindings, m) {
   bind_full_matrix<double>(m);
   bind_sparse_matrix<double>(m);
   bind_operators<double>(m);
+  bind_rom_projector<double>(m);
   //bind_ILU_solver<double>(m);
   //bind_cgsolver<double>(m);
 
