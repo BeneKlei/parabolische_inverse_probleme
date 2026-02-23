@@ -318,8 +318,8 @@ def build_InstationaryModelIP(setup : Dict,
 
     bilinear_cost_term = SparseMatrixOperator(
         op = material_model.assemble_bilinear_cost_op(
-            products['prod_C'].op,
             C.op,
+            products['prod_C'].op
         )
     )
 

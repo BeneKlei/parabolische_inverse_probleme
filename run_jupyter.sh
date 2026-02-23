@@ -6,7 +6,7 @@ python ../RBInvParam/deployment/run_experiment_batch.py ./elasticity_compare.py 
 export CMAKE_ARGS="-Ddeal.II_DIR=/home/b/b_klei15/software/dealii_skylake/lib/cmake/deal.II"
 
 salloc --nodes 1 --cpus-per-task 36 --time 00:30:00 --constraint=skylake --partition=express
-module load palma/2024a GCCcore/13.3.0 Python/3.12.3 foss/2024a 
+module load palma/2024a GCCcore/13.3.0 Python/3.12.3 foss/2024a Eigen/3.4.0
 export LD_LIBRARY_PATH="/home/b/b_klei15/software/dealii_skylake/lib/:$LD_LIBRARY_PATH"
 source ../venv/bin/activate 
 

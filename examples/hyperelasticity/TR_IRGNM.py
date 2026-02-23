@@ -147,12 +147,12 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Sensors,
+            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Sensors,
             'hyperparameter' : {
-                # 'spatial_resolution' : state_grid_resolution,
-                # 'radius' : 0.001,
-                # 'second_row' : False 
+                'spatial_resolution' : state_grid_resolution,
+                'radius' : 0.001,
+                'second_row' : False 
             }
         },
         'dims' : {

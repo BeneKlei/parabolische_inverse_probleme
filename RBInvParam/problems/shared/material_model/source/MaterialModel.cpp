@@ -489,9 +489,8 @@ std::unique_ptr<MaterialModel::SparMatOp> MaterialModel::assemble_bilinear_cost_
   const SparMatOp& product_C_op
 ) 
 {
-
-  const SparseMatrix<Number>& product_C_mat = product_C_op.get_matrix();
   const SparseMatrix<Number>& obs_op_mat = obs_op.get_matrix();
+  const SparseMatrix<Number>& product_C_mat = product_C_op.get_matrix();
 
   SparseMatrix<Number> bilinear_cost_operator;
   SparseMatrix<Number> buf;
