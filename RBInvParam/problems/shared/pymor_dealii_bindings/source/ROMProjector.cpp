@@ -197,6 +197,7 @@ void ReducedProjector<Number>::spmm_(
   Eigen::Ref<Eigen::Matrix<Number, Eigen::Dynamic, Eigen::Dynamic>> Y) const
 {
   const int n_full = n();
+
   if ((int)A.m() != n_full || (int)A.n() != n_full)
     throw std::runtime_error("spmm_: matrix dimension mismatch");
   if (X.rows() != n_full || Y.rows() != n_full)

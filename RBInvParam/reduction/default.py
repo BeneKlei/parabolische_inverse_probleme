@@ -20,6 +20,32 @@ from RBInvParam.utils.discretization import split_constant_and_parameterized_ope
 @register_reductor("default")
 class DefaultIPReductor(BaseIPReductor):
 
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._cached_operators = {
+            "A": None,
+            "A_r_state": None,
+            "A_r_adjoint": None,
+            "A_r_adjoint_state": None,
+        }
+
+
+    def delete_cached_operators(self,
+                                targets: List[str] | str | None = 'all') -> None:
+        self.logger.debug('Deleting cache')
+        assert isinstance(targets, List) or targets == 'all'
+
+        if targets == 'all':
+            targets = self._cached_operators.keys()
+
+        assert set(targets).issubset(set(self._cached_operators.keys()))
+
+        for target in targets:
+            #del self._cached_operators[target]
+            self._cached_operators[target] = None
+
     def assemble_parameter_reduced_A(self) -> LincombOperator:
         self._logger.debug("Assemble parameter reduced A")
         parameter_basis = self._get_projection_basis('parameter_basis')

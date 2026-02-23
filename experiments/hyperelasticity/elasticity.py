@@ -8,6 +8,7 @@ from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimat
 from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimatorType
 from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
 from RBInvParam.trust_region import TRType
+from RBInvParam.schemas.reductor import LinearizationMethod
 
 from RBInvParam.timestepping import TimeStepperType
 
@@ -177,7 +178,7 @@ FOM_optimizer_parameter = {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 250,                                         # Maximum iterations for the linear solver
         'abs_grad_tol' : 5 * 1e-9,        
-        'rel_change_obj_tol' : 1e-2,
+        'rel_change_obj_tol' : 1e-4,
         'kappa_arm' : 1e-12,
         'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
         'armijo_min_step_size' : 1e-20
@@ -229,20 +230,29 @@ TR_optimizer_parameter = {
     #####################
     'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
     'use_error_estimator' : False,
-    'use_adjoint_space' : False,
-    #'use_adjoint_space' : True,
-    #'offline_parallel' : True,
-    'offline_parallel' : False,
     'reg_AGC_step' : False,
-    #'TR_enforcement' : 'check_error',
     'TR_enforcement' : 'backtracking',
-    'dump_every_nth_loop': 1,
+    'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
+    'reductor' : {
+        #'type' : 'default',
+        'type' : 'material_model',
+        'use_adjoint_space' : False,
+        'offline_parallel' : False,
+        'error_estimator_types' : {
+            'state' : StateErrorEstimatorType.HYPERBOLIC,
+            'adjoint' : AdjointErrorEstimatorType.NONE,
+            'objective' : ObjectiveErrorEstimatorType.NAIVE,
+        },
+        'check_orthonormality' : True,
+        'check_tol' : 1e-9,
+        'linearization_method' : LinearizationMethod.DEIM,
+    },
     #####################
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 250,                                         # Maximum iterations for the linear solver
         'abs_grad_tol' : 5 * 1e-9,
-        'rel_change_obj_tol' : 1e-2,
+        'rel_change_obj_tol' : 1e-4,
         'kappa_arm' : 1e-12,
         'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
         'armijo_min_step_size' : 1e-20

@@ -381,14 +381,15 @@ void bind_rom_projector(py::module_ &m)
     // Python will pass: [A.op for A in python_wrapper_ops]
     // where A.op is pd2.SparseMatrixOperator (C++ object bound by pybind).
     //
-    .def("set_operators", [](Proj &self, const std::vector<CppSparseOp> &ops) {
-        std::vector<const Mat*> mats;
-        mats.reserve(ops.size());
-        for (const auto &op : ops) {
-          mats.push_back(&op.get_matrix());
-        }
-        self.set_operators(mats);
-      }, py::arg("ops"))
+    .def("set_operators", [](Proj &self, const std::vector<const CppSparseOp*> &ops) {
+      std::vector<const Mat*> mats;
+      mats.reserve(ops.size());
+      for (auto *op : ops) {
+        if (!op) throw std::runtime_error("null operator");
+        mats.push_back(&op->get_matrix());
+      }
+      self.set_operators(mats);
+    }, py::arg("ops"))
 
     .def("project_full", &Proj::project_full, py::arg("q"))
     .def("project_full_all", &Proj::project_full_all)

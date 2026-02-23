@@ -360,9 +360,10 @@ def main():
         'TR_enforcement' : 'backtracking',
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         'reductor' : {
-            'type' : 'default',
+            #'type' : 'default',
+            'type' : 'material_model',
             'use_adjoint_space' : False,
-            'offline_parallel' : True,
+            'offline_parallel' : False,
             'error_estimator_types' : {
                 'state' : StateErrorEstimatorType.HYPERBOLIC,
                 'adjoint' : AdjointErrorEstimatorType.NONE,
@@ -377,7 +378,7 @@ def main():
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
             'abs_grad_tol' : 5 * 1e-9,
-            'abs_change_obj_tol' : 1e-4,
+            #'rel_change_obj_tol' : 1e-4,
             'rel_change_obj_tol' : 1e-2,
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
@@ -393,7 +394,6 @@ def main():
                 },
                 'compression' : {
                     'normalize' : True,
-                    #'HaPOD' : None,
                     'HaPOD' : 
                     {
                         'eps': 1e-1,

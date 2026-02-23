@@ -83,13 +83,6 @@ class BaseIPReductor(ProjectionBasedReductor):
             "linearization_basis": FOM.products["prod_V"],
         }
 
-        self._cached_operators = {
-            "A": None,
-            "A_r_state": None,
-            "A_r_adjoint": None,
-            "A_r_adjoint_state": None,
-        }
-
         # keep direct attributes if you like (but sourced from config)
         self.offline_parallel = self.config.offline_parallel
         self.pool = new_parallel_pool() if self.offline_parallel else None
@@ -116,19 +109,10 @@ class BaseIPReductor(ProjectionBasedReductor):
             "Using residual image basis mode: %r.", self.residual_image_basis_mode
         )
 
+    @abstractmethod
     def delete_cached_operators(self,
-                                targets: List[str] | str = 'all') -> None:
-        self.logger.debug('Deleting cache')
-        assert isinstance(targets, List) or targets == 'all'
-
-        if targets == 'all':
-            targets = self._cached_operators.keys()
-
-        assert set(targets).issubset(set(self._cached_operators.keys()))
-
-        for target in targets:
-            #del self._cached_operators[target]
-            self._cached_operators[target] = None
+                                targets: List[str] | str | None  = None) -> None:
+        pass
 
     def remove_basis_vectors(self,
                              basis : str,
