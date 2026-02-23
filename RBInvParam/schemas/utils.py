@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Mapping, Iterable, Any
 
-
-
 def unknown_keys(data: Mapping[str, Any], allowed: Iterable[str], *, where: str) -> None:
     unknown = set(data.keys()) - set(allowed)
     if unknown:

@@ -32,7 +32,7 @@ from RBInvParam.optimizer.error_evaluator import ErrorEvaluator
 from RBInvParam.optimizer.numerics import GLOBAL_OBJ_POLICY as OBJ
 from RBInvParam.schemas.logging_optimizer import log_fom_opt_config, log_tr_opt_config
 
-from RBInvParam.reductor import InstationaryModelIPReductor
+from RBInvParam.reduction.build import build_reductor
 from RBInvParam.schemas.reductor import InstationaryReductorConfig, LinearizationMethod
 
 
@@ -911,8 +911,8 @@ class QrVrROMOptimizer(Optimizer):
             default_linearization_method=LinearizationMethod.DEIM,
         )
 
-        self.reductor = InstationaryModelIPReductor(
-            FOM,
+        self.reductor = build_reductor(
+            FOM=FOM,
             active_bases=self.active_bases,
             config=reductor_cfg,
         )

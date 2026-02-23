@@ -360,6 +360,7 @@ def main():
         'TR_enforcement' : 'backtracking',
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         'reductor' : {
+            'type' : 'default',
             'use_adjoint_space' : False,
             'offline_parallel' : True,
             'error_estimator_types' : {

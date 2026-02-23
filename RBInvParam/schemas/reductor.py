@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Mapping, Iterable, List
 from enum import Enum
 
 from RBInvParam.schemas.utils import *
+from RBInvParam.error_estimators.state_error_estimators import StateErrorEstimatorType
+from RBInvParam.error_estimators.adjoint_error_estimators import AdjointErrorEstimatorType
+from RBInvParam.error_estimators.objective_error_estimators import ObjectiveErrorEstimatorType
 
 # ----------------------------
 # Reductor config (typed)
@@ -52,7 +55,17 @@ class ErrorEstimatorTypes:
 
 @dataclass(frozen=True)
 class InstationaryReductorConfig:
-    error_estimators: ErrorEstimatorTypes
+    type: str = "default"
+    ctor_kwargs: Dict[str, Any] = field(default_factory=dict)
+
+    error_estimators: ErrorEstimatorTypes = field(
+        default_factory=lambda: ErrorEstimatorTypes(
+            state=StateErrorEstimatorType.NONE,
+            adjoint=AdjointErrorEstimatorType.NONE,
+            objective=ObjectiveErrorEstimatorType.NONE,
+        )
+    )
+
     check_orthonormality: bool = True
     check_tol: float = 1e-9
     residual_image_basis_mode: str = "none"
@@ -122,6 +135,8 @@ class InstationaryReductorConfig:
             raise KeyError(f"Missing keys in {where}: ['error_estimator_types']")
 
         allowed = {
+            "type",
+            "ctor_kwargs",
             "error_estimator_types",          # legacy key
             "error_estimators",               # new key (optional support)
             "check_orthonormality",
@@ -155,6 +170,8 @@ class InstationaryReductorConfig:
             lin_method = default_linearization_method
 
         cfg = cls(
+            type=data.get("type", "default"),
+            ctor_kwargs=data.get("ctor_kwargs", {}),
             error_estimators=ee,
             check_orthonormality=bool(data.get("check_orthonormality", True)),
             check_tol=float(data.get("check_tol", 1e-9)),

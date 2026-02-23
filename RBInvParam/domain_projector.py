@@ -5,7 +5,7 @@ import itertools
 from pymor.vectorarrays.numpy import NumpyVectorArray
 
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.reductor import InstationaryModelIPReductor
+from RBInvParam.reduction.base import BaseIPReductor
 from RBInvParam.utils.logger import get_default_logger
 
 class DomainProjector():
@@ -35,7 +35,7 @@ class SimpleBoundDomainProjector(DomainProjector):
     def __init__(self,
                  model: InstationaryModelIP,             
                  bounds: np.ndarray,
-                 reductor: InstationaryModelIPReductor = None,
+                 reductor: BaseIPReductor = None,
                  use_sufficient_condition: bool = True,
                  logger: logging.Logger = None):
      
@@ -51,7 +51,7 @@ class SimpleBoundDomainProjector(DomainProjector):
         assert isinstance(self.model, InstationaryModelIP)
         assert isinstance(self.bounds, np.ndarray)
         if self.reductor:
-            assert isinstance(self.reductor, InstationaryModelIPReductor)
+            assert isinstance(self.reductor, BaseIPReductor)
         assert isinstance(self.use_sufficient_condition, bool)
 
         if self.use_sufficient_condition:

@@ -19,7 +19,7 @@ from typing import Dict, List, Optional, Union, Any
 from pymor.vectorarrays.interface import VectorArray
 
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.reductor import InstationaryModelIPReductor
+from RBInvParam.reduction.base import BaseIPReductor
 
 
 class ErrorEvaluator:
@@ -45,7 +45,7 @@ class ErrorEvaluator:
         self,
         *,
         model: InstationaryModelIP,
-        reductor: Optional[InstationaryModelIPReductor],
+        reductor: Optional[BaseIPReductor],
         q_r: VectorArray,
         d_r: Optional[VectorArray] = None,
         u_r: Optional[VectorArray] = None,
@@ -183,7 +183,7 @@ class ErrorEvaluator:
         self,
         *,
         model: InstationaryModelIP,
-        reductor: InstationaryModelIPReductor,
+        reductor: BaseIPReductor,
         q_r: VectorArray,
         d_r: Optional[VectorArray] = None,
         u_r: Optional[VectorArray] = None,
