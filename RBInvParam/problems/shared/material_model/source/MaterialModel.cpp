@@ -208,30 +208,30 @@ void MaterialModel::setup_system()
 
   // --------------------------------------------------
 
-  std::cout << "\t Setting up L2 & H1 in state space." << std::endl;
-  StateProductFactoryContext<3, Number> ctx_product_L2 {
-    StateProductType::L2,
-    m_state_fe,
-    m_state_dof_handler,
-    m_state_sp    
-  };
+  // std::cout << "\t Setting up L2 & H1 in state space." << std::endl;
+  // StateProductFactoryContext<3, Number> ctx_product_L2 {
+  //   StateProductType::L2,
+  //   m_state_fe,
+  //   m_state_dof_handler,
+  //   m_state_sp    
+  // };
 
-  m_state_product_factory.assemble_state_product(
-    ctx_product_L2,
-    m_product_L2
-  );
+  // m_state_product_factory.assemble_state_product(
+  //   ctx_product_L2,
+  //   m_product_L2
+  // );
 
-  StateProductFactoryContext<3, Number> ctx_product_H1 {
-    StateProductType::H1,
-    m_state_fe,
-    m_state_dof_handler,
-    m_state_sp    
-  };
+  // StateProductFactoryContext<3, Number> ctx_product_H1 {
+  //   StateProductType::H1,
+  //   m_state_fe,
+  //   m_state_dof_handler,
+  //   m_state_sp    
+  // };
 
-  m_state_product_factory.assemble_state_product(
-    ctx_product_H1,
-    m_product_H1
-  );
+  // m_state_product_factory.assemble_state_product(
+  //   ctx_product_H1,
+  //   m_product_H1
+  // );
 
   // --------------------------------------------------
 
@@ -332,8 +332,42 @@ void MaterialModel::assemble_force_list()
   }
 }
 
-void MaterialModel::assemble_product_V(const StateProductType state_product_type) {
-  StateProductFactoryContext<3, Number> ctx {
+// void MaterialModel::assemble_product_V(const StateProductType state_product_type) {
+//   StateProductFactoryContext<3, Number> ctx {
+//     state_product_type,
+//     m_state_fe,
+//     m_state_dof_handler,
+//     m_state_sp    
+//   };
+
+//   m_state_product_factory.assemble_state_product(
+//     ctx,
+//     m_product_V
+//   );
+// }
+
+// void MaterialModel::assemble_product_H(const StateProductType state_product_type) {
+//   StateProductFactoryContext<3, Number> ctx {
+//     state_product_type,
+//     m_state_fe,
+//     m_state_dof_handler,
+//     m_state_sp    
+//   };
+
+//   m_state_product_factory.assemble_state_product(
+//     ctx,
+//     m_product_H
+//   );
+// }
+
+std::unique_ptr<MaterialModel::SparMatOp>
+MaterialModel::assemble_state_product_op(
+  const StateProductType state_product_type
+) const 
+{
+  SparseMatrix<Number> product_mat;
+
+  const StateProductFactoryContext<3, Number> ctx {
     state_product_type,
     m_state_fe,
     m_state_dof_handler,
@@ -342,25 +376,21 @@ void MaterialModel::assemble_product_V(const StateProductType state_product_type
 
   m_state_product_factory.assemble_state_product(
     ctx,
-    m_product_V
+    product_mat
+  );
+
+  return std::make_unique<MaterialModel::SparMatOp>(
+    std::move(product_mat)
   );
 }
 
-void MaterialModel::assemble_product_H(const StateProductType state_product_type) {
-  StateProductFactoryContext<3, Number> ctx {
-    state_product_type,
-    m_state_fe,
-    m_state_dof_handler,
-    m_state_sp    
-  };
 
-  m_state_product_factory.assemble_state_product(
-    ctx,
-    m_product_H
-  );
-}
+std::unique_ptr<MaterialModel::SparMatOp> 
+MaterialModel::assemble_product_C_op(
+  const ObservationSpaceProductType obs_space_product_type
+) 
+{
 
-std::unique_ptr<MaterialModel::SparMatOp> MaterialModel::assemble_product_C_op(const ObservationSpaceProductType obs_space_product_type) {
   SparseMatrix<Number> prod_C_mat;
 
   ObservationSpaceProductFactoryContext<3, Number> ctx {
@@ -382,24 +412,28 @@ std::unique_ptr<MaterialModel::SparMatOp> MaterialModel::assemble_product_C_op(c
   );
 }
 
-void MaterialModel::assemble_mass_matrix()
+std::unique_ptr<MaterialModel::SparMatOp> 
+MaterialModel::assemble_mass_op() const
 {
-  m_mass_matrix.reinit(m_state_sp);
-  m_mass_matrix = 0;
-  StateProductFactoryContext<3, Number> ctx {
-    StateProductType::Mass,
-    m_state_fe,
-    m_state_dof_handler,
-    m_state_sp    
-  };
+  return assemble_state_product_op(StateProductType::Mass);
 
-  m_state_product_factory.assemble_state_product(
-    ctx,
-    m_mass_matrix
-  );
+  // m_mass_matrix.reinit(m_state_sp);
+  // m_mass_matrix = 0;
+  // StateProductFactoryContext<3, Number> ctx {
+  //   StateProductType::Mass,
+  //   m_state_fe,
+  //   m_state_dof_handler,
+  //   m_state_sp    
+  // };
+
+  // m_state_product_factory.assemble_state_product(
+  //   ctx,
+  //   m_mass_matrix
+  // );
 }
 
-std::unique_ptr<MaterialModel::SparMatOp> MaterialModel::assemble_observation_op(
+std::unique_ptr<MaterialModel::SparMatOp> 
+MaterialModel::assemble_observation_op(
   const ObservationOperatorType observation_operator_type,
   const ObservationOperatorHyperparameter hyperparameter
 )

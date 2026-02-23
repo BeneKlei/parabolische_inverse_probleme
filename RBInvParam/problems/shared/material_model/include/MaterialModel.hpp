@@ -64,7 +64,7 @@ struct MaterialModelBaseConfig {
 class MaterialModel
 {
 public:
-  using SparMatOp      = SparseMatrixOperator<Number>;
+  using SparMatOp = SparseMatrixOperator<Number>;
 
   static constexpr size_t dim{3};
 
@@ -74,9 +74,8 @@ public:
   void setup_system();
 
   virtual void setup_material_operator() = 0;
-  // TODO Add assemble_A_q etc. here to the interface
 
-  void assemble_mass_matrix();
+  std::unique_ptr<SparMatOp> assemble_mass_op() const;
   
   std::unique_ptr<SparMatOp> assemble_observation_op(
     const ObservationOperatorType observation_operator_type,
@@ -93,9 +92,14 @@ public:
   // --------------------------------------------------
   
   // TODO Return as unique_ptr direct to python
-  void assemble_product_V(const StateProductType state_product_type);
-  void assemble_product_H(const StateProductType state_product_type);
+  // void assemble_product_V(const StateProductType state_product_type);
+  // void assemble_product_H(const StateProductType state_product_type);
   //void assemble_product_C(const ObservationSpaceProductType obs_space_product_type);
+
+  std::unique_ptr<SparMatOp> assemble_state_product_op(
+    const StateProductType state_product_type
+  ) const; 
+
   std::unique_ptr<SparMatOp> assemble_product_C_op(
     const ObservationSpaceProductType obs_space_product_type
   ); 
@@ -153,19 +157,19 @@ public:
 
   // --------------------------------------------------
 
-  SparseMatrix<Number> m_mass_matrix;  
+  //SparseMatrix<Number> m_mass_matrix;  
   //SparseMatrix<Number> m_system_matrix;
   //SparseMatrix<Number> m_observation_operator;
   //SparseMatrix<Number> m_bilinear_cost_operator;
 
   // --------------------------------------------------
 
-  SparseMatrix<Number> m_product_V;
-  SparseMatrix<Number> m_product_H;
-  //SparseMatrix<Number> m_product_C;
+  // SparseMatrix<Number> m_product_V;
+  // SparseMatrix<Number> m_product_H;
+  // //SparseMatrix<Number> m_product_C;
 
-  SparseMatrix<Number> m_product_L2;
-  SparseMatrix<Number> m_product_H1;
+  // SparseMatrix<Number> m_product_L2;
+  // SparseMatrix<Number> m_product_H1;
 
   // --------------------------------------------------
   SparsityPattern m_bilinear_cost_operator_sp;

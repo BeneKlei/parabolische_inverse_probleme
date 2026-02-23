@@ -51,8 +51,8 @@ def build_InstationaryModelIP(setup : Dict,
         'h1_0' : mm.StateProductType.H1_0, 
     }
 
-    material_model.assemble_product_H(_str_to_enum_map_state[product_names['prod_H']])
-    material_model.assemble_product_V(_str_to_enum_map_state[product_names['prod_V']])
+    #material_model.assemble_product_H(_str_to_enum_map_state[product_names['prod_H']])
+    #material_model.assemble_product_V(_str_to_enum_map_state[product_names['prod_V']])
     
 
     products = {
@@ -72,24 +72,32 @@ def build_InstationaryModelIP(setup : Dict,
     }
 
     # TODO Construct by returning Operator instances
-    products['L2'] = DealIIMatrixOperator(
-        matrix = material_model.product_L2
+    products['L2'] = SparseMatrixOperator(
+        op = material_model.assemble_state_product_op(
+            mm.StateProductType.L2
+        )
     )
 
-    products['H1'] = DealIIMatrixOperator(
-        matrix = material_model.product_H1
+    products['H1'] = SparseMatrixOperator(
+        op = material_model.assemble_state_product_op(
+            mm.StateProductType.H1
+        )
     )
 
-    products['prod_H'] = DealIIMatrixOperator(
-        matrix = material_model.product_H
+    products['prod_H'] = SparseMatrixOperator(
+        op = material_model.assemble_state_product_op(
+            _str_to_enum_map_state[product_names['prod_H']]
+        )
     )
 
     products['prod_Q'] = NumpyMatrixOperator(
         matrix = assembled_parameter_products[product_names['prod_Q']]
     )
 
-    products['prod_V'] = DealIIMatrixOperator(
-        matrix = material_model.product_V
+    products['prod_V'] = SparseMatrixOperator(
+        op = material_model.assemble_state_product_op(
+            _str_to_enum_map_state[product_names['prod_V']]
+        )
     )
 
     products['energy'] = EnergyProductOperator(
@@ -99,18 +107,14 @@ def build_InstationaryModelIP(setup : Dict,
     )
 
     products['bochner_prod_Q'] = BochnerProductOperator(
-        product=NumpyMatrixOperator(
-            matrix = assembled_parameter_products[product_names['prod_Q']]
-        ),
+        product=products['prod_Q'],
         delta_t=setup['delta_t'],
         space = Q_h,
         nt = setup['dims']['nt']
     )
 
     products['bochner_prod_V'] = BochnerProductOperator(
-        product=DealIIMatrixOperator(
-            matrix = material_model.product_V
-        ),
+        product=products['prod_V'],
         delta_t=setup['delta_t'],
         space = V_h,
         nt = setup['dims']['nt']
@@ -149,12 +153,12 @@ def build_InstationaryModelIP(setup : Dict,
         },
     }
     
-    material_model.assemble_mass_matrix()    
-    matrix = pd2.SparseMatrix(material_model.mass_matrix.get_sparsity_pattern())
-    matrix.copy_from(material_model.mass_matrix)    
+    # material_model.assemble_mass_matrix()    
+    # matrix = pd2.SparseMatrix(material_model.mass_matrix.get_sparsity_pattern())
+    # matrix.copy_from(material_model.mass_matrix)    
     
     M = SparseMatrixOperator(
-        op = pd2.SparseMatrixOperator(matrix = matrix)
+        op = material_model.assemble_mass_op()    
     )
 
     L = V_h.make_array(material_model.force_list)

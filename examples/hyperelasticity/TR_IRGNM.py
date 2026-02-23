@@ -78,8 +78,8 @@ def main():
     z_bounds = (p1[2], p2[2])
 
 
-    state_y_res = 10
-    state_z_res = 10
+    state_y_res = 30
+    state_z_res = 30
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -88,7 +88,7 @@ def main():
     T_initial = 0
 
     T_final = 5.0
-    nt = 10 
+    nt = 50 
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
@@ -378,8 +378,7 @@ def main():
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
             'abs_grad_tol' : 5 * 1e-9,
-            #'rel_change_obj_tol' : 1e-4,
-            'rel_change_obj_tol' : 1e-2,
+            'rel_change_obj_tol' : 1e-4,
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
