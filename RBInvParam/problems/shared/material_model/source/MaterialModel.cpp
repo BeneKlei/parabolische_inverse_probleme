@@ -360,7 +360,9 @@ void MaterialModel::assemble_product_H(const StateProductType state_product_type
   );
 }
 
-void MaterialModel::assemble_product_C(const ObservationSpaceProductType obs_space_product_type) {
+std::unique_ptr<MaterialModel::SparMatOp> MaterialModel::assemble_product_C_op(const ObservationSpaceProductType obs_space_product_type) {
+  SparseMatrix<Number> prod_C_mat;
+
   ObservationSpaceProductFactoryContext<3, Number> ctx {
     obs_space_product_type,
     m_state_fe,
@@ -371,9 +373,13 @@ void MaterialModel::assemble_product_C(const ObservationSpaceProductType obs_spa
 
   m_observation_space_product_factory.assemble_observation_space_product(
     ctx,
-    m_product_C,
+    prod_C_mat,
     m_obs_space_product_sp
   );  
+
+  return std::make_unique<MaterialModel::SparMatOp>(
+      std::move(prod_C_mat)
+  );
 }
 
 void MaterialModel::assemble_mass_matrix()
@@ -393,11 +399,13 @@ void MaterialModel::assemble_mass_matrix()
   );
 }
 
-void MaterialModel::assemble_observation_operator_matrix(
+std::unique_ptr<MaterialModel::SparMatOp> MaterialModel::assemble_observation_op(
   const ObservationOperatorType observation_operator_type,
   const ObservationOperatorHyperparameter hyperparameter
 )
 {
+    SparseMatrix<Number> obs_op_mat;
+
     ObservationOperatorFactoryContext<dim, Number> ctx {
       observation_operator_type,
       m_state_fe,
@@ -409,11 +417,17 @@ void MaterialModel::assemble_observation_operator_matrix(
   
     m_observation_operator_factory.assemble_observation(
       ctx,
-      m_observation_operator,
+      obs_op_mat,
       m_observation_operator_sp
   ); 
 
-  m_observation_space_dim = m_observation_operator.m();
+  m_observation_space_dim = obs_op_mat.m();
+
+  return std::make_unique<MaterialModel::SparMatOp>(
+      std::move(obs_op_mat)
+  );
+
+
 }
 
 void MaterialModel::clear_rhs_boundary_dofs(Vector<Number>& v) 
@@ -421,18 +435,51 @@ void MaterialModel::clear_rhs_boundary_dofs(Vector<Number>& v)
   m_BC_constraints.distribute(v);
 }
 
-void MaterialModel::assemble_bilinear_cost_matrix()
-{
-  SparseMatrix<Number> buf;
-  SparsityPattern buf_sp = utils::make_product_sparsity_AB(m_product_C, m_observation_operator);
-  buf.reinit(buf_sp);
-  m_product_C.mmult(buf, m_observation_operator, Vector<Number>(), false);
+// void MaterialModel::assemble_bilinear_cost_matrix()
+// {
+//   SparseMatrix<Number> buf;
+//   SparsityPattern buf_sp = utils::make_product_sparsity_AB(m_product_C, m_observation_operator);
+//   buf.reinit(buf_sp);
+//   m_product_C.mmult(buf, m_observation_operator, Vector<Number>(), false);
   
-  SparsityPattern buf_sp_ = utils::make_product_sparsity_ATB(m_observation_operator, buf);
-  m_bilinear_cost_operator_sp.copy_from(buf_sp_);
-  m_bilinear_cost_operator.reinit(m_bilinear_cost_operator_sp);
+//   SparsityPattern buf_sp_ = utils::make_product_sparsity_ATB(m_observation_operator, buf);
+//   m_bilinear_cost_operator_sp.copy_from(buf_sp_);
+//   m_bilinear_cost_operator.reinit(m_bilinear_cost_operator_sp);
 
-  m_observation_operator.Tmmult(m_bilinear_cost_operator, buf, Vector<Number>(), false); 
+//   m_observation_operator.Tmmult(m_bilinear_cost_operator, buf, Vector<Number>(), false); 
+// }
+
+
+std::unique_ptr<MaterialModel::SparMatOp> MaterialModel::assemble_bilinear_cost_op(
+  const SparMatOp& obs_op,
+  const SparMatOp& product_C_op
+) 
+{
+
+  const SparseMatrix<Number>& product_C_mat = product_C_op.get_matrix();
+  const SparseMatrix<Number>& obs_op_mat = obs_op.get_matrix();
+
+  SparseMatrix<Number> bilinear_cost_operator;
+  SparseMatrix<Number> buf;
+
+  SparsityPattern buf_sp = utils::make_product_sparsity_AB(
+    product_C_mat, 
+    obs_op_mat
+  );
+  
+  buf.reinit(buf_sp);
+  product_C_mat.mmult(buf, obs_op_mat, Vector<Number>(), false);
+
+
+  SparsityPattern buf_sp_ = utils::make_product_sparsity_ATB(obs_op_mat, buf);
+  m_bilinear_cost_operator_sp.copy_from(buf_sp_);
+  bilinear_cost_operator.reinit(m_bilinear_cost_operator_sp);
+
+  obs_op_mat.Tmmult(bilinear_cost_operator, buf, Vector<Number>(), false); 
+  
+  return std::make_unique<MaterialModel::SparMatOp>(
+      std::move(bilinear_cost_operator)
+  );
 }
 
 void MaterialModel::save_state(const Vector<Number>& v, 

@@ -20,7 +20,7 @@ class HyperElasticityModel : public MaterialModel
 {
 public:
     using BaseOp         = BaseOperator<Number>;
-    using FullMatOp         = FullMatrixOperator<Number>;
+    using FullMatOp      = FullMatrixOperator<Number>;
 
     using LinSEOp        = LinearStoredEnergyOperator<dim, Number>;
     using SEOp           = StoredEnergyOperator<dim, Number>;

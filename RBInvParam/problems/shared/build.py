@@ -231,13 +231,20 @@ def build_InstationaryModelIP(setup : Dict,
 
     ############################### Cost ###############################
     
-    material_model.assemble_observation_operator_matrix(
-        setup['observation_operator']['type'],
-        setup['observation_operator']['hyperparameter']
-    )
-    C = DealIIMatrixOperator(matrix = material_model.observation_operator)
-    C_continuity_constant = 1.0
+    # material_model.assemble_observation_operator_matrix(
+    #     setup['observation_operator']['type'],
+    #     setup['observation_operator']['hyperparameter']
+    # )
+    # C = DealIIMatrixOperator(matrix = material_model.observation_operator)
 
+    C = SparseMatrixOperator(
+        op = material_model.assemble_observation_op(
+            setup['observation_operator']['type'],
+            setup['observation_operator']['hyperparameter']
+        )
+    )
+    
+    C_continuity_constant = 1.0
     building_blocks['C'] = C
 
     # -------------------------------------------------------------------- 
@@ -254,20 +261,25 @@ def build_InstationaryModelIP(setup : Dict,
     setup['dims']['observation_space_dim'] = material_model.observation_space_dim
     C_h = DealIIVectorSpace(dim = setup['dims']['observation_space_dim'])
     
-    material_model.assemble_product_C(_str_to_enum_map_observation_space[product_names['prod_C']])
+    # material_model.assemble_product_C(_str_to_enum_map_observation_space[product_names['prod_C']])
 
-    products['prod_C'] = DealIIMatrixOperator(
-        matrix = material_model.product_C
+    # products['prod_C'] = DealIIMatrixOperator(
+    #     matrix = material_model.product_C
+    # )
+
+    products['prod_C'] = SparseMatrixOperator(
+        op = material_model.assemble_product_C_op(
+            _str_to_enum_map_observation_space[product_names['prod_C']]
+        )
     )
 
     products['bochner_prod_C'] = BochnerProductOperator(
-        product=DealIIMatrixOperator(
-            matrix = material_model.product_C
-        ),
+        product=products['prod_C'],
         delta_t=setup['delta_t'],
         space = C_h,
         nt = setup['dims']['nt']
-    )        
+    )   
+
     # --------------------------------------------------------------------
 
     y_delta, u_exact = construct_noise_data(model = dummy_model, 
@@ -299,10 +311,12 @@ def build_InstationaryModelIP(setup : Dict,
     linear_cost_term = products['prod_C'].apply(y_delta)
     linear_cost_term = C.apply_adjoint(linear_cost_term)
     #--------------------------------------------------------   
-    material_model.assemble_bilinear_cost_matrix()
 
-    bilinear_cost_term = DealIIMatrixOperator(
-        matrix = material_model.bilinear_cost_operator
+    bilinear_cost_term = SparseMatrixOperator(
+        op = material_model.assemble_bilinear_cost_op(
+            products['prod_C'].op,
+            C.op,
+        )
     )
 
     ############################### Final ###############################

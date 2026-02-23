@@ -41,21 +41,24 @@ PYBIND11_MODULE(material_model, m) {
 
          .def_readonly("product_V", &MaterialModel::m_product_V)
          .def_readonly("product_H", &MaterialModel::m_product_H)
-         .def_readonly("product_C", &MaterialModel::m_product_C)
+         //.def_readonly("product_C", &MaterialModel::m_product_C)
          .def_readonly("product_L2", &MaterialModel::m_product_L2)
          .def_readonly("product_H1", &MaterialModel::m_product_H1)
 
          .def("assemble_product_V", &MaterialModel::assemble_product_V)
          .def("assemble_product_H", &MaterialModel::assemble_product_H)
-         .def("assemble_product_C", &MaterialModel::assemble_product_C)
+         //.def("assemble_product_C", &MaterialModel::assemble_product_C)
+         .def("assemble_product_C_op", &MaterialModel::assemble_product_C_op)
 
          .def("assemble_mass_matrix", &MaterialModel::assemble_mass_matrix)          
-         .def("assemble_observation_operator_matrix", &MaterialModel::assemble_observation_operator_matrix, py::return_value_policy::reference_internal)
-         .def("assemble_bilinear_cost_matrix", &MaterialModel::assemble_bilinear_cost_matrix, py::return_value_policy::reference_internal)
+         .def("assemble_observation_op", &MaterialModel::assemble_observation_op)
+         .def("assemble_bilinear_cost_op", &MaterialModel::assemble_bilinear_cost_op)
 
+         //.def("assemble_bilinear_cost_matrix", &MaterialModel::assemble_bilinear_cost_matrix, py::return_value_policy::reference_internal)
+         
          .def_readonly("mass_matrix", &MaterialModel::m_mass_matrix)
-         .def_readonly("observation_operator", &MaterialModel::m_observation_operator)
-         .def_readonly("bilinear_cost_operator", &MaterialModel::m_bilinear_cost_operator)
+         // .def_readonly("observation_operator", &MaterialModel::m_observation_operator)
+         // .def_readonly("bilinear_cost_operator", &MaterialModel::m_bilinear_cost_operator)
          .def_readonly("force_list", &MaterialModel::m_force_list)
 
          //.def("get_component_dofs", &MaterialModel::get_component_dofs, py::return_value_policy::reference_internal)

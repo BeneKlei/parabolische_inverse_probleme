@@ -78,8 +78,8 @@ def main():
     z_bounds = (p1[2], p2[2])
 
 
-    state_y_res = 30
-    state_z_res = 30
+    state_y_res = 10
+    state_z_res = 10
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -88,7 +88,7 @@ def main():
     T_initial = 0
 
     T_final = 5.0
-    nt = 50 
+    nt = 10 
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
