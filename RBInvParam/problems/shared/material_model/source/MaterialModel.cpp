@@ -61,7 +61,6 @@ MaterialModel::MaterialModel(const MaterialModelBaseConfig &config)
         m_param_quadrature,                 // param quadrature
         m_param_sp,                         // NEW: param sparsity pattern
         m_param_constraints,
-        m_param_free_dofs,
         m_base_config.param_grid_resolution,
         utils::vec_to_point<dim>(m_base_config.p1),
         utils::vec_to_point<dim>(m_base_config.p2))
@@ -148,24 +147,11 @@ void MaterialModel::setup_param_space()
     }
 
   m_param_constraints.close();
+  m_param_space_context.compute_free_dofs();
   m_param_dim = m_param_dof_handler.n_dofs() - m_param_constraints.n_constraints();
 
   // -----------------------------------------------
-
-  // Reduced index -> global DoF index
-  m_param_free_dofs.clear();
-  m_param_free_dofs.reserve(m_param_dim);
-
-  std::vector<bool> constrained(m_param_dof_handler.n_dofs(), false);
-  for (dealii::types::global_dof_index i = 0; i < constrained.size(); ++i)
-    constrained[i] = m_param_constraints.is_constrained(i);
-
-  for (dealii::types::global_dof_index i = 0; i < constrained.size(); ++i)
-    if (!constrained[i])
-      m_param_free_dofs.push_back(i);
-
-  // -----------------------------------------------
-  // Build PARAM sparsity pattern (NEW)
+  // Build PARAM sparsity pattern
   m_param_sp.reinit(m_param_dof_handler.n_dofs(),
                     m_param_dof_handler.n_dofs(),
                     m_param_dof_handler.max_couplings_between_dofs());
@@ -311,6 +297,27 @@ void MaterialModel::assemble_force_list()
 }
 
 std::unique_ptr<MaterialModel::SparMatOp>
+MaterialModel::assemble_param_product_op(const FEProductType param_product_type) const
+{
+  dealii::SparseMatrix<Number> product_mat;
+  dealii::SparseMatrix<Number> reduced_product_mat;
+
+  const ProductFactoryContext<dim, Number> ctx{
+      param_product_type,
+      m_param_space_context
+  };
+
+  m_product_factory.assemble_product(ctx, product_mat);
+  m_param_space_context.extract_principal_submatrix(
+    product_mat, 
+    reduced_product_mat,
+    m_reduced_param_sp
+  );
+
+  return std::make_unique<MaterialModel::SparMatOp>(std::move(reduced_product_mat));
+}
+
+std::unique_ptr<MaterialModel::SparMatOp>
 MaterialModel::assemble_state_product_op(const FEProductType state_product_type) const
 {
   dealii::SparseMatrix<Number> product_mat;
@@ -320,13 +327,15 @@ MaterialModel::assemble_state_product_op(const FEProductType state_product_type)
     m_state_space_context
   };
   
-  m_state_product_factory.assemble_product(ctx, product_mat);
+  m_product_factory.assemble_product(ctx, product_mat);
 
   return std::make_unique<MaterialModel::SparMatOp>(std::move(product_mat));
 }
 
 std::unique_ptr<MaterialModel::SparMatOp>
-MaterialModel::assemble_product_C_op(const ObservationSpaceProductType obs_space_product_type)
+MaterialModel::assemble_product_C_op(
+  const ObservationSpaceProductType obs_space_product_type
+) const
 {
   dealii::SparseMatrix<Number> prod_C_mat;
 
@@ -351,8 +360,10 @@ MaterialModel::assemble_mass_op() const
 }
 
 std::unique_ptr<MaterialModel::SparMatOp>
-MaterialModel::assemble_observation_op(const ObservationOperatorType observation_operator_type,
-                                       const ObservationOperatorHyperparameter hyperparameter)
+MaterialModel::assemble_observation_op(
+  const ObservationOperatorType observation_operator_type,
+  const ObservationOperatorHyperparameter hyperparameter
+) const
 {
   dealii::SparseMatrix<Number> obs_op_mat;
 
@@ -378,8 +389,10 @@ void MaterialModel::clear_rhs_boundary_dofs(dealii::Vector<Number> &v)
 }
 
 std::unique_ptr<MaterialModel::SparMatOp>
-MaterialModel::assemble_bilinear_cost_op(const SparMatOp &obs_op,
-                                         const SparMatOp &product_C_op)
+MaterialModel::assemble_bilinear_cost_op(
+  const SparMatOp &obs_op,
+  const SparMatOp &product_C_op
+) const
 {
   const dealii::SparseMatrix<Number> &product_C_mat = product_C_op.get_matrix();
   const dealii::SparseMatrix<Number> &obs_op_mat = obs_op.get_matrix();

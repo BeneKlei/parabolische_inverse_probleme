@@ -91,5 +91,5 @@ void ObservationSpaceProductFactory<dim, Number>::assemble_state_product(
   observation_space_product_sp.copy_from(sp);
   observation_space_product_matrix.reinit(observation_space_product_sp);
 
-  m_state_product_factory.assemble_product(state_product_ctx, observation_space_product_matrix);
+  m_product_factory.assemble_product(state_product_ctx, observation_space_product_matrix);
 }

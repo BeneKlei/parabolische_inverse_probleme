@@ -85,16 +85,24 @@ public:
   std::unique_ptr<SparMatOp> assemble_mass_op() const;
 
   std::unique_ptr<SparMatOp> assemble_observation_op(
-      ObservationOperatorType observation_operator_type,
-      ObservationOperatorHyperparameter hyperparameter);
+    const ObservationOperatorType observation_operator_type,
+    const ObservationOperatorHyperparameter hyperparameter
+  ) const;
 
   std::unique_ptr<SparMatOp> assemble_bilinear_cost_op(
-      const SparMatOp &obs_op,
-      const SparMatOp &product_C_op);
+    const SparMatOp &obs_op,
+    const SparMatOp &product_C_op
+  ) const;
 
-  std::unique_ptr<SparMatOp> assemble_state_product_op(FEProductType state_product_type) const;
-
-  std::unique_ptr<SparMatOp> assemble_product_C_op(ObservationSpaceProductType obs_space_product_type);
+  std::unique_ptr<SparMatOp> assemble_param_product_op(
+    const FEProductType param_product_type
+  ) const;
+  std::unique_ptr<SparMatOp> assemble_state_product_op(
+    const FEProductType state_product_type
+  ) const;
+  std::unique_ptr<SparMatOp> assemble_product_C_op(
+    const ObservationSpaceProductType obs_space_product_type
+  ) const;
 
   // utilities
   void clear_rhs_boundary_dofs(dealii::Vector<Number> &v);
@@ -119,7 +127,7 @@ public:
   // dimensions (kept public to minimize code churn; consider getters later)
   std::size_t m_param_dim = 0;
   std::size_t m_state_dim = 0;
-  std::size_t m_observation_space_dim = 0;
+  mutable std::size_t m_observation_space_dim = 0;
 
   bool m_has_translation_operator = false;
 
@@ -162,7 +170,7 @@ protected:
   // ---------------------- Factories ---------------------
   ObservationOperatorFactory<dim, Number>      m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   ObservationSpaceProductFactory<dim, Number>  m_observation_space_product_factory = ObservationSpaceProductFactory<3, Number>();
-  ProductFactory<dim, Number>             m_state_product_factory = ProductFactory<3, Number>(); // replace later with generic factory
+  ProductFactory<dim, Number>                  m_product_factory = ProductFactory<3, Number>(); // replace later with generic factory
   BodyForceFactory<dim, Number>                m_body_force_factory = BodyForceFactory<3, Number>();
   BoundaryConditionFactory<dim, Number>        m_bc_factory = BoundaryConditionFactory<3, Number>();
 
@@ -170,9 +178,11 @@ protected:
   std::unique_ptr<BodyForce> m_body_force;
 
   // ---------------------- Cost operator sparsity ----------------------
-  dealii::SparsityPattern m_bilinear_cost_operator_sp;
-  dealii::SparsityPattern m_observation_operator_sp;
-  dealii::SparsityPattern m_obs_space_product_sp;
+  mutable dealii::SparsityPattern m_bilinear_cost_operator_sp;
+  mutable dealii::SparsityPattern m_observation_operator_sp;
+  mutable dealii::SparsityPattern m_obs_space_product_sp;
+  mutable dealii::SparsityPattern m_reduced_param_sp;
+  
 
   // ---------------------- Model flags ----------------------
   bool m_q_time_dep = false;

@@ -90,6 +90,22 @@ def build_InstationaryModelIP(setup : Dict,
         )
     )
 
+    # p = SparseMatrixOperator(
+    #     op = material_model.assemble_param_product_op(
+    #         mm.FEProductType.L2
+    #     ),
+    #     source_space = "numpy",
+    #     range_space = "numpy"
+    # )
+
+    # _q = Q_h.ones(1)
+    # print(_q.space)
+    # print(p.source)
+    # print(p.apply2(_q,_q))
+
+    # import sys
+    # sys.exit()
+
     products['prod_Q'] = NumpyMatrixOperator(
         matrix = assembled_parameter_products[product_names['prod_Q']]
     )

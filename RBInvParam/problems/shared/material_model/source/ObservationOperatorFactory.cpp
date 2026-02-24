@@ -72,7 +72,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_boundary_observation(
   observation_operator_sp.copy_from(ctx.space.sparsity_pattern());
   observation_operator_matrix.reinit(observation_operator_sp);
 
-  m_state_product_factory.assemble_product(boundary_mass_ctx, observation_operator_matrix);
+  m_product_factory.assemble_product(boundary_mass_ctx, observation_operator_matrix);
 }
 
 template <int dim, typename Number>
@@ -93,7 +93,7 @@ void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
       ctx.space
   };
 
-  m_state_product_factory.assemble_product(boundary_mass_ctx, boundary_mass_matrix);
+  m_product_factory.assemble_product(boundary_mass_ctx, boundary_mass_matrix);
 
   const auto& dof_handler = ctx.space.dof_handler();
   const unsigned int L = dof_handler.n_dofs();

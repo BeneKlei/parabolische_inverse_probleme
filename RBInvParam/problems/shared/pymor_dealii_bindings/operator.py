@@ -299,7 +299,6 @@ class SparseMatrixOperator(DealIIBaseOperator):
             range_space=self.range_space,
         )
 
-
 class FullMatrixOperator(DealIIBaseOperator):
     def __init__(
         self,

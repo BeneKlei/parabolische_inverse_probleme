@@ -36,6 +36,7 @@ PYBIND11_MODULE(material_model, m)
       .def_readonly("has_translation_operator", &MaterialModel::m_has_translation_operator)
 
       // assembly API returning unique_ptr<SparseMatrixOperator<Number>>
+      .def("assemble_param_product_op", &MaterialModel::assemble_param_product_op)
       .def("assemble_state_product_op", &MaterialModel::assemble_state_product_op)
       .def("assemble_product_C_op", &MaterialModel::assemble_product_C_op)
       .def("assemble_mass_op", &MaterialModel::assemble_mass_op)

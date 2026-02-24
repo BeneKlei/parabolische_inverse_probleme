@@ -64,5 +64,5 @@ public:
       const ObservationOperatorFactoryContext<dim, Number> ctx) const;
 
 private:
-  ProductFactory<dim, Number> m_state_product_factory{}; // <-- no hardcoded 3
+  ProductFactory<dim, Number> m_product_factory{}; // <-- no hardcoded 3
 };

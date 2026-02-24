@@ -47,5 +47,5 @@ public:
       dealii::SparsityPattern& observation_space_product_sp) const;
 
 private:
-  ProductFactory<dim, Number> m_state_product_factory{};     // <-- no hardcoded 3
+  ProductFactory<dim, Number> m_product_factory{};     // <-- no hardcoded 3
 };
