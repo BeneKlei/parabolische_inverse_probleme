@@ -10,10 +10,10 @@
 #include "FESpaceContext.hpp"
 
 template <int dim, typename Number>
-class StateSpaceContext : public FESpaceContext<dim, Number, dealii::FESystem<dim>>
+class StateSpaceContext : public FESpaceContext<dim, Number>
 {
 public:
-  using Base = FESpaceContext<dim, Number, dealii::FESystem<dim>>;
+  using Base = FESpaceContext<dim, Number>;
 
   StateSpaceContext(const dealii::Triangulation<dim>        &triangulation,
                     const dealii::FESystem<dim>             &fe,

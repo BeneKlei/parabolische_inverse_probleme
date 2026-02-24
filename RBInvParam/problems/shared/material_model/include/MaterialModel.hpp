@@ -30,7 +30,7 @@
 #include "ObservationSpaceProductFactory.hpp"
 
 // keep this include if you haven't refactored the product factory yet
-#include "StateProductFactory.hpp"
+#include "ProductFactory.hpp"
 
 #include "FESpaceContext/ParamSpaceContext.hpp"
 #include "FESpaceContext/StateSpaceContext.hpp"
@@ -92,7 +92,7 @@ public:
       const SparMatOp &obs_op,
       const SparMatOp &product_C_op);
 
-  std::unique_ptr<SparMatOp> assemble_state_product_op(StateProductType state_product_type) const;
+  std::unique_ptr<SparMatOp> assemble_state_product_op(FEProductType state_product_type) const;
 
   std::unique_ptr<SparMatOp> assemble_product_C_op(ObservationSpaceProductType obs_space_product_type);
 
@@ -162,7 +162,7 @@ protected:
   // ---------------------- Factories ---------------------
   ObservationOperatorFactory<dim, Number>      m_observation_operator_factory = ObservationOperatorFactory<3, Number>();
   ObservationSpaceProductFactory<dim, Number>  m_observation_space_product_factory = ObservationSpaceProductFactory<3, Number>();
-  StateProductFactory<dim, Number>             m_state_product_factory = StateProductFactory<3, Number>(); // replace later with generic factory
+  ProductFactory<dim, Number>             m_state_product_factory = ProductFactory<3, Number>(); // replace later with generic factory
   BodyForceFactory<dim, Number>                m_body_force_factory = BodyForceFactory<3, Number>();
   BoundaryConditionFactory<dim, Number>        m_bc_factory = BoundaryConditionFactory<3, Number>();
 

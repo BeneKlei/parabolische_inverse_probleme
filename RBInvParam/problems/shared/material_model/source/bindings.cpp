@@ -11,7 +11,7 @@
 // #include "BodyForceFactory.hpp"
 // #include "BoundaryConditionFactory.hpp"
 // #include "ObservationOperatorFactory.hpp"
-// #include "StateProductFactory.hpp"
+// #include "ProductFactory.hpp"
 // #include "ObservationSpaceProductFactory.hpp"
 #include "MaterialOperatorFactory.hpp"
 
@@ -91,15 +91,15 @@ PYBIND11_MODULE(material_model, m)
       .value("SensorsGrid", ObservationOperatorType::SensorsGrid)
       .export_values();
 
-  py::enum_<StateProductType>(m, "StateProductType")
-      .value("L2", StateProductType::L2)
-      .value("L2_0", StateProductType::L2_0)
-      .value("H1_semi", StateProductType::H1_semi)
-      .value("H1_0_semi", StateProductType::H1_0_semi)
-      .value("H1", StateProductType::H1)
-      .value("H1_0", StateProductType::H1_0)
-      .value("Mass", StateProductType::Mass)
-      .value("BoundaryMass", StateProductType::BoundaryMass)
+  py::enum_<FEProductType>(m, "FEProductType")
+      .value("L2", FEProductType::L2)
+      .value("L2_0", FEProductType::L2_0)
+      .value("H1_semi", FEProductType::H1_semi)
+      .value("H1_0_semi", FEProductType::H1_0_semi)
+      .value("H1", FEProductType::H1)
+      .value("H1_0", FEProductType::H1_0)
+      .value("Mass", FEProductType::Mass)
+      .value("BoundaryMass", FEProductType::BoundaryMass)
       .export_values();
 
   py::enum_<ObservationSpaceProductType>(m, "ObservationSpaceProductType")

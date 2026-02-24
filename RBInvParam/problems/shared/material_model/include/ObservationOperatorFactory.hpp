@@ -7,7 +7,7 @@
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/dofs/dof_handler.h>
 
-#include "StateProductFactory.hpp"
+#include "ProductFactory.hpp"
 
 using namespace dealii;
 
@@ -74,5 +74,5 @@ public:
     ) const;
 
 private:
-    StateProductFactory<dim, Number> m_state_product_factory = StateProductFactory<3, Number>();
+    ProductFactory<dim, Number> m_state_product_factory = ProductFactory<3, Number>();
 };

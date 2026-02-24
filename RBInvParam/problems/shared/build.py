@@ -43,12 +43,12 @@ def build_InstationaryModelIP(setup : Dict,
     product_names = setup['products']
 
     _str_to_enum_map_state = {
-        'l2' : mm.StateProductType.L2, 
-        'l2_0' : mm.StateProductType.L2_0, 
-        'h1_semi' : mm.StateProductType.H1_semi, 
-        'h1_0_semi' : mm.StateProductType.H1_0_semi,
-        'h1' : mm.StateProductType.H1, 
-        'h1_0' : mm.StateProductType.H1_0, 
+        'l2' : mm.FEProductType.L2, 
+        'l2_0' : mm.FEProductType.L2_0, 
+        'h1_semi' : mm.FEProductType.H1_semi, 
+        'h1_0_semi' : mm.FEProductType.H1_0_semi,
+        'h1' : mm.FEProductType.H1, 
+        'h1_0' : mm.FEProductType.H1_0, 
     }
 
     #material_model.assemble_product_H(_str_to_enum_map_state[product_names['prod_H']])
@@ -74,13 +74,13 @@ def build_InstationaryModelIP(setup : Dict,
     # TODO Construct by returning Operator instances
     products['L2'] = SparseMatrixOperator(
         op = material_model.assemble_state_product_op(
-            mm.StateProductType.L2
+            mm.FEProductType.L2
         )
     )
 
     products['H1'] = SparseMatrixOperator(
         op = material_model.assemble_state_product_op(
-            mm.StateProductType.H1
+            mm.FEProductType.H1
         )
     )
 

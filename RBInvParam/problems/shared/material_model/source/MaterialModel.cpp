@@ -251,8 +251,8 @@ void MaterialModel::assemble_force(dealii::Vector<Number> &result, double time)
   dealii::FEValues<dim> fe_values(m_state_fe,
                                   quadrature_formula,
                                   dealii::update_values |
-                                      dealii::update_quadrature_points |
-                                      dealii::update_JxW_values);
+                                  dealii::update_quadrature_points |
+                                  dealii::update_JxW_values);
 
   const unsigned int n_quadrature_points = quadrature_formula.size();
   const unsigned int dofs_per_cell = m_state_fe.dofs_per_cell;
@@ -311,17 +311,16 @@ void MaterialModel::assemble_force_list()
 }
 
 std::unique_ptr<MaterialModel::SparMatOp>
-MaterialModel::assemble_state_product_op(const StateProductType state_product_type) const
+MaterialModel::assemble_state_product_op(const FEProductType state_product_type) const
 {
   dealii::SparseMatrix<Number> product_mat;
 
-  const StateProductFactoryContext<3, Number> ctx{
-      state_product_type,
-      m_state_fe,
-      m_state_dof_handler,
-      m_state_sp};
-
-  m_state_product_factory.assemble_state_product(ctx, product_mat);
+  const ProductFactoryContext<dim, Number> ctx{
+    state_product_type, 
+    m_state_space_context
+  };
+  
+  m_state_product_factory.assemble_product(ctx, product_mat);
 
   return std::make_unique<MaterialModel::SparMatOp>(std::move(product_mat));
 }
@@ -349,7 +348,7 @@ MaterialModel::assemble_product_C_op(const ObservationSpaceProductType obs_space
 std::unique_ptr<MaterialModel::SparMatOp>
 MaterialModel::assemble_mass_op() const
 {
-  return assemble_state_product_op(StateProductType::Mass);
+  return assemble_state_product_op(FEProductType::Mass);
 }
 
 std::unique_ptr<MaterialModel::SparMatOp>

@@ -11,10 +11,10 @@
 
 template <int dim, typename Number>
 class ParamSpaceContext
-  : public FESpaceContext<dim, Number, dealii::FE_Q<dim>>
+  : public FESpaceContext<dim, Number>
 {
 public:
-  using Base = FESpaceContext<dim, Number, dealii::FE_Q<dim>>;
+  using Base = FESpaceContext<dim, Number>;
 
   ParamSpaceContext(
       const dealii::Triangulation<dim>                  &triangulation,
