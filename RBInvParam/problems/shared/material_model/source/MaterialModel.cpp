@@ -394,8 +394,11 @@ MaterialModel::assemble_bilinear_cost_op(
   const SparMatOp &product_C_op
 ) const
 {
-  const SparseMatrix<Number>& obs_op_mat = obs_op.get_matrix();
-  const SparseMatrix<Number>& product_C_mat = product_C_op.get_matrix();
+  const dealii::SparseMatrix<Number> &product_C_mat = product_C_op.get_matrix();
+  const dealii::SparseMatrix<Number> &obs_op_mat = obs_op.get_matrix();
+
+  dealii::SparseMatrix<Number> bilinear_cost_operator;
+  dealii::SparseMatrix<Number> buf;
 
   dealii::SparsityPattern buf_sp = utils::make_product_sparsity_AB(product_C_mat, obs_op_mat);
 
