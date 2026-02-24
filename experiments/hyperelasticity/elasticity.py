@@ -157,7 +157,7 @@ setup = {
 }
 
 q_start = q_circ
-lin_solver_tol = 5 * 1e-9
+abs_grad_tol = 5 * 1e-11
 tau = 1.50
 
 FOM_optimizer_parameter = {
@@ -177,7 +177,7 @@ FOM_optimizer_parameter = {
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 250,                                         # Maximum iterations for the linear solver
-        'abs_grad_tol' : 5 * 1e-9,        
+        'abs_grad_tol' : abs_grad_tol,        
         'rel_change_obj_tol' : 1e-4,
         'kappa_arm' : 1e-12,
         'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
@@ -250,7 +250,7 @@ TR_optimizer_parameter = {
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 250,                                         # Maximum iterations for the linear solver
-        'abs_grad_tol' : 5 * 1e-9,
+        'abs_grad_tol' : abs_grad_tol,
         'rel_change_obj_tol' : 1e-4,
         'kappa_arm' : 1e-12,
         'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
@@ -296,11 +296,11 @@ EXPERIMENTS = {}
 
 # setup_identity['noise_level'] = 2.5 * 1e-4
 
-# identity_lin_solver_tol = 5 * 1e-9
-# grid_lin_solver_tol = 5 * 1e-9
+# identity_abs_grad_tol = 5 * 1e-9
+# grid_abs_grad_tol = 5 * 1e-9
 
-identity_lin_solver_tol = lin_solver_tol
-grid_lin_solver_tol = lin_solver_tol
+identity_abs_grad_tol = abs_grad_tol
+grid_abs_grad_tol = abs_grad_tol
 
 
 #----------------------------------------------------------------------------------------
@@ -330,8 +330,8 @@ FOM_optimizer_parameter_grid = copy.deepcopy(FOM_optimizer_parameter_)
 FOM_optimizer_parameter_identity = copy.deepcopy(FOM_optimizer_parameter_)
 
 #FOM_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-FOM_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
-FOM_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
+FOM_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
+FOM_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
 
 EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
 EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
@@ -349,8 +349,8 @@ TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
 #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
-TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
+TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
+TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
 
 EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
@@ -367,8 +367,8 @@ TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
 #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
-TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
+TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
+TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
 
 EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
@@ -384,8 +384,8 @@ TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
 #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
-TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
+TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
+TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
 
 EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
@@ -404,8 +404,8 @@ EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
 # TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
 # #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-# TR_optimizer_parameter_identity['lin_solver_parms']['lin_solver_tol'] = identity_lin_solver_tol
-# TR_optimizer_parameter_grid['lin_solver_parms']['lin_solver_tol'] = grid_lin_solver_tol
+# TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
+# TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
 
 # EXPERIMENTS['TR_sensors_time_step_lin'] = (setup_sensors, TR_optimizer_parameter_sensors)
 # EXPERIMENTS['TR_identity_time_step_lin'] = (setup_identity, TR_optimizer_parameter_identity)
