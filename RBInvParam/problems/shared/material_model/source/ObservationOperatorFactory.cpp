@@ -1,7 +1,9 @@
+// =======================================
+// ObservationOperatorFactory.cpp  (refactored to Option-1 style)
+// =======================================
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/fe/mapping_q1.h>
 #include <deal.II/dofs/dof_tools.h>
-#include <deal.II/dofs/dof_handler.h>
 
 #include "ObservationOperatorFactory.hpp"
 #include "utils.hpp"
@@ -10,165 +12,124 @@ template class ObservationOperatorFactory<3, double>;
 
 template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_observation(
-    ObservationOperatorFactoryContext<dim, Number> ctx,
-    SparseMatrix<Number>& observation_operator_matrix,
-    SparsityPattern& observation_operator_sp) const
+    const ObservationOperatorFactoryContext<dim, Number> ctx,
+    dealii::SparseMatrix<Number>& observation_operator_matrix,
+    dealii::SparsityPattern& observation_operator_sp) const
 {
-  std::vector<Point<dim>> sensor_points;
+  std::vector<dealii::Point<dim>> sensor_points;
+
   switch (ctx.observation_operator_type)
   {
-  case ObservationOperatorType::Identity:
-    ObservationOperatorFactory::assemble_identity_observation(
-        ctx,
-        observation_operator_matrix,
-        observation_operator_sp
-    );  
-    break;
-  case ObservationOperatorType::Boundary:
-    ObservationOperatorFactory::assemble_boundary_observation(
-        ctx,
-        observation_operator_matrix,
-        observation_operator_sp
-    );
-    break;
-  case ObservationOperatorType::Sensors:
-    sensor_points = this->_get_sensor_edges(ctx);
+    case ObservationOperatorType::Identity:
+      assemble_identity_observation(ctx, observation_operator_matrix, observation_operator_sp);
+      break;
 
-    ObservationOperatorFactory::assemble_sensors_observation(
-        ctx,
-        observation_operator_matrix,
-        observation_operator_sp,
-        sensor_points
-    );
-    break;
-  case ObservationOperatorType::SensorsGrid:
-    sensor_points = this->_get_sensor_grids(ctx);
-    ObservationOperatorFactory::assemble_sensors_observation(
-        ctx,
-        observation_operator_matrix,
-        observation_operator_sp,
-        sensor_points
-    );
-    break;
-  default:
-    throw std::runtime_error("Unknown ObservationOperatorType.");
+    case ObservationOperatorType::Boundary:
+      assemble_boundary_observation(ctx, observation_operator_matrix, observation_operator_sp);
+      break;
+
+    case ObservationOperatorType::Sensors:
+      sensor_points = this->_get_sensor_edges(ctx);
+      assemble_sensors_observation(ctx, observation_operator_matrix, observation_operator_sp, sensor_points);
+      break;
+
+    case ObservationOperatorType::SensorsGrid:
+      sensor_points = this->_get_sensor_grids(ctx);
+      assemble_sensors_observation(ctx, observation_operator_matrix, observation_operator_sp, sensor_points);
+      break;
+
+    default:
+      throw std::runtime_error("Unknown ObservationOperatorType.");
   }
 }
 
 template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_identity_observation(
     const ObservationOperatorFactoryContext<dim, Number> ctx,
-    SparseMatrix<Number>& observation_operator_matrix,
-    SparsityPattern& observation_operator_sp) const
-{   
-    observation_operator_sp.copy_from(ctx.sparsity_pattern);
-    observation_operator_matrix.reinit(observation_operator_sp);
-    observation_operator_matrix = 0;
+    dealii::SparseMatrix<Number>& observation_operator_matrix,
+    dealii::SparsityPattern& observation_operator_sp) const
+{
+  observation_operator_sp.copy_from(ctx.space.sparsity_pattern());
+  observation_operator_matrix.reinit(observation_operator_sp);
+  observation_operator_matrix = 0;
 
-    for (types::global_dof_index i = 0; i < ctx.dof_handler.n_dofs(); ++i)
-        observation_operator_matrix.set(i, i, Number(1));
-    
+  const auto& dof_handler = ctx.space.dof_handler();
+  for (dealii::types::global_dof_index i = 0; i < dof_handler.n_dofs(); ++i)
+    observation_operator_matrix.set(i, i, Number(1));
 }
 
 template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_boundary_observation(
     const ObservationOperatorFactoryContext<dim, Number> ctx,
-    SparseMatrix<Number>& observation_operator_matrix,
-    SparsityPattern& observation_operator_sp) const
+    dealii::SparseMatrix<Number>& observation_operator_matrix,
+    dealii::SparsityPattern& observation_operator_sp) const
 {
-    StateProductFactoryContext<3, Number> boundary_mass_ctx {
-        StateProductType::BoundaryMass,
-        ctx.fe,
-        ctx.dof_handler,
-        ctx.sparsity_pattern    
-    };
+  const ProductFactoryContext<dim, Number> boundary_mass_ctx{
+      FEProductType::BoundaryMass,
+      ctx.space
+  };
 
-    observation_operator_sp.copy_from(ctx.sparsity_pattern);
-    observation_operator_matrix.reinit(observation_operator_sp);
+  observation_operator_sp.copy_from(ctx.space.sparsity_pattern());
+  observation_operator_matrix.reinit(observation_operator_sp);
 
-    m_state_product_factory.assemble_state_product(
-        boundary_mass_ctx,
-        observation_operator_matrix
-    );
-   
+  m_product_factory.assemble_product(boundary_mass_ctx, observation_operator_matrix);
 }
 
 template <int dim, typename Number>
 void ObservationOperatorFactory<dim, Number>::assemble_sensors_observation(
     const ObservationOperatorFactoryContext<dim, Number> ctx,
-    SparseMatrix<Number>& observation_operator_matrix,
-    SparsityPattern& observation_operator_sp,
-    std::vector<Point<dim>> sensor_points) const
-{          
-    double radius = std::get<double>(ctx.hyperparameter.at("radius"));
-    const double tol2 = radius * radius;
+    dealii::SparseMatrix<Number>& observation_operator_matrix,
+    dealii::SparsityPattern& observation_operator_sp,
+    std::vector<dealii::Point<dim>> sensor_points) const
+{
+  const double radius = std::get<double>(ctx.hyperparameter.at("radius"));
+  const double tol2   = radius * radius;
 
-    SparseMatrix<Number> G;
-    SparseMatrix<Number> boundary_mass_matrix;
+  dealii::SparseMatrix<Number> G;
+  dealii::SparseMatrix<Number> boundary_mass_matrix;
 
-    StateProductFactoryContext<3, Number> boundary_mass_ctx {
-        StateProductType::BoundaryMass,
-        ctx.fe,
-        ctx.dof_handler,
-        ctx.sparsity_pattern    
-    };
+  const ProductFactoryContext<dim, Number> boundary_mass_ctx{
+      FEProductType::BoundaryMass,
+      ctx.space
+  };
 
-    m_state_product_factory.assemble_state_product(
-        boundary_mass_ctx,
-        boundary_mass_matrix
-    );
-    //const std::vector<Point<dim>> sensor_points = this->_get_sensor_points(ctx);    
-    const unsigned int L = ctx.dof_handler.n_dofs();
-    const unsigned int l = sensor_points.size();
-    std::vector<std::vector<types::global_dof_index>> rows(l);
+  m_product_factory.assemble_product(boundary_mass_ctx, boundary_mass_matrix);
 
-    // ----------------------------------------------------
+  const auto& dof_handler = ctx.space.dof_handler();
+  const unsigned int L = dof_handler.n_dofs();
+  const unsigned int l = static_cast<unsigned int>(sensor_points.size());
 
-    MappingQ1<dim> mapping;
-    std::vector<Point<dim>> support_points(ctx.dof_handler.n_dofs());
-    DoFTools::map_dofs_to_support_points(mapping, ctx.dof_handler, support_points);
+  std::vector<std::vector<dealii::types::global_dof_index>> rows(l);
 
-    for (unsigned int si = 0; si < l; ++si)
-    {
-        for (unsigned int i = 0; i < support_points.size(); ++i)
-        {   
-            if ((sensor_points[si] - support_points[i]).norm_square() <= tol2 ) {
-                rows[si].push_back(i);
-            }
-        }
-    }
-    
-    // ----------------------------------------------------
+  // ----------------------------------------------------
+  dealii::MappingQ1<dim> mapping;
+  std::vector<dealii::Point<dim>> support_points(dof_handler.n_dofs());
+  dealii::DoFTools::map_dofs_to_support_points(mapping, dof_handler, support_points);
 
-    DynamicSparsityPattern dsp(l, L);
-    for (unsigned int i = 0; i < l; ++i)
-    {
-        for (auto dof : rows[i]) 
-        {
-            dsp.add(i, dof);
-        }
-            
-    }
-        
-    SparsityPattern sp_G;
-    sp_G.copy_from(dsp);
+  for (unsigned int si = 0; si < l; ++si)
+    for (unsigned int i = 0; i < support_points.size(); ++i)
+      if ((sensor_points[si] - support_points[i]).norm_square() <= tol2)
+        rows[si].push_back(i);
 
-    G.reinit(sp_G);
-    for (unsigned int i = 0; i < l; ++i)
-    {   
-        for (auto dof : rows[i]) 
-        {      
-            G.set(i, dof, 1.0);
-        }
-            
-    }
-    // ----------------------------------------------------
+  // ----------------------------------------------------
+  dealii::DynamicSparsityPattern dsp(l, L);
+  for (unsigned int i = 0; i < l; ++i)
+    for (auto dof : rows[i])
+      dsp.add(i, dof);
 
-    observation_operator_sp.copy_from(utils::make_product_sparsity_AB(G, boundary_mass_matrix));
-    //observation_operator_sp.copy_from(sp_G);
-    observation_operator_matrix.reinit(observation_operator_sp);
-    
-    G.mmult(observation_operator_matrix, boundary_mass_matrix);
+  dealii::SparsityPattern sp_G;
+  sp_G.copy_from(dsp);
+
+  G.reinit(sp_G);
+  for (unsigned int i = 0; i < l; ++i)
+    for (auto dof : rows[i])
+      G.set(i, dof, Number(1.0));
+
+  // ----------------------------------------------------
+  observation_operator_sp.copy_from(utils::make_product_sparsity_AB(G, boundary_mass_matrix));
+  observation_operator_matrix.reinit(observation_operator_sp);
+
+  G.mmult(observation_operator_matrix, boundary_mass_matrix);
 }
 
 template <int dim, typename Number>

@@ -65,7 +65,7 @@ SparseMatrix<Number> StoredEnergyOperatorBase<dim, Number>::assemble_hessian_mat
   const Tensor<2, dim> I(unit_symmetric_tensor<dim, Number>());
 
   SparseMatrix<Number> J;
-  J.reinit(m_state_space_context.state_sp());
+  J.reinit(m_state_space_context.sparsity_pattern());
   J = Number(0);
 
   for (const auto &cell : m_state_space_context.dof_handler().active_cell_iterators())
@@ -127,7 +127,7 @@ SparseMatrix<Number> StoredEnergyOperatorBase<dim, Number>::assemble_hessian_mat
     }
 
     cell->get_dof_indices(local_dof_indices); 
-    m_state_space_context.BC_constraints().distribute_local_to_global(
+    m_state_space_context.boundary_constraints().distribute_local_to_global(
       local_J,
       local_dof_indices,
       J
@@ -263,7 +263,7 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
     }
 
     cell->get_dof_indices(local_dof_indices);
-    this->m_state_space_context.BC_constraints().distribute_local_to_global(
+    this->m_state_space_context.boundary_constraints().distribute_local_to_global(
       local_y,
       local_dof_indices,
       y
@@ -413,7 +413,7 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply(Vector<Number>       &y,
     }
 
     cell->get_dof_indices(local_dof_indices);
-    this->m_state_space_context.BC_constraints().distribute_local_to_global(
+    this->m_state_space_context.boundary_constraints().distribute_local_to_global(
       local_y,
       local_dof_indices,
       y

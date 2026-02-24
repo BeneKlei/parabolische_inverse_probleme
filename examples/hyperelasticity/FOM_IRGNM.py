@@ -65,8 +65,14 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    state_y_res = 30
-    state_z_res = 30
+    p1 = (-0.1, -15.0, -15.0)
+    p2 = ( 0.1,  15.0,  15.0)
+
+    y_bounds = (p1[1], p2[1])
+    z_bounds = (p1[2], p2[2])
+
+    state_y_res = 10
+    state_z_res = 10
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -77,29 +83,32 @@ def main():
     T_initial = 0
 
     T_final = 5.0
-    nt = 50
-
-    # T_final = 5.0
-    # nt = 50    
-
-    # T_final = 1
-    # nt = 20
+    nt = 10 
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
+    half_size = 0
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    add_constant_patch(q_exact, center=(20, 15), value=3.0, half_size=0)
-    add_constant_patch(q_exact, center=(6, 14), value=2.0, half_size=0)
-    #
-    # q_exact = q_exact.T
+    add_constant_patch_coords(q_exact, 
+                              center_coords=( 5.0,  0.0), 
+                              value=3.0, 
+                              half_size=half_size,
+                              y_bounds=y_bounds, 
+                              z_bounds=z_bounds)
+
+    add_constant_patch_coords(q_exact, 
+                              center_coords=(-9.0, -1.0), 
+                              value=2.0, 
+                              half_size=half_size,
+                              y_bounds=y_bounds, 
+                              z_bounds=z_bounds)
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    #q_exact[0,40:43] = 2.0
     q_circ[0,:] = 1.0
 
     bounds = np.zeros((par_dim, 2))
@@ -108,8 +117,9 @@ def main():
 
     state_grid_resolution = [4,state_y_res,state_z_res]
     param_grid_resolution = [4,param_y_res,param_z_res]
-
     setup = {
+        'p1' : p1,
+        'p2' : p2,
         'param_grid_resolution' : param_grid_resolution,
         'state_grid_resolution' : state_grid_resolution,
         'body_force' : {
@@ -127,7 +137,7 @@ def main():
             }
         },
         'boundary_condition' : {
-            'type': mm.BoundaryConditionType.AllNeumann,
+            'type': mm.BoundaryConditionType.DirichletOnYandZ,
             'hyperparameter' : {}
         },
         'observation_operator': {
@@ -295,6 +305,7 @@ def main():
     # sys.exit()
 
     optimizer_parameter = {
+        'method' : 'FOM_IRGNM',
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
         'alpha_0': 1e-5,                                          # Initial regularization parameter
         #'alpha_0': 1e-14,                                          # Initial regularization parameter
@@ -314,12 +325,12 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
-            'lin_solver_tol': 5 * 1e-9,                                 # Convergence tolerance for the linear solver
-            #'lin_solver_tol': 1e-12,                                 # Convergence tolerance for the linear solver
+            'abs_grad_tol' : 5 * 1e-9,
+            'rel_change_obj_tol' : 1e-4,
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
-        },
+        }
     }
 
 

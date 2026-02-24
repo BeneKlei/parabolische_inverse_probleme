@@ -43,12 +43,13 @@ def build_InstationaryModelIP(setup : Dict,
     product_names = setup['products']
 
     _str_to_enum_map_state = {
-        'l2' : mm.StateProductType.L2, 
-        'l2_0' : mm.StateProductType.L2_0, 
-        'h1_semi' : mm.StateProductType.H1_semi, 
-        'h1_0_semi' : mm.StateProductType.H1_0_semi,
-        'h1' : mm.StateProductType.H1, 
-        'h1_0' : mm.StateProductType.H1_0, 
+        'euclid'    : mm.FEProductType.EUCLID, 
+        'l2'        : mm.FEProductType.L2, 
+        'l2_0'      : mm.FEProductType.L2_0, 
+        'h1_semi'   : mm.FEProductType.H1_semi, 
+        'h1_0_semi' : mm.FEProductType.H1_0_semi,
+        'h1'        : mm.FEProductType.H1, 
+        'h1_0'      : mm.FEProductType.H1_0, 
     }
 
     #material_model.assemble_product_H(_str_to_enum_map_state[product_names['prod_H']])
@@ -67,20 +68,20 @@ def build_InstationaryModelIP(setup : Dict,
         'bochner_energy' : None,
     }
 
-    assembled_parameter_products  = {
-        'euclid' : scipy.sparse.identity(Q_h.dim)
-    }
+    # assembled_parameter_products  = {
+    #     'euclid' : scipy.sparse.identity(Q_h.dim)
+    # }
 
     # TODO Construct by returning Operator instances
     products['L2'] = SparseMatrixOperator(
         op = material_model.assemble_state_product_op(
-            mm.StateProductType.L2
+            mm.FEProductType.L2
         )
     )
 
     products['H1'] = SparseMatrixOperator(
         op = material_model.assemble_state_product_op(
-            mm.StateProductType.H1
+            mm.FEProductType.H1
         )
     )
 
@@ -90,8 +91,10 @@ def build_InstationaryModelIP(setup : Dict,
         )
     )
 
-    products['prod_Q'] = NumpyMatrixOperator(
-        matrix = assembled_parameter_products[product_names['prod_Q']]
+    products['prod_Q'] = NumpyDealIISparseMatrixOperator(
+        op = material_model.assemble_param_product_op(
+            _str_to_enum_map_state[product_names['prod_Q']]
+        )
     )
 
     products['prod_V'] = SparseMatrixOperator(
@@ -190,13 +193,24 @@ def build_InstationaryModelIP(setup : Dict,
     q_circ = Q_h.make_array(q_circ)
     assert len(q_circ) in [setup['dims']['nt']+1, 1]
 
-    constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
+    Q_op = products['prod_Q']
+    constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])
+    linear_vec = Q_op.apply_adjoint(q_circ)
+
     linear_reg_term = NumpyMatrixOperator(
-        matrix = products['prod_Q'].matrix.T @ q_circ.to_numpy().T
+        matrix=linear_vec.to_numpy().reshape(-1, 1)
     )
-    bilinear_reg_term = NumpyMatrixOperator(
-        matrix = products['prod_Q'].matrix
-    )
+
+    bilinear_reg_term = Q_op    
+
+
+    # constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
+    # linear_reg_term = NumpyMatrixOperator(
+    #     matrix = products['prod_Q'].matrix.T @ q_circ.to_numpy().T
+    # )
+    # bilinear_reg_term = NumpyMatrixOperator(
+    #     matrix = products['prod_Q'].matrix
+    # )
 
     ############################### u^delta / Dummy Model ###############################
     q_exact = setup['q_exact']
