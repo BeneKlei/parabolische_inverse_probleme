@@ -5,12 +5,15 @@
 from typing import Optional, Type, Dict, Literal, Any
 
 import pymor_dealii_bindings as pd2
+import numpy as np
 
 from .vectorarray import DealIIVectorSpace
 #from pymor.operators.list import LinearComplexifiedListVectorArrayOperatorBase
+from pymor.operators.interface import Operator
 from pymor.operators.list import ListVectorArrayOperatorBase
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 from pymor.vectorarrays.list import NumpyListVectorSpace
+
 
 #####################################################################
 
@@ -165,7 +168,6 @@ class _NumpyToDealIIAdapter:
     def from_native(self, v):
         return self.space.vector_from_numpy(v.to_numpy())
 
-
 class DealIIBaseOperator(ListVectorArrayOperatorBase):
     def __init__(
         self,
@@ -313,6 +315,7 @@ class FullMatrixOperator(DealIIBaseOperator):
 
     # IMPORTANT: remove jacobian override; base implementation is adapter-safe and preserves config
 
+# TODO Refactor and merge NumpyDealIIOperator
 class NumpyDealIIFullMatrixOperator(FullMatrixOperator):
     def __init__(self, op, name=None):
         assert isinstance(op, pd2.FullMatrixOperator)
@@ -359,3 +362,109 @@ class NumpyDealIIFullMatrixOperator(FullMatrixOperator):
         self.op.apply_inverse_adjoint(r.impl, v.impl)
 
         return r
+    
+class NumpyDealIIOperator(Operator):
+    linear = True
+
+    def __init__(self, op: pd2.BaseOperator, name=None):
+        self.op = op
+        self.source = NumpyVectorSpace(op.dim_source())
+        self.range  = NumpyVectorSpace(op.dim_range())
+
+        self.dealii_source = DealIIVectorSpace(dim=op.dim_source())
+        self.dealii_range = DealIIVectorSpace(dim=op.dim_range())
+
+        self.__auto_init(locals())
+
+    def apply(self, U, mu=None):
+        A = U.to_numpy()              # (n, dim_source)
+        out = np.empty((len(U), self.range.dim))
+        for i in range(len(U)):
+            u_native = self.dealii_source.vector_from_numpy(A[i])
+            r_native = self.dealii_range.zero_vector()
+            self.op.apply(r_native.impl, u_native.impl)
+            out[i] = np.asarray(r_native.to_numpy()).reshape(-1)
+        return self.range.make_array(out)
+
+    def apply_adjoint(self, V, mu=None):
+        B = V.to_numpy()              # (n, dim_range)
+        out = np.empty((len(V), self.source.dim))
+        for i in range(len(V)):
+            v_native = self.dealii_source.vector_from_numpy(B[i])
+            r_native = self.dealii_range.zero_vector()
+
+            self.op.apply_adjoint(r_native.impl, v_native.impl)
+            out[i] = np.asarray(r_native.to_numpy()).reshape(-1)
+        return self.source.make_array(out)
+    
+
+class NumpyDealIISparseMatrixOperator(Operator):
+    """NumPy-space wrapper specialized for pd2.SparseMatrixOperator.
+
+    Uses pd2.SparseMatrixOperator.apply/apply_adjoint/apply_inverse/...
+    (no direct SparseMatrix vmult calls).
+    """
+    linear = True
+
+    def __init__(self, op: pd2.SparseMatrixOperator, name=None):
+        if not isinstance(op, pd2.SparseMatrixOperator):
+            raise TypeError(f"op must be pd2.SparseMatrixOperator, got {type(op).__name__}")
+
+        self.op = op
+        self.source = NumpyVectorSpace(op.dim_source())
+        self.range  = NumpyVectorSpace(op.dim_range())
+
+        self.dealii_source = DealIIVectorSpace(dim=op.dim_source())
+        self.dealii_range  = DealIIVectorSpace(dim=op.dim_range())
+
+        self.__auto_init(locals())
+
+    def apply(self, U, mu=None):
+        A = U.to_numpy()  # (n, dim_source)
+        out = np.empty((len(U), self.range.dim))
+        for i in range(len(U)):
+            u_native = self.dealii_source.vector_from_numpy(A[i])
+            r_native = self.dealii_range.zero_vector()
+            self.op.apply(r_native.impl, u_native.impl)
+            out[i] = np.asarray(r_native.to_numpy()).reshape(-1)
+        return self.range.make_array(out)
+
+    def apply_adjoint(self, V, mu=None):
+        B = V.to_numpy()  # (n, dim_range)
+        out = np.empty((len(V), self.source.dim))
+        for i in range(len(V)):
+            v_native = self.dealii_range.vector_from_numpy(B[i])
+            r_native = self.dealii_source.zero_vector()
+            self.op.apply_adjoint(r_native.impl, v_native.impl)
+            out[i] = np.asarray(r_native.to_numpy()).reshape(-1)
+        return self.source.make_array(out)
+
+    def apply_inverse(self, V, mu=None, initial_guess=None, least_squares=False):
+        if least_squares:
+            raise NotImplementedError("least_squares inverse is not implemented.")
+        if initial_guess is not None:
+            raise NotImplementedError("initial_guess is not supported by this wrapper.")
+
+        B = V.to_numpy()  # (n, dim_range)
+        out = np.empty((len(V), self.source.dim))
+        for i in range(len(V)):
+            v_native = self.dealii_range.vector_from_numpy(B[i])
+            r_native = self.dealii_source.zero_vector()
+            self.op.apply_inverse(r_native.impl, v_native.impl)
+            out[i] = np.asarray(r_native.to_numpy()).reshape(-1)
+        return self.source.make_array(out)
+
+    def apply_inverse_adjoint(self, U, mu=None, initial_guess=None, least_squares=False):
+        if least_squares:
+            raise NotImplementedError("least_squares inverse adjoint is not implemented.")
+        if initial_guess is not None:
+            raise NotImplementedError("initial_guess is not supported by this wrapper.")
+
+        A = U.to_numpy()  # (n, dim_source) if inverse_adjoint maps source<-range? depends on your convention
+        out = np.empty((len(U), self.range.dim))
+        for i in range(len(U)):
+            u_native = self.dealii_source.vector_from_numpy(A[i])
+            r_native = self.dealii_range.zero_vector()
+            self.op.apply_inverse_adjoint(r_native.impl, u_native.impl)
+            out[i] = np.asarray(r_native.to_numpy()).reshape(-1)
+        return self.range.make_array(out)

@@ -90,25 +90,15 @@ def build_InstationaryModelIP(setup : Dict,
         )
     )
 
-    # p = SparseMatrixOperator(
-    #     op = material_model.assemble_param_product_op(
-    #         mm.FEProductType.L2
-    #     ),
-    #     source_space = "numpy",
-    #     range_space = "numpy"
-    # )
-
-    # _q = Q_h.ones(1)
-    # print(_q.space)
-    # print(p.source)
-    # print(p.apply2(_q,_q))
-
-    # import sys
-    # sys.exit()
-
-    products['prod_Q'] = NumpyMatrixOperator(
-        matrix = assembled_parameter_products[product_names['prod_Q']]
+    products['prod_Q'] = NumpyDealIISparseMatrixOperator(
+        op = material_model.assemble_param_product_op(
+            mm.FEProductType.L2
+        )
     )
+
+    # products['prod_Q'] = NumpyMatrixOperator(
+    #     matrix = assembled_parameter_products[product_names['prod_Q']]
+    # )
 
     products['prod_V'] = SparseMatrixOperator(
         op = material_model.assemble_state_product_op(
@@ -206,13 +196,24 @@ def build_InstationaryModelIP(setup : Dict,
     q_circ = Q_h.make_array(q_circ)
     assert len(q_circ) in [setup['dims']['nt']+1, 1]
 
-    constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
+    Q_op = products['prod_Q']
+    constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])
+    linear_vec = Q_op.apply_adjoint(q_circ)
+
     linear_reg_term = NumpyMatrixOperator(
-        matrix = products['prod_Q'].matrix.T @ q_circ.to_numpy().T
+        matrix=linear_vec.to_numpy().reshape(-1, 1)
     )
-    bilinear_reg_term = NumpyMatrixOperator(
-        matrix = products['prod_Q'].matrix
-    )
+
+    bilinear_reg_term = Q_op    
+
+
+    # constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
+    # linear_reg_term = NumpyMatrixOperator(
+    #     matrix = products['prod_Q'].matrix.T @ q_circ.to_numpy().T
+    # )
+    # bilinear_reg_term = NumpyMatrixOperator(
+    #     matrix = products['prod_Q'].matrix
+    # )
 
     ############################### u^delta / Dummy Model ###############################
     q_exact = setup['q_exact']
