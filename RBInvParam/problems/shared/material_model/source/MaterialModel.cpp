@@ -330,12 +330,11 @@ MaterialModel::assemble_product_C_op(const ObservationSpaceProductType obs_space
 {
   dealii::SparseMatrix<Number> prod_C_mat;
 
-  ObservationSpaceProductFactoryContext<3, Number> ctx{
+  ObservationSpaceProductFactoryContext<dim, Number> ctx{
       obs_space_product_type,
-      m_state_fe,
-      m_state_dof_handler,
-      m_state_sp,
-      m_observation_space_dim};
+      m_state_space_context,     // <-- NEW: pass the space context
+      m_observation_space_dim
+  };
 
   m_observation_space_product_factory.assemble_observation_space_product(
       ctx,
@@ -359,11 +358,9 @@ MaterialModel::assemble_observation_op(const ObservationOperatorType observation
 
   ObservationOperatorFactoryContext<dim, Number> ctx{
       observation_operator_type,
-      m_state_fe,
-      m_state_dof_handler,
-      m_BC_constraints,
-      m_state_sp,
-      hyperparameter};
+      m_state_space_context,   // <-- NEW: pass the space context
+      hyperparameter
+  };
 
   m_observation_operator_factory.assemble_observation(
       ctx,
