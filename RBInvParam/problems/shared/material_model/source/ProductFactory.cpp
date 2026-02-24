@@ -14,6 +14,19 @@
 #include "ProductFactory.hpp"
 
 template <int dim, typename Number>
+void ProductFactory<dim, Number>::assemble_euclid(
+    const Ctx& ctx, dealii::SparseMatrix<Number>& M) const
+{
+  const unsigned int n = static_cast<unsigned int>(ctx.space.dof_handler().n_dofs());
+  M.reinit(ctx.space.sparsity_pattern());
+  M = 0;
+
+  for (dealii::types::global_dof_index i = 0; i < n; ++i)
+    M.set(i, i, Number(1));
+}
+
+
+template <int dim, typename Number>
 void ProductFactory<dim, Number>::assemble_l2(
     const Ctx& ctx, dealii::SparseMatrix<Number>& M) const
 {

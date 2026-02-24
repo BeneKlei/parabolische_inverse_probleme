@@ -93,6 +93,7 @@ PYBIND11_MODULE(material_model, m)
       .export_values();
 
   py::enum_<FEProductType>(m, "FEProductType")
+      .value("EUCLID", FEProductType::EUCLID)
       .value("L2", FEProductType::L2)
       .value("L2_0", FEProductType::L2_0)
       .value("H1_semi", FEProductType::H1_semi)

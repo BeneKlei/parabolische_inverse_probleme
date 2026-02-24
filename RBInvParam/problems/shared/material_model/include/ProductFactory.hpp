@@ -15,6 +15,7 @@
 #include "FESpaceContext/StateSpaceContext.hpp"   // your context
 
 enum class FEProductType {
+  EUCLID,
   L2, L2_0,
   H1_semi, H1_0_semi,
   H1, H1_0,
@@ -40,19 +41,21 @@ public:
   {
     switch (ctx.type)
     {
-      case FEProductType::L2:          assemble_l2(ctx, M); break;
-      case FEProductType::L2_0:        assemble_l2_0(ctx, M); break;
-      case FEProductType::H1_semi:     assemble_h1_semi(ctx, M); break;
-      case FEProductType::H1_0_semi:   assemble_h1_0_semi(ctx, M); break;
-      case FEProductType::H1:          assemble_h1(ctx, M); break;
-      case FEProductType::H1_0:        assemble_h1_0(ctx, M); break;
-      case FEProductType::Mass:        assemble_mass(ctx, M); break;
-      case FEProductType::BoundaryMass:assemble_boundary_mass(ctx, M); break;
+      case FEProductType::EUCLID:       assemble_euclid(ctx, M); break;
+      case FEProductType::L2:           assemble_l2(ctx, M); break;
+      case FEProductType::L2_0:         assemble_l2_0(ctx, M); break;
+      case FEProductType::H1_semi:      assemble_h1_semi(ctx, M); break;
+      case FEProductType::H1_0_semi:    assemble_h1_0_semi(ctx, M); break;
+      case FEProductType::H1:           assemble_h1(ctx, M); break;
+      case FEProductType::H1_0:         assemble_h1_0(ctx, M); break;
+      case FEProductType::Mass:         assemble_mass(ctx, M); break;
+      case FEProductType::BoundaryMass: assemble_boundary_mass(ctx, M); break;
       default: throw std::runtime_error("Unknown product type.");
     }
   }
 
 private:
+  void assemble_euclid(const Ctx& ctx, dealii::SparseMatrix<Number>& M) const;
   void assemble_l2(const Ctx& ctx, dealii::SparseMatrix<Number>& M) const;
   void assemble_l2_0(const Ctx& ctx, dealii::SparseMatrix<Number>& M) const;
   void assemble_h1_semi(const Ctx& ctx, dealii::SparseMatrix<Number>& M) const;

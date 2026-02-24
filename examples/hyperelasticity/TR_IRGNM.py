@@ -146,12 +146,12 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,
             'hyperparameter' : {
-                'spatial_resolution' : state_grid_resolution,
-                'radius' : 0.001,
-                'second_row' : False 
+                # 'spatial_resolution' : state_grid_resolution,
+                # 'radius' : 0.001,
+                # 'second_row' : False 
             }
         },
         'dims' : {
@@ -162,7 +162,8 @@ def main():
         },
         'products': {                                 # Inner products used in the problem
             'prod_H': 'l2',                           # Product on H_h
-            'prod_Q': 'euclid',                       # Product on Q_h
+            #'prod_Q': 'euclid',                      # Product on Q_h
+            'prod_Q': 'h1',                           # Product on Q_h
             'prod_V': 'h1_0_semi',                    # Product on V_h
             'prod_C': 'euclid',                       # Product on C_h
         },
@@ -316,6 +317,7 @@ def main():
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
+        'reg_loop_max': 30,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
         'AGC_armijo_cfg' : {
@@ -376,7 +378,8 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
-            'abs_grad_tol' : 5 * 1e-9,
+            #'abs_grad_tol' : 5 * 1e-9,
+            'abs_grad_tol' : 5 * 1e-11,
             'rel_change_obj_tol' : 1e-4,
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
