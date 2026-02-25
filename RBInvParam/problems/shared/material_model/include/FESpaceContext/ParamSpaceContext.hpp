@@ -39,6 +39,16 @@ public:
 
   void compute_free_dofs();
 
+  void build_index_maps();
+
+  // Convert between representations
+  void free_to_grid(const dealii::Vector<Number> &param_free,
+                    dealii::Vector<Number>       &param_grid,
+                    bool                          linear_part) const;
+
+  void grid_to_free(const dealii::Vector<Number> &param_grid,
+                    dealii::Vector<Number>       &param_free) const;
+
   // -----------------------------------------------
 
   void evaluate_values(
@@ -68,8 +78,18 @@ public:
 private:
   const dealii::Triangulation<dim>                   &m_triangulation;
   std::vector<dealii::types::global_dof_index>        m_free_dofs;
+  std::vector<int>                                    m_global_to_free;
+  std::vector<dealii::types::global_dof_index>        m_grid_slot_to_global;
 
   std::vector<unsigned int> m_grid_resolution;
   dealii::Point<dim>        m_p1;
   dealii::Point<dim>        m_p2;
+
+
+  unsigned int ny() const { return m_grid_resolution[1]; }
+  unsigned int nz() const { return m_grid_resolution[2]; }
+  unsigned int stride() const { return ny() + 1; }
+  unsigned int n_grid_slots() const { return (ny() + 1) * (nz() + 1); }
+
+  unsigned int grid_slot_from_point(const dealii::Point<dim> &point) const;
 };

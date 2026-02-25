@@ -148,6 +148,7 @@ void MaterialModel::setup_param_space()
 
   m_param_constraints.close();
   m_param_space_context.compute_free_dofs();
+  m_param_space_context.build_index_maps();
   m_param_dim = m_param_dof_handler.n_dofs() - m_param_constraints.n_constraints();
 
   // -----------------------------------------------

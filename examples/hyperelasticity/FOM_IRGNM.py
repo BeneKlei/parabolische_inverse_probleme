@@ -71,8 +71,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 10
-    state_z_res = 10
+    state_y_res = 30
+    state_z_res = 30
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -83,7 +83,7 @@ def main():
     T_initial = 0
 
     T_final = 5.0
-    nt = 10 
+    nt = 50 
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
@@ -298,11 +298,11 @@ def main():
     # print(FOM.compute_linearized_objective(_q_exact, _d, 0.0))
     #print(np.sqrt(2 * J))
 
-    # print(FOM.compute_gradient(_q_start))
+    print(FOM.compute_gradient(_q_start).to_numpy())
     # print(FOM.compute_gradient(_q_exact))
 
-    # import sys
-    # sys.exit()
+    import sys
+    sys.exit()
 
     optimizer_parameter = {
         'method' : 'FOM_IRGNM',

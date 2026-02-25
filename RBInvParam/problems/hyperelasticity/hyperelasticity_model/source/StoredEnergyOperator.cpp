@@ -68,6 +68,9 @@ SparseMatrix<Number> StoredEnergyOperatorBase<dim, Number>::assemble_hessian_mat
   J.reinit(m_state_space_context.sparsity_pattern());
   J = Number(0);
 
+  Vector<Number> q_grid;
+  this->m_param_space_context.free_to_grid(m_q, q_grid, param_linear_part_only);
+
   for (const auto &cell : m_state_space_context.dof_handler().active_cell_iterators())
   {
     local_J = Number(0);
@@ -80,7 +83,7 @@ SparseMatrix<Number> StoredEnergyOperatorBase<dim, Number>::assemble_hessian_mat
       throw std::runtime_error("StoredEnergyJacobianOperator: q is required but is empty.");
     
     m_param_space_context.evaluate_values(
-      m_q, 
+      q_grid, 
       q_points, 
       param_values,
       param_linear_part_only
@@ -218,6 +221,9 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
 
   const Tensor<2, dim> I(unit_symmetric_tensor<dim, Number>());
 
+  Vector<Number> q_grid;
+  this->m_param_space_context.free_to_grid(this->m_q, q_grid, this->m_param_linear_part_only);
+
   for (const auto &cell : this->m_state_space_context.dof_handler().active_cell_iterators())
   {
     local_y = Number(0);
@@ -230,7 +236,7 @@ void StoredEnergyOperator<dim, Number>::apply(Vector<Number>       &y,
       throw std::runtime_error("StoredEnergyOperator: q is required but is empty.");
       
     this->m_param_space_context.evaluate_values(
-      this->m_q, 
+      q_grid, 
       q_points, 
       param_values,
       this->m_param_linear_part_only
@@ -370,6 +376,9 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply(Vector<Number>       &y,
 
   const Tensor<2, dim> I(unit_symmetric_tensor<dim, Number>());
 
+  Vector<Number> d_grid;
+  this->m_param_space_context.free_to_grid(d, d_grid, /*linear_part=*/true);
+
   for (const auto &cell : this->m_state_space_context.dof_handler().active_cell_iterators())
   {
     local_y = Number(0);
@@ -380,7 +389,7 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply(Vector<Number>       &y,
 
     // TODO Cache them once, reuse for all u's and the jacobian
     this->m_param_space_context.evaluate_values(
-      d,
+      d_grid,
       q_points,
       param_values,
       true
@@ -426,7 +435,7 @@ template <int dim, typename Number>
 void StoredEnergyParamDerivOperator<dim, Number>::apply_adjoint(Vector<Number>       &y,
                                                                 const Vector<Number> &p) const
 {
-  AssertDimension(d.size(), dim_range());
+  AssertDimension(p.size(), dim_range());
   y.reinit(this->dim_source());
   y = Number(0);
 
@@ -512,75 +521,75 @@ void StoredEnergyParamDerivOperator<dim, Number>::apply_adjoint(Vector<Number>  
   }
 
   y_full.compress(VectorOperation::add);
-  this->m_param_space_context.constraints().set_zero(y_full);
+  //this->m_param_space_context.constraints().set_zero(y_full);
   this->m_param_space_context.project_to_free_param(y_full, y);
 }
 
-// template <int dim, typename Number>
-// void StoredEnergyParamDerivOperator<dim, Number>::apply_adjoint(Vector<Number>       &y,
-//                                                                 const Vector<Number> &p) const
-// {
-//   AssertDimension(d.size(), dim_range());
-//   y.reinit(this->dim_source());
-//   y = Number(0);
+template <int dim, typename Number>
+void StoredEnergyParamDerivOperator<dim, Number>::apply_adjoint(Vector<Number>       &y,
+                                                                const Vector<Number> &p) const
+{
+  AssertDimension(d.size(), dim_range());
+  y.reinit(this->dim_source());
+  y = Number(0);
 
-//   const unsigned int n_q = this->m_state_space_context.quadrature().size();
-//   FEValues<dim> fe_values_state(this->m_state_space_context.mapping(),
-//                                 this->m_state_space_context.fe(),
-//                                 this->m_state_space_context.quadrature(),
-//                                 update_gradients | update_JxW_values |
-//                                 update_quadrature_points | update_values);
+  const unsigned int n_q = this->m_state_space_context.quadrature().size();
+  FEValues<dim> fe_values_state(this->m_state_space_context.mapping(),
+                                this->m_state_space_context.fe(),
+                                this->m_state_space_context.quadrature(),
+                                update_gradients | update_JxW_values |
+                                update_quadrature_points | update_values);
 
-//   const unsigned int dofs_per_cell = this->m_state_space_context.fe().dofs_per_cell;
+  const unsigned int dofs_per_cell = this->m_state_space_context.fe().dofs_per_cell;
 
-//   // --- local storage ---
-//   //Vector<Number> local_y(dofs_per_cell);
-//   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+  // --- local storage ---
+  //Vector<Number> local_y(dofs_per_cell);
+  std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-//   const FEValuesExtractors::Vector vel(0);
+  const FEValuesExtractors::Vector vel(0);
 
-//   // TODO Multi query scenario. Alloc once and reuse.
-//   std::vector<Tensor<2, dim>> u_gradients(n_q);
-//   std::vector<Tensor<2, dim>> p_gradients(n_q);
-//   std::vector<Number>         param_values(n_q);
-//   Vector<Number>              e(this->dim_source());
+  // TODO Multi query scenario. Alloc once and reuse.
+  std::vector<Tensor<2, dim>> u_gradients(n_q);
+  std::vector<Tensor<2, dim>> p_gradients(n_q);
+  std::vector<Number>         param_values(n_q);
+  Vector<Number>              e(this->dim_source());
 
-//   const Tensor<2, dim> I(unit_symmetric_tensor<dim, Number>());
+  const Tensor<2, dim> I(unit_symmetric_tensor<dim, Number>());
 
-//   for (const auto &cell : this->m_state_space_context.dof_handler().active_cell_iterators())
-//   {
-//     fe_values_state.reinit(cell);
-//     fe_values_state[vel].get_function_gradients(this->m_u, u_gradients);
-//     fe_values_state[vel].get_function_gradients(p, p_gradients);
-//     const auto &q_points = fe_values_state.get_quadrature_points();
+  for (const auto &cell : this->m_state_space_context.dof_handler().active_cell_iterators())
+  {
+    fe_values_state.reinit(cell);
+    fe_values_state[vel].get_function_gradients(this->m_u, u_gradients);
+    fe_values_state[vel].get_function_gradients(p, p_gradients);
+    const auto &q_points = fe_values_state.get_quadrature_points();
     
-//     for (unsigned int q = 0; q < n_q; ++q)
-//     {
-//       const auto &q_point        = q_points[q];
-//       const auto &u_grad         = u_gradients[q];
-//       const auto &p_grad         = p_gradients[q];
+    for (unsigned int q = 0; q < n_q; ++q)
+    {
+      const auto &q_point        = q_points[q];
+      const auto &u_grad         = u_gradients[q];
+      const auto &p_grad         = p_gradients[q];
 
-//       Number param_value = Number(0.0);
+      Number param_value = Number(0.0);
 
-//       const Tensor<2, dim> DY = this->m_stored_energy_function.gradient(q_point, u_grad + I);      
-//       const Number DYp_grad = scalar_product(DY, p_grad); 
+      const Tensor<2, dim> DY = this->m_stored_energy_function.gradient(q_point, u_grad + I);      
+      const Number DYp_grad = scalar_product(DY, p_grad); 
 
-//       for (unsigned int i = 0; i < this->dim_source(); ++i)
-//       {
-//         e = Number(0.0);
-//         e(i) = Number(1.0);
+      for (unsigned int i = 0; i < this->dim_source(); ++i)
+      {
+        e = Number(0.0);
+        e(i) = Number(1.0);
 
-//         param_value = this->m_param_space_context.evaluate_value(
-//           e,
-//           q_point,
-//           true
-//         );
+        param_value = this->m_param_space_context.evaluate_value(
+          e,
+          q_point,
+          true
+        );
 
-//         y(i) += param_value * DYp_grad * fe_values_state.JxW(q);
-//       }
-//     }
-//   }
-// }
+        y(i) += param_value * DYp_grad * fe_values_state.JxW(q);
+      }
+    }
+  }
+}
 
 
 // ---------------------------------------------------------------------------------------------------- 
