@@ -158,7 +158,7 @@ setup = {
 
 q_start = q_circ
 abs_grad_tol = 5 * 1e-11
-tau = 5.00
+tau = 1.00
 
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
