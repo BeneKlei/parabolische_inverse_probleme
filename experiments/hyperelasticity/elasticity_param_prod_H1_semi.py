@@ -411,5 +411,5 @@ EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
 # EXPERIMENTS['TR_identity_time_step_lin'] = (setup_identity, TR_optimizer_parameter_identity)
 # EXPERIMENTS['TR_grid_time_step_lin'] = (setup_grid, TR_optimizer_parameter_grid)
 
-prefix = 'elasticity_prod_H1'
+prefix = 'elasticity_prod_H1_semi'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

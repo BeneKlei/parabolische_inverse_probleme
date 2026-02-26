@@ -32,8 +32,8 @@ param_z_res = state_z_res
 par_dim = (param_y_res + 1) * (param_z_res + 1) 
 T_initial = 0
 
-T_final = 5.0
-nt = 50    
+T_final = 10.0
+nt = 100    
 delta_t = (T_final - T_initial) / nt
 
 assert T_final > T_initial
