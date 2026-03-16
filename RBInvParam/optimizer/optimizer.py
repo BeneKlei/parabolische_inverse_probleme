@@ -612,8 +612,8 @@ class Optimizer(BasicObject):
                 else:
                     next_q = q + d
 
-                u_r, u_dot_r = model.solve_state(q=next_q, use_cached_operators=use_cached_operators)
-                p_r, p_dot_r = model.solve_adjoint(q=next_q, u=u, use_cached_operators=use_cached_operators)
+                u_r, u_dot_r = model.solve_state(q=next_q, use_cached_operators=use_cached_operators, return_higher_orders=True)
+                p_r, p_dot_r = model.solve_adjoint(q=next_q, u=u, use_cached_operators=use_cached_operators, return_higher_orders=True)
                 next_J = model.objective(u=u_r, q=next_q)
 
                 # compute err only if needed by TR
@@ -621,10 +621,10 @@ class Optimizer(BasicObject):
                     model=model,
                     previous_q=q,
                     current_q=next_q,
-                    u_r=u_r,
-                    p_r=p_r,
-                    u_dot_r=u_dot_r,
-                    p_dot_r=p_dot_r,
+                    u=u_r,
+                    p=p_r,
+                    u_dot=u_dot_r,
+                    p_dot=p_dot_r,
                     current_J=next_J,
                     targets = self.error_estimate_targets_inner,
                     use_cached_operators=use_cached_operators,

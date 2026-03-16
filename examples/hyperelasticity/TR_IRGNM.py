@@ -137,8 +137,10 @@ def main():
             'hyperparameter' : {
                 # 'mu' : 26.32, 
                 # 'kappa' : 68.60
-                'mu' : 1e1, 
-                'lambda' : 1e1
+                # 'mu' : 1e1, 
+                # 'lambda' : 1e1
+                'mu' : 5 * 1e1, 
+                'lambda' : 5 * 1e1
             }
         },
         'boundary_condition' : {
@@ -146,12 +148,12 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,
             'hyperparameter' : {
-                'spatial_resolution' : state_grid_resolution,
-                'radius' : 0.001,
-                'second_row' : False 
+                # 'spatial_resolution' : state_grid_resolution,
+                # 'radius' : 0.001,
+                # 'second_row' : False 
             }
         },
         'dims' : {
@@ -307,8 +309,8 @@ def main():
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
-        #'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
+        #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition

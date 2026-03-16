@@ -24,7 +24,7 @@ void CenterExciteBodyForce::vector_value(const Point<3> &p, Vector<double> &valu
         if (get_time() <= 0) {
             ft = 0;
         } else {
-            ft = 1.0 * get_time();
+            ft = 1 * get_time();
         }
     } else {
         ft = 0;
