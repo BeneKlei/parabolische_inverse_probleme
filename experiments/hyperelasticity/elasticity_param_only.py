@@ -220,7 +220,7 @@ TR_optimizer_parameter = {
         'type': TRType.RADIUS,
 
         # TR config
-        'eta_initial': 0.15,        
+        'eta_initial': 1e10,        
         'eta_min': 1e-5,
         'eta_max': 1e10,
         'beta_1': 0.80,
