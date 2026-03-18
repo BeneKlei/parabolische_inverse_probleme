@@ -166,6 +166,7 @@ void MatrixOperator<Number, MatrixType>::apply_inverse(Vector<Number> &y,
   y.reinit(this->dim_source());
   y = 0;
 
+  //SolverControl solver_control(20000, 1e-14);
   SolverControl solver_control(20000, 1e-12);
   SolverCG<> solver(solver_control);
 

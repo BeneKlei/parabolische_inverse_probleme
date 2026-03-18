@@ -49,10 +49,10 @@ logger.setLevel(logging.DEBUG)
 
 #########################################################################################''
 set_log_levels({
-    'pymor.operators.constructions.LincombOperator' : 'ERROR',
+    #'pymor.operators.constructions.LincombOperator' : 'ERROR',
     #'pymor.operators.constructions.AdjointOperator' : 'ERROR',
     #'pymor.algorithms.genericsolvers.lgmres' : 'ERROR',
-    'pymor.algorithms' : 'ERROR'
+    #'pymor.algorithms' : 'ERROR'
 })
 
 set_defaults({
@@ -69,83 +69,6 @@ set_defaults({
 
 # np.set_printoptions(linewidth=np.inf) 
 # np.set_printoptions(threshold=np.inf)  # force full print
-
-# def test_tcc_states(FOM, q=None, max_h=30, amplitude=1e-2, seed=None):
-#         """
-#         Test the TCC using state solutions:
-#             c_tc = ||u(q+d) - u(q) - u'(q)d|| / ||u(q+d) - u(q)||
-
-#         Perturbations d are sampled uniformly over the parameter nodes.
-#         """
-
-#         rng = np.random.default_rng(seed)
-
-#         if q is None:
-#             q = FOM.q_circ
-
-#         # parameter grid
-#         q_np = q.to_numpy()
-#         shape = FOM.setup['param_grid_resolution'][1:]
-#         shape = (shape[0] + 1, shape[1] + 1)
-#         flat_size = q_np.size
-
-#         n_samples = min(max_h, flat_size)
-#         indices = rng.choice(flat_size, size=n_samples, replace=False)
-
-#         # reference state
-#         u_q = FOM.solve_state(q)
-#         Cu_q = FOM.C.apply(u_q)
-
-#         results = []
-#         nabla_J = FOM.compute_gradient(q)
-
-#         for k, idx in enumerate(indices):
-#             # build perturbation
-#             d_np = amplitude * nabla_J.to_numpy()
-#             #d_np = np.zeros_like(q_np)
-#             #np.put(d_np, idx, amplitude)
-#             d = FOM.Q.make_array(d_np)
-
-#             # linearized + nonlinear states
-#             u_prime_qd = FOM.solve_linearized_state(q, d, u_q)
-#             Cu_prime_qd = FOM.C.apply(u_prime_qd)
-
-#             u_qd = FOM.solve_state(q + d)
-#             Cu_qd = FOM.C.apply(u_qd)
-
-#             # TCC quantities
-#             a = Cu_qd - Cu_q - Cu_prime_qd
-#             b = Cu_qd - Cu_q
-
-#             num = np.sqrt(FOM.products['bochner_prod_C'].apply2(a, a))[0,0]
-#             den = np.sqrt(FOM.products['bochner_prod_C'].apply2(b, b))[0,0]
-
-#             # print(num)
-#             # print(den)
-#             # print("--------------")
-#             # print(np.sqrt(FOM.products['bochner_prod_C'].apply2(Cu_q,Cu_q)))
-#             # print(np.sqrt(FOM.products['bochner_prod_C'].apply2(Cu_qd,Cu_qd)))
-#             # print(np.sqrt(FOM.products['bochner_prod_C'].apply2(Cu_qd-Cu_q,Cu_qd-Cu_q)))
-#             # print(np.sqrt(FOM.products['bochner_prod_C'].apply2(Cu_prime_qd,Cu_prime_qd)))
-                
-#             c_tc = num / den if den != 0 else np.nan
-#             row, col = np.unravel_index(idx, shape)
-
-#             print(
-#                 f"sample {k:2d} | node=({row:2d},{col:2d}) | TCC = {c_tc:.3e}"
-#             )
-
-#             results.append(c_tc)
-
-#         results = np.array(results)
-
-#         print("\nSummary")
-#         print("mean  :", np.nanmean(results))
-#         print("median:", np.nanmedian(results))
-#         print("min   :", np.nanmin(results))
-#         print("max   :", np.nanmax(results))
-
-#         return results
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -222,8 +145,7 @@ def run_tcc_analysis(
             if use_gradient_direction:
                 d_np = nabla_J.to_numpy()
             else:
-                d_np = FOM.setup['q_exact']
-                # d_np = np.zeros_like(q_np)
+                d_np = np.zeros_like(q_np)
                 
                 # d_grid = d_np.reshape(shape)
                 # d_grid[3:7, 3:7] = amplitude
@@ -231,16 +153,12 @@ def run_tcc_analysis(
                 
                 np.put(d_np, idx, amplitude)
 
-
             d = FOM.Q.make_array(d_np)
             d = amplitude / np.sqrt(FOM.products["prod_Q"].apply2(d, d))[0, 0]  * d
 
-            # print(d)
-            # plt.imshow(d.to_numpy().reshape(shape))
-            # plt.show()
-            # import sys
-            # sys.exit()
-
+            # d = FOM.Q.make_array(FOM.setup['q_exact']) - q
+            # d = amplitude  / np.sqrt(FOM.products["prod_Q"].apply2(d, d))[0, 0] * d
+            
 
             # Solve states
             u_prime_qd = FOM.solve_linearized_state(q, d, u_q)
@@ -402,8 +320,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 120
-    state_z_res = 120
+    state_y_res = 30
+    state_z_res = 30
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -411,15 +329,16 @@ def main():
     par_dim = (param_y_res + 1) * (param_z_res + 1) 
     T_initial = 0
 
+    #T_final = 5.0
     T_final = 5.0
-    nt = 50 
+    nt = 50
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    half_size = 5
+    half_size = 0
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     add_constant_patch_coords(q_exact, 
                               center_coords=( 5.0,  0.0), 
@@ -466,8 +385,8 @@ def main():
                 # 'kappa' : 68.60
                 # 'mu' : 1e1, 
                 # 'lambda' : 1e1
-                'mu' : 5 * 1e1, 
-                'lambda' : 5 * 1e1
+                'mu' : 10.0, 
+                'lambda' : 10.0
             }
         },
         'boundary_condition' : {
@@ -598,8 +517,9 @@ def main():
     all_data = run_tcc_analysis(
         FOM,
         q=FOM.q_circ,
-        amplitudes=[1e-2, 1e-4, 1e-6, 1e-8,1e-10,1e-12],
-        #amplitudes=[1e-6, 5 * 1e-7, 1e-7, 5 * 1e-8, 1e-8],
+        #q=FOM.Q.make_array(FOM.setup['q_exact']),
+        amplitudes=[1e-2, 1e-4, 1e-6],
+        #amplitudes=[1e0, 1e-2, 1e-4, 1e-6, 1e-8,1e-10,1e-12],        
         max_h=20,
         seed=0,
         use_gradient_direction=False,   # set False for node-wise localized perturbations
