@@ -402,8 +402,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 30
-    state_z_res = 30
+    state_y_res = 120
+    state_z_res = 120
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -419,7 +419,7 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    half_size = 1
+    half_size = 5
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     add_constant_patch_coords(q_exact, 
                               center_coords=( 5.0,  0.0), 

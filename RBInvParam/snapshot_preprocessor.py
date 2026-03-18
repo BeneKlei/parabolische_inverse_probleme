@@ -166,6 +166,12 @@ class SnapshotPreprocessor(BasicObject):
 
         if cfg.get("include_krylov_directions", False):
             raise NotImplementedError
+        
+        if cfg.get("include_q_exact", False):
+            parameter_snapshots.append(
+                self.FOM.Q.make_array(self.FOM.setup['q_exact'])
+            )
+
 
         return parameter_snapshots
 
@@ -216,6 +222,7 @@ class SnapshotPreprocessor(BasicObject):
         include_lin_grad = param_cfg.get("include_lin_grad", False)
         include_each_lin = param_cfg.get("include_each_nabla_lin_J_time_step", False)
         include_krylov_directions = param_cfg.get("include_krylov_directions", False)
+        include_q_exact = param_cfg.get("include_q_exact", False)
 
         include_lin_states = state_cfg.get("include_lin_states", False)
         include_krylov_sensitivites = state_cfg.get("include_krylov_sensitivites", False)
@@ -244,6 +251,7 @@ class SnapshotPreprocessor(BasicObject):
 
         if include_krylov_directions or include_krylov_sensitivites:
             raise NotImplementedError
+
 
         for basis in bases:
             if basis == "parameter_basis":
