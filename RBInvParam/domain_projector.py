@@ -157,9 +157,7 @@ class SimpleBoundDomainProjector(DomainProjector):
         mask_lb = update_recon < self.bounds[:,0]
         mask_ub = update_recon > self.bounds[:,1]
 
-        if np.any(mask_lb) or np.any(mask_ub):
-            raise ValueError
-        
+        if np.any(mask_lb) or np.any(mask_ub):        
             update_recon[mask_lb] = self.bounds[mask_lb,0]
             update_recon[mask_ub] = self.bounds[mask_ub,1]
         else:

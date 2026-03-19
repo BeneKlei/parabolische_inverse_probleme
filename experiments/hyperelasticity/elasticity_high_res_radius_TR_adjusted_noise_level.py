@@ -329,7 +329,7 @@ setup_identity = copy.deepcopy(setup)
 setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
 setup_identity['observation_operator']['hyperparameter'] = {}
 setup_identity['noise_level'] = 5 * 1e-4
-setup_identity['prodcuts']['prod_C'] = 'l2'
+#setup_identity['products']['prod_C'] = 'l2'
 
 setup_grid['observation_operator']['type'] = mm.ObservationOperatorType.SensorsGrid
 setup_grid['observation_operator']['hyperparameter'] = {

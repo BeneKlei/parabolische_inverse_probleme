@@ -77,8 +77,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 30
-    state_z_res = 30
+    state_y_res = 60
+    state_z_res = 60
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -94,7 +94,7 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    half_size = 0
+    half_size = 1
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     add_constant_patch_coords(q_exact, 
                               center_coords=( 5.0,  0.0), 
@@ -314,7 +314,7 @@ def main():
         #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
-        'theta': 1.50,
+        'theta': 0.40,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         #'Theta': 1.50,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
@@ -339,9 +339,9 @@ def main():
             'type': TRType.RADIUS,
 
             # TR config
-            'eta_initial': 0.15,        
+            'eta_initial': 1.00,        
             'eta_min': 1e-5,
-            'eta_max': 0.30,
+            'eta_max': 5.00,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
