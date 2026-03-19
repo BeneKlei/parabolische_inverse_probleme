@@ -73,6 +73,63 @@ set_defaults({
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
+
+from pymor.vectorarrays.interface import VectorArray
+from pymor.operators.interface import Operator
+from typing import Dict, Tuple
+
+class NormDiffModel():
+    
+    def __init__(self,
+                 q_circ: VectorArray,
+                 q_exact: VectorArray,
+                 Q : Operator,
+                 C : Operator,
+                 products : Dict,
+                 setup : Dict,
+                 nt : int):
+        
+        self.q_circ = q_circ
+        self.q_exact = q_exact
+        self.Q = Q
+        self.C = C
+        self.products = products
+        self.setup = setup
+        self.nt = nt
+        
+    def solve_state(self, 
+                    q: VectorArray,
+                    use_cached_operators: bool = False,
+                    return_higher_orders: bool = False) -> VectorArray | Tuple[VectorArray,VectorArray]:
+
+        _q = (q - self.q_circ).to_numpy()
+        _q = 0.5 * _q**2
+
+        u = self.products['prod_V'].source.zeros(self.nt + 1)
+        # fill the first vector with _q data
+        # exact line depends on your dealii wrapper
+        for i in range(self.nt+1):
+            u.vectors[i].impl[:_q.shape[1]] = _q[0]
+        return u
+        
+
+    def solve_linearized_state(self,
+                               q: VectorArray,
+                               d: VectorArray,
+                               u: VectorArray,
+                               use_cached_operators: bool = False,
+                               return_higher_orders: bool = False) -> VectorArray | Tuple[VectorArray,VectorArray]:
+
+        _q = (q - self.q_circ).to_numpy()
+        _d = d.to_numpy()
+
+        lin = _q * _d   # derivative of 0.5 * (q - q_circ)^2 in direction d
+
+        out = self.products['prod_V'].source.zeros(self.nt + 1)
+        for i in range(self.nt + 1):
+            out.vectors[i].impl[:lin.shape[1]] = lin[0]
+        return out
+                  
 def run_tcc_analysis(
     FOM,
     q=None,
@@ -130,7 +187,6 @@ def run_tcc_analysis(
     Cu_q = FOM.C.apply(u_q)
     norm_Cu_q_ref = np.sqrt(FOM.products["bochner_prod_C"].apply2(Cu_q, Cu_q))[0, 0]
 
-    nabla_J = FOM.compute_gradient(q)
 
     all_data = []
 
@@ -143,6 +199,7 @@ def run_tcc_analysis(
         for k, idx in enumerate(indices):
             # Build perturbation
             if use_gradient_direction:
+                nabla_J = FOM.compute_gradient(q)
                 d_np = nabla_J.to_numpy()
             else:
                 d_np = np.zeros_like(q_np)
@@ -153,11 +210,12 @@ def run_tcc_analysis(
                 
                 np.put(d_np, idx, amplitude)
 
-            d = FOM.Q.make_array(d_np)
-            d = amplitude / np.sqrt(FOM.products["prod_Q"].apply2(d, d))[0, 0]  * d
+            # d = FOM.Q.make_array(d_np)
+            # d = amplitude / np.sqrt(FOM.products["prod_Q"].apply2(d, d))[0, 0] * d
 
-            # d = FOM.Q.make_array(FOM.setup['q_exact']) - q
-            # d = amplitude  / np.sqrt(FOM.products["prod_Q"].apply2(d, d))[0, 0] * d
+            d = FOM.Q.make_array(FOM.setup['q_exact']) - q
+            #d = amplitude * d
+            d = amplitude  / np.sqrt(FOM.products["prod_Q"].apply2(d, d))[0, 0] * d
             
 
             # Solve states
@@ -226,7 +284,6 @@ def run_tcc_analysis(
     print(f"Saved plots to: {pdf_filename}")
 
     return all_data
-
 
 def create_tcc_pdf_report(all_data, pdf_filename="tcc_analysis.pdf"):
     """
@@ -312,7 +369,6 @@ def create_tcc_pdf_report(all_data, pdf_filename="tcc_analysis.pdf"):
         # pdf.savefig(fig, bbox_inches="tight")
         # plt.close(fig)
 
-
 def main():
     p1 = (-0.1, -15.0, -15.0)
     p2 = ( 0.1,  15.0,  15.0)
@@ -329,8 +385,8 @@ def main():
     par_dim = (param_y_res + 1) * (param_z_res + 1) 
     T_initial = 0
 
-    #T_final = 5.0
     T_final = 5.0
+    #T_final = 0.5
     nt = 50
     delta_t = (T_final - T_initial) / nt
 
@@ -385,8 +441,8 @@ def main():
                 # 'kappa' : 68.60
                 # 'mu' : 1e1, 
                 # 'lambda' : 1e1
-                'mu' : 10.0, 
-                'lambda' : 10.0
+                'mu' : 1e1,
+                'lambda' : 1e1
             }
         },
         'boundary_condition' : {
@@ -513,16 +569,24 @@ def main():
     #     str(save_path),
     #     np.linspace(T_initial, T_final, nt+1)
     # )
+
+    model = NormDiffModel(
+        q_circ = FOM.q_circ,
+        q_exact = FOM.Q.make_array(FOM.setup['q_exact']),
+        Q = FOM.Q,
+        C = FOM.C,
+        products = FOM.products,
+        setup = FOM.setup,
+        nt = FOM.nt
+    )
     
     all_data = run_tcc_analysis(
         FOM,
         q=FOM.q_circ,
-        #q=FOM.Q.make_array(FOM.setup['q_exact']),
-        amplitudes=[1e-2, 1e-4, 1e-6],
-        #amplitudes=[1e0, 1e-2, 1e-4, 1e-6, 1e-8,1e-10,1e-12],        
-        max_h=20,
+        amplitudes=[1e0, 1e-2, 1e-4, 1e-6, 1e-8,1e-10,1e-12],        
+        max_h=1,
         seed=0,
-        use_gradient_direction=False,   # set False for node-wise localized perturbations
+        use_gradient_direction=True,   # set False for node-wise localized perturbations
         pdf_filename="tcc_analysis.pdf",
     )
 

@@ -77,8 +77,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 10
-    state_z_res = 10
+    state_y_res = 30
+    state_z_res = 30
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -148,12 +148,12 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Sensors,
+            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Sensors,
             'hyperparameter' : {
-                # 'spatial_resolution' : state_grid_resolution,
-                # 'radius' : 0.001,
-                # 'second_row' : False 
+                'spatial_resolution' : state_grid_resolution,
+                'radius' : 0.001,
+                'second_row' : False 
             }
         },
         'dims' : {
@@ -164,15 +164,17 @@ def main():
         },
         'products': {                                 # Inner products used in the problem
             'prod_H': 'l2',                           # Product on H_h
-            #'prod_Q': 'euclid',                      # Product on Q_h
-            'prod_Q': 'h1',                           # Product on Q_h
-            'prod_V': 'h1_0_semi',                    # Product on V_h
+            'prod_Q': 'euclid',                      # Product on Q_h
+            #'prod_Q': 'h1',                           # Product on Q_h
+            #'prod_V': 'h1_0_semi',                    # Product on V_h
+            'prod_V': 'h1',                           # Product on V_h
             'prod_C': 'euclid',                       # Product on C_h
         },
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
+        #'noise_level': 5 * 1e-4,                      # Absolute noise magnitude added to data
         'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         #'noise_level': 0,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
@@ -312,16 +314,15 @@ def main():
         #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
         'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
-        'theta': 0.40,
+        'theta': 1.50,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         #'Theta': 1.50,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
-        'reg_loop_max': 30,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
-        'i_max_inner': 1000,                                           # Max number of inner iterations
+        'i_max_inner': 30,                                           # Max number of inner iterations
         'AGC_armijo_cfg' : {
             "max_iter": 50,
             "initial_step_size": 1.0,
@@ -338,9 +339,9 @@ def main():
             'type': TRType.RADIUS,
 
             # TR config
-            'eta_initial': 1e10,        
+            'eta_initial': 0.15,        
             'eta_min': 1e-5,
-            'eta_max': 1e10,
+            'eta_max': 0.30,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
@@ -360,7 +361,7 @@ def main():
         'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
         'use_error_estimator' : False,
         'reg_AGC_step' : False,
-        'TR_enforcement' : 'check_error',
+        'TR_enforcement' : 'backtracking',
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         'reductor' : {
             #'type' : 'default',
@@ -394,7 +395,7 @@ def main():
                     'include_each_nabla_J_time_step' : False,
                     'include_each_nabla_lin_J_time_step' : False,
                     'include_krylov_directions' : False,
-                    'include_q_exact' : True
+                    'include_q_exact' : False
                 },
                 'compression' : {
                     'normalize' : True,
@@ -406,27 +407,27 @@ def main():
                 },
                 'coarsing' : None,
             },
-            'state_basis' : None,
-            # {
-            #     'additional_snapshots' :{
-            #         'include_lin_states' : False,
-            #         'include_krylov_sensitivites' : False,
-            #     },
-            #     'compression' : {
-            #         'normalize' : True,
-            #         'HaPOD' : {
-            #             'eps': 1e-3,
-            #             'omega' : 0.1,
-            #         },
-            #         # 'normalize' : None,
-            #         # 'HaPOD' : None,
-            #     },
-            #     'coarsing' : None,
-            #     # 'coarsing' : {
-            #     #     'rel_tol_coeff_u' : 1e-2,
-            #     #     'rel_tol_coeff_p' : 1e-2
-            #     # }
-            # },
+            'state_basis' : 
+            {
+                'additional_snapshots' :{
+                    'include_lin_states' : False,
+                    'include_krylov_sensitivites' : False,
+                },
+                'compression' : {
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'eps': 1e-3,
+                        'omega' : 0.1,
+                    },
+                    # 'normalize' : None,
+                    # 'HaPOD' : None,
+                },
+                'coarsing' : None,
+                # 'coarsing' : {
+                #     'rel_tol_coeff_u' : 1e-2,
+                #     'rel_tol_coeff_p' : 1e-2
+                # }
+            },
             #'state_basis' : None,
             'adjoint_basis' : None
             

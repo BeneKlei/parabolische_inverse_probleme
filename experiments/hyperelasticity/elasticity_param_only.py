@@ -408,12 +408,13 @@ EXPERIMENTS['TR_identity_time_step_full_with_q_exact'] = (setup_identity, TR_opt
 
 TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
 
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_q_exact'] = True
+
 TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 
 #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_q_exact'] = True
 TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
 TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
 

@@ -53,9 +53,10 @@ def build_HyperElasticityModelIP(setup : Dict,
 
     ############################### Coercivity ###############################
 
-    assert setup['products']['prod_V'] == 'h1_0_semi'
-    # I AM NOT SURE THAT THIS IS CORRECT! JUST FOR TESTING
-    coercivity_constant_estimator_function = lambda q: 1
+    # assert setup['products']['prod_V'] == 'h1_0_semi'
+    # # I AM NOT SURE THAT THIS IS CORRECT! JUST FOR TESTING
+    # coercivity_constant_estimator_function = lambda q: 1
+    coercivity_constant_estimator_function = None
 
     return build_InstationaryModelIP(
         setup = setup,
