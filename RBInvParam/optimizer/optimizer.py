@@ -71,6 +71,10 @@ class Optimizer(BasicObject):
                  
         self.FOM = FOM
         self.optimizer_parameter = optimizer_parameter
+
+        if self.optimizer_parameter['noise_level'] is None:
+            self.optimizer_parameter['noise_level'] = FOM.setup['noise_info']['abs_noise_level_y']
+
         self._check_optimizer_parameter()    
         logging.basicConfig()
 

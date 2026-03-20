@@ -171,7 +171,7 @@ FOM_optimizer_parameter = {
     'alpha_0': 1e-5,                                          # Initial regularization parameter
     'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
     'tau': tau,                                              # Relative (to the noise) convergence tolerance for optimization
-    'noise_level': setup['noise_info']['abs_noise_level_y'],                   # Lower tolerance for the direction acceptance condition
+    'noise_level': None,                                     # Lower tolerance for the direction acceptance condition
     'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
     #####################
     'i_max': 250,                                             # Maximum number of outer optimization iterations
@@ -198,7 +198,7 @@ TR_optimizer_parameter = {
     'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
     'tau': tau,                                                  # Relative (to the noise) convergence tolerance for optimization
-    'noise_level': setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
+    'noise_level': None,                         # Noise level in observed data (from model setup)
     'theta': 0.4,
     'Theta': 1.95,                                               # Upper bound for step acceptance condition
     #'Theta': 1.50,                                               # Upper bound for step acceptance condition
