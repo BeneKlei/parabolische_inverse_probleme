@@ -77,8 +77,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 60
-    state_z_res = 60
+    state_y_res = 30
+    state_z_res = 30
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -86,8 +86,10 @@ def main():
     par_dim = (param_y_res + 1) * (param_z_res + 1) 
     T_initial = 0
 
-    T_final = 5.0
-    nt = 50 
+    T_final = 10.0
+    nt = 100 
+    # T_final = 5.0
+    # nt = 50 
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
@@ -137,10 +139,10 @@ def main():
             'hyperparameter' : {
                 # 'mu' : 26.32, 
                 # 'kappa' : 68.60
-                # 'mu' : 1e1, 
-                # 'lambda' : 1e1
-                'mu' : 5 * 1e1, 
-                'lambda' : 5 * 1e1
+                'mu' : 1e1, 
+                'lambda' : 1e1
+                # 'mu' : 5 * 1e1, 
+                # 'lambda' : 5 * 1e1
             }
         },
         'boundary_condition' : {
@@ -148,12 +150,12 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            #'type': mm.ObservationOperatorType.Sensors,
             'hyperparameter' : {
-                'spatial_resolution' : state_grid_resolution,
-                'radius' : 0.001,
-                'second_row' : False 
+                # 'spatial_resolution' : state_grid_resolution,
+                # 'radius' : 0.001,
+                # 'second_row' : False 
             }
         },
         'dims' : {
@@ -175,8 +177,15 @@ def main():
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
         #'noise_level': 5 * 1e-4,                      # Absolute noise magnitude added to data
-        'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
+        #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         #'noise_level': 0,                      # Absolute noise magnitude added to data
+        'noise_info' : {
+            'noise_level_input' : 1 * 1e-2,
+            'noise_level_mode' : 'rel',
+            'abs_noise_level_y' : None,
+            'rel_noise_level_y' : None,
+            'y_norm' : None,
+        },
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -311,9 +320,9 @@ def main():
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        #'tau': 1.50,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'tau': 1.00,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
+        #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.10,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'noise_level': setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         #'Theta': 1.50,                                               # Upper bound for step acceptance condition
@@ -392,7 +401,7 @@ def main():
             'parameter_basis' : {
                 'additional_snapshots' :{
                     'include_lin_grad' : False,
-                    'include_each_nabla_J_time_step' : False,
+                    'include_each_nabla_J_time_step' : True,
                     'include_each_nabla_lin_J_time_step' : False,
                     'include_krylov_directions' : False,
                     'include_q_exact' : False
@@ -404,6 +413,7 @@ def main():
                         'eps': 1e-1,
                         'omega' : 0.1,
                     },
+                    'every_n' : None,
                 },
                 'coarsing' : None,
             },
@@ -419,6 +429,7 @@ def main():
                         'eps': 1e-3,
                         'omega' : 0.1,
                     },
+                    'every_n' : None,
                     # 'normalize' : None,
                     # 'HaPOD' : None,
                 },

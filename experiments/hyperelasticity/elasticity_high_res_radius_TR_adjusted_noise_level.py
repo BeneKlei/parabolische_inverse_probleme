@@ -115,8 +115,13 @@ setup = {
     'T_initial': T_initial,                       # Start time of the simulation
     'T_final': T_final,                           # End time of the simulation
     'delta_t': delta_t,                           # Time step size
-    'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-    'noise_level': 5  * 1e-5,                      # Absolute noise magnitude added to data
+    'noise_info' : {
+        'noise_level_input' : 1 * 1e-2,
+        'noise_level_mode' : 'rel',
+        'abs_noise_level_y' : None,
+        'rel_noise_level_y' : None,
+        'y_norm' : None,
+    },
     'q_circ': q_circ,                             # Backgroundlevel for the parameter
     'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
     'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
@@ -158,7 +163,7 @@ setup = {
 
 q_start = q_circ
 abs_grad_tol = 5 * 1e-11
-tau = 1.50
+tau = 1.10
 
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
@@ -166,8 +171,7 @@ FOM_optimizer_parameter = {
     'alpha_0': 1e-5,                                          # Initial regularization parameter
     'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
     'tau': tau,                                              # Relative (to the noise) convergence tolerance for optimization
-    'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
-    'theta': 0.4,                                         # Lower tolerance for the direction acceptance condition
+    'noise_level': setup['noise_info']['abs_noise_level_y'],                   # Lower tolerance for the direction acceptance condition
     'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
     #####################
     'i_max': 250,                                             # Maximum number of outer optimization iterations
@@ -194,7 +198,7 @@ TR_optimizer_parameter = {
     'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
     'tau': tau,                                                  # Relative (to the noise) convergence tolerance for optimization
-    'noise_level': setup['noise_level'],                         # Noise level in observed data (from model setup)
+    'noise_level': setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
     'theta': 0.4,
     'Theta': 1.95,                                               # Upper bound for step acceptance condition
     #'Theta': 1.50,                                               # Upper bound for step acceptance condition
@@ -280,6 +284,7 @@ TR_optimizer_parameter = {
             'compression' : {
                 'normalize' : None,
                 'HaPOD' : None,
+                'every_n' : None,
             },
             'coarsing' : None,
         },
@@ -292,7 +297,8 @@ TR_optimizer_parameter = {
                 'normalize' : True,
                 'HaPOD' : {
                     'eps': 1e-3,
-                    'omega' : 0.1,    
+                    'omega' : 0.1,
+                    'every_n' : None,    
                 },
             },
             'coarsing' : None,
@@ -328,15 +334,14 @@ setup_identity = copy.deepcopy(setup)
 
 setup_identity['observation_operator']['type'] = mm.ObservationOperatorType.Identity
 setup_identity['observation_operator']['hyperparameter'] = {}
-setup_identity['noise_level'] = 5 * 1e-4
-#setup_identity['products']['prod_C'] = 'l2'
+#setup_identity['noise_info']['noise_level_input'] = 5 * 1e-4
 
 setup_grid['observation_operator']['type'] = mm.ObservationOperatorType.SensorsGrid
 setup_grid['observation_operator']['hyperparameter'] = {
     'radius' : 0.001,
     'grid_sizes' : [2,8,8]
 }
-setup_grid['noise_level'] = 1e-4
+#setup_grid['noise_info']['noise_level_input'] = 5 * 1e-4
 
 #----------------------------------------------------------------------------------------
 
@@ -347,8 +352,8 @@ FOM_optimizer_parameter_identity = copy.deepcopy(FOM_optimizer_parameter_)
 FOM_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
 FOM_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
 
-FOM_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-FOM_optimizer_parameter_grid['noise_level'] = setup_grid['noise_level']
+# FOM_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+# FOM_optimizer_parameter_grid['noise_level'] = setup_grid['noise_level']
 
 EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
 EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
@@ -369,12 +374,35 @@ TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
 TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
 
-TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-TR_optimizer_parameter_grid['noise_level'] = setup_grid['noise_level']
+# TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+# TR_optimizer_parameter_grid['noise_level'] = setup_grid['noise_level']
 
 EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
 EXPERIMENTS['TR_grid_time_step'] = (setup_grid, TR_optimizer_parameter_grid)
+
+#----------------------------------------------------------------------------------------
+
+TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_nabla_J_time_step'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1, 'omega' : 0.1}
+TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['every_n'] = 5
+
+TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
+TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
+
+#TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
+TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
+
+# TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+# TR_optimizer_parameter_grid['noise_level'] = setup_grid['noise_level']
+
+EXPERIMENTS['TR_sensors_time_step_every_5th'] = (setup_sensors, TR_optimizer_parameter_sensors)
+EXPERIMENTS['TR_identity_time_step_every_5th'] = (setup_identity, TR_optimizer_parameter_identity)
+EXPERIMENTS['TR_grid_time_step_every_5th'] = (setup_grid, TR_optimizer_parameter_grid)
 
 
 #----------------------------------------------------------------------------------------
@@ -390,8 +418,8 @@ TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
 TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
 
-TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-TR_optimizer_parameter_grid['noise_level'] = setup_grid['noise_level']
+# TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+# TR_optimizer_parameter_grid['noise_level'] = setup_grid['noise_level']
 
 EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
@@ -410,32 +438,14 @@ TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
 TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
 TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
 
-TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-TR_optimizer_parameter_grid['noise_level'] = setup_grid['noise_level']
+# TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+# TR_optimizer_parameter_grid['noise_level'] = setup_grid['noise_level']
 
 EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
 EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
 
 
-#----------------------------------------------------------------------------------------
-
-# TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-# TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_nabla_lin_J_time_step'] = True
-# TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
-# TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1, 'omega' : 0.1}
-
-# TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
-# TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
-# TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
-
-# #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-# TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
-# TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
-
-# EXPERIMENTS['TR_sensors_time_step_lin'] = (setup_sensors, TR_optimizer_parameter_sensors)
-# EXPERIMENTS['TR_identity_time_step_lin'] = (setup_identity, TR_optimizer_parameter_identity)
-# EXPERIMENTS['TR_grid_time_step_lin'] = (setup_grid, TR_optimizer_parameter_grid)
 
 prefix = 'elasticity_high_res_radius_TR_adjusted_noise_level'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

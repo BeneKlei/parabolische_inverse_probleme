@@ -1132,6 +1132,7 @@ class QrVrROMOptimizer(Optimizer):
                 "parameter_basis": {
                     "normalize": True,
                     "HaPOD": None,
+                    "every_n": None,
                 }
             },
         )
@@ -1326,6 +1327,7 @@ class QrVrROMOptimizer(Optimizer):
                         basis: {
                             "normalize": True,
                             "HaPOD": None,
+                            "every_n": None,
                         }
                         for basis in self.active_bases
                     },
@@ -1467,6 +1469,7 @@ class QrVrROMOptimizer(Optimizer):
                         basis: {
                             "normalize": True,
                             "HaPOD": None,
+                            "every_n" : None,
                         }
                         for basis in self.active_bases
                     },

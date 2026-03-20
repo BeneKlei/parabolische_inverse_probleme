@@ -1,4 +1,4 @@
-from typing import Dict,Tuple
+from typing import Tuple, Literal, Dict, Any
 import numpy as np
 np.random.seed(0)
 
@@ -11,14 +11,61 @@ from scipy.sparse import csr_matrix
 
 #from RBInvParam.model import InstationaryModelIP
 
+# def construct_noise_data(model,
+#                          q_exact : np.ndarray,
+#                          C: Operator,
+#                          noise_level : float,
+#                          product: Operator, 
+#                          time_depend_noise: bool = True) -> Tuple[VectorArray, VectorArray]:
+
+
+#     u_exact = model.solve_state(q_exact)
+#     y_exact = C.apply(u_exact)
+
+#     if time_depend_noise:
+#         noise = C.range.random(len(y_exact))
+#     else:
+#         noise = C.range.random(1)
+
+#     #noise_norm = np.sqrt(product.apply2(y_exact,y_exact))[0,0]
+#     noise_norm = np.sqrt(product.apply2(noise,noise))[0,0]
+#     assert noise_norm > 0
+    
+#     noise_scaling = noise_level/noise_norm * noise
+#     y_noise = y_exact + noise_scaling    
+
+#     return y_noise, u_exact
+
+
 def construct_noise_data(model,
-                         q_exact : np.ndarray,
+                         q_exact: np.ndarray,
                          C: Operator,
-                         noise_level : float,
-                         product: Operator, 
-                         time_depend_noise: bool = True) -> Tuple[VectorArray, VectorArray]:
+                         noise_level: float,
+                         product: Operator,
+                         time_depend_noise: bool = True,
+                         noise_level_mode: Literal['abs', 'rel'] = 'rel'
+                         ) -> Tuple[VectorArray, VectorArray, Dict[str, Any]]:
+    """
+    Parameters
+    ----------
+    noise_level
+        If noise_level_mode == 'abs':
+            target absolute noise level, i.e. ||y_delta - y_exact||_product
+        If noise_level_mode == 'rel':
+            target relative noise level w.r.t. y_exact, i.e.
+            ||y_delta - y_exact||_product / ||y_exact||_product
+    noise_level_mode
+        'abs' or 'rel'
 
-
+    Returns
+    -------
+    y_noise
+        Noisy observation.
+    u_exact
+        Exact state.
+    noise_info
+        Dict containing both absolute and relative realized noise levels.
+    """
     u_exact = model.solve_state(q_exact)
     y_exact = C.apply(u_exact)
 
@@ -27,14 +74,37 @@ def construct_noise_data(model,
     else:
         noise = C.range.random(1)
 
-    #noise_norm = np.sqrt(product.apply2(y_exact,y_exact))[0,0]
-    noise_norm = np.sqrt(product.apply2(noise,noise))[0,0]
+    noise_norm = np.sqrt(product.apply2(noise, noise))[0, 0]
     assert noise_norm > 0
-    
-    noise_scaling = noise_level/noise_norm * noise
-    y_noise = y_exact + noise_scaling    
 
-    return y_noise, u_exact
+    y_norm = np.sqrt(product.apply2(y_exact, y_exact))[0, 0]
+    assert y_norm > 0 or noise_level_mode == 'abs'
+
+    if noise_level_mode == 'abs':
+        target_abs_noise_level = noise_level
+    elif noise_level_mode == 'rel':
+        target_abs_noise_level = noise_level * y_norm
+    else:
+        raise ValueError(
+            f"Unknown noise_level_mode='{noise_level_mode}'. Use 'abs' or 'rel'."
+        )
+
+    noise_scaling = (target_abs_noise_level / noise_norm) * noise
+    y_noise = y_exact + noise_scaling
+
+    diff_y = y_noise - y_exact
+    abs_noise_level_y = np.sqrt(product.apply2(diff_y, diff_y))[0, 0]
+    rel_noise_level_y = abs_noise_level_y / y_norm if y_norm > 0 else np.nan
+
+    noise_info = {
+        'noise_level_input': noise_level,
+        'noise_level_mode': noise_level_mode,
+        'abs_noise_level_y': abs_noise_level_y,
+        'rel_noise_level_y': rel_noise_level_y,
+        'y_norm': y_norm,
+    }
+
+    return y_noise, u_exact, noise_info
 
 def build_projection(grid):
     rows = []

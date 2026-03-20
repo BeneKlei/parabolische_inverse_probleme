@@ -300,26 +300,41 @@ def build_InstationaryModelIP(setup : Dict,
 
     # --------------------------------------------------------------------
 
-    y_delta, u_exact = construct_noise_data(model = dummy_model, 
-                                            q_exact = q_exact,
-                                            C = C,
-                                            noise_level = setup['noise_level'],
-                                            product=products['bochner_prod_C'],
-                                            time_depend_noise=True)
+    y_delta, u_exact, noise_info = construct_noise_data(
+        model=dummy_model,
+        q_exact=q_exact,
+        C=C,
+        noise_level=setup['noise_info']['noise_level_input'],
+        noise_level_mode=setup['noise_info']['noise_level_mode'],  
+        product=products['bochner_prod_C'],
+        time_depend_noise=True,
+    )
 
     setup['y_delta'] = y_delta.to_numpy()
+    setup['noise_info'] = noise_info
     
     assert (len(y_delta) == setup['dims']['nt'] + 1)
     assert (y_delta.space == C.range) 
 
     y = C.apply(u_exact)
     diff_y = y_delta - y
-    norm_diff_y = np.sqrt(dummy_model.products['bochner_prod_C'].apply2(diff_y, diff_y))[0,0]
+    norm_diff_y = np.sqrt(
+        dummy_model.products['bochner_prod_C'].apply2(diff_y, diff_y)
+    )[0, 0]
 
-    rel_noise_level_y = norm_diff_y / np.sqrt(dummy_model.products['bochner_prod_C'].apply2(y, y))[0,0]
-    rel_noise_level_u = norm_diff_y / np.sqrt(dummy_model.products['bochner_prod_V'].apply2(u_exact, u_exact))[0,0]
+    rel_noise_level_y = norm_diff_y / np.sqrt(
+        dummy_model.products['bochner_prod_C'].apply2(y, y)
+    )[0, 0]
 
-    logger.debug(f'noise_level is {setup["noise_level"]:3.4e}')    
+    rel_noise_level_u = norm_diff_y / np.sqrt(
+        dummy_model.products['bochner_prod_V'].apply2(u_exact, u_exact)
+    )[0, 0]
+
+    abs_noise_level = norm_diff_y
+
+    logger.debug(f'noise_level_input = {setup["noise_info"]["noise_level_input"]:3.4e}')
+    logger.debug(f'noise_level_mode  = {setup["noise_info"]["noise_level_mode"]}')
+    logger.debug(f'abs_noise_level   = {abs_noise_level:3.4e}')
     logger.debug(f'rel_noise_level_y = {rel_noise_level_y:3.4e}')
     logger.debug(f'rel_noise_level_u = {rel_noise_level_u:3.4e}')
 

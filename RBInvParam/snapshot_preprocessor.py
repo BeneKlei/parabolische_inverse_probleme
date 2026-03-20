@@ -404,6 +404,23 @@ class SnapshotPreprocessor(BasicObject):
         if not config:
             return snapshots
 
+        # --- Select every n-th snapshot (always keep first and last)
+        every_n = config.get("every_n")
+        if every_n is not None:
+            if not isinstance(every_n, int) or every_n <= 0:
+                raise ValueError("config['every_n'] must be a positive integer")
+
+            N = len(snapshots)
+            if N > 0:
+                indices = [i for i in range(N) if i == 0 or i == N - 1 or i % every_n == 0]
+                self.logger.debug(
+                    "  Applying 'every_n=%d': keeping %d of %d snapshots",
+                    every_n,
+                    len(indices),
+                    N,
+                )
+                snapshots = snapshots[indices]
+
         # --- Normalize
         if config.get("normalize", False):
             self.logger.debug("  Applying 'normalize'")
