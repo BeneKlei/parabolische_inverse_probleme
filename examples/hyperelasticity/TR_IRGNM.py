@@ -77,8 +77,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 30
-    state_z_res = 30
+    state_y_res = 60
+    state_z_res = 60
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -86,11 +86,18 @@ def main():
     par_dim = (param_y_res + 1) * (param_z_res + 1) 
     T_initial = 0
 
-    T_final = 10.0
-    nt = 100 
+    
+    # T_final = 12.0
+    # nt = 48
+
+    T_final = 16.0
+    nt = 64
+
     # T_final = 5.0
     # nt = 50 
     delta_t = (T_final - T_initial) / nt
+    
+    rho_hat = 2.71
 
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
@@ -131,7 +138,10 @@ def main():
         'state_grid_resolution' : state_grid_resolution,
         'body_force' : {
             'type' : mm.BodyForceType.CenterExcite,
-            'hyperparameter' : {}
+            'hyperparameter' : {
+                'end_time' : 0.5,
+                'factor' : (1.0 / rho_hat)
+            }
         },
         'stored_energy' : {
             'type' : hm.StoredEnergyFunctionType.Hookean,
@@ -139,10 +149,10 @@ def main():
             'hyperparameter' : {
                 # 'mu' : 26.32, 
                 # 'kappa' : 68.60
-                'mu' : 1e1, 
-                'lambda' : 1e1
-                # 'mu' : 5 * 1e1, 
-                # 'lambda' : 5 * 1e1
+                'mu' : (5.6 / rho_hat), 
+                'lambda' : (10.9 / rho_hat),
+                # 'mu' : 4 * 4.15,
+                # 'lambda' : 4 * 8.07
             }
         },
         'boundary_condition' : {
@@ -150,12 +160,12 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Sensors,
+            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'type': mm.ObservationOperatorType.Sensors,
             'hyperparameter' : {
-                # 'spatial_resolution' : state_grid_resolution,
-                # 'radius' : 0.001,
-                # 'second_row' : False 
+                'spatial_resolution' : state_grid_resolution,
+                'radius' : 0.001,
+                'second_row' : False 
             }
         },
         'dims' : {
@@ -180,7 +190,8 @@ def main():
         #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         #'noise_level': 0,                      # Absolute noise magnitude added to data
         'noise_info' : {
-            'noise_level_input' : 1 * 1e-2,
+            'noise_level_input' : 5.0 * 1e-2,
+            #'noise_level_input' : 0.0,
             'noise_level_mode' : 'rel',
             'abs_noise_level_y' : None,
             'rel_noise_level_y' : None,
@@ -252,8 +263,18 @@ def main():
     # print(FOM.compute_objective(_q_exact))
 
     # q_exact = 2 * np.ones((1,par_dim))
-    # _q_exact = FOM.Q.make_array(q_exact)
-    # print(FOM.compute_objective(_q_exact))
+    # _q_circ = FOM.Q.make_array(q_circ)
+    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[0]))
+    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[1]))
+    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[2]))
+    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[3]))
+    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[4]))
+    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[5]))
+    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[6]))
+    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[7]))
+    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[8]))
+    # print("------------------------------")
+    # print(FOM.compute_objective(_q_circ))
 
     # import sys
     # sys.exit()
@@ -321,7 +342,7 @@ def main():
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'tau': 1.10,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 2.00,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': None,
         #setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,

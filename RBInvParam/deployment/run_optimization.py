@@ -47,19 +47,19 @@ def run_optimization(
     FOM = build_HyperElasticityModelIP(setup, logger)
 
     setup_path = save_path / 'setup.pkl'
-    if not setup_path.exists():
-        logger.info(f"Dumping model setup to {setup_path}.")
-        save_dict_to_pkl(path=setup_path, 
-                        data = setup,
-                        use_timestamp=False)
+    #if not setup_path.exists():
+    logger.info(f"Dumping model setup to {setup_path}.")
+    save_dict_to_pkl(path=setup_path, 
+                    data = setup,
+                    use_timestamp=False)
         
 
     TR_optimizer_parameter_path = save_path / 'optimizer_parameter.pkl'
-    if not TR_optimizer_parameter_path.exists():
-        logger.info(f"Dumping model optimizer_parameter to {TR_optimizer_parameter_path}.")
-        save_dict_to_pkl(path=TR_optimizer_parameter_path, 
-                         data = optimizer_parameter,
-                         use_timestamp=False)
+    #if not TR_optimizer_parameter_path.exists():
+    logger.info(f"Dumping model optimizer_parameter to {TR_optimizer_parameter_path}.")
+    save_dict_to_pkl(path=TR_optimizer_parameter_path, 
+                        data = optimizer_parameter,
+                        use_timestamp=False)
 
     q_exact = FOM.setup["q_exact"]
     

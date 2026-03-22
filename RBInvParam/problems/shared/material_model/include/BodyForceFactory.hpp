@@ -62,18 +62,30 @@ public:
 class CenterExciteBodyForce : public BodyForce
 {
 public:
-  void vector_value(const Point<3> &p,
-                    Vector<double> &values) const override;
+    const double factor;
+    const double end_time;
+    // Constructor
+    CenterExciteBodyForce(double end_time_, double factor_)
+        : end_time(end_time_)
+        , factor(factor_)
+        {}
+
+    void vector_value(const Point<3> &p,
+                      Vector<double> &values) const override;
 };
 
 class GaussianBodyForce : public BodyForce {
 public:
     const Point<3> &center;
     const double width;
+    const double end_time; 
 
     // Constructor
-    GaussianBodyForce(const Point<3> &center_, double width_)
-        : center(center_), width(width_) {}
+    GaussianBodyForce(const Point<3> &center_, double width_, double end_time_)
+        : center(center_)
+        , width(width_) 
+        , end_time(end_time_)
+        {}
 
     // Override vector_value
     void vector_value(const Point<3> &p, Vector<double> &values) const override;

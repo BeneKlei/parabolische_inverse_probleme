@@ -20,11 +20,11 @@ void CenterExciteBodyForce::vector_value(const Point<3> &p, Vector<double> &valu
 {
     double fx, fy, fz, ft;
     // ---------------------- ft ----------------------
-    if (get_time() <= 0.5)  {
+    if (get_time() <= end_time)  {
         if (get_time() <= 0) {
             ft = 0;
         } else {
-            ft = 1 * get_time();
+            ft = factor * get_time();
         }
     } else {
         ft = 0;
@@ -72,11 +72,11 @@ void CenterExciteBodyForce::vector_value(const Point<3> &p, Vector<double> &valu
 void GaussianBodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
 {
     double amplitude;
-    if (get_time() <= 0.5)  {
+    if (get_time() <= end_time)  {
         if (get_time() <= 0) {
             amplitude = 0;
         } else {
-            amplitude = 1.0 * get_time();
+            amplitude = (1.0 / end_time) * get_time();
         }
     } else {
         amplitude = 0;
@@ -121,7 +121,12 @@ template <int dim, typename Number>
 std::unique_ptr<BodyForce> BodyForceFactory<dim, Number>::assemble_center_excite_body_force(
   const BodyForceFactoryContext<dim, Number>& ctx) const
 {
-  return std::make_unique<CenterExciteBodyForce>();
+    double end_time = std::get<double>(ctx.hyperparameter.at("end_time"));
+    double factor = std::get<double>(ctx.hyperparameter.at("factor"));
+    return std::make_unique<CenterExciteBodyForce>(
+        end_time,
+        factor
+    );
 };
 
 template <int dim, typename Number>
@@ -131,9 +136,12 @@ std::unique_ptr<BodyForce> BodyForceFactory<dim, Number>::assemble_gaussian_body
   //check_required_keys<double>(ctx.hyperparameter, {"center", "width"});
   std::vector<double> center = std::get<std::vector<double>>(ctx.hyperparameter.at("center"));
   double sigma = std::get<double>(ctx.hyperparameter.at("sigma"));
+  double end_time = std::get<double>(ctx.hyperparameter.at("end_time"));
 
   return std::make_unique<GaussianBodyForce>(
-      Point<3>(0,0,0), sigma
+      Point<3>(0,0,0), 
+      sigma,
+      end_time
   );
   
 };

@@ -74,18 +74,18 @@ def _run_experiment_batch_palma(working_dir: Path,
                 os.mkdir(save_path)
 
                 temp_setup_path = save_path / 'setup.pkl'
-                save_dict_to_pkl(
-                    path = temp_setup_path,
-                    data = setup,
-                    use_timestamp = False
-                )
+                # save_dict_to_pkl(
+                #     path = temp_setup_path,
+                #     data = setup,
+                #     use_timestamp = False
+                # )
 
                 temp_TR_optimizer_parameter_path = save_path / 'optimizer_parameter.pkl'
-                save_dict_to_pkl(
-                    path = temp_TR_optimizer_parameter_path,
-                    data = optimizer_parameter,
-                    use_timestamp = False
-                )
+                # save_dict_to_pkl(
+                #     path = temp_TR_optimizer_parameter_path,
+                #     data = optimizer_parameter,
+                #     use_timestamp = False
+                # )
 
             if express:
                 script_path = PALMA_SCRIPT_PATH_EXPRESS

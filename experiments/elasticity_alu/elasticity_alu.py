@@ -30,11 +30,13 @@ param_y_res = state_y_res
 param_z_res = state_z_res
 
 par_dim = (param_y_res + 1) * (param_z_res + 1) 
-T_initial = 0
 
-T_final = 5.0
-nt = 50    
+T_initial = 0
+T_final = 16.0
+nt = 64
 delta_t = (T_final - T_initial) / nt
+
+rho_hat = 2.71
 
 assert T_final > T_initial
 q_circ = np.ones((1, par_dim))
@@ -76,7 +78,10 @@ setup = {
     'state_grid_resolution' : state_grid_resolution,
     'body_force' : {
         'type' : mm.BodyForceType.CenterExcite,
-        'hyperparameter' : {}
+        'hyperparameter' : {
+            'end_time' : 0.5,
+            'factor' : (1.0 / rho_hat)
+        }
     },
     'stored_energy' : {
         'type' : hm.StoredEnergyFunctionType.Hookean,
@@ -84,8 +89,8 @@ setup = {
         'hyperparameter' : {
             # 'mu' : 26.32, 
             # 'kappa' : 68.60
-            'mu' : 1e1, 
-            'lambda' : 1e1
+            'mu' : (5.6 / rho_hat), 
+            'lambda' : (10.9 / rho_hat),
         }
     },
     'boundary_condition' : {
@@ -163,7 +168,7 @@ setup = {
 
 q_start = q_circ
 abs_grad_tol = 5 * 1e-11
-tau = 1.10
+tau = 2.0
 
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
@@ -236,7 +241,7 @@ TR_optimizer_parameter = {
         'type': TRType.RADIUS,
 
         # TR config
-        'eta_initial': 2.50,        
+        'eta_initial': 1.00,        
         'eta_min': 1e-2,
         'eta_max': 5.00,
         'beta_1': 0.80,
