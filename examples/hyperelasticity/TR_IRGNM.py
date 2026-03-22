@@ -103,7 +103,7 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    half_size = 1
+    half_size = 2
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     add_constant_patch_coords(q_exact, 
                               center_coords=( 5.0,  0.0), 
@@ -111,6 +111,13 @@ def main():
                               half_size=half_size,
                               y_bounds=y_bounds, 
                               z_bounds=z_bounds)
+
+    # add_constant_patch_coords(q_exact, 
+    #                           center_coords=( 11.0,  -5.0), 
+    #                           value=3.0, 
+    #                           half_size=half_size,
+    #                           y_bounds=y_bounds, 
+    #                           z_bounds=z_bounds)
 
     add_constant_patch_coords(q_exact, 
                               center_coords=(-9.0, -1.0), 
@@ -161,14 +168,14 @@ def main():
         },
         'observation_operator': {
             #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            #'type': mm.ObservationOperatorType.Sensors,
-            'type': mm.ObservationOperatorType.SensorsGrid,
+            'type': mm.ObservationOperatorType.Sensors,
+            #'type': mm.ObservationOperatorType.SensorsGrid,
             'hyperparameter' : {
-                # 'spatial_resolution' : state_grid_resolution,
-                # 'radius' : 0.001,
-                # 'second_row' : False 
+                'spatial_resolution' : state_grid_resolution,
                 'radius' : 0.001,
-                'grid_sizes' : [2,8,8]
+                'second_row' : False 
+                # 'radius' : 0.001,
+                # 'grid_sizes' : [2,8,8]
             }
         },
         'dims' : {
@@ -179,10 +186,11 @@ def main():
         },
         'products': {                                 # Inner products used in the problem
             'prod_H': 'l2',                           # Product on H_h
-            'prod_Q': 'euclid',                      # Product on Q_h
+            'prod_Q': 'l2',                      # Product on Q_h
             #'prod_Q': 'h1',                           # Product on Q_h
             #'prod_V': 'h1_0_semi',                    # Product on V_h
             'prod_V': 'h1',                           # Product on V_h
+            #'prod_C': 'state_l2',                       # Product on C_h
             'prod_C': 'euclid',                       # Product on C_h
         },
         'T_initial': T_initial,                       # Start time of the simulation
@@ -345,7 +353,7 @@ def main():
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'tau': 2.00,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.10,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': None,
         #setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
@@ -373,9 +381,9 @@ def main():
             'type': TRType.RADIUS,
 
             # TR config
-            'eta_initial': 1.00,        
+            'eta_initial': 0.50,        
             'eta_min': 1e-5,
-            'eta_max': 5.00,
+            'eta_max': 2.00,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
