@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import os
 import sys
 import argparse
 from pathlib import Path
@@ -47,15 +48,20 @@ def run_optimization(
     FOM = build_HyperElasticityModelIP(setup, logger)
 
     setup_path = save_path / 'setup.pkl'
-    #if not setup_path.exists():
+    if not setup_path.exists():
+        os.remove(setup_path)
+        
+
     logger.info(f"Dumping model setup to {setup_path}.")
     save_dict_to_pkl(path=setup_path, 
-                    data = setup,
-                    use_timestamp=False)
+                     data = setup,
+                     use_timestamp=False)
         
 
     TR_optimizer_parameter_path = save_path / 'optimizer_parameter.pkl'
-    #if not TR_optimizer_parameter_path.exists():
+    if not TR_optimizer_parameter_path.exists():
+        os.remove(TR_optimizer_parameter_path)
+
     logger.info(f"Dumping model optimizer_parameter to {TR_optimizer_parameter_path}.")
     save_dict_to_pkl(path=TR_optimizer_parameter_path, 
                         data = optimizer_parameter,

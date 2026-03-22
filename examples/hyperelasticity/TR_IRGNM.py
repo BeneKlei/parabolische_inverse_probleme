@@ -161,11 +161,14 @@ def main():
         },
         'observation_operator': {
             #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,
+            #'type': mm.ObservationOperatorType.Sensors,
+            'type': mm.ObservationOperatorType.SensorsGrid,
             'hyperparameter' : {
-                'spatial_resolution' : state_grid_resolution,
+                # 'spatial_resolution' : state_grid_resolution,
+                # 'radius' : 0.001,
+                # 'second_row' : False 
                 'radius' : 0.001,
-                'second_row' : False 
+                'grid_sizes' : [2,8,8]
             }
         },
         'dims' : {
@@ -190,7 +193,7 @@ def main():
         #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         #'noise_level': 0,                      # Absolute noise magnitude added to data
         'noise_info' : {
-            'noise_level_input' : 5.0 * 1e-2,
+            'noise_level_input' : 1.0 * 1e-2,
             #'noise_level_input' : 0.0,
             'noise_level_mode' : 'rel',
             'abs_noise_level_y' : None,
