@@ -72,7 +72,6 @@ def build_InstationaryModelIP(setup : Dict,
     #     'euclid' : scipy.sparse.identity(Q_h.dim)
     # }
 
-    # TODO Construct by returning Operator instances
     products['L2'] = SparseMatrixOperator(
         op = material_model.assemble_state_product_op(
             mm.FEProductType.L2

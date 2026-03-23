@@ -87,8 +87,8 @@ def main():
     T_initial = 0
 
     
-    # T_final = 12.0
-    # nt = 48
+    # T_final = 4.0
+    # nt = 16
 
     T_final = 16.0
     nt = 64
@@ -147,7 +147,7 @@ def main():
             'type' : mm.BodyForceType.CenterExcite,
             'hyperparameter' : {
                 'end_time' : 0.5,
-                'factor' : (1.0 / rho_hat)
+                'factor' : (1.0 / rho_hat) / (2.0)
             }
         },
         'stored_energy' : {
@@ -186,7 +186,7 @@ def main():
         },
         'products': {                                 # Inner products used in the problem
             'prod_H': 'l2',                           # Product on H_h
-            'prod_Q': 'l2',                      # Product on Q_h
+            'prod_Q': 'euclid',                      # Product on Q_h
             #'prod_Q': 'h1',                           # Product on Q_h
             #'prod_V': 'h1_0_semi',                    # Product on V_h
             'prod_V': 'h1',                           # Product on V_h
@@ -381,9 +381,11 @@ def main():
             'type': TRType.RADIUS,
 
             # TR config
-            'eta_initial': 0.50,        
+            #'eta_initial': 0.50,
+            'eta_initial': 1.00,
             'eta_min': 1e-5,
-            'eta_max': 2.00,
+            'eta_max': 5.00,
+            #'eta_max': 2.00,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
