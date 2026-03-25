@@ -38,8 +38,8 @@ class SnapshotPreprocessor(BasicObject):
         self.active_bases = active_bases
         self.use_adjoint_space = use_adjoint_space
 
-        if self.use_adjoint_space and "adjoint_basis" in self.active_bases:
-            raise ValueError("When use_adjoint_space=True, do not include 'adjoint_basis' in active_bases")
+        if self.use_adjoint_space and "adjoint_basis" not in self.active_bases:
+            raise ValueError("When use_adjoint_space=True, do include 'adjoint_basis' in active_bases")
 
         self.krylov_directions = self.FOM.Q.empty()
         self.krylov_sensitivities = self.FOM.V.empty()

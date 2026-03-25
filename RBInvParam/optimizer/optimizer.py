@@ -897,7 +897,8 @@ class QrVrROMOptimizer(Optimizer):
 
         self.use_adjoint_space = optimizer_parameter["reductor"]["use_adjoint_space"]
         if self.use_adjoint_space:
-            assert not optimizer_parameter['enrichment']['adjoint_basis']
+            print(optimizer_parameter['enrichment']['adjoint_basis'])
+            assert optimizer_parameter['enrichment']['adjoint_basis']
 
         self.active_bases = []       
         for key, val in optimizer_parameter['enrichment'].items():
@@ -906,7 +907,7 @@ class QrVrROMOptimizer(Optimizer):
                 self.active_bases.append(key)    
 
         if self.use_adjoint_space:
-            assert 'adjoint_basis' not in self.active_bases
+            assert 'adjoint_basis' in self.active_bases
 
         reductor_cfg = InstationaryReductorConfig.from_dict(
             optimizer_parameter["reductor"],

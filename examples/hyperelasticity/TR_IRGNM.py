@@ -77,8 +77,11 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 60
-    state_z_res = 60
+    state_y_res = 10
+    state_z_res = 10
+
+    # state_y_res = 60
+    # state_z_res = 60
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -103,7 +106,7 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    half_size = 2
+    half_size = 1
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     add_constant_patch_coords(q_exact, 
                               center_coords=( 5.0,  0.0), 
@@ -410,7 +413,7 @@ def main():
         'reductor' : {
             #'type' : 'default',
             'type' : 'material_model',
-            'use_adjoint_space' : False,
+            'use_adjoint_space' : True,
             'offline_parallel' : False,
             'error_estimator_types' : {
                 'state' : StateErrorEstimatorType.HYPERBOLIC,
@@ -474,8 +477,28 @@ def main():
                 #     'rel_tol_coeff_p' : 1e-2
                 # }
             },
-            #'state_basis' : None,
-            'adjoint_basis' : None
+            'adjoint_basis' : 
+            {
+                'additional_snapshots' :{
+                    'include_lin_states' : False,
+                    'include_krylov_sensitivites' : False,
+                },
+                'compression' : {
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'eps': 1e-3,
+                        'omega' : 0.1,
+                    },
+                    'every_n' : None,
+                    # 'normalize' : None,
+                    # 'HaPOD' : None,
+                },
+                'coarsing' : None,
+                # 'coarsing' : {
+                #     'rel_tol_coeff_u' : 1e-2,
+                #     'rel_tol_coeff_p' : 1e-2
+                # }
+            },
             
         },
         'logging' : {

@@ -113,7 +113,7 @@ setup = {
     },
     'products': {                                 # Inner products used in the problem
         'prod_H': 'l2',                           # Product on H_h
-        'prod_Q': 'l2',                           # Product on Q_h
+        'prod_Q': 'euclid',                       # Product on Q_h
         'prod_V': 'h1',                           # Product on V_h
         'prod_C': 'euclid',                       # Product on C_h
     },
@@ -388,30 +388,6 @@ TR_optimizer_parameter_grid['tau'] = tau_
 EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
 EXPERIMENTS['TR_grid_time_step'] = (setup_grid, TR_optimizer_parameter_grid)
-
-#----------------------------------------------------------------------------------------
-
-TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
-TR_optimizer_parameter__['enrichment']['parameter_basis']['additional_snapshots']['include_each_nabla_J_time_step'] = True
-TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['normalize'] = True
-TR_optimizer_parameter__['enrichment']['parameter_basis']['compression']['HaPOD'] = {'eps': 1e-1, 'omega' : 0.1}
-TR_optimizer_parameter__['enrichment']['state_basis']['compression']['every_n'] = 5
-
-TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
-TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
-TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
-
-#TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
-TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
-TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
-
-TR_optimizer_parameter_identity['tau'] = tau_
-TR_optimizer_parameter_grid['tau'] = tau_
-
-EXPERIMENTS['TR_sensors_time_step_every_5th'] = (setup_sensors, TR_optimizer_parameter_sensors)
-EXPERIMENTS['TR_identity_time_step_every_5th'] = (setup_identity, TR_optimizer_parameter_identity)
-EXPERIMENTS['TR_grid_time_step_every_5th'] = (setup_grid, TR_optimizer_parameter_grid)
-
 
 #----------------------------------------------------------------------------------------
 

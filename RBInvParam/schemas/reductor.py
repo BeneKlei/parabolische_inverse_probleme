@@ -91,9 +91,9 @@ class InstationaryReductorConfig:
             )
 
         if active_bases is not None:
-            if self.use_adjoint_space and "adjoint_basis" in active_bases:
+            if self.use_adjoint_space and "adjoint_basis" not in active_bases:
                 raise ValueError(
-                    f"{where}: use_adjoint_space=True requires 'adjoint_basis' not in active_bases"
+                    f"{where}: use_adjoint_space=True requires 'adjoint_basis' in active_bases"
                 )
 
         # nested validate
