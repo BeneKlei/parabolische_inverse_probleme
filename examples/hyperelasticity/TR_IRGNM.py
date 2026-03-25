@@ -77,8 +77,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 10
-    state_z_res = 10
+    state_y_res = 60
+    state_z_res = 60
 
     # state_y_res = 60
     # state_z_res = 60
@@ -150,7 +150,7 @@ def main():
             'type' : mm.BodyForceType.CenterExcite,
             'hyperparameter' : {
                 'end_time' : 0.5,
-                'factor' : (1.0 / rho_hat) / (2.0)
+                'factor' : (1.0 / rho_hat)
             }
         },
         'stored_energy' : {
@@ -384,11 +384,11 @@ def main():
             'type': TRType.RADIUS,
 
             # TR config
-            #'eta_initial': 0.50,
-            'eta_initial': 1.00,
+            'eta_initial': 0.50,
+            #'eta_initial': 1.00,
             'eta_min': 1e-5,
-            'eta_max': 5.00,
-            #'eta_max': 2.00,
+            #'eta_max': 5.00,
+            'eta_max': 2.00,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
@@ -413,7 +413,7 @@ def main():
         'reductor' : {
             #'type' : 'default',
             'type' : 'material_model',
-            'use_adjoint_space' : True,
+            'use_adjoint_space' : False,
             'offline_parallel' : False,
             'error_estimator_types' : {
                 'state' : StateErrorEstimatorType.HYPERBOLIC,
@@ -477,29 +477,7 @@ def main():
                 #     'rel_tol_coeff_p' : 1e-2
                 # }
             },
-            'adjoint_basis' : 
-            {
-                'additional_snapshots' :{
-                    'include_lin_states' : False,
-                    'include_krylov_sensitivites' : False,
-                },
-                'compression' : {
-                    'normalize' : True,
-                    'HaPOD' : {
-                        'eps': 1e-3,
-                        'omega' : 0.1,
-                    },
-                    'every_n' : None,
-                    # 'normalize' : None,
-                    # 'HaPOD' : None,
-                },
-                'coarsing' : None,
-                # 'coarsing' : {
-                #     'rel_tol_coeff_u' : 1e-2,
-                #     'rel_tol_coeff_p' : 1e-2
-                # }
-            },
-            
+            'adjoint_basis' : None
         },
         'logging' : {
             'errors' : LoggerErrorChoice.OBJECTIVE,

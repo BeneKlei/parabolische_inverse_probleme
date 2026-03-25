@@ -9,7 +9,7 @@ from pymor.vectorarrays.interface import VectorArray
 from pymor.operators.numpy import NumpyMatrixOperator
 
 from RBInvParam.model import InstationaryModelIP
-from RBInvParam.domain_projector import SimpleBoundDomainProjector
+from RBInvParam.domain_projector import SimpleBoundDomainProjector, ProjectionMismatchError
 
 
 MACHINE_EPS = sys.float_info.epsilon
@@ -173,6 +173,7 @@ def gradient_descent_linearized_problem(
                                                    
     converged = False
     armijo_stagnation_flag = False
+    projection_error_flag = False
     last_i = -np.inf
     
     buffer_size = 3
@@ -204,13 +205,19 @@ def gradient_descent_linearized_problem(
         buffer_nabla_J.pop(0)
         buffer_nabla_J.append(grad.copy())
 
-        if projector:            
-            terminaton_lhs = projector.project_domain(
-                center = q,
-                direction = -grad
-            ) - q
-        else:
-            terminaton_lhs = -grad
+        try:
+            if projector:
+                terminaton_lhs = projector.project_domain(
+                    center=q,
+                    direction=-grad
+                ) - q
+            else:
+                terminaton_lhs = -grad
+        except ProjectionMismatchError as e:
+            logger.error(f"Stopping optimization at iteration {i+1}: projection mismatch in termination check: {e}")
+            projection_error_flag = True
+            last_i = i + 1
+            break
 
         terminaton_lhs = model.compute_gradient_norm(terminaton_lhs)
         if (terminaton_lhs < abs_grad_tol) and i > 0:
@@ -224,33 +231,38 @@ def gradient_descent_linearized_problem(
             product = model.products['prod_Q']
 
         # TODO Allow toggle between armijo and BB
-        if i < 2:
-            norm_grad = model.compute_gradient_norm(grad)            
-            grad.scal(1.0 / norm_grad)
-            current_d, current_J, armijo_stagnation_flag = armijo_line_serach(
-                previous_iterate = previous_d,
-                previous_value = previous_J,
-                search_direction = -grad,
-                func = _compute_linearized_objective,
-                product=product,
-                inital_step_size = armijo_inital_step_size,
-                projector = projector,
-                q=q,
-                kappa_arm = kappa_arm,
-                min_step_size = armijo_min_step_size)       
-        else:
-            current_d, current_J = barzilai_borwein_line_serach(
-                previous_iterate =  buffer_d[-1],
-                pre_previous_iterate = buffer_d[-2],
-                previous_gradient = buffer_nabla_J[-1],
-                pre_previous_gradient = buffer_nabla_J[-2],
-                product=product,
-                search_direction = grad,
-                func = _compute_linearized_objective,
-                projector = projector,
-                q=q,
-                idx=i)
-            
+        try:
+            if i < 2:
+                norm_grad = model.compute_gradient_norm(grad)            
+                grad.scal(1.0 / norm_grad)
+                current_d, current_J, armijo_stagnation_flag = armijo_line_serach(
+                    previous_iterate = previous_d,
+                    previous_value = previous_J,
+                    search_direction = -grad,
+                    func = _compute_linearized_objective,
+                    product=product,
+                    inital_step_size = armijo_inital_step_size,
+                    projector = projector,
+                    q=q,
+                    kappa_arm = kappa_arm,
+                    min_step_size = armijo_min_step_size)       
+            else:
+                current_d, current_J = barzilai_borwein_line_serach(
+                    previous_iterate =  buffer_d[-1],
+                    pre_previous_iterate = buffer_d[-2],
+                    previous_gradient = buffer_nabla_J[-1],
+                    pre_previous_gradient = buffer_nabla_J[-2],
+                    product=product,
+                    search_direction = grad,
+                    func = _compute_linearized_objective,
+                    projector = projector,
+                    q=q,
+                    idx=i)
+        except ProjectionMismatchError as e:
+            logger.error(f"Stopping optimization at iteration {i+1}: projection mismatch in line search: {e}")
+            projection_error_flag = True
+            last_i = i + 1
+            break        
         
         
         #if (i % 100 == 0):
@@ -285,11 +297,13 @@ def gradient_descent_linearized_problem(
                 break
         
     if converged:
-        logger.info(f"Gradient decent converged at iteration {last_i} of {int(max_iter)}.")
+        logger.info(f"Gradient descent converged at iteration {last_i} of {int(max_iter)}.")
+    elif projection_error_flag:
+        logger.info(f"Gradient descent stopped at iteration {last_i} due to projection mismatch.")
     else:
-        logger.info(f"Gradient decent NOT converged after {int(max_iter)} iterations.")
+        logger.info(f"Gradient descent NOT converged after {int(max_iter)} iterations.")
 
     norm_grad = model.compute_gradient_norm(grad)
     logger.info(f"objective = {current_J:3.4e}, norm gradient = {norm_grad:3.4e}.")
 
-    return current_d, last_i
+    return current_d, last_i, projection_error_flag

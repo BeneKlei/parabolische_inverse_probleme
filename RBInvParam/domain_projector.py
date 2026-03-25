@@ -7,6 +7,14 @@ from pymor.vectorarrays.numpy import NumpyVectorArray
 from RBInvParam.model import InstationaryModelIP
 from RBInvParam.reduction.base import BaseIPReductor
 from RBInvParam.utils.logger import get_default_logger
+from pymor.algorithms.basic import almost_equal
+
+class ProjectionMismatchError(Exception):
+    """Raised when a projection changes a VectorArray unexpectedly."""
+
+    def __init__(self, message, diff_norm=None):
+        super().__init__(message)
+        self.diff_norm = diff_norm
 
 class DomainProjector():
     id_iter = itertools.count()
@@ -169,12 +177,19 @@ class SimpleBoundDomainProjector(DomainProjector):
             update_recon = update_recon.reshape((1, self.FOM_Q_dim))
 
         if self.reductor:
-            update_recon = self.reductor.FOM.Q.make_array(update_recon)  
-            update_recon = self.reductor.project_vectorarray(update_recon, basis='parameter_basis')            
-            update_recon = self.model.Q.make_array(update_recon)
+            update_recon = self.reductor.FOM.Q.make_array(update_recon)
+            projected = self.reductor.project_vectorarray(
+                update_recon, basis='parameter_basis'
+            )
+            projected = self.model.Q.make_array(projected)
 
-            #assert self.check_q(q = update_recon)
-            
+            if not almost_equal(update, projected, rtol=1e-12, atol=1e-14).all():
+                diff = (update_recon - projected).norm()
+                raise ProjectionMismatchError(
+                    f"Projection changed the vector. Norm difference(s): {diff}",
+                    diff_norm=diff
+                )
+
             return update_recon
         else:
             return self.model.Q.make_array(update_recon)  

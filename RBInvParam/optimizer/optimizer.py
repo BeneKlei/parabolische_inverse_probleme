@@ -24,7 +24,7 @@ from RBInvParam.linear_solver.BiCGSTAB import BiCGStab_linearized_problem
 from RBInvParam.snapshot_preprocessor import SnapshotPreprocessor
 from RBInvParam.utils.logger import get_default_logger
 from RBInvParam.utils.io import save_dict_to_pkl, dealii_vector_space_to_numpy
-from RBInvParam.domain_projector import SimpleBoundDomainProjector
+from RBInvParam.domain_projector import SimpleBoundDomainProjector, ProjectionMismatchError
 from RBInvParam.trust_region import *
 
 from RBInvParam.schemas.optimizer import FOMOptimizerCfg, TROptimizerCfg, ArmijoConfig 
@@ -231,9 +231,12 @@ class Optimizer(BasicObject):
 
         if projector is not None:
             projector.pre_compute(center=previous_q)
-            current_q: NumpyVectorArray = projector.project_domain(
-                previous_q, step_size * search_direction
-            )
+            try:
+                current_q: NumpyVectorArray = projector.project_domain(
+                    previous_q, step_size * search_direction
+                )
+            except ProjectionMismatchError:
+                current_q = previous_q
         else:
             current_q = previous_q + step_size * search_direction
 
@@ -498,14 +501,16 @@ class Optimizer(BasicObject):
             d_start[:,:] = 0
             d_start = model.Q.make_array(d_start)
 
-            d, lin_solver_iter = self.solve_linearized_problem(model=model,
-                                                               q=q,
-                                                               d_start=d_start,
-                                                               alpha=alpha,
-                                                               lin_solver_parms = lin_solver_parms, 
-                                                               logger = self.logger,
-                                                               use_cached_operators=use_cached_operators,
-                                                               projector=projector)
+            d, lin_solver_iter, projection_error_flag = self.solve_linearized_problem(
+                model=model,
+                q=q,
+                d_start=d_start,
+                alpha=alpha,
+                lin_solver_parms = lin_solver_parms, 
+                logger = self.logger,
+                use_cached_operators=use_cached_operators,
+                projector=projector
+            )
 
 
             counts['lin_solver_iter'].append([lin_solver_iter])
@@ -541,14 +546,14 @@ class Optimizer(BasicObject):
                 self.logger.info(f"Try {count}: test alpha = {alpha:3.4e}.")
 
 
-                d, lin_solver_iter = self.solve_linearized_problem(model=model,
-                                                                   q=q,
-                                                                   d_start=d_start,
-                                                                   alpha=alpha,
-                                                                   lin_solver_parms = lin_solver_parms,
-                                                                   logger = self.logger,
-                                                                   use_cached_operators=use_cached_operators,
-                                                                   projector=projector)
+                d, lin_solver_iter, projection_error_flag = self.solve_linearized_problem(model=model,
+                                                                                          q=q,
+                                                                                          d_start=d_start,
+                                                                                          alpha=alpha,
+                                                                                          lin_solver_parms = lin_solver_parms,
+                                                                                          logger = self.logger,
+                                                                                          use_cached_operators=use_cached_operators,
+                                                                                          projector=projector)
                 
                 counts['lin_solver_iter'][-1].append(lin_solver_iter)
 
@@ -747,7 +752,7 @@ class Optimizer(BasicObject):
                                 use_cached_operators: bool,
                                 logger: logging.Logger,
                                 lin_solver_parms : Dict,
-                                projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, int]:
+                                projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, int, bool]:
 
         method = lin_solver_parms['method']
         if method == 'gd':
