@@ -376,11 +376,11 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    # state_y_res = 60
-    # state_z_res = 60
+    state_y_res = 60
+    state_z_res = 60
 
-    state_y_res = 10
-    state_z_res = 10
+    # state_y_res = 10
+    # state_z_res = 10
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -473,7 +473,7 @@ def main():
         },
         'products': {                                 # Inner products used in the problem
             'prod_H': 'l2',                           # Product on H_h
-            'prod_Q': 'l2',                      # Product on Q_h
+            'prod_Q': 'euclid',                      # Product on Q_h
             #'prod_Q': 'h1',                           # Product on Q_h
             'prod_V': 'h1',                    # Product on V_h
             'prod_C': 'state_l2',                       # Product on C_h

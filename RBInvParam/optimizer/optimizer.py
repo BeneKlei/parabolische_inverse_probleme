@@ -492,6 +492,7 @@ class Optimizer(BasicObject):
             self.logger.info(f"Try 1: test alpha = {alpha:3.4e}.")
 
             regularization_qualification = False
+            projection_error_flag = False
             count = 1
             
             if projector:
@@ -512,6 +513,9 @@ class Optimizer(BasicObject):
                 projector=projector
             )
 
+            if projection_error_flag:
+                self.logger.warning("Projection error while enforcing admissible domain.")
+                break
 
             counts['lin_solver_iter'].append([lin_solver_iter])
             
@@ -553,7 +557,12 @@ class Optimizer(BasicObject):
                                                                                           lin_solver_parms = lin_solver_parms,
                                                                                           logger = self.logger,
                                                                                           use_cached_operators=use_cached_operators,
+
                                                                                           projector=projector)
+                
+                if projection_error_flag:
+                    loop_terminated = True
+                    break
                 
                 counts['lin_solver_iter'][-1].append(lin_solver_iter)
 
@@ -576,12 +585,14 @@ class Optimizer(BasicObject):
 
             if not loop_terminated:
                 self.logger.warning(f"Used alpha = {alpha:3.4e} does satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
-            else:
+            elif loop_terminated and projection_error_flag:
+                self.logger.warning("Projection error while enforcing admissible domain.")
+                break
+            else:   
                 self.logger.error(f"Not found valid alpha before reaching maximum number of tries : {reg_loop_max}.\n\
                                    Using the last alpha tested = {alpha:3.4e}.")
-                
                 break
-                
+
             ########################################### Armijo ###########################################
 
             TR_max_iter_cond = False

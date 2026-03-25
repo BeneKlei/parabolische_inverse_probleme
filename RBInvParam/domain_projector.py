@@ -184,9 +184,9 @@ class SimpleBoundDomainProjector(DomainProjector):
             projected = self.model.Q.make_array(projected)
 
             if not almost_equal(update, projected, rtol=1e-12, atol=1e-14).all():
-                diff = (update_recon - projected).norm()
+                diff = (update - projected).norm()[0]
                 raise ProjectionMismatchError(
-                    f"Projection changed the vector. Norm difference(s): {diff}",
+                    f"Projection changed the vector. Norm difference(s): {diff:3.4e}",
                     diff_norm=diff
                 )
 

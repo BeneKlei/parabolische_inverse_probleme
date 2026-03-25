@@ -259,7 +259,7 @@ def gradient_descent_linearized_problem(
                     q=q,
                     idx=i)
         except ProjectionMismatchError as e:
-            logger.error(f"Stopping optimization at iteration {i+1}: projection mismatch in line search: {e}")
+            logger.error(f"Stopping optimization at iteration {i+1}: projection mismatch: {e}")
             projection_error_flag = True
             last_i = i + 1
             break        

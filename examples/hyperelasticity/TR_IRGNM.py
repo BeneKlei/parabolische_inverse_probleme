@@ -189,7 +189,7 @@ def main():
         },
         'products': {                                 # Inner products used in the problem
             'prod_H': 'l2',                           # Product on H_h
-            'prod_Q': 'euclid',                      # Product on Q_h
+            'prod_Q': 'l2',                      # Product on Q_h
             #'prod_Q': 'h1',                           # Product on Q_h
             #'prod_V': 'h1_0_semi',                    # Product on V_h
             'prod_V': 'h1',                           # Product on V_h
@@ -356,7 +356,7 @@ def main():
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'tau': 1.10,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 2.0,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': None,
         #setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
