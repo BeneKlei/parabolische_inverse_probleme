@@ -82,6 +82,7 @@ PYBIND11_MODULE(material_model, m)
 
   py::enum_<BodyForceType>(m, "BodyForceType")
       .value("CenterExcite", BodyForceType::CenterExcite)
+      .value("CenterExciteWave", BodyForceType::CenterExciteWave)
       .value("Gaussian", BodyForceType::Gaussian)
       .export_values();
 

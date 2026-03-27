@@ -34,6 +34,7 @@ typedef std::map<std::string, BodyForceHyperparameterType>  BodyForceHyperparame
 
 enum class BodyForceType {
     CenterExcite,
+    CenterExciteWave,
     Gaussian
 };
 
@@ -74,6 +75,20 @@ public:
                       Vector<double> &values) const override;
 };
 
+class CenterExciteWaveBodyForce : public BodyForce
+{
+public:
+    const double factor;
+    const double end_time;
+    // Constructor
+    CenterExciteWaveBodyForce(double end_time_)
+        : end_time(end_time_)
+        {}
+
+    void vector_value(const Point<3> &p,
+                      Vector<double> &values) const override;
+};
+
 class GaussianBodyForce : public BodyForce {
 public:
     const Point<3> &center;
@@ -103,6 +118,10 @@ public:
     ) const;
 
     std::unique_ptr<BodyForce> assemble_center_excite_body_force(
+        const BodyForceFactoryContext<dim, Number>& ctx
+    ) const;
+
+    std::unique_ptr<BodyForce> assemble_center_excite_wave_body_force(
         const BodyForceFactoryContext<dim, Number>& ctx
     ) const;
 
