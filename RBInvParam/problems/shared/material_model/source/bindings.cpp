@@ -81,9 +81,9 @@ PYBIND11_MODULE(material_model, m)
       .export_values();
 
   py::enum_<BodyForceType>(m, "BodyForceType")
-      .value("CenterExcite", BodyForceType::CenterExcite)
-      .value("CenterExciteWave", BodyForceType::CenterExciteWave)
-      .value("Gaussian", BodyForceType::Gaussian)
+      .value("SharpPulse", BodyForceType::SharpPulse)
+      .value("WavePulse", BodyForceType::WavePulse)
+      .value("GaussianPulse", BodyForceType::GaussianPulse)
       .export_values();
 
   py::enum_<ObservationOperatorType>(m, "ObservationOperatorType")

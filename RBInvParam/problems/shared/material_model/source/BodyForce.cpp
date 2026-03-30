@@ -11,7 +11,7 @@
 //         this->vector_value(points[p], value_list[p]);
 // }
 
-// void CenterExciteBodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
+// void SharpPulseBodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
 // {
 //     double fx, fy, fz, ft;
 //     // ---------------------- ft ----------------------

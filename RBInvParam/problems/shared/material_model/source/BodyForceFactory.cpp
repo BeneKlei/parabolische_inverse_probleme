@@ -3,7 +3,7 @@
 #include <deal.II/fe/component_mask.h>
 
 #include "BodyForceFactory.hpp"
-
+#include "utils.hpp"
 
 void BodyForce::vector_value_list(const std::vector<Point<3>> &points, std::vector<Vector<double>> &value_list) const
 {
@@ -16,9 +16,13 @@ void BodyForce::vector_value_list(const std::vector<Point<3>> &points, std::vect
         this->vector_value(points[p], value_list[p]);
 }
 
-void CenterExciteBodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
+void SharpPulseBodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
 {
     double fx, fy, fz, ft;
+
+    const double yy = p(1) - origin(1);
+    const double zz = p(2) - origin(2);
+
     // ---------------------- ft ----------------------
     if (get_time() <= end_time)  {
         if (get_time() <= 0) {
@@ -29,48 +33,47 @@ void CenterExciteBodyForce::vector_value(const Point<3> &p, Vector<double> &valu
     } else {
         ft = 0;
     }
-    // ---------------------- fx  ----------------------
+
+    // ---------------------- fx ----------------------
     fx = 1;
+
     // ---------------------- fy ----------------------
-    if (p(1) <= 1) {
-        if (p(1) <= 0) {
-            if (p(1) <= -1) {
+    if (yy <= 1) {
+        if (yy <= 0) {
+            if (yy <= -1) {
                 fy = 0;
             } else {
-                fy = p(1) + 1;
+                fy = yy + 1;
             }
         } else {
-            fy = -p(1) + 1; 
+            fy = -yy + 1; 
         }
     } else {
         fy = 0;
     }
-    // ---------------------- fz  ----------------------
-    if (p(2) <= 1) {
-        if (p(2) <= 0) {
-            if (p(2) <= -1) {
+
+    // ---------------------- fz ----------------------
+    if (zz <= 1) {
+        if (zz <= 0) {
+            if (zz <= -1) {
                 fz = 0;
             } else {
-                fz = p(2) + 1;
+                fz = zz + 1;
             }
         } else {
-            fz = -p(2) + 1; 
+            fz = -zz + 1; 
         }
     } else {
         fz = 0;
     }
-    // values(0) = 0;
-    // values(1) = 0;
-    // values(2) = ft*fx*fy*fz;
 
-    
-    values(0) = ft*fx*fy*fz;
+    values.reinit(3);
+    values(0) = ft * fx * fy * fz;
     values(1) = 0;
     values(2) = 0;
 }
 
-
-void CenterExciteWaveBodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
+void WavePulseBodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
 {
     // =========================================================
     //
@@ -91,7 +94,7 @@ void CenterExciteWaveBodyForce::vector_value(const Point<3> &p, Vector<double> &
     //                  * exp(-700((p(1)-0.15)^2 + (p(2)-0.15)^2))
     // =========================================================
 
-    const double t = this->get_time();
+    const double t = this->get_time() * time_scaling_factor;
     double pulse_t = 0.0;
 
     if (std::abs(t - 8.2e-6) <= end_time) {
@@ -102,8 +105,9 @@ void CenterExciteWaveBodyForce::vector_value(const Point<3> &p, Vector<double> &
         pulse_t = 0.0;
     }
 
-    const double yy = p(1) - 0.15;
-    const double zz = p(2) - 0.15;
+    const double yy = p(1) - origin(1);
+    const double zz = p(2) - origin(2);
+
     const double spatial_decay = std::exp(-700.0 * (yy * yy + zz * zz));
 
     const double excite_x = pulse_t * (-1.0) * spatial_decay;
@@ -114,12 +118,12 @@ void CenterExciteWaveBodyForce::vector_value(const Point<3> &p, Vector<double> &
     // Total body force = first excitation + second excitation
     // =========================================================
     values.reinit(3);
-    values(0) = excite_x;
-    values(1) = excite_y;
-    values(2) = excite_z;
+    values(0) = factor * excite_x;
+    values(1) = factor * excite_y;
+    values(2) = factor * excite_z;
 }
 
-void GaussianBodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
+void GaussianPulseBodyForce::vector_value(const Point<3> &p, Vector<double> &values) const 
 {
     double amplitude;
     if (get_time() <= end_time)  {
@@ -132,14 +136,13 @@ void GaussianBodyForce::vector_value(const Point<3> &p, Vector<double> &values) 
         amplitude = 0;
     }
 
-    const double r = p.distance(center);
+    const double r = p.distance(origin);
     const double gaussian = amplitude * std::exp(-(r*r)/(2.0*width*width));
     
     values(0) = gaussian;
     values(1) = 0;
     values(2) = 0;
 };
-
 
 // ---------------------------------------------------------------------------------------------------------------------
 template class BodyForceFactory<3, double>;
@@ -150,15 +153,21 @@ std::unique_ptr<BodyForce>  BodyForceFactory<dim, Number>::assemble_body_force(
 {
   switch (ctx.body_force_type)
   {
-  case BodyForceType::CenterExcite:
-    std::cout << "\t Using CenterExcite BodyForce" << std::endl;
-    return BodyForceFactory::assemble_center_excite_body_force(
+  case BodyForceType::SharpPulse:
+    std::cout << "\t Using SharpPulse BodyForce" << std::endl;
+    return BodyForceFactory::assemble_sharp_pulse_body_force(
         ctx
     );
     break;
-  case BodyForceType::Gaussian:
-    std::cout << "\t Using Gaussian BodyForce" << std::endl;
-    return BodyForceFactory::assemble_gaussian_body_force(
+  case BodyForceType::WavePulse:
+    std::cout << "\t Using WavePulse BodyForce" << std::endl;
+    return BodyForceFactory::assemble_wave_pulse_body_force(
+        ctx
+    );
+    break;
+  case BodyForceType::GaussianPulse:
+    std::cout << "\t Using GaussianPulse BodyForce" << std::endl;
+    return BodyForceFactory::assemble_gaussian_pulse_body_force(
         ctx
     );
     break;
@@ -168,31 +177,58 @@ std::unique_ptr<BodyForce>  BodyForceFactory<dim, Number>::assemble_body_force(
 }
 
 template <int dim, typename Number>
-std::unique_ptr<BodyForce> BodyForceFactory<dim, Number>::assemble_center_excite_body_force(
+std::unique_ptr<BodyForce> BodyForceFactory<dim, Number>::assemble_sharp_pulse_body_force(
   const BodyForceFactoryContext<dim, Number>& ctx) const
 {
+    const Point<dim> origin = utils::vec_to_point<dim>(
+        std::get<std::vector<double>>(ctx.hyperparameter.at("origin"))
+    );
+
     double end_time = std::get<double>(ctx.hyperparameter.at("end_time"));
     double factor = std::get<double>(ctx.hyperparameter.at("factor"));
-    return std::make_unique<CenterExciteBodyForce>(
+    return std::make_unique<SharpPulseBodyForce>(
+        origin,
         end_time,
         factor
     );
 };
 
 template <int dim, typename Number>
-std::unique_ptr<BodyForce> BodyForceFactory<dim, Number>::assemble_gaussian_body_force(
+std::unique_ptr<BodyForce> BodyForceFactory<dim, Number>::assemble_wave_pulse_body_force(
+  const BodyForceFactoryContext<dim, Number>& ctx) const
+{   
+    const Point<dim> origin = utils::vec_to_point<dim>(
+        std::get<std::vector<double>>(ctx.hyperparameter.at("origin"))
+    );
+
+    double end_time = std::get<double>(ctx.hyperparameter.at("end_time"));
+    double factor = std::get<double>(ctx.hyperparameter.at("factor"));
+    double time_scaling_factor = std::get<double>(ctx.hyperparameter.at("time_scaling_factor"));
+
+    return std::make_unique<WavePulseBodyForce>(
+        origin,
+        end_time,
+        factor,
+        time_scaling_factor
+    );
+};
+
+template <int dim, typename Number>
+std::unique_ptr<BodyForce> BodyForceFactory<dim, Number>::assemble_gaussian_pulse_body_force(
   const BodyForceFactoryContext<dim, Number>& ctx) const
 {
-  //check_required_keys<double>(ctx.hyperparameter, {"center", "width"});
-  std::vector<double> center = std::get<std::vector<double>>(ctx.hyperparameter.at("center"));
-  double sigma = std::get<double>(ctx.hyperparameter.at("sigma"));
-  double end_time = std::get<double>(ctx.hyperparameter.at("end_time"));
+    const Point<dim> origin = utils::vec_to_point<dim>(
+        std::get<std::vector<double>>(ctx.hyperparameter.at("origin"))
+    );
 
-  return std::make_unique<GaussianBodyForce>(
-      Point<3>(0,0,0), 
-      sigma,
-      end_time
-  );
+    double sigma = std::get<double>(ctx.hyperparameter.at("sigma"));
+    double end_time = std::get<double>(ctx.hyperparameter.at("end_time"));
+
+    return std::make_unique<GaussianPulseBodyForce>(
+        origin, 
+        sigma,
+        end_time
+    );
   
 };
 

@@ -57,7 +57,7 @@ struct MaterialModelBaseConfig
   std::vector<unsigned int> param_grid_resolution = {4, 30, 30};
   std::vector<unsigned int> state_grid_resolution = {4, 30, 30};
 
-  BodyForceType body_force_type = BodyForceType::CenterExcite;
+  BodyForceType body_force_type = BodyForceType::SharpPulse;
   BodyForceHyperparameter body_force_hyperparameter = {};
 
   BoundaryConditionType BC_type = BoundaryConditionType::DirichletOnYandZ;

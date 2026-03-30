@@ -71,58 +71,85 @@ set_defaults({
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
-    p1 = (-0.1, -15.0, -15.0)
-    p2 = ( 0.1,  15.0,  15.0)
+    p1 = ( 0.0, 0.0, 0.0)
+    p2 = ( 0.005, 0.3, 0.3)
+
+    # p1 = ( -0.1,-15.0,-15.0)
+    # p2 = (  0.1, 15.0, 15.0)
+
+    center = (
+        p1[0],
+        p1[1] + (p2[1] - p1[1]) / 2,
+        p1[2] + (p2[2] - p1[2]) / 2        
+    )
 
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
+    # state_y_res = 10
+    # state_z_res = 10
+
+    state_x_res = 4
     state_y_res = 60
     state_z_res = 60
 
-    # state_y_res = 60
-    # state_z_res = 60
+    h_x = (p2[0] - p1[0]) / state_x_res
+    h_y = (p2[1] - p1[1]) / state_y_res
+    h_z = (p2[2] - p1[2]) / state_z_res
+    h = np.min([h_x, h_y, h_z]) 
 
+    param_x_res = state_x_res
     param_y_res = state_y_res
     param_z_res = state_z_res
 
     par_dim = (param_y_res + 1) * (param_z_res + 1) 
+
+    #################################################
+    # Set:
+    # 1 PU = 10^9 GPa
+    # 1 LU = 1m
+    # 1 DU = 10^3 kg m^{-3}
+    # Derived
+    # 1 TU = 10^-3s
+    #################################################
+
     T_initial = 0
-
-    
-    T_final = 16.0
-    nt = 64
-
+    # delta_t = 0.125 * h
+    T_final = 0.23
+    nt = 100
     delta_t = (T_final - T_initial) / nt
-    
-    rho_hat = 2.71
 
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    half_size = 1
-    q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    add_constant_patch_coords(q_exact, 
-                              center_coords=( 5.0,  0.0), 
-                              value=3.0, 
-                              half_size=half_size,
-                              y_bounds=y_bounds, 
-                              z_bounds=z_bounds)
-
+    # half_size = 1
+    # q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     # add_constant_patch_coords(q_exact, 
-    #                           center_coords=( 11.0,  -5.0), 
+    #                           center_coords=( 5.0,  0.0), 
     #                           value=3.0, 
     #                           half_size=half_size,
     #                           y_bounds=y_bounds, 
     #                           z_bounds=z_bounds)
+    
+    # add_constant_patch_coords(q_exact, 
+    #                           center_coords=(-9.0, -1.0), 
+    #                           value=2.0, 
+    #                           half_size=half_size,
+    #                           y_bounds=y_bounds, 
+    #                           z_bounds=z_bounds)
 
-    add_constant_patch_coords(q_exact, 
-                              center_coords=(-9.0, -1.0), 
-                              value=2.0, 
-                              half_size=half_size,
-                              y_bounds=y_bounds, 
-                              z_bounds=z_bounds)
+
+
+    q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
+    add_constant_rect_patch_from_corners_coords(
+        q_exact,
+        tl_coords = (0.06, 0.06),
+        br_coords = (0.06 + 0.18, 0.06 + 0.042),
+        value = 0.5,
+        y_bounds=y_bounds,
+        z_bounds=z_bounds
+    )
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
@@ -133,8 +160,10 @@ def main():
     bounds[:,0] = 1e-20
     bounds[:,1] = 1e20
 
-    state_grid_resolution = [4,state_y_res,state_z_res]
-    param_grid_resolution = [4,param_y_res,param_z_res]
+    state_grid_resolution = [state_x_res,state_y_res,state_z_res]
+    param_grid_resolution = [param_x_res,param_y_res,param_z_res]
+
+    rho_hat = 2.70
 
     setup = {
         'p1' : p1,
@@ -142,22 +171,27 @@ def main():
         'param_grid_resolution' : param_grid_resolution,
         'state_grid_resolution' : state_grid_resolution,
         'body_force' : {
-            'type' : mm.BodyForceType.CenterExcite,
+            'type' : mm.BodyForceType.WavePulse,
             'hyperparameter' : {
-                'end_time' : 0.5,
-                'factor' : (1.0 / rho_hat)
+                'origin' : center,
+                'end_time' : 4 * 1e-5, # physical time
+                'factor' : 1 / rho_hat,
+                'time_scaling_factor' : 1e-3
             }
         },
+        # 'body_force' : {
+        #     'type' : mm.BodyForceType.SharpPulse,
+        #     'hyperparameter' : {
+        #         'origin' : center,
+        #         'end_time' : 0.05, # physical time
+        #         'factor' : 1 / rho_hat,
+        #     }
+        # },
         'stored_energy' : {
             'type' : hm.StoredEnergyFunctionType.Hookean,
-            #'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                # 'mu' : 26.32, 
-                # 'kappa' : 68.60
-                'mu' : (5.6 / rho_hat), 
-                'lambda' : (10.9 / rho_hat),
-                # 'mu' : 4 * 4.15,
-                # 'lambda' : 4 * 8.07
+                'mu' : (11.2 / rho_hat), 
+                'lambda' : (21.8 / rho_hat),
             }
         },
         'boundary_condition' : {
@@ -165,16 +199,20 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,
-            #'type': mm.ObservationOperatorType.SensorsGrid,
-            'hyperparameter' : {
-                'spatial_resolution' : state_grid_resolution,
-                'radius' : 0.001,
-                'second_row' : False 
-                # 'radius' : 0.001,
-                # 'grid_sizes' : [2,8,8]
-            }
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'hyperparameter' : {},
+            # 'type': mm.ObservationOperatorType.Sensors,
+            # 'hyperparameter' : {
+            #     'p1' : p1,
+            #     'p2' : p2,
+            #     'sensor_patch_size' : (0.24, 0.24),
+            #     'sensor_spacing' : 0.01,
+            #     'at_top' : True,
+            #     'at_bottom' : False,
+            #     'sensor_patch_center_offset' : (0.0, 0.0),
+            #     'x_face_offset' : 0.00,
+            #     'radius' : 0.001,   
+            # }
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps
@@ -184,7 +222,7 @@ def main():
         },
         'products': {                                 # Inner products used in the problem
             'prod_H': 'l2',                           # Product on H_h
-            'prod_Q': 'l2',                      # Product on Q_h
+            'prod_Q': 'euclid',                      # Product on Q_h
             #'prod_Q': 'h1',                           # Product on Q_h
             #'prod_V': 'h1_0_semi',                    # Product on V_h
             'prod_V': 'h1',                           # Product on V_h
@@ -248,7 +286,7 @@ def main():
 
     FOM = build_HyperElasticityModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
-    q_start = q_circ
+    q_start =  q_circ
 
     # _q_start = FOM.Q.make_array(q_start)
     # print(FOM.compute_objective(_q_start))
@@ -328,6 +366,9 @@ def main():
         str(save_path),
         np.linspace(T_initial, T_final, nt+1)
     )
+
+    # import sys
+    # sys.exit()
 
     # _q_start = FOM.Q.make_array(q_start)
     # _q_exact = FOM.Q.make_array(q_exact)
@@ -424,7 +465,7 @@ def main():
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
             #'abs_grad_tol' : 5 * 1e-9,
-            'abs_grad_tol' : 5 * 1e-11,
+            'abs_grad_tol' : 5 * 1e-13,
             'rel_change_obj_tol' : 1e-4,
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
@@ -439,7 +480,8 @@ def main():
                     'include_krylov_directions' : False,
                     'include_q_exact' : False
                 },
-                'compression' : {
+                'compression' :
+                {
                     'normalize' : True,
                     'HaPOD' : 
                     {
@@ -456,7 +498,8 @@ def main():
                     'include_lin_states' : False,
                     'include_krylov_sensitivites' : False,
                 },
-                'compression' : {
+                'compression' : 
+                {
                     'normalize' : True,
                     'HaPOD' : {
                         'eps': 1e-3,

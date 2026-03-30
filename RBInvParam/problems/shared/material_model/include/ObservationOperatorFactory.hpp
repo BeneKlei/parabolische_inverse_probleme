@@ -39,29 +39,29 @@ template <int dim, typename Number>
 class ObservationOperatorFactory
 {
 public:
-  void assemble_observation(const ObservationOperatorFactoryContext<dim, Number> ctx,
+  void assemble_observation(const ObservationOperatorFactoryContext<dim, Number>& ctx,
                             dealii::SparseMatrix<Number>& observation_operator_matrix,
                             dealii::SparsityPattern& observation_operator_sp) const;
 
-  void assemble_identity_observation(const ObservationOperatorFactoryContext<dim, Number> ctx,
+  void assemble_identity_observation(const ObservationOperatorFactoryContext<dim, Number>& ctx,
                                      dealii::SparseMatrix<Number>& observation_operator_matrix,
                                      dealii::SparsityPattern& observation_operator_sp) const;
 
-  void assemble_boundary_observation(const ObservationOperatorFactoryContext<dim, Number> ctx,
+  void assemble_boundary_observation(const ObservationOperatorFactoryContext<dim, Number>& ctx,
                                      dealii::SparseMatrix<Number>& observation_operator_matrix,
                                      dealii::SparsityPattern& observation_operator_sp) const;
 
-  void assemble_sensors_observation(const ObservationOperatorFactoryContext<dim, Number> ctx,
+  void assemble_sensors_observation(const ObservationOperatorFactoryContext<dim, Number>& ctx,
                                     dealii::SparseMatrix<Number>& observation_operator_matrix,
                                     dealii::SparsityPattern& observation_operator_sp,
                                     std::vector<dealii::Point<dim>> sensor_points) const;
 
   // ---------------------------- utils funcs ----------------------------
   std::vector<dealii::Point<dim>> _get_sensor_edges(
-      const ObservationOperatorFactoryContext<dim, Number> ctx) const;
+      const ObservationOperatorFactoryContext<dim, Number>& ctx) const;
 
   std::vector<dealii::Point<dim>> _get_sensor_grids(
-      const ObservationOperatorFactoryContext<dim, Number> ctx) const;
+      const ObservationOperatorFactoryContext<dim, Number>& ctx) const;
 
 private:
   ProductFactory<dim, Number> m_product_factory{}; // <-- no hardcoded 3

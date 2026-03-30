@@ -27,7 +27,7 @@
 //                          std::vector<Vector<double>> &value_list) const override;
 // };
 
-// class CenterExciteBodyForce : public BodyForce
+// class SharpPulseBodyForce : public BodyForce
 // {
 // public:
 //   void vector_value(const Point<3> &p,
@@ -36,7 +36,7 @@
 
 
 
-// class GaussianBodyForce : public BodyForce {
+// class GaussianPulseBodyForce : public BodyForce {
 // public:
 //     const Point<3> &center;
 //     const float width;

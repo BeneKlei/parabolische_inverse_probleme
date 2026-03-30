@@ -33,9 +33,9 @@ typedef std::map<std::string, BodyForceHyperparameterType>  BodyForceHyperparame
 // ---------------------------------------------------------------------------------------------------------------------
 
 enum class BodyForceType {
-    CenterExcite,
-    CenterExciteWave,
-    Gaussian
+    SharpPulse,
+    WavePulse,
+    GaussianPulse
 };
 
 template <int dim, typename Number>
@@ -60,14 +60,16 @@ public:
                          std::vector<Vector<double>> &value_list) const override;
 };
 
-class CenterExciteBodyForce : public BodyForce
+class SharpPulseBodyForce : public BodyForce
 {
 public:
+    const Point<3> origin;
     const double factor;
     const double end_time;
     // Constructor
-    CenterExciteBodyForce(double end_time_, double factor_)
-        : end_time(end_time_)
+    SharpPulseBodyForce(const Point<3> &origin_, double &end_time_, double &factor_)
+        : origin(origin_)
+        , end_time(end_time_)
         , factor(factor_)
         {}
 
@@ -75,29 +77,39 @@ public:
                       Vector<double> &values) const override;
 };
 
-class CenterExciteWaveBodyForce : public BodyForce
+class WavePulseBodyForce : public BodyForce
 {
 public:
+    const Point<3> origin;
     const double factor;
     const double end_time;
+    const double time_scaling_factor;
     // Constructor
-    CenterExciteWaveBodyForce(double end_time_)
-        : end_time(end_time_)
+    WavePulseBodyForce(
+        const Point<3> &origin_, 
+        double &end_time_, 
+        double &factor_,
+        double &time_scaling_factor_
+    )
+        : origin(origin_)
+        , end_time(end_time_)
+        , factor(factor_)
+        , time_scaling_factor(time_scaling_factor_)
         {}
 
     void vector_value(const Point<3> &p,
                       Vector<double> &values) const override;
 };
 
-class GaussianBodyForce : public BodyForce {
+class GaussianPulseBodyForce : public BodyForce {
 public:
-    const Point<3> &center;
+    const Point<3> origin;
     const double width;
     const double end_time; 
 
     // Constructor
-    GaussianBodyForce(const Point<3> &center_, double width_, double end_time_)
-        : center(center_)
+    GaussianPulseBodyForce(const Point<3> &origin_, double &width_, double &end_time_)
+        : origin(origin_)
         , width(width_) 
         , end_time(end_time_)
         {}
@@ -117,15 +129,15 @@ public:
         const BodyForceFactoryContext<dim, Number>& ctx
     ) const;
 
-    std::unique_ptr<BodyForce> assemble_center_excite_body_force(
+    std::unique_ptr<BodyForce> assemble_sharp_pulse_body_force(
         const BodyForceFactoryContext<dim, Number>& ctx
     ) const;
 
-    std::unique_ptr<BodyForce> assemble_center_excite_wave_body_force(
+    std::unique_ptr<BodyForce> assemble_wave_pulse_body_force(
         const BodyForceFactoryContext<dim, Number>& ctx
     ) const;
 
-    std::unique_ptr<BodyForce> assemble_gaussian_body_force(
+    std::unique_ptr<BodyForce> assemble_gaussian_pulse_body_force(
         const BodyForceFactoryContext<dim, Number>& ctx
     ) const;
 
