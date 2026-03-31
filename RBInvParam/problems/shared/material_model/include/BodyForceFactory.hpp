@@ -66,11 +66,17 @@ public:
     const Point<3> origin;
     const double factor;
     const double end_time;
+    const double width;
     // Constructor
-    SharpPulseBodyForce(const Point<3> &origin_, double &end_time_, double &factor_)
+    SharpPulseBodyForce(const Point<3> &origin_, 
+                        double &end_time_, 
+                        double &factor_,
+                        double &width_
+                    )
         : origin(origin_)
         , end_time(end_time_)
         , factor(factor_)
+        , width(width_)
         {}
 
     void vector_value(const Point<3> &p,

@@ -233,7 +233,7 @@ class SnapshotPreprocessor(BasicObject):
         if need_linearized:
             if q is None or u is None or use_cached_operators is None:
                 raise ValueError("q, u, use_cached_operators required for linearized quantities")
-            lin_u, lin_p = self._compute_linearized_quantities(q, u, use_cached_operators)
+            lin_u, lin_p = self._compute_linearized_states(q, u, use_cached_operators)
 
         nabla_lin_J = time_steps_nabla_lin_J = None
         if include_lin_grad or include_each_lin:

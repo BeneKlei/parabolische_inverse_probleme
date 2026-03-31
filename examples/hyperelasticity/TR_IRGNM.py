@@ -74,11 +74,18 @@ def main():
     p1 = (-0.1, -15.0, -15.0)
     p2 = ( 0.1,  15.0,  15.0)
 
+    center = (
+        p1[0],
+        p1[1] + (p2[1] - p1[1]) / 2,
+        p1[2] + (p2[2] - p1[2]) / 2        
+    )
+
+
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 60
-    state_z_res = 60
+    state_y_res = 30
+    state_z_res = 30
 
     # state_y_res = 60
     # state_z_res = 60
@@ -103,21 +110,15 @@ def main():
     
     half_size = 1
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    add_constant_patch_coords(q_exact, 
+    add_constant_square_patch_from_center_coords(q_exact, 
                               center_coords=( 5.0,  0.0), 
                               value=3.0, 
                               half_size=half_size,
                               y_bounds=y_bounds, 
                               z_bounds=z_bounds)
 
-    # add_constant_patch_coords(q_exact, 
-    #                           center_coords=( 11.0,  -5.0), 
-    #                           value=3.0, 
-    #                           half_size=half_size,
-    #                           y_bounds=y_bounds, 
-    #                           z_bounds=z_bounds)
 
-    add_constant_patch_coords(q_exact, 
+    add_constant_square_patch_from_center_coords(q_exact, 
                               center_coords=(-9.0, -1.0), 
                               value=2.0, 
                               half_size=half_size,
@@ -142,10 +143,12 @@ def main():
         'param_grid_resolution' : param_grid_resolution,
         'state_grid_resolution' : state_grid_resolution,
         'body_force' : {
-            'type' : mm.BodyForceType.CenterExcite,
+            'type' : mm.BodyForceType.SharpPulse,
             'hyperparameter' : {
+                'origin' : center,
                 'end_time' : 0.5,
-                'factor' : (1.0 / rho_hat)
+                'factor' : (1.0 / rho_hat),
+                'width' : 1.00
             }
         },
         'stored_energy' : {
@@ -165,16 +168,31 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            # 'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            # 'hyperparameter' : {},
             'type': mm.ObservationOperatorType.Sensors,
-            #'type': mm.ObservationOperatorType.SensorsGrid,
             'hyperparameter' : {
-                'spatial_resolution' : state_grid_resolution,
-                'radius' : 0.001,
-                'second_row' : False 
-                # 'radius' : 0.001,
-                # 'grid_sizes' : [2,8,8]
+                'p1' : p1,
+                'p2' : p2,
+                'sensor_patch_size' : (28.0, 28.0),
+                'sensor_spacing' : 1.0,
+                'at_top' : True,
+                'at_bottom' : False,
+                'sensor_patch_center_offset' : (0.0, 0.0),
+                'x_face_offset' : 0.00,
+                'radius' : 0.001,  
+                'boundary_mass_matrix' : False,
             }
+
+            # 'type': mm.ObservationOperatorType.Sensors,
+            # #'type': mm.ObservationOperatorType.SensorsGrid,
+            # 'hyperparameter' : {
+            #     'spatial_resolution' : state_grid_resolution,
+            #     'radius' : 0.001,
+            #     'second_row' : False 
+            #     # 'radius' : 0.001,
+            #     # 'grid_sizes' : [2,8,8]
+            # }
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps
@@ -352,8 +370,7 @@ def main():
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
         'tau': 2.0,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'noise_level': None,
-        #setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
+        'noise_level': setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         #'Theta': 1.50,                                               # Upper bound for step acceptance condition
@@ -456,16 +473,17 @@ def main():
                     'include_lin_states' : False,
                     'include_krylov_sensitivites' : False,
                 },
-                'compression' : {
-                    'normalize' : True,
-                    'HaPOD' : {
-                        'eps': 1e-3,
-                        'omega' : 0.1,
-                    },
-                    'every_n' : None,
-                    # 'normalize' : None,
-                    # 'HaPOD' : None,
-                },
+                'compression' : None,
+                # {
+                #     'normalize' : True,
+                #     'HaPOD' : {
+                #         'eps': 1e-3,
+                #         'omega' : 0.1,
+                #     },
+                #     'every_n' : None,
+                #     # 'normalize' : None,
+                #     # 'HaPOD' : None,
+                # },
                 'coarsing' : None,
                 # 'coarsing' : {
                 #     'rel_tol_coeff_u' : 1e-2,

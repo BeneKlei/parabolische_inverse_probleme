@@ -38,9 +38,9 @@ void SharpPulseBodyForce::vector_value(const Point<3> &p, Vector<double> &values
     fx = 1;
 
     // ---------------------- fy ----------------------
-    if (yy <= 1) {
+    if (yy <= width) {
         if (yy <= 0) {
-            if (yy <= -1) {
+            if (yy <= -width) {
                 fy = 0;
             } else {
                 fy = yy + 1;
@@ -53,9 +53,9 @@ void SharpPulseBodyForce::vector_value(const Point<3> &p, Vector<double> &values
     }
 
     // ---------------------- fz ----------------------
-    if (zz <= 1) {
+    if (zz <= width) {
         if (zz <= 0) {
-            if (zz <= -1) {
+            if (zz <= -width) {
                 fz = 0;
             } else {
                 fz = zz + 1;
@@ -186,10 +186,12 @@ std::unique_ptr<BodyForce> BodyForceFactory<dim, Number>::assemble_sharp_pulse_b
 
     double end_time = std::get<double>(ctx.hyperparameter.at("end_time"));
     double factor = std::get<double>(ctx.hyperparameter.at("factor"));
+    double width = std::get<double>(ctx.hyperparameter.at("width"));
     return std::make_unique<SharpPulseBodyForce>(
         origin,
         end_time,
-        factor
+        factor,
+        width
     );
 };
 

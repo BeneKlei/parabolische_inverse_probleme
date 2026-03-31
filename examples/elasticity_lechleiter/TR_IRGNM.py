@@ -73,6 +73,7 @@ set_defaults({
 def main():
     p1 = ( 0.0, 0.0, 0.0)
     p2 = ( 0.005, 0.3, 0.3)
+    
 
     # p1 = ( -0.1,-15.0,-15.0)
     # p2 = (  0.1, 15.0, 15.0)
@@ -90,8 +91,8 @@ def main():
     # state_z_res = 10
 
     state_x_res = 4
-    state_y_res = 60
-    state_z_res = 60
+    state_y_res = 10
+    state_z_res = 10
 
     h_x = (p2[0] - p1[0]) / state_x_res
     h_y = (p2[1] - p1[1]) / state_y_res
@@ -115,32 +116,42 @@ def main():
 
     T_initial = 0
     # delta_t = 0.125 * h
+    # T_final = 0.23
+    # nt = 1 * 100
+
+    #T_final = 0.23
     T_final = 0.23
     nt = 100
+    
     delta_t = (T_final - T_initial) / nt
 
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    # half_size = 1
-    # q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    # add_constant_patch_coords(q_exact, 
-    #                           center_coords=( 5.0,  0.0), 
-    #                           value=3.0, 
-    #                           half_size=half_size,
-    #                           y_bounds=y_bounds, 
-    #                           z_bounds=z_bounds)
+    half_size = 1
+    #q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
+    # add_constant_square_patch_from_center_coords(q_exact, 
+    #                                              center_coords=(0.2,  0.2), 
+    #                                              value=3.0, 
+    #                                              half_size=half_size,
+    #                                              y_bounds=y_bounds, 
+    #                                              z_bounds=z_bounds)
     
-    # add_constant_patch_coords(q_exact, 
-    #                           center_coords=(-9.0, -1.0), 
-    #                           value=2.0, 
-    #                           half_size=half_size,
-    #                           y_bounds=y_bounds, 
-    #                           z_bounds=z_bounds)
+    # add_constant_square_patch_from_center_coords(q_exact, 
+    #                                              center_coords=(0.1, 0.1), 
+    #                                              value=2.0, 
+    #                                              half_size=half_size,
+    #                                              y_bounds=y_bounds, 
+    #                                              z_bounds=z_bounds)
 
 
+    # import matplotlib.pyplot as plt
+    # plt.imshow(q_exact)
+    # plt.show()
 
+    # import sys
+    # sys.exit()
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     add_constant_rect_patch_from_corners_coords(
         q_exact,
@@ -174,7 +185,7 @@ def main():
             'type' : mm.BodyForceType.WavePulse,
             'hyperparameter' : {
                 'origin' : center,
-                'end_time' : 4 * 1e-5, # physical time
+                'end_time' : 4 * 1e-5, # physical time                
                 'factor' : 1 / rho_hat,
                 'time_scaling_factor' : 1e-3
             }
@@ -185,6 +196,7 @@ def main():
         #         'origin' : center,
         #         'end_time' : 0.05, # physical time
         #         'factor' : 1 / rho_hat,
+        #         'width' : 0.01
         #     }
         # },
         'stored_energy' : {
@@ -199,19 +211,33 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            'hyperparameter' : {},
-            # 'type': mm.ObservationOperatorType.Sensors,
+            # 'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            # 'hyperparameter' : {},
+            'type': mm.ObservationOperatorType.Sensors,
+            'hyperparameter' : {
+                'p1' : p1,
+                'p2' : p2,
+                'sensor_patch_size' : (0.24, 0.24),
+                'sensor_spacing' : 0.01,
+                'at_top' : True,
+                'at_bottom' : False,
+                'sensor_patch_center_offset' : (0.0, 0.0),
+                'x_face_offset' : 0.00,
+                'radius' : 0.001,
+                'use_boundary_mass_matrix' : False,
+            },
+            # 'type': mm.ObservationOperatorType.SensorsGrid,
             # 'hyperparameter' : {
             #     'p1' : p1,
             #     'p2' : p2,
             #     'sensor_patch_size' : (0.24, 0.24),
-            #     'sensor_spacing' : 0.01,
+            #     'grid_sizes' : (8.0,8.0),
             #     'at_top' : True,
             #     'at_bottom' : False,
             #     'sensor_patch_center_offset' : (0.0, 0.0),
             #     'x_face_offset' : 0.00,
             #     'radius' : 0.001,   
+            #     'boundary_mass_matrix' : False,
             # }
         },
         'dims' : {
@@ -287,6 +313,10 @@ def main():
     FOM = build_HyperElasticityModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start =  q_circ
+    print(FOM.C.range.dim)
+
+    # import sys
+    # sys.exit()
 
     # _q_start = FOM.Q.make_array(q_start)
     # print(FOM.compute_objective(_q_start))
@@ -334,13 +364,13 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-    p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in p_exact.vectors],
-        str('p_exact'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in p_exact.vectors],
+    #     str('p_exact'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
     u_start = FOM.solve_state(FOM.Q.make_array(q_start))
     FOM.A.hyperelasticity_model.save_time_series(
@@ -351,13 +381,13 @@ def main():
     )
 
 
-    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in p_start.vectors],
-        str('p_start'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in p_start.vectors],
+    #     str('p_start'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
     diff = u_start - u_exact
     FOM.A.hyperelasticity_model.save_time_series(
@@ -388,11 +418,11 @@ def main():
     optimizer_parameter = {
         'method' : 'TR_IRGNM',
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
+        'alpha_0': 1e-7,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'tau': 2.0,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.05,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': None,
         #setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
@@ -401,9 +431,9 @@ def main():
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
-        'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
+        'reg_loop_max': 15,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
-        'i_max_inner': 30,                                           # Max number of inner iterations
+        'i_max_inner': 50,                                           # Max number of inner iterations
         'AGC_armijo_cfg' : {
             "max_iter": 50,
             "initial_step_size": 1.0,
@@ -480,7 +510,7 @@ def main():
                     'include_krylov_directions' : False,
                     'include_q_exact' : False
                 },
-                'compression' :
+                'compression' : 
                 {
                     'normalize' : True,
                     'HaPOD' : 
@@ -498,7 +528,7 @@ def main():
                     'include_lin_states' : False,
                     'include_krylov_sensitivites' : False,
                 },
-                'compression' : 
+                'compression' :
                 {
                     'normalize' : True,
                     'HaPOD' : {

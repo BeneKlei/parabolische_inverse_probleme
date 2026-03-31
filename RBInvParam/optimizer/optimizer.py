@@ -335,6 +335,10 @@ class Optimizer(BasicObject):
             norm_d = model.compute_gradient_norm(previous_q - current_q)
             lhs = previous_J - current_J
             rhs = armijo_cfg.kappa_arm / step_size * norm_d**2
+
+            print(lhs)
+            print(rhs)
+
             if abs(lhs) <= MACHINE_EPS:
                 lhs = 0.0
             if abs(rhs) <= MACHINE_EPS:
@@ -1052,6 +1056,7 @@ class QrVrROMOptimizer(Optimizer):
                     copy_U=False,
                 )
                 self.reductor._check_orthonormality(basis=basis)
+
             except ExtensionError:
                 self._logger.warning(f"No new vectors were added to '{basis}'.")
 
@@ -1196,6 +1201,7 @@ class QrVrROMOptimizer(Optimizer):
             use_cached_operators=opt_cfg.use_cached_operators,
             return_higher_orders=True,
         )
+        
         p_r, p_dot_r = self.QrVrROM.solve_adjoint(
             q_r,
             u_r,
@@ -1227,7 +1233,6 @@ class QrVrROMOptimizer(Optimizer):
 
         abs_est_error_nabla_J_r = OBJ.sanitize_error(errors.get("err_nabla_J", np.nan), name="err_nabla_J")
         rel_est_error_nabla_J_r = OBJ.rel_error(abs_error = abs_est_error_nabla_J_r, objective=norm_nabla_J_r)
-        
 
         self.statistics["q"].append(q)
         self.statistics["eta"].append(self.TR.eta)

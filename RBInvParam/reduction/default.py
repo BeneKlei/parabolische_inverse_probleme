@@ -293,7 +293,7 @@ class DefaultIPReductor(BaseIPReductor):
 
             parameteric_operator, translation_operator = split_constant_and_parameterized_operator(
                 complete_operator=A_r
-            )
+            )            
 
             A = ROMEvaluatorA(
                 source = V,
@@ -394,6 +394,7 @@ class DefaultIPReductor(BaseIPReductor):
             else:
                 projected_initial_data[key] = self.FOM.initial_data[key]
 
+        
         projected_operators = {
             'initial_data' : projected_initial_data,
             'M' : project(self.FOM.M, state_basis, state_basis),
