@@ -28,11 +28,8 @@ center = (
 y_bounds = (p1[1], p2[1])
 z_bounds = (p1[2], p2[2])
 
-state_y_res = 20
-state_z_res = 20
-
-# state_y_res = 60
-# state_z_res = 60
+state_y_res = 60
+state_z_res = 60
 
 param_y_res = state_y_res
 param_z_res = state_z_res
@@ -98,10 +95,12 @@ setup = {
     'param_grid_resolution' : param_grid_resolution,
     'state_grid_resolution' : state_grid_resolution,
     'body_force' : {
-        'type' : mm.BodyForceType.CenterExcite,
+        'type' : mm.BodyForceType.SharpPulse,
         'hyperparameter' : {
+            'origin' : center,
             'end_time' : 0.5,
-            'factor' : (1.0 / rho_hat)
+            'factor' : (1.0 / rho_hat),
+            'width' : 1.00
         }
     },
     'stored_energy' : {
@@ -229,7 +228,7 @@ FOM_optimizer_parameter = {
 TR_optimizer_parameter = {
     'method' : 'TR_IRGNM',
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
-    'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
+    'alpha_0': 1e-7,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
     'tau': tau,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': None,                         # Noise level in observed data (from model setup)
@@ -269,9 +268,9 @@ TR_optimizer_parameter = {
         'type': TRType.RADIUS,
 
         # TR config
-        'eta_initial': parameter_factor * 0.5,        
+        'eta_initial': parameter_factor * 1.0,        
         'eta_min': parameter_factor * 1e-2,
-        'eta_max': parameter_factor * 2.00,
+        'eta_max': parameter_factor * 5.00,
         'beta_1': 0.80,
         'beta_2': 0.80,
         'beta_3': 0.75,

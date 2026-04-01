@@ -950,6 +950,7 @@ class QrVrROMOptimizer(Optimizer):
 
         self.all_snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
         self.snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
+        self.initial_snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
 
         self.statistics = {
             "q" : [],
@@ -1086,6 +1087,15 @@ class QrVrROMOptimizer(Optimizer):
     def _reset_snapshots(self) -> None:
         self.snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
 
+    def add_initial_snapshots(self,
+                              basis: str,
+                              snapshots: VectorArray) -> None:
+        
+        
+        assert isinstance(basis, str)
+        assert basis in self.active_bases
+        self.initial_snapshots[basis].append(snapshots)
+        
     def solve(self) -> VectorArray:
         opt_cfg = TROptimizerCfg.from_dict(self.optimizer_parameter)
 
@@ -1140,6 +1150,9 @@ class QrVrROMOptimizer(Optimizer):
             time_steps_nabla_J = time_steps_nabla_J,
             use_cached_operators = opt_cfg.use_cached_operators
         )
+
+        for basis in self.active_bases:
+            self.snapshots[basis].append(self.initial_snapshots[basis])
 
         self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
             bases=self.active_bases,

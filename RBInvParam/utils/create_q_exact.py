@@ -1,12 +1,7 @@
-import numpy as np
-
-################################# utils #################################
-
-
+from typing import List, Tuple, Optional
 import numpy as np
 
 
-import numpy as np
 
 
 def coord_to_index_1d(x, x_min, x_max, n_intervals, *, clamp=True):
@@ -76,7 +71,6 @@ def add_constant_square_patch_from_center_coords(
     arr[np.ix_(ys, zs)] = value
     return cy, cz
 
-
 def add_constant_rect_patch_from_corners_coords(
     arr,
     tl_coords,
@@ -127,100 +121,104 @@ def add_constant_rect_patch_from_corners_coords(
     arr[y_start:y_end + 1, z_start:z_end + 1] = value
     return (iy_tl, iz_tl), (iy_br, iz_br)
 
-
-
-# def add_constant_patch_coords(arr, center_coords, value, half_size=1, *,
-#                               y_bounds=(-15.0, 15.0), z_bounds=(-15.0, 15.0)):
-#     """
-#     Add a constant-valued square patch to `arr` using a center specified in physical (y,z) coords.
-
-#     Parameters
-#     ----------
-#     arr : 2D array of shape (Ny+1, Nz+1)
-#     center_coords : (y, z) physical coordinates (floats)
-#     value : float
-#     half_size : int
-#         half_size=0 -> 1x1
-#         half_size=1 -> 3x3
-#         ...
-#     y_bounds : (y_min, y_max)
-#     z_bounds : (z_min, z_max)
-#     """
-#     Ny = arr.shape[0] - 1   # number of intervals in y
-#     Nz = arr.shape[1] - 1   # number of intervals in z
-
-#     y0, z0 = center_coords
-#     y_min, y_max = y_bounds
-#     z_min, z_max = z_bounds
-
-#     cy = coord_to_index_1d(y0, y_min, y_max, Ny)
-#     cz = coord_to_index_1d(z0, z_min, z_max, Nz)
-
-#     ys = np.arange(cy - half_size, cy + half_size + 1)
-#     zs = np.arange(cz - half_size, cz + half_size + 1)
-
-#     ys = ys[(ys >= 0) & (ys < arr.shape[0])]
-#     zs = zs[(zs >= 0) & (zs < arr.shape[1])]
-
-#     arr[np.ix_(ys, zs)] = value
-#     return (cy, cz)  # sometimes handy for debugging
-
-def add_gaussian_patch(arr, center, amp, sigma=0.5, half_size=1, bg_level=1):
+def add_constant_rect_patch_from_corners_coords_variations(
+    tl_coords: Tuple[float, float],
+    br_coords: Tuple[float, float],
+    value: float,
+    *,
+    shift_scale: float = 1.0,
+    size_scale: float = 1.0,
+    value_scale: float = 0.1,
+    param_y_res: int = 20,
+    param_z_res: int = 20,
+    y_bounds: Tuple[float, float] = (-15.0, 15.0),
+    z_bounds: Tuple[float, float] = (-15.0, 15.0),
+    n_variations: int = 10,
+    background_value: float = 1.0,
+    parameter_factor: float = 1.0,
+    rng: Optional[np.random.Generator] = None,
+) -> List[np.ndarray]:
     """
-    Add a 2D Gaussian patch to `arr` around `center = (iy, iz)`.
-
-    half_size=1 -> 3x3 patch, half_size=2 -> 5x5, etc.
-    """
-    cy, cz = center
-
-    # define local index window
-    ys = np.arange(cy - half_size, cy + half_size + 1)
-    zs = np.arange(cz - half_size, cz + half_size + 1)
-
-    # clip to array bounds just in case
-    ys = ys[(ys >= 0) & (ys < arr.shape[0])]
-    zs = zs[(zs >= 0) & (zs < arr.shape[1])]
-
-    # create meshgrid of local coordinates
-    Y, Z = np.meshgrid(ys, zs, indexing='ij')
-
-    # squared distance from center (in index space)
-    r2 = (Y - cy)**2 + (Z - cz)**2
-
-    # 2D Gaussian
-    gaussian = bg_level + amp * np.exp(-r2 / (2 * sigma**2))
-
-    # add (or assign) values
-    arr[ys[:, None], zs[None, :]] = gaussian
-
-def add_constant_patch(arr, center, value, half_size=1):
-    """
-    Add a constant-valued square patch to `arr`.
+    Generate a list of q_exact arrays with slight variations of a base
+    rectangular patch.
 
     Parameters
     ----------
-    arr : 2D array
-        The array to modify.
-    center : (iy, iz)
-        Center index of the patch.
+    tl_coords : tuple[float, float]
+        Base top-left (y_top, z_left) coordinates.
+    br_coords : tuple[float, float]
+        Base bottom-right (y_bottom, z_right) coordinates.
     value : float
-        Constant value to assign in the patch.
-    half_size : int
-        half_size=1 → 3x3 patch
-        half_size=2 → 5x5 patch
-        etc.
+        Base patch value.
+    shift_scale : float
+        Max absolute random shift applied independently to y and z.
+    size_scale : float
+        Controls relative patch-size perturbation.
+    value_scale : float
+        Max absolute random perturbation added to `value`.
+    param_y_res : int
+    param_z_res : int
+    y_bounds : tuple[float, float]
+    z_bounds : tuple[float, float]
+    n_variations : int
+    background_value : float
+        Fill value for the array outside the rectangle.
+    rng : np.random.Generator | None
+        Optional RNG for reproducibility.
+
+    Returns
+    -------
+    List[np.ndarray]
+        List of arrays of shape (param_y_res + 1, param_z_res + 1).
     """
-    cy, cz = center
+    if rng is None:
+        rng = np.random.default_rng()
 
-    # index ranges
-    ys = np.arange(cy - half_size, cy + half_size + 1)
-    zs = np.arange(cz - half_size, cz + half_size + 1)
+    q_exact_list: List[np.ndarray] = []
 
-    # clip to valid indices
-    ys = ys[(ys >= 0) & (ys < arr.shape[0])]
-    zs = zs[(zs >= 0) & (zs < arr.shape[1])]
+    base_tl_y, base_tl_z = tl_coords
+    base_br_y, base_br_z = br_coords
 
-    # assign patch
-    arr[np.ix_(ys, zs)] = value
+    base_size_y = base_br_y - base_tl_y
+    base_size_z = base_br_z - base_tl_z
 
-#########################################################################
+    for _ in range(n_variations):
+        q_exact = np.full(
+            (param_y_res + 1, param_z_res + 1),
+            background_value,
+            dtype=float
+        )
+
+        dy = rng.uniform(-shift_scale, shift_scale)
+        dz = rng.uniform(-shift_scale, shift_scale)
+
+        scale_y = 1.0 + rng.uniform(-size_scale, size_scale) * 0.1
+        scale_z = 1.0 + rng.uniform(-size_scale, size_scale) * 0.1
+
+        new_size_y = base_size_y * scale_y
+        new_size_z = base_size_z * scale_z
+
+        tl_y = base_tl_y + dy
+        tl_z = base_tl_z + dz
+
+        br_y = tl_y + new_size_y
+        br_z = tl_z + new_size_z
+
+        patch_value = value + rng.uniform(-value_scale, value_scale)
+
+        add_constant_rect_patch_from_corners_coords(
+            q_exact,
+            tl_coords=(tl_y, tl_z),
+            br_coords=(br_y, br_z),
+            value=value,
+            y_bounds=y_bounds,
+            z_bounds=z_bounds,
+        )
+
+        q_exact = parameter_factor * q_exact
+        q_exact = q_exact.flatten()
+        q_exact = np.array([q_exact])
+
+        q_exact_list.append(q_exact)
+
+    return q_exact_list

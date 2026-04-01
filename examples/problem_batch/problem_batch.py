@@ -1,7 +1,9 @@
 import numpy as np
 import logging
+import copy
 from pathlib import Path
 from datetime import datetime
+from typing import Dict, List
 
 import os
 os.environ["OMP_NUM_THREADS"] = "4"
@@ -38,13 +40,16 @@ from RBInvParam.utils.create_q_exact import *
 #########################################################################################''
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-save_path = Path('./dumps') / (timestamp + '_TR_IRGNM')
-os.mkdir(save_path)
-logfile_path= save_path / 'TR_IRGNM.log'
+save_path = Path("./dumps") / f"{timestamp}_batch_TR_IRGNM"
+save_path.mkdir(parents=True, exist_ok=False)
 
-logger = get_default_logger(logger_name='TR_IRGNM',
-                            logfile_path=logfile_path, 
-                            use_timestemp=False)
+# optional root logger for batch-level messages
+root_logfile_path = save_path / "batch.log"
+logger = get_default_logger(
+    logger_name="batch_TR_IRGNM",
+    logfile_path=root_logfile_path,
+    use_timestemp=False
+)
 logger.setLevel(logging.DEBUG)
 
 #########################################################################################''
@@ -70,6 +75,108 @@ set_defaults({
 # np.set_printoptions(linewidth=np.inf) 
 # np.set_printoptions(threshold=np.inf)  # force full print
 
+def make_optimization_logger(base_name: str, log_dir: Path, idx: int):
+    logfile_path = log_dir / f"optimization_{idx:03d}.log"
+    logger = get_default_logger(
+        logger_name=f"{base_name}_{idx:03d}",
+        logfile_path=logfile_path,
+        use_timestemp=False
+    )
+    logger.setLevel(logging.DEBUG)
+    return logger
+
+def solve_problem_batch(
+    setup : Dict,
+    optimizer_parameter : Dict,
+    q_exacts: List[np.ndarray],
+    q_circ_inital : np.ndarray,
+    batch_save_path: Path,
+    batch_logger,
+    reset_q_circ: bool = True
+) -> List[np.ndarray]:
+
+    q_circ = q_circ_inital.copy()
+    q_ests = []
+
+    batch_logger.info(f"Starting batch solve with {len(q_exacts)} optimization runs.")
+    batch_logger.info(f"Batch root directory: {batch_save_path}")
+
+    
+    for i, q_exact in enumerate(q_exacts):
+        opt_dir = batch_save_path / f"opt_{i:03d}"
+        opt_dir.mkdir(parents=True, exist_ok=True)
+
+        opt_logger = make_optimization_logger("TR_IRGNM_opt", opt_dir, i)
+        opt_logger.info("=" * 80)
+        opt_logger.info(f"Starting optimization {i + 1}/{len(q_exacts)}")
+        opt_logger.info(f"Optimization directory: {opt_dir}")
+
+        local_setup = copy.deepcopy(setup)
+        local_optimizer_parameter = copy.deepcopy(optimizer_parameter)
+
+        local_setup["q_circ"] = q_circ.copy()
+        local_setup["q_exact"] = q_exact
+        local_setup["save_path"] = opt_dir
+
+        # print(local_setup["q_exact"])
+
+        # import matplotlib.pyplot as plt
+        # plt.imshow(local_setup["q_exact"].reshape(31,31))
+        # plt.show()
+
+        # import sys
+        # sys.exit()
+
+        FOM = build_HyperElasticityModelIP(local_setup, opt_logger)
+    
+        save_dict_to_pkl(
+            path=opt_dir / "setup.pkl",
+            data=local_setup,
+            use_timestamp=False
+        )
+
+        local_optimizer_parameter["q_0"] = q_circ.copy()
+        local_optimizer_parameter["noise_level"] = local_setup["noise_info"]["abs_noise_level_y"]
+
+        save_dict_to_pkl(
+            path=opt_dir / "optimizer_parameter.pkl",
+            data=local_optimizer_parameter,
+            use_timestamp=False
+        )
+
+        optimizer = QrVrROMOptimizer(
+            FOM=FOM,
+            optimizer_parameter=local_optimizer_parameter,
+            logger=opt_logger,
+            save_path=opt_dir
+        )
+
+        if len(q_ests) > 0:
+            opt_logger.info("Adding previous estimate as initial parameter-basis snapshot.")
+            optimizer.add_initial_snapshots(
+                basis="parameter_basis",
+                snapshots=FOM.Q.make_array(q_ests[-1])
+            )
+
+        q_est = optimizer.solve()
+        q_est = q_est.to_numpy()
+        q_ests.append(q_est)
+
+        opt_logger.info(f"Finished optimization {i + 1}/{len(q_exacts)}")
+
+        if not reset_q_circ:
+            print(type(q_est))
+            print(q_est)
+            q_circ = q_est.copy()
+            opt_logger.info("Updated q_circ for next run from current q_est.")
+        else:
+            opt_logger.info("Resetting q_circ behavior enabled; keeping original initial q_circ.")
+
+        batch_logger.info(f"Finished optimization {i + 1}/{len(q_exacts)} in {opt_dir}")
+
+    batch_logger.info("Finished all batch optimizations.")
+    return q_ests
+    
 def main():
     p1 = (-0.1, -15.0, -15.0)
     p2 = ( 0.1,  15.0,  15.0)
@@ -83,8 +190,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 20
-    state_z_res = 20
+    state_y_res = 30
+    state_z_res = 30
 
     # state_y_res = 60
     # state_z_res = 60
@@ -110,42 +217,10 @@ def main():
     delta_t = (T_final - T_initial) / nt
     
     rho_hat = 2.70
+    parameter_factor = 10
 
     assert T_final > T_initial
-    q_circ = np.ones((1, par_dim))
-    q_exact = np.ones((1,par_dim))
-    
-    # half_size = 0
-    q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    # add_constant_square_patch_from_center_coords(q_exact, 
-    #                           center_coords=( 5.0,  0.0), 
-    #                           value=3.0, 
-    #                           half_size=half_size,
-    #                           y_bounds=y_bounds, 
-    #                           z_bounds=z_bounds)
-
-
-    # add_constant_square_patch_from_center_coords(q_exact, 
-    #                           center_coords=(-9.0, -1.0), 
-    #                           value=2.0, 
-    #                           half_size=half_size,
-    #                           y_bounds=y_bounds, 
-    #                           z_bounds=z_bounds)
-
-
-    add_constant_rect_patch_from_corners_coords(
-        q_exact,
-        tl_coords = (-10, -10),
-        br_coords = (-10 + 5, -10 + 20),
-        value = 0.5,
-        y_bounds=y_bounds,
-        z_bounds=z_bounds
-    )
-
-    q_exact = 1 * q_exact.flatten()
-    q_exact = np.array([q_exact])
-
-    q_circ[0,:] = 1 * 1.0
+    q_circ = parameter_factor  * np.ones((1, par_dim))
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 1e-20
@@ -153,6 +228,15 @@ def main():
 
     state_grid_resolution = [4,state_y_res,state_z_res]
     param_grid_resolution = [4,param_y_res,param_z_res]
+
+    q_exacts = add_constant_rect_patch_from_corners_coords_variations(
+        tl_coords = (-10, -10),
+        br_coords = (-10 + 5, -10 + 20),
+        value = 0.5,
+        param_y_res = param_y_res,
+        param_z_res = param_z_res,
+        parameter_factor = parameter_factor
+    )
 
     setup = {
         'p1' : p1,
@@ -167,13 +251,6 @@ def main():
                 'factor' : (1.0 / rho_hat),
                 'width' : 1.00
             }
-            # 'type' : mm.BodyForceType.WavePulse,
-            # 'hyperparameter' : {
-            #     'origin' : center,
-            #     'end_time' : 4 * 1e-5, # physical time                
-            #     'factor' : 1 / rho_hat,
-            #     'time_scaling_factor' : 3.33 * 10^-5
-            # }
         },
         'stored_energy' : {
             'type' : hm.StoredEnergyFunctionType.Hookean,
@@ -185,8 +262,8 @@ def main():
                 # 'lambda' : (10.9 / rho_hat),
                 # 'mu' : (5.6 / rho_hat), 
                 # 'lambda' : (10.9 / rho_hat),
-                'mu' : (11.2 / rho_hat), 
-                'lambda' : (21.8 / rho_hat),
+                'mu' : 1/parameter_factor * (11.2 / rho_hat), 
+                'lambda' : 1/parameter_factor *  (21.8 / rho_hat),
                 # 'mu' : 4 * 4.15,
                 # 'lambda' : 4 * 8.07
             }
@@ -196,31 +273,21 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            'hyperparameter' : {},
-            # 'type': mm.ObservationOperatorType.Sensors,
-            # 'hyperparameter' : {
-            #     'p1' : p1,
-            #     'p2' : p2,
-            #     'sensor_patch_size' : (28.0, 28.0),
-            #     'sensor_spacing' : 1.0,
-            #     'at_top' : True,
-            #     'at_bottom' : False,
-            #     'sensor_patch_center_offset' : (0.0, 0.0),
-            #     'x_face_offset' : 0.00,
-            #     'radius' : 0.001,  
-            #     'use_boundary_mass_matrix' : True,
-            # }
-
-            # 'type': mm.ObservationOperatorType.Sensors,
-            # #'type': mm.ObservationOperatorType.SensorsGrid,
-            # 'hyperparameter' : {
-            #     'spatial_resolution' : state_grid_resolution,
-            #     'radius' : 0.001,
-            #     'second_row' : False 
-            #     # 'radius' : 0.001,
-            #     # 'grid_sizes' : [2,8,8]
-            # }
+            # 'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            # 'hyperparameter' : {},
+            'type': mm.ObservationOperatorType.Sensors,
+            'hyperparameter' : {
+                'p1' : p1,
+                'p2' : p2,
+                'sensor_patch_size' : (28.0, 28.0),
+                'sensor_spacing' : 1.0,
+                'at_top' : True,
+                'at_bottom' : False,
+                'sensor_patch_center_offset' : (0.0, 0.0),
+                'x_face_offset' : 0.00,
+                'radius' : 0.001,  
+                'use_boundary_mass_matrix' : True,
+            }
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps
@@ -230,31 +297,24 @@ def main():
         },
         'products': {                                 # Inner products used in the problem
             'prod_H': 'l2',                           # Product on H_h
-            'prod_Q': 'l2',                      # Product on Q_h
-            #'prod_Q': 'h1',                           # Product on Q_h
-            #'prod_V': 'h1_0_semi',                    # Product on V_h
-            'prod_V': 'h1',                           # Product on V_h
-            #'prod_C': 'state_l2',                       # Product on C_h
+            'prod_Q': 'euclid',                      # Product on Q_h
+            'prod_V': 'h1',                           # Product on V_h            
             'prod_C': 'euclid',                       # Product on C_h
         },
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        #'noise_level': 5 * 1e-4,                      # Absolute noise magnitude added to data
-        #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
-        #'noise_level': 0,                      # Absolute noise magnitude added to data
         'noise_info' : {
             'noise_level_input' : 1.0 * 1e-2,
-            #'noise_level_input' : 0.0,
             'noise_level_mode' : 'rel',
             'abs_noise_level_y' : None,
             'rel_noise_level_y' : None,
             'y_norm' : None,
         },
-        'q_circ': q_circ,                             # Backgroundlevel for the parameter
+        'q_circ': None,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
-        'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
+        'q_exact': None,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
         'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
         'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
         'riesz_rep_hess': False,                       
@@ -291,121 +351,23 @@ def main():
         }
     }
 
-
-    FOM = build_HyperElasticityModelIP(setup, logger)
-    q_exact = FOM.setup['q_exact']
-    q_start = q_circ
-
-    # _q_start = FOM.Q.make_array(q_start)
-    # print(FOM.compute_objective(_q_start))
-
-    # for i in range(8):
-    #     q_exact = np.ones((1,par_dim))
-    #     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    #     q_exact[:, i:8] = 2.0
-    #     q_exact = q_exact.flatten()
-    #     q_exact = np.array([q_exact])    
-
-    # #print(q_exact)
-
-    #     _q_exact = FOM.Q.make_array(q_exact)
-    #     print(FOM.compute_objective(_q_exact))
-    # import sys
-    # sys.exit()
-
-    # q_exact = np.ones((1,par_dim))
-    # _q_exact = FOM.Q.make_array(q_exact)
-    # print(FOM.compute_objective(_q_exact))
-
-    # q_exact = 2 * np.ones((1,par_dim))
-    # _q_circ = FOM.Q.make_array(q_circ)
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[0]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[1]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[2]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[3]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[4]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[5]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[6]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[7]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[8]))
-    # print("------------------------------")
-    # print(FOM.compute_objective(_q_circ))
-
-    # import sys
-    # sys.exit()
-
-    u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in u_exact.vectors],
-        str('u_exact'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
-
-    p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in p_exact.vectors],
-        str('p_exact'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
-
-    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in u_start.vectors],
-        str('u_start'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
-
-
-    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in p_start.vectors],
-        str('p_start'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
-
-    diff = u_start - u_exact
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in diff.vectors],
-        str('diff'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
-
-    # _q_start = FOM.Q.make_array(q_start)
-    # _q_exact = FOM.Q.make_array(q_exact)
-    # J = FOM.compute_objective(_q_start)
-    
-    # print(FOM.compute_objective(_q_start))
-    # print(FOM.compute_objective(_q_exact))
-    # _d = FOM.Q.zeros()
-    # print(FOM.compute_linearized_objective(_q_start, _d, 0.0))
-    # print(FOM.compute_linearized_objective(_q_exact, _d, 0.0))
-    # print(np.sqrt(2 * J))
-
-    # print(FOM.compute_gradient(_q_start))
-    # print(FOM.compute_gradient(_q_exact))
-
-
     optimizer_parameter = {
         'method' : 'TR_IRGNM',
-        'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
+        'q_0': None,                                              # Initial guess for the parameter to be optimized
+        'alpha_0': 1e-7,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
         'tau': 2.0,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'noise_level': setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
+        #'noise_level': setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
+        'noise_level': None,
         'theta': 0.40,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         #'Theta': 1.50,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
-        'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
+        'reg_loop_max': 15,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
         'AGC_armijo_cfg' : {
@@ -424,11 +386,9 @@ def main():
             'type': TRType.RADIUS,
 
             # TR config
-            'eta_initial': 1.00,
-            #'eta_initial': 1.00,
-            'eta_min': 1e-5,
-            #'eta_max': 5.00,
-            'eta_max': 5.00,
+            'eta_initial': parameter_factor * 5.00,
+            'eta_min': parameter_factor * 1e-5,
+            'eta_max': parameter_factor * 10.00,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
@@ -479,12 +439,12 @@ def main():
             'parameter_basis' : {
                 'additional_snapshots' :{
                     'include_lin_grad' : False,
-                    'include_each_nabla_J_time_step' : True,
+                    'include_each_nabla_J_time_step' : False,
                     'include_each_nabla_lin_J_time_step' : False,
                     'include_krylov_directions' : False,
                     'include_q_exact' : False
                 },
-                'compression' : 
+                'compression' :
                 {
                     'normalize' : True,
                     'HaPOD' : 
@@ -496,23 +456,23 @@ def main():
                 },
                 'coarsing' : None,
             },
-            'state_basis' : 
+            'state_basis' :
             {
                 'additional_snapshots' :{
                     'include_lin_states' : False,
                     'include_krylov_sensitivites' : False,
                 },
-                'compression' : None,
-                # {
-                #     'normalize' : True,
-                #     'HaPOD' : {
-                #         'eps': 1e-3,
-                #         'omega' : 0.1,
-                #     },
-                #     'every_n' : None,
-                #     # 'normalize' : None,
-                #     # 'HaPOD' : None,
-                # },
+                'compression' : 
+                {
+                    'normalize' : True,
+                    'HaPOD' : {
+                        'eps': 1e-3,
+                        'omega' : 0.1,
+                    },
+                    'every_n' : None,
+                    # 'normalize' : None,
+                    # 'HaPOD' : None,
+                },
                 'coarsing' : None,
                 # 'coarsing' : {
                 #     'rel_tol_coeff_u' : 1e-2,
@@ -526,27 +486,15 @@ def main():
         },        
     }
 
-
-
-    logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
-    save_dict_to_pkl(path=save_path / 'setup.pkl', 
-                     data = setup,
-                     use_timestamp=False)
-        
-    logger.info(f"Dumping model optimizer_parameter to {save_path / 'optimizer_parameter.pkl'}.")
-    save_dict_to_pkl(path=save_path / 'optimizer_parameter.pkl', 
-                        data = optimizer_parameter,
-                        use_timestamp=False)
-
-    optimizer = QrVrROMOptimizer(
-        FOM = FOM,
-        optimizer_parameter = optimizer_parameter,
-        logger = logger,
-        save_path=save_path
+    q_ests = solve_problem_batch(
+        setup=setup,
+        optimizer_parameter=optimizer_parameter,
+        q_exacts=q_exacts,
+        q_circ_inital=q_circ,
+        batch_save_path=save_path,
+        batch_logger=logger,
+        reset_q_circ=True
     )
-    q_est = optimizer.solve()
-   
-
 
 if __name__ == '__main__':
     main()
