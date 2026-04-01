@@ -91,8 +91,8 @@ def main():
     # state_z_res = 10
 
     state_x_res = 4
-    state_y_res = 10
-    state_z_res = 10
+    state_y_res = 30
+    state_z_res = 30
 
     h_x = (p2[0] - p1[0]) / state_x_res
     h_y = (p2[1] - p1[1]) / state_y_res
@@ -120,7 +120,7 @@ def main():
     # nt = 1 * 100
 
     #T_final = 0.23
-    T_final = 0.23
+    T_final = 0.05
     nt = 100
     
     delta_t = (T_final - T_initial) / nt
@@ -157,10 +157,30 @@ def main():
         q_exact,
         tl_coords = (0.06, 0.06),
         br_coords = (0.06 + 0.18, 0.06 + 0.042),
-        value = 0.5,
+        value = 0.01,
         y_bounds=y_bounds,
         z_bounds=z_bounds
     )
+
+
+    # q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
+    # add_constant_rect_patch_from_corners_coords(
+    #     q_exact,
+    #     tl_coords = (0.06, 0.06),
+    #     br_coords = (0.06 + 0.042, 0.06 + 0.042),
+    #     value = 0.5,
+    #     y_bounds=y_bounds,
+    #     z_bounds=z_bounds
+    # )
+
+    # add_constant_rect_patch_from_corners_coords(
+    #     q_exact,
+    #     tl_coords = (0.21, 0.21),
+    #     br_coords = (0.21 + 0.042, 0.21 + 0.042),
+    #     value = 0.2,
+    #     y_bounds=y_bounds,
+    #     z_bounds=z_bounds
+    # )
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
@@ -186,7 +206,7 @@ def main():
             'hyperparameter' : {
                 'origin' : center,
                 'end_time' : 4 * 1e-5, # physical time                
-                'factor' : 1 / rho_hat,
+                'factor' : 100 / rho_hat,
                 'time_scaling_factor' : 1e-3
             }
         },
@@ -204,6 +224,9 @@ def main():
             'hyperparameter' : {
                 'mu' : (11.2 / rho_hat), 
                 'lambda' : (21.8 / rho_hat),
+
+                # 'mu' : 0.01 * (11.2 / rho_hat), 
+                # 'lambda' : 0.01 * (21.8 / rho_hat),
             }
         },
         'boundary_condition' : {
@@ -211,21 +234,21 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            # 'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            # 'hyperparameter' : {},
-            'type': mm.ObservationOperatorType.Sensors,
-            'hyperparameter' : {
-                'p1' : p1,
-                'p2' : p2,
-                'sensor_patch_size' : (0.24, 0.24),
-                'sensor_spacing' : 0.01,
-                'at_top' : True,
-                'at_bottom' : False,
-                'sensor_patch_center_offset' : (0.0, 0.0),
-                'x_face_offset' : 0.00,
-                'radius' : 0.001,
-                'use_boundary_mass_matrix' : False,
-            },
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'hyperparameter' : {},
+            # 'type': mm.ObservationOperatorType.Sensors,
+            # 'hyperparameter' : {
+            #     'p1' : p1,
+            #     'p2' : p2,
+            #     'sensor_patch_size' : (0.24, 0.24),
+            #     'sensor_spacing' : 0.01,
+            #     'at_top' : True,
+            #     'at_bottom' : False,
+            #     'sensor_patch_center_offset' : (0.0, 0.0),
+            #     'x_face_offset' : 0.00,
+            #     'radius' : 0.001,
+            #     'use_boundary_mass_matrix' : False,
+            # },
             # 'type': mm.ObservationOperatorType.SensorsGrid,
             # 'hyperparameter' : {
             #     'p1' : p1,
@@ -400,6 +423,9 @@ def main():
     # import sys
     # sys.exit()
 
+    # import sys
+    # sys.exit()
+
     # _q_start = FOM.Q.make_array(q_start)
     # _q_exact = FOM.Q.make_array(q_exact)
     # J = FOM.compute_objective(_q_start)
@@ -418,7 +444,7 @@ def main():
     optimizer_parameter = {
         'method' : 'TR_IRGNM',
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-7,                                              # Initial regularization parameter (data fidelity vs. regularization)
+        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
@@ -433,7 +459,7 @@ def main():
         'i_max': 250,                                                 # Max number of outer optimization iterations
         'reg_loop_max': 15,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
-        'i_max_inner': 50,                                           # Max number of inner iterations
+        'i_max_inner': 100,                                           # Max number of inner iterations
         'AGC_armijo_cfg' : {
             "max_iter": 50,
             "initial_step_size": 1.0,
@@ -450,11 +476,11 @@ def main():
             'type': TRType.RADIUS,
 
             # TR config
-            'eta_initial': 0.50,
+            'eta_initial': 1.00,
             #'eta_initial': 1.00,
             'eta_min': 1e-5,
             #'eta_max': 5.00,
-            'eta_max': 2.00,
+            'eta_max': 5.00,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,

@@ -866,6 +866,7 @@ class InstationaryModelIP(ImmutableObject):
             # add regularization term if alpha >0
             # -out)
             # print(alpha * self.regularization_term(q))
+
             return out + alpha * self.regularization_term(q)
         else:
             return out

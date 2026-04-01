@@ -1762,10 +1762,38 @@ class QrVrROMOptimizer(Optimizer):
 
                     # (keep your existing coarsing blocks here as-is; omitted in your snippet refactor scope)
 
+                    # self.reductor.delete_cached_operators()
+                    # self.reductor._cached_operators = {
+                    #     "A": None,
+                    #     "A_r_state": None,
+                    #     "A_r_adjoint": None,
+                    #     "A_r_adjoint_state": None,
+                    # }
+                    # self.reductor.bases["parameter_basis"] = self.FOM.Q.empty()
+                    # self.reductor.bases["state_basis"] = self.FOM.V.empty()
+                    
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.active_bases,
                         enrichment=opt_cfg.enrichment,
                     )
+
+                    # self._reset_snapshots()
+                    # self.snapshots['parameter_basis'].append(q)
+                    # self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
+
+                    # self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                    #     bases=["parameter_basis"],
+                    #     enrichment=opt_cfg.enrichment,
+                    #     compression_override={
+                    #         "parameter_basis": {
+                    #             "normalize": True,
+                    #             "HaPOD": None,
+                    #             "every_n": None,
+                    #         }
+                    #     },
+                    # )
+
+
                     self.last_update_q = self.reductor.project_vectorarray(q.copy(), "parameter_basis")
                     self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
 

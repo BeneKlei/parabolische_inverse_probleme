@@ -109,7 +109,6 @@ class DefaultIPReductor(BaseIPReductor):
         self._cached_operators['A'] = LincombOperator(operators, coefficients)
         return self._cached_operators['A']
     
-
     def linearize_A(self,
                     parameter_reduced_A: LincombOperator) -> LincombOperator:
         assert isinstance(parameter_reduced_A, LincombOperator)
