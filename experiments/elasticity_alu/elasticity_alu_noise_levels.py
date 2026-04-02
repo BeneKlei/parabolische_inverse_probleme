@@ -50,7 +50,7 @@ T_final = 16.0
 nt = 64
 delta_t = (T_final - T_initial) / nt
 
-rho_hat = 2.71
+rho_hat = 2.70
 
 assert T_final > T_initial
 q_circ = np.ones((1, par_dim))

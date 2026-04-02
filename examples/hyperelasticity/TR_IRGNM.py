@@ -105,7 +105,7 @@ def main():
 
     T_initial = 0    
     T_final = 16.0
-    nt = 32
+    nt = 64
 
     delta_t = (T_final - T_initial) / nt
     
@@ -115,32 +115,32 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    half_size = 1
+    half_size = 0
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    # add_constant_square_patch_from_center_coords(q_exact, 
-    #                           center_coords=( 5.0,  0.0), 
-    #                           value=3.0, 
-    #                           half_size=half_size,
-    #                           y_bounds=y_bounds, 
-    #                           z_bounds=z_bounds)
+    add_constant_square_patch_from_center_coords(q_exact, 
+                              center_coords=( 5.0,  0.0), 
+                              value=3.0, 
+                              half_size=half_size,
+                              y_bounds=y_bounds, 
+                              z_bounds=z_bounds)
 
 
-    # add_constant_square_patch_from_center_coords(q_exact, 
-    #                           center_coords=(-9.0, -1.0), 
-    #                           value=2.0, 
-    #                           half_size=half_size,
-    #                           y_bounds=y_bounds, 
-    #                           z_bounds=z_bounds)
+    add_constant_square_patch_from_center_coords(q_exact, 
+                              center_coords=(-9.0, -1.0), 
+                              value=2.0, 
+                              half_size=half_size,
+                              y_bounds=y_bounds, 
+                              z_bounds=z_bounds)
 
 
-    add_constant_rect_patch_from_corners_coords(
-        q_exact,
-        tl_coords = (-10, -10),
-        br_coords = (-10 + 5, -10 + 20),
-        value = 0.5,
-        y_bounds=y_bounds,
-        z_bounds=z_bounds
-    )
+    # add_constant_rect_patch_from_corners_coords(
+    #     q_exact,
+    #     tl_coords = (-10, -10),
+    #     br_coords = (-10 + 5, -10 + 20),
+    #     value = 0.5,
+    #     y_bounds=y_bounds,
+    #     z_bounds=z_bounds
+    # )
 
     parameter_factor = 10
     q_exact = parameter_factor * q_exact.flatten()
@@ -398,7 +398,7 @@ def main():
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'tau': 2.0,                                                  # Relative (to the noise) convergence tolerance for optimization
+        'tau': 1.0,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
         'theta': 0.40,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
@@ -426,9 +426,7 @@ def main():
 
             # TR config
             'eta_initial': parameter_factor * 1.00,
-            #'eta_initial': 1.00,
-            'eta_min': 1e-5,
-            #'eta_max': 5.00,
+            'eta_min': parameter_factor * 1e-5,
             'eta_max': parameter_factor * 5.00,
             'beta_1': 0.80,
             'beta_2': 0.80,
@@ -545,6 +543,16 @@ def main():
         logger = logger,
         save_path=save_path
     )
+
+    
+    # _q_exact = FOM.Q.make_array(q_exact)
+    # u_exact = FOM.solve_state(_q_exact)
+    # p_exact = FOM.solve_adjoint(_q_exact, u_exact)
+        
+    # optimizer.add_initial_snapshots(snapshots=FOM.Q.make_array(q_exact), basis="parameter_basis")
+    # optimizer.add_initial_snapshots(snapshots=u_exact, basis="state_basis")
+    # optimizer.add_initial_snapshots(snapshots=p_exact, basis="state_basis")
+
     q_est = optimizer.solve()
    
 

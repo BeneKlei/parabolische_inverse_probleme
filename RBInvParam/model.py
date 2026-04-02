@@ -375,7 +375,7 @@ class InstationaryModelIP(ImmutableObject):
             # norm() returns array of norms, one per vector entry
             return bool((diff.norm() > self.cache_tol).any())
     
-    
+
     def _cache_jacobians(self,
                          A: EvaluatorA,
                          time_step: int,

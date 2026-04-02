@@ -1088,8 +1088,8 @@ class QrVrROMOptimizer(Optimizer):
         self.snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
 
     def add_initial_snapshots(self,
-                              basis: str,
-                              snapshots: VectorArray) -> None:
+                              snapshots: VectorArray,
+                              basis: str) -> None:
         
         
         assert isinstance(basis, str)
@@ -1784,6 +1784,30 @@ class QrVrROMOptimizer(Optimizer):
                     # }
                     # self.reductor.bases["parameter_basis"] = self.FOM.Q.empty()
                     # self.reductor.bases["state_basis"] = self.FOM.V.empty()
+
+
+                    # u_r = self.QrVrROM.solve_state(
+                    #     q_r
+                    # )
+
+                    # diff = u - self.reductor.reconstruct(u_r, basis="state_basis")                    
+                    # self.FOM.A.hyperelasticity_model.save_time_series(
+                    #     [v.impl for v in diff.vectors],
+                    #     str('diff_u'),
+                    #     str(self.save_path),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
+
+                    # self.FOM.A.hyperelasticity_model.save_time_series(
+                    #     [v.impl for v in u.vectors],
+                    #     str('u'),
+                    #     str(self.save_path),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
+
+                    # import sys
+                    # sys.exit()
+                    
                     
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.active_bases,

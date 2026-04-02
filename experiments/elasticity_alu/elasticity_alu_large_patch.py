@@ -203,7 +203,7 @@ setup = {
 }
 
 q_start = q_circ
-abs_grad_tol = 5 * 1e-11
+abs_grad_tol = 5 * 1e-13
 tau = 2.00
 
 FOM_optimizer_parameter = {
@@ -217,7 +217,7 @@ FOM_optimizer_parameter = {
     'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
     #####################
     'i_max': 250,                                             # Maximum number of outer optimization iterations
-    'reg_loop_max': 25,                                      # Maximum number of regularization updates per step
+    'reg_loop_max': 15,                                      # Maximum number of regularization updates per step
     'i_max_inner': 10,                                       # Maximum number of inner iterations
     ####################
     'lin_solver_parms': {
@@ -237,7 +237,7 @@ FOM_optimizer_parameter = {
 TR_optimizer_parameter = {
     'method' : 'TR_IRGNM',
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
-    'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
+    'alpha_0': 1e-7,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
     'tau': tau,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': None,                         # Noise level in observed data (from model setup)
@@ -247,7 +247,7 @@ TR_optimizer_parameter = {
     'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
     #####################
     'i_max': 250,                                                 # Max number of outer optimization iterations
-    'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
+    'reg_loop_max': 15,                                          # Max number of regularization updates per iteration
     #'i_max_inner': 15,                                           # Max number of inner iterations
     'i_max_inner': 30,                                           # Max number of inner iterations
     'AGC_armijo_cfg' : {

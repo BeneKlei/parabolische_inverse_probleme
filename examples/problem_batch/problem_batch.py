@@ -167,8 +167,8 @@ def solve_problem_batch(
         if len(q_ests) > 0:
             opt_logger.info("Adding previous estimate as initial parameter-basis snapshot.")
             optimizer.add_initial_snapshots(
-                basis="parameter_basis",
-                snapshots=FOM.Q.make_array(q_ests[-1])
+                snapshots=FOM.Q.make_array(q_ests[-1]),
+                basis="parameter_basis"
             )
 
         q_est = optimizer.solve()
