@@ -83,8 +83,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 20
-    state_z_res = 20
+    state_y_res = 30
+    state_z_res = 30
 
     # state_y_res = 60
     # state_z_res = 60
@@ -105,7 +105,7 @@ def main():
 
     T_initial = 0    
     T_final = 16.0
-    nt = 64
+    nt = 32
 
     delta_t = (T_final - T_initial) / nt
     
@@ -115,7 +115,7 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    # half_size = 0
+    half_size = 1
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     # add_constant_square_patch_from_center_coords(q_exact, 
     #                           center_coords=( 5.0,  0.0), 
@@ -142,10 +142,11 @@ def main():
         z_bounds=z_bounds
     )
 
-    q_exact = 1 * q_exact.flatten()
+    parameter_factor = 10
+    q_exact = parameter_factor * q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    q_circ[0,:] = 1 * 1.0
+    q_circ[0,:] = parameter_factor * 1.0
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 1e-20
@@ -185,8 +186,8 @@ def main():
                 # 'lambda' : (10.9 / rho_hat),
                 # 'mu' : (5.6 / rho_hat), 
                 # 'lambda' : (10.9 / rho_hat),
-                'mu' : (11.2 / rho_hat), 
-                'lambda' : (21.8 / rho_hat),
+                'mu' : 1/parameter_factor * (11.2 / rho_hat), 
+                'lambda' : 1/parameter_factor * (21.8 / rho_hat),
                 # 'mu' : 4 * 4.15,
                 # 'lambda' : 4 * 8.07
             }
@@ -196,21 +197,21 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            'hyperparameter' : {},
-            # 'type': mm.ObservationOperatorType.Sensors,
-            # 'hyperparameter' : {
-            #     'p1' : p1,
-            #     'p2' : p2,
-            #     'sensor_patch_size' : (28.0, 28.0),
-            #     'sensor_spacing' : 1.0,
-            #     'at_top' : True,
-            #     'at_bottom' : False,
-            #     'sensor_patch_center_offset' : (0.0, 0.0),
-            #     'x_face_offset' : 0.00,
-            #     'radius' : 0.001,  
-            #     'use_boundary_mass_matrix' : True,
-            # }
+            # 'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            # 'hyperparameter' : {},
+            'type': mm.ObservationOperatorType.Sensors,
+            'hyperparameter' : {
+                'p1' : p1,
+                'p2' : p2,
+                'sensor_patch_size' : (28.0, 28.0),
+                'sensor_spacing' : 1.0,
+                'at_top' : True,
+                'at_bottom' : False,
+                'sensor_patch_center_offset' : (0.0, 0.0),
+                'x_face_offset' : 0.00,
+                'radius' : 0.001,  
+                'use_boundary_mass_matrix' : True,
+            }
 
             # 'type': mm.ObservationOperatorType.Sensors,
             # #'type': mm.ObservationOperatorType.SensorsGrid,
@@ -245,7 +246,7 @@ def main():
         #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         #'noise_level': 0,                      # Absolute noise magnitude added to data
         'noise_info' : {
-            'noise_level_input' : 1.0 * 1e-2,
+            'noise_level_input' : 25.0 * 1e-2,
             #'noise_level_input' : 0.0,
             'noise_level_mode' : 'rel',
             'abs_noise_level_y' : None,
@@ -424,11 +425,11 @@ def main():
             'type': TRType.RADIUS,
 
             # TR config
-            'eta_initial': 1.00,
+            'eta_initial': parameter_factor * 1.00,
             #'eta_initial': 1.00,
             'eta_min': 1e-5,
             #'eta_max': 5.00,
-            'eta_max': 5.00,
+            'eta_max': parameter_factor * 5.00,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,

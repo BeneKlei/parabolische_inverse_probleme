@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import argparse
 import copy
 from pathlib import Path
 from datetime import datetime
@@ -39,8 +40,20 @@ from RBInvParam.utils.create_q_exact import *
 
 #########################################################################################''
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--working-dir",
+        type=Path,
+        default=Path("./dumps"),
+        help="Root directory where timestamped dump folders will be created."
+    )
+    return parser.parse_args()
+
+args = parse_args()
+
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-save_path = Path("./dumps") / f"{timestamp}_batch_TR_IRGNM"
+save_path = args.working_dir / f"{timestamp}_batch_TR_IRGNM"
 save_path.mkdir(parents=True, exist_ok=False)
 
 # optional root logger for batch-level messages
@@ -212,7 +225,7 @@ def main():
 
     T_initial = 0    
     T_final = 16.0
-    nt = 64
+    nt = 32
 
     delta_t = (T_final - T_initial) / nt
     
@@ -273,21 +286,21 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            # 'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            # 'hyperparameter' : {},
-            'type': mm.ObservationOperatorType.Sensors,
-            'hyperparameter' : {
-                'p1' : p1,
-                'p2' : p2,
-                'sensor_patch_size' : (28.0, 28.0),
-                'sensor_spacing' : 1.0,
-                'at_top' : True,
-                'at_bottom' : False,
-                'sensor_patch_center_offset' : (0.0, 0.0),
-                'x_face_offset' : 0.00,
-                'radius' : 0.001,  
-                'use_boundary_mass_matrix' : True,
-            }
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'hyperparameter' : {},
+            # 'type': mm.ObservationOperatorType.Sensors,
+            # 'hyperparameter' : {
+            #     'p1' : p1,
+            #     'p2' : p2,
+            #     'sensor_patch_size' : (28.0, 28.0),
+            #     'sensor_spacing' : 1.0,
+            #     'at_top' : True,
+            #     'at_bottom' : False,
+            #     'sensor_patch_center_offset' : (0.0, 0.0),
+            #     'x_face_offset' : 0.00,
+            #     'radius' : 0.001,  
+            #     'use_boundary_mass_matrix' : True,
+            # }
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps
@@ -354,7 +367,7 @@ def main():
     optimizer_parameter = {
         'method' : 'TR_IRGNM',
         'q_0': None,                                              # Initial guess for the parameter to be optimized
-        'alpha_0': 1e-7,                                              # Initial regularization parameter (data fidelity vs. regularization)
+        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
         #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
         #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
@@ -386,9 +399,9 @@ def main():
             'type': TRType.RADIUS,
 
             # TR config
-            'eta_initial': parameter_factor * 5.00,
+            'eta_initial': parameter_factor * 1e10,
             'eta_min': parameter_factor * 1e-5,
-            'eta_max': parameter_factor * 10.00,
+            'eta_max': parameter_factor * 1e10,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
@@ -456,29 +469,29 @@ def main():
                 },
                 'coarsing' : None,
             },
-            'state_basis' :
-            {
-                'additional_snapshots' :{
-                    'include_lin_states' : False,
-                    'include_krylov_sensitivites' : False,
-                },
-                'compression' : 
-                {
-                    'normalize' : True,
-                    'HaPOD' : {
-                        'eps': 1e-3,
-                        'omega' : 0.1,
-                    },
-                    'every_n' : None,
-                    # 'normalize' : None,
-                    # 'HaPOD' : None,
-                },
-                'coarsing' : None,
-                # 'coarsing' : {
-                #     'rel_tol_coeff_u' : 1e-2,
-                #     'rel_tol_coeff_p' : 1e-2
-                # }
-            },
+            'state_basis' : None,
+            # {
+            #     'additional_snapshots' :{
+            #         'include_lin_states' : False,
+            #         'include_krylov_sensitivites' : False,
+            #     },
+            #     'compression' : 
+            #     {
+            #         'normalize' : True,
+            #         'HaPOD' : {
+            #             'eps': 1e-3,
+            #             'omega' : 0.1,
+            #         },
+            #         'every_n' : None,
+            #         # 'normalize' : None,
+            #         # 'HaPOD' : None,
+            #     },
+            #     'coarsing' : None,
+            #     # 'coarsing' : {
+            #     #     'rel_tol_coeff_u' : 1e-2,
+            #     #     'rel_tol_coeff_p' : 1e-2
+            #     # }
+            # },
             'adjoint_basis' : None
         },
         'logging' : {
