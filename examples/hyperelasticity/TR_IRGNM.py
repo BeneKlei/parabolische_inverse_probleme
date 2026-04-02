@@ -246,7 +246,7 @@ def main():
         #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         #'noise_level': 0,                      # Absolute noise magnitude added to data
         'noise_info' : {
-            'noise_level_input' : 25.0 * 1e-2,
+            'noise_level_input' : 1.0 * 1e-2,
             #'noise_level_input' : 0.0,
             'noise_level_mode' : 'rel',
             'abs_noise_level_y' : None,

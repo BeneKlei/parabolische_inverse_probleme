@@ -59,30 +59,30 @@ q_exact = np.ones((1,par_dim))
 half_size = 1
 q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
 
-add_constant_square_patch_from_center_coords(q_exact, 
-                          center_coords=( 5.0,  0.0), 
-                          value=3.0, 
-                          half_size=half_size,
-                          y_bounds=y_bounds, 
-                          z_bounds=z_bounds)
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=( 5.0,  0.0), 
+#                           value=3.0, 
+#                           half_size=half_size,
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
 
 
-add_constant_square_patch_from_center_coords(q_exact, 
-                          center_coords=(-9.0, -1.0), 
-                          value=2.0, 
-                          half_size=half_size,
-                          y_bounds=y_bounds, 
-                          z_bounds=z_bounds)
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=(-9.0, -1.0), 
+#                           value=2.0, 
+#                           half_size=half_size,
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
 
 
-# add_constant_rect_patch_from_corners_coords(
-#     q_exact,
-#     tl_coords = (-10, -10),
-#     br_coords = (-10 + 5, -10 + 20),
-#     value = 0.5,
-#     y_bounds=y_bounds,
-#     z_bounds=z_bounds
-# )
+add_constant_rect_patch_from_corners_coords(
+    q_exact,
+    tl_coords = (-10, -10),
+    br_coords = (-10 + 5, -10 + 20),
+    value = 0.5,
+    y_bounds=y_bounds,
+    z_bounds=z_bounds
+)
 
 parameter_factor = 10
  
@@ -209,7 +209,7 @@ tau = 2.00
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
     'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-    'alpha_0': 1e-5,                                          # Initial regularization parameter
+    'alpha_0': 1e-7,                                          # Initial regularization parameter
     'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
     'tau': tau,                                              # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_info']['abs_noise_level_y'],                   # Lower tolerance for the direction acceptance condition
@@ -473,5 +473,5 @@ EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
 EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
 
-prefix = 'elasticity_alu'
+prefix = 'elasticity_alu_large_patch'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}
