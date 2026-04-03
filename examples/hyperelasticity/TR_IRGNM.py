@@ -83,11 +83,11 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
+    # state_y_res = 20
+    # state_z_res = 20
+
     state_y_res = 30
     state_z_res = 30
-
-    # state_y_res = 60
-    # state_z_res = 60
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -115,14 +115,15 @@ def main():
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
     
-    half_size = 0
+    # 
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    add_constant_square_patch_from_center_coords(q_exact, 
-                              center_coords=( 5.0,  0.0), 
-                              value=3.0, 
-                              half_size=half_size,
-                              y_bounds=y_bounds, 
-                              z_bounds=z_bounds)
+    half_size = 0
+    # add_constant_square_patch_from_center_coords(q_exact, 
+    #                           center_coords=( 5.0,  0.0), 
+    #                           value=3.0, 
+    #                           half_size=half_size,
+    #                           y_bounds=y_bounds, 
+    #                           z_bounds=z_bounds)
 
 
     add_constant_square_patch_from_center_coords(q_exact, 
@@ -142,11 +143,10 @@ def main():
     #     z_bounds=z_bounds
     # )
 
-    parameter_factor = 10
-    q_exact = parameter_factor * q_exact.flatten()
+    q_exact = 10 * q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    q_circ[0,:] = parameter_factor * 1.0
+    q_circ[0,:] = 10 * 1.0
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 1e-20
@@ -186,8 +186,8 @@ def main():
                 # 'lambda' : (10.9 / rho_hat),
                 # 'mu' : (5.6 / rho_hat), 
                 # 'lambda' : (10.9 / rho_hat),
-                'mu' : 1/parameter_factor * (11.2 / rho_hat), 
-                'lambda' : 1/parameter_factor * (21.8 / rho_hat),
+                'mu' : 1/10 * (11.2 / rho_hat), 
+                'lambda' : 1/10 * (21.8 / rho_hat),
                 # 'mu' : 4 * 4.15,
                 # 'lambda' : 4 * 8.07
             }
@@ -231,7 +231,7 @@ def main():
         },
         'products': {                                 # Inner products used in the problem
             'prod_H': 'l2',                           # Product on H_h
-            'prod_Q': 'l2',                      # Product on Q_h
+            'prod_Q': 'euclid',                      # Product on Q_h
             #'prod_Q': 'h1',                           # Product on Q_h
             #'prod_V': 'h1_0_semi',                    # Product on V_h
             'prod_V': 'h1',                           # Product on V_h
@@ -521,8 +521,21 @@ def main():
             'adjoint_basis' : None
         },
         'logging' : {
-            'errors' : LoggerErrorChoice.OBJECTIVE,
-        },        
+            'errors' : LoggerErrorChoice.NONE,
+            #'estimate_tcc' : None,
+            'estimate_tcc' : {
+                'models' : ['FOM', 'ROM'],
+                'config' : {
+                    "amplitudes": [1e0,1e-2,1e-4],
+                    "max_h": 10,
+                    "seed": 0,
+                    "perturbation_mode": "gradient_direction",
+                    "create_pdf": False,
+                    "pdf_filename": None,
+                    "verbose_logging" : False
+                },
+            }
+        }        
     }
 
 

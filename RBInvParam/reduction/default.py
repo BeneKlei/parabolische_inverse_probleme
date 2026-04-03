@@ -337,7 +337,8 @@ class DefaultIPReductor(BaseIPReductor):
                 delta_t=self.FOM.delta_t,
                 space = V,
                 nt = self.FOM.nt
-            )
+            ),
+            'bochner_prod_C' : self.FOM.products['bochner_prod_C']
         }
 
         if self.use_adjoint_space:

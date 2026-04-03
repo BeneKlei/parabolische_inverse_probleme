@@ -384,7 +384,6 @@ class SecondOrderCrankNicolson(TimeStepper):
             _rhs.axpy(zeta * zeta, dt_R)
 
             if not self.apply_adjoint:
-                # TODO rework s.t. the the deal.ii solver is used
                 _U = _lhs.apply_inverse(_rhs)
                 assert np.max(np.abs(_lhs.apply(_U).to_numpy()-_rhs.to_numpy())) <= 1e-12
             else:

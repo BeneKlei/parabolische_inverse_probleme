@@ -195,16 +195,19 @@ class ErrorEvaluator:
     ) -> Dict[str, Any]:
 
         ordered_targets = ["u", "p", "lin_u", "lin_p", "J", "nabla_J", "lin_J", "nabla_lin_J"]
+        out = self._empty_error_dict()
 
         if targets == "all":
             targets = ordered_targets
+
+        if len(targets) == 0:
+            return out
 
         assert set(targets).issubset(set(ordered_targets))
 
         if set(targets).issubset({"lin_u", "lin_p", "lin_J", "nabla_lin_J"}):
             assert d_r is not None
 
-        out = self._empty_error_dict()
 
         # reconstruct reduced q (and d) to full space
         q = reductor.reconstruct(q_r, basis="parameter_basis")

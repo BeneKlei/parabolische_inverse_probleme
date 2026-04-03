@@ -35,6 +35,9 @@ from RBInvParam.schemas.logging_optimizer import log_fom_opt_config, log_tr_opt_
 from RBInvParam.reduction.build import build_reductor
 from RBInvParam.schemas.reductor import InstationaryReductorConfig, LinearizationMethod
 
+from RBInvParam.schemas.tcc_evaluator import TCCEvaluatorConfig
+from RBInvParam.optimizer.tcc_evaluator import TCCEvaluator
+
 
 MACHINE_EPS = sys.float_info.epsilon
 STAGNATION_TOL = 1e-6
@@ -42,6 +45,7 @@ STAGNATION_TOL = 1e-6
 #######################################################################
 
 class LoggerErrorChoice(Enum):
+    NONE = "none"
     ALL = "all"
     OBJECTIVE = "objective"
     GRADIENT = "gradient"
@@ -107,6 +111,18 @@ class Optimizer(BasicObject):
             use_sufficient_condition = False,        
             logger = self.logger
         )
+
+        self.estimate_tcc = optimizer_parameter["logging"].get("estimate_tcc", None)
+
+        self.tcc_evaluator = None
+        if self.estimate_tcc:
+            tcc_config = TCCEvaluatorConfig.from_dict(
+                self.estimate_tcc.get("config")
+            )
+            self.tcc_evaluator = TCCEvaluator(
+                config=tcc_config,
+                logger=self.logger,
+            )
 
     def _setup_TR(self, optimizer_parameter: Dict[str, Any]) -> None:
         tr_type = TRType.NONE
@@ -193,8 +209,8 @@ class Optimizer(BasicObject):
         Compute abs objective error ONLY if the current TR needs it AND estimator is enabled.
         Returns (abs_err_J, errors_dict).
         """
-        if not getattr(self.TR, "requires_objective_error", True):
-            return {}
+        # if not getattr(self.TR, "requires_objective_error", True):
+        #     return {}
         
         diff = current_q - previous_q
         d_r = diff if diff.norm().max() > MACHINE_EPS else None
@@ -373,6 +389,80 @@ class Optimizer(BasicObject):
         
         return current_q, current_J, model_insufficient, TR_max_iter_cond, step_size, errors
     
+    def _evaluate_TCC(self, q=None) -> Dict[str, Any]:
+        if not self.estimate_tcc or self.tcc_evaluator is None:
+            return {}
+
+        model_keys = set(self.estimate_tcc.get("models", []))
+        valid_model_keys = {"FOM", "ROM"}
+
+        unknown_keys = model_keys - valid_model_keys
+        if unknown_keys:
+            raise ValueError(
+                f"Unknown TCC model keys: {sorted(unknown_keys)}. "
+                f"Allowed keys are: {sorted(valid_model_keys)}"
+            )
+
+        models: Dict[str, Any] = {}
+        q_map: Dict[str, Any] = {}
+
+        if "FOM" in model_keys:
+            models["FOM"] = self.FOM
+
+        if "ROM" in model_keys:
+            if getattr(self, "QrVrROM", None) is None:
+                raise ValueError(
+                    "Requested TCC evaluation for 'ROM', but self.QrVrROM is None."
+                )
+            models["ROM"] = self.QrVrROM
+
+        if q is not None:
+            q_in_fom = q in self.FOM.Q
+            q_in_rom = ("ROM" in models) and (q in self.QrVrROM.Q)
+
+            if q_in_fom and q_in_rom:
+                raise ValueError("Given q belongs to both FOM and ROM spaces; ambiguous input.")
+
+            if not q_in_fom and not q_in_rom:
+                raise ValueError("Given q is neither in self.FOM.Q nor in self.QrVrROM.Q.")
+
+            if q_in_fom:
+                if "FOM" in models:
+                    q_map["FOM"] = q
+                if "ROM" in models:
+                    q_map["ROM"] = self.reductor.project_vectorarray(q, "parameter_basis")
+
+            elif q_in_rom:
+                if "ROM" in models:
+                    q_map["ROM"] = q
+                if "FOM" in models:
+                    q_map["FOM"] = self.reductor.reconstruct(q, basis="parameter_basis")
+
+        else:
+            last_update_q = getattr(self, "last_update_q", None)
+
+            if last_update_q is not None:
+                if "ROM" in models:
+                    try:
+                        if last_update_q in self.QrVrROM.Q:
+                            q_map["ROM"] = last_update_q
+                    except Exception:
+                        pass
+
+                if "FOM" in models:
+                    try:
+                        if "ROM" in q_map:
+                            q_map["FOM"] = self.reductor.reconstruct(
+                                q_map["ROM"], basis="parameter_basis"
+                            )
+                    except Exception:
+                        pass
+
+        return self.tcc_evaluator.run_multiple_models(
+            models=models,
+            q_map=q_map or None,
+        )
+    
     def IRGNM(self,
               model: InstationaryModelIP,
               q_0: VectorArray,
@@ -436,7 +526,8 @@ class Optimizer(BasicObject):
                 'rel_err_lin_J' : [],
                 'err_nabla_lin_J' : [],
                 'rel_err_nabla_lin_J' : []
-            }
+            },
+            "est_TCC" : []
         }
         
         counts = {
@@ -457,17 +548,41 @@ class Optimizer(BasicObject):
         alpha = alpha_0
         q = q_0.copy()
         norm_delta_q = np.sqrt(model.products['prod_Q'].apply2(q-self.last_update_q,q-self.last_update_q)[0,0])
-        u = model.solve_state(q, use_cached_operators=use_cached_operators)
-        p = model.solve_adjoint(q, u, use_cached_operators=use_cached_operators)
+        u, u_dot = model.solve_state(q=q, use_cached_operators=use_cached_operators, return_higher_orders=True)
+        p, p_dot = model.solve_adjoint(q=q, u=u, use_cached_operators=use_cached_operators, return_higher_orders=True)
         J = model.objective(u)
         nabla_J = model.gradient(u, p, q, use_cached_operators=use_cached_operators)
         norm_nabla_J = model.compute_gradient_norm(nabla_J)
+        errors = self._maybe_estimate_tr_error(
+            model=model,
+            previous_q=self.last_update_q,
+            current_q=q,
+            u=u,
+            p=p,
+            u_dot=u_dot,
+            p_dot=p_dot,
+            current_J=J,
+            targets=self.error_estimate_targets_inner,
+            use_cached_operators=use_cached_operators,
+            use_error_estimator=use_error_estimator,
+        )
 
         self.IRGNM_statistics["q"].append(q)
         self.IRGNM_statistics["J"].append(J)
         self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
         self.IRGNM_statistics["alpha"].append(alpha)
         self.IRGNM_statistics["total_runtime"].append(timer() - start_time)
+        self.IRGNM_statistics["errors"]['norm_delta_q'].append(norm_delta_q)
+        for key in self.IRGNM_statistics["errors"].keys():
+            if key == 'norm_delta_q':
+                continue
+            
+            if TR_enforcement is not None:
+                self.IRGNM_statistics["errors"][key].append(errors.get(key, np.nan))
+            else:
+                self.IRGNM_statistics["errors"][key].append(np.nan)
+
+        self.IRGNM_statistics["est_TCC"].append(self._evaluate_TCC(q))
 
         self.logger.debug("Running IRGNM: ")
         self.logger.debug(f"  J : {J:3.4e}")
@@ -699,7 +814,8 @@ class Optimizer(BasicObject):
                 else:
                     self.IRGNM_statistics["errors"][key].append(np.nan)
 
-                
+            self.IRGNM_statistics["est_TCC"].append(self._evaluate_TCC(q))
+            
             #stagnation check
             if i > 3:
                 buffer = self.IRGNM_statistics["J"][-3:]
@@ -1000,7 +1116,10 @@ class QrVrROMOptimizer(Optimizer):
             }
         }
 
-        if optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.OBJECTIVE:
+        if optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.NONE:
+            self.error_estimate_targets_outer = ['J']
+            self.error_estimate_targets_inner = []
+        elif optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.OBJECTIVE:
             self.error_estimate_targets_outer = ['J']
             self.error_estimate_targets_inner = ['J']
         elif optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.GRADIENT:
@@ -1011,6 +1130,13 @@ class QrVrROMOptimizer(Optimizer):
             self.error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
         else:
             raise ValueError
+        
+        if getattr(self.TR, "requires_objective_error", True):
+            self.error_estimate_targets_outer.append('J')
+            self.error_estimate_targets_inner.append('J')
+
+        self.error_estimate_targets_outer = list(set(self.error_estimate_targets_outer))
+        self.error_estimate_targets_inner = list(set(self.error_estimate_targets_inner))
 
     def extend_bases_and_rebuild_QrVrROM(
         self,
@@ -1525,6 +1651,9 @@ class QrVrROMOptimizer(Optimizer):
                 assert not max_iter_cond_AGC
 
             AGC_jump_back = False
+            self.statistics['flags']['model_insufficient'].append(model_insufficient)
+            self.statistics["outer_loop_runtime"]['AGC_runtime'].append(timer() - AGC_start_time)
+
             self.statistics['flags']['model_insufficient'].append(model_insufficient)
             self.statistics["outer_loop_runtime"]['AGC_runtime'].append(timer() - AGC_start_time)
 
