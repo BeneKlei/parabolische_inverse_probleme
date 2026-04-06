@@ -124,6 +124,25 @@ class Optimizer(BasicObject):
                 logger=self.logger,
             )
 
+        if optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.NONE:
+            self.error_estimate_targets_outer = ['J']
+            self.error_estimate_targets_inner = []
+        elif optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.OBJECTIVE:
+            self.error_estimate_targets_outer = ['J']
+            self.error_estimate_targets_inner = ['J']
+        elif optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.GRADIENT:
+            self.error_estimate_targets_outer = ['J', 'nabla_J']
+            self.error_estimate_targets_inner = ['J', 'nabla_J']
+        elif optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.ALL:
+            self.error_estimate_targets_outer = ['J', 'nabla_J']
+            self.error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
+        else:
+            raise ValueError
+        
+        self.error_estimate_targets_outer = list(set(self.error_estimate_targets_outer))
+        self.error_estimate_targets_inner = list(set(self.error_estimate_targets_inner))
+
+
     def _setup_TR(self, optimizer_parameter: Dict[str, Any]) -> None:
         tr_type = TRType.NONE
         tr_cfg = optimizer_parameter.get("TR")
@@ -1116,27 +1135,9 @@ class QrVrROMOptimizer(Optimizer):
             }
         }
 
-        if optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.NONE:
-            self.error_estimate_targets_outer = ['J']
-            self.error_estimate_targets_inner = []
-        elif optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.OBJECTIVE:
-            self.error_estimate_targets_outer = ['J']
-            self.error_estimate_targets_inner = ['J']
-        elif optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.GRADIENT:
-            self.error_estimate_targets_outer = ['J', 'nabla_J']
-            self.error_estimate_targets_inner = ['J', 'nabla_J']
-        elif optimizer_parameter["logging"]["errors"] == LoggerErrorChoice.ALL:
-            self.error_estimate_targets_outer = ['J', 'nabla_J']
-            self.error_estimate_targets_inner = ['J', 'nabla_J', 'lin_J', 'nabla_lin_J']
-        else:
-            raise ValueError
-        
         if getattr(self.TR, "requires_objective_error", True):
             self.error_estimate_targets_outer.append('J')
             self.error_estimate_targets_inner.append('J')
-
-        self.error_estimate_targets_outer = list(set(self.error_estimate_targets_outer))
-        self.error_estimate_targets_inner = list(set(self.error_estimate_targets_inner))
 
     def extend_bases_and_rebuild_QrVrROM(
         self,

@@ -20,6 +20,7 @@ import RBInvParam.problems.shared.material_model as mm
 #import material_model as mm
 #import hyperelasticity_model as hm
 
+from RBInvParam.optimizer.optimizer import QrVrROMOptimizer, LoggerErrorChoice
 from RBInvParam.optimizer.optimizer import FOMOptimizer
 from RBInvParam.utils.io import save_dict_to_pkl
 from RBInvParam.utils.logger import get_default_logger
@@ -68,43 +69,67 @@ def main():
     p1 = (-0.1, -15.0, -15.0)
     p2 = ( 0.1,  15.0,  15.0)
 
+    center = (
+        p1[0],
+        p1[1] + (p2[1] - p1[1]) / 2,
+        p1[2] + (p2[2] - p1[2]) / 2
+    )
+
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 10
-    state_z_res = 10
+    state_y_res = 30
+    state_z_res = 30
+
+    # state_y_res = 60
+    # state_z_res = 60
 
     param_y_res = state_y_res
     param_z_res = state_z_res
 
-    par_dim = (param_y_res + 1) * (param_z_res + 1) 
-    #* 5 * 3
-    #par_dim = 3
-    T_initial = 0
+    par_dim = (param_y_res + 1) * (param_z_res + 1)
 
-    T_final = 5.0
-    nt = 10 
+    #################################################
+    # Set:
+    # 1 PU = 10^9 GPa
+    # 1 LU = 1/30m
+    # 1 DU = 10^3 kg m^{-3}
+    # Derived
+    # 1 TU = 3.33 * 10^-5s
+    #################################################
+
+    T_initial = 0
+    T_final = 16.0
+    nt = 64
+
     delta_t = (T_final - T_initial) / nt
+
+    rho_hat = 2.70
 
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
-    
-    half_size = 0
+
+    #
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    add_constant_patch_coords(q_exact, 
+
+    # --------------------------------------------------------------------------
+    half_size = 1
+    add_constant_square_patch_from_center_coords(q_exact, 
                               center_coords=( 5.0,  0.0), 
                               value=3.0, 
                               half_size=half_size,
                               y_bounds=y_bounds, 
                               z_bounds=z_bounds)
 
-    add_constant_patch_coords(q_exact, 
+
+    add_constant_square_patch_from_center_coords(q_exact, 
                               center_coords=(-9.0, -1.0), 
                               value=2.0, 
                               half_size=half_size,
                               y_bounds=y_bounds, 
                               z_bounds=z_bounds)
+
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
@@ -123,17 +148,28 @@ def main():
         'param_grid_resolution' : param_grid_resolution,
         'state_grid_resolution' : state_grid_resolution,
         'body_force' : {
-            'type' : mm.BodyForceType.CenterExcite,
-            'hyperparameter' : {}
+            'type' : mm.BodyForceType.SharpPulse,
+            'hyperparameter' : {
+                'origin' : center,
+                'end_time' : 0.5,
+                'factor' : (1.0 / rho_hat),
+                'width' : 1.00
+            }
         },
         'stored_energy' : {
             'type' : hm.StoredEnergyFunctionType.Hookean,
             #'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                # 'mu' : 26.32, 
+                # 'mu' : 26.32,
                 # 'kappa' : 68.60
-                'mu' : 1e1, 
-                'lambda' : 1e1
+                # 'mu' : (5.6 / rho_hat),
+                # 'lambda' : (10.9 / rho_hat),
+                # 'mu' : (5.6 / rho_hat),
+                # 'lambda' : (10.9 / rho_hat),
+                'mu' : (11.2 / rho_hat),
+                'lambda' : (21.8 / rho_hat),
+                # 'mu' : 4 * 4.15,
+                # 'lambda' : 4 * 8.07
             }
         },
         'boundary_condition' : {
@@ -144,9 +180,16 @@ def main():
             #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
             'type': mm.ObservationOperatorType.Sensors,
             'hyperparameter' : {
-                'spatial_resolution' : state_grid_resolution,
+                'p1' : p1,
+                'p2' : p2,
+                'sensor_patch_size' : (28.0, 28.0),
+                'sensor_spacing' : 1.0,
+                'at_top' : True,
+                'at_bottom' : False,
+                'sensor_patch_center_offset' : (0.0, 0.0),
+                'x_face_offset' : 0.00,
                 'radius' : 0.001,
-                'second_row' : False 
+                'use_boundary_mass_matrix' : True,
             }
         },
         'dims' : {
@@ -165,7 +208,14 @@ def main():
         'T_final': T_final,                           # End time of the simulation
         'delta_t': delta_t,                           # Time step size
         'noise_percentage': None,                     # Relative noise level, will be set by 'build_InstationaryModelIP'
-        'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
+        'noise_info' : {
+            'noise_level_input' : 1.0 * 1e-2,
+            #'noise_level_input' : 0.0,
+            'noise_level_mode' : 'rel',
+            'abs_noise_level_y' : None,
+            'rel_noise_level_y' : None,
+            'y_norm' : None,
+        },
         #'noise_level': 0,                      # Absolute noise magnitude added to data
         'q_circ': q_circ,                             # Backgroundlevel for the parameter
         'q_exact_function': None,                     # Exact parameter as function, will be set by 'build_InstationaryModelIP'
@@ -312,7 +362,7 @@ def main():
         'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
         'tau': 1.50,                                              # Relative (to the noise) convergence tolerance for optimization
         #'tau': 1.00,                                              # Relative (to the noise) convergence tolerance for optimization
-        'noise_level': setup['noise_level'],                     # Noise level in observed data (from model setup)
+        'noise_level': setup['noise_info']['abs_noise_level_y'],                     # Noise level in observed data (from model setup)
         'theta': 0.4,                                         # Lower tolerance for the direction acceptance condition
         'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
         #####################
@@ -330,6 +380,22 @@ def main():
             'kappa_arm' : 1e-12,
             'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
             'armijo_min_step_size' : 1e-20
+        },
+        'logging' : {
+            'errors' : LoggerErrorChoice.NONE,
+            'estimate_tcc' : None,
+            # 'estimate_tcc' : {
+            #     'models' : ['FOM', 'ROM'],
+            #     'config' : {
+            #         "amplitudes": [1e0,1e-2,1e-4],
+            #         "max_h": 10,
+            #         "seed": 0,
+            #         "perturbation_mode": "gradient_direction",
+            #         "create_pdf": False,
+            #         "pdf_filename": None,
+            #         "verbose_logging" : False
+            #     },
+            # }
         }
     }
 

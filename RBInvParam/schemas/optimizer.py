@@ -110,6 +110,7 @@ class FOMOptimizerCfg:
     dump_every_nth_loop: int
 
     lin_solver_parms: Dict[str, Any]
+    logging: Dict[str, Any]
 
     # ----------------------------
     # Construction
@@ -135,6 +136,7 @@ class FOMOptimizerCfg:
                 "i_max", "reg_loop_max", "i_max_inner",
                 "use_cached_operators", "dump_every_nth_loop",
                 "lin_solver_parms",
+                "logging",
             ],
             where=where,
         )
@@ -158,6 +160,7 @@ class FOMOptimizerCfg:
             dump_every_nth_loop=int(data["dump_every_nth_loop"]),
 
             lin_solver_parms=dict(data["lin_solver_parms"]),
+            logging=dict(data["logging"]),
         )
 
         cfg.validate()

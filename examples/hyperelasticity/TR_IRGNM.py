@@ -188,13 +188,11 @@ def main():
     #                           y_bounds=y_bounds, 
     #                           z_bounds=z_bounds)
 
-    import matplotlib.pyplot as plt
-    plt.imshow(q_exact)
-    plt.colorbar()
-    plt.savefig('./q_exact.pdf')
+    # import matplotlib.pyplot as plt
+    # plt.imshow(q_exact)
+    # plt.colorbar()
+    # plt.savefig('./q_exact.pdf')
 
-    import sys
-    sys.exit()
 
     q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
@@ -495,7 +493,8 @@ def main():
         #     'beta_3': 0.75,
         # },
         'TR': {
-            'type': TRType.RADIUS,
+            #'type': TRType.RADIUS,
+            'type': TRType.RELATIVE_OBJECTIVE_ERROR,
 
             # TR config
             'eta_initial': 1.0,
