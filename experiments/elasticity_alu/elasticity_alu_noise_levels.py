@@ -284,7 +284,7 @@ FOM_optimizer_parameter = {
     'use_cached_operators': True ,                          # Whether to reuse assembled operators (improves speed if True)
     'dump_every_nth_loop': 1,                                # Dump intermediate results every n optimization iterations
     'logging' : {
-        'errors' : LoggerErrorChoice.OBJECTIVE,
+        'errors' : LoggerErrorChoice.NONE,
         'estimate_tcc' : None,
     }
 }
@@ -404,7 +404,7 @@ TR_optimizer_parameter = {
         'adjoint_basis' : None
     },
     'logging' : {
-        'errors' : LoggerErrorChoice.OBJECTIVE,
+        'errors' : LoggerErrorChoice.NONE,
         'estimate_tcc' : None,
     }                                         # Shrinking/Enlarging factor for the trust region.
 }

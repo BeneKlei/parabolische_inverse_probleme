@@ -397,9 +397,9 @@ def main():
             'type': TRType.RADIUS,
 
             # TR config
-            'eta_initial': parameter_factor * 1e10,
-            'eta_min': parameter_factor * 1e-5,
-            'eta_max': parameter_factor * 1e10,
+            'eta_initial': 1e10,
+            'eta_min': 1e-5,
+            'eta_max': 1e10,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
@@ -493,8 +493,9 @@ def main():
             'adjoint_basis' : None
         },
         'logging' : {
-            'errors' : LoggerErrorChoice.OBJECTIVE,
-        },        
+            'errors' : LoggerErrorChoice.NONE,
+            'estimate_tcc' : None,
+        }
     }
 
     q_ests = solve_problem_batch(
