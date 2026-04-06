@@ -332,6 +332,7 @@ TR_optimizer_parameter = {
     },
     'logging' : {
         'errors' : LoggerErrorChoice.OBJECTIVE,
+        'estimate_tcc' : None,
     }                                         # Shrinking/Enlarging factor for the trust region.
 }
 

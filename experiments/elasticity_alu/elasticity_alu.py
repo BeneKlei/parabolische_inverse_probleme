@@ -83,7 +83,7 @@ add_constant_square_patch_from_center_coords(q_exact,
 #                           center_coords=( 5.0,  0.0), 
 #                           value=3.0, 
 #                           half_size=half_size,
-#                           interpolated=False,
+#                           interpolated=True,
 #                           distance="square",
 #                           y_bounds=y_bounds, 
 #                           z_bounds=z_bounds)
@@ -93,7 +93,7 @@ add_constant_square_patch_from_center_coords(q_exact,
 #                           center_coords=(-9.0, -1.0), 
 #                           value=2.0, 
 #                           half_size=half_size,
-#                           interpolated=False,
+#                           interpolated=True,
 #                           distance="square",
 #                           y_bounds=y_bounds, 
 #                           z_bounds=z_bounds)
@@ -395,6 +395,7 @@ TR_optimizer_parameter = {
     },
     'logging' : {
         'errors' : LoggerErrorChoice.OBJECTIVE,
+        'estimate_tcc' : None,
     }                                         # Shrinking/Enlarging factor for the trust region.
 }
 
