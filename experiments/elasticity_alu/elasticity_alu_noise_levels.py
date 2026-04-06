@@ -134,12 +134,12 @@ add_constant_square_patch_from_center_coords(q_exact,
 q_exact = q_exact.flatten()
 q_exact = np.array([q_exact])
 
-import matplotlib.pyplot as plt
-plt.imshow(q_exact)
-plt.savefig('./q_exact.pdf')
+# import matplotlib.pyplot as plt
+# plt.imshow(q_exact)
+# plt.savefig('./q_exact.pdf')
 
-import sys
-sys.exit()
+# import sys
+# sys.exit()
 
 q_circ[0,:] = 1.0
 
