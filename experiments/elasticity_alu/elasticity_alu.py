@@ -19,6 +19,12 @@ from RBInvParam.optimizer.optimizer import LoggerErrorChoice
 p1 = (-0.1, -15.0, -15.0)
 p2 = ( 0.1,  15.0,  15.0)
 
+center = (
+    p1[0],
+    p1[1] + (p2[1] - p1[1]) / 2,
+    p1[2] + (p2[2] - p1[2]) / 2        
+)
+
 y_bounds = (p1[1], p2[1])
 z_bounds = (p1[2], p2[2])
 
@@ -30,12 +36,21 @@ param_z_res = state_z_res
 
 par_dim = (param_y_res + 1) * (param_z_res + 1) 
 
+#################################################
+# Set:
+# 1 PU = 10^9 GPa
+# 1 LU = 1/30m
+# 1 DU = 10^3 kg m^{-3}
+# Derived
+# 1 TU = 3.33 * 10^-5s
+#################################################
+
 T_initial = 0
 T_final = 16.0
 nt = 64
 delta_t = (T_final - T_initial) / nt
 
-rho_hat = 2.71
+rho_hat = 2.70
 
 assert T_final > T_initial
 q_circ = np.ones((1, par_dim))
@@ -43,21 +58,80 @@ q_exact = np.ones((1,par_dim))
 
 half_size = 1
 q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-add_constant_patch_coords(q_exact, 
-                            center_coords=( 5.0,  0.0), 
-                            value=3.0, 
-                            half_size=half_size,
-                            y_bounds=y_bounds, 
-                            z_bounds=z_bounds)
 
-add_constant_patch_coords(q_exact, 
-                            center_coords=(-9.0, -1.0), 
-                            value=2.0, 
-                            half_size=half_size,
-                            y_bounds=y_bounds, 
-                            z_bounds=z_bounds)
+# --------------------------------------------------------------------------
+half_size = 1
+add_constant_square_patch_from_center_coords(q_exact, 
+                          center_coords=( 5.0,  0.0), 
+                          value=3.0, 
+                          half_size=half_size,
+                          y_bounds=y_bounds, 
+                          z_bounds=z_bounds)
 
 
+add_constant_square_patch_from_center_coords(q_exact, 
+                          center_coords=(-9.0, -1.0), 
+                          value=2.0, 
+                          half_size=half_size,
+                          y_bounds=y_bounds, 
+                          z_bounds=z_bounds)
+
+
+# --------------------------------------------------------------------------
+# half_size = 1
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=( 5.0,  0.0), 
+#                           value=3.0, 
+#                           half_size=half_size,
+#                           interpolated=False,
+#                           distance="square",
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
+
+
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=(-9.0, -1.0), 
+#                           value=2.0, 
+#                           half_size=half_size,
+#                           interpolated=False,
+#                           distance="square",
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
+
+# --------------------------------------------------------------------------
+# half_size = 1
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=( 1.0,  -1.0), 
+#                           value=3.0, 
+#                           half_size=half_size,
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
+
+# --------------------------------------------------------------------------
+# half_size = 1
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=( 1.0,  -10.0), 
+#                           value=3.0, 
+#                           half_size=half_size,
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
+
+
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=( -5.0,  7.0), 
+#                           value=3.0, 
+#                           half_size=half_size,
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
+
+
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=( 8.0,  9.0), 
+#                           value=3.0, 
+#                           half_size=half_size,
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
+ 
 q_exact = q_exact.flatten()
 q_exact = np.array([q_exact])
 
@@ -76,10 +150,12 @@ setup = {
     'param_grid_resolution' : param_grid_resolution,
     'state_grid_resolution' : state_grid_resolution,
     'body_force' : {
-        'type' : mm.BodyForceType.CenterExcite,
+        'type' : mm.BodyForceType.SharpPulse,
         'hyperparameter' : {
+            'origin' : center,
             'end_time' : 0.5,
-            'factor' : (1.0 / rho_hat)
+            'factor' : (1.0 / rho_hat),
+            'width' : 1.00
         }
     },
     'stored_energy' : {
@@ -88,8 +164,8 @@ setup = {
         'hyperparameter' : {
             # 'mu' : 26.32, 
             # 'kappa' : 68.60
-            'mu' : (5.6 / rho_hat), 
-            'lambda' : (10.9 / rho_hat),
+            'mu' : (11.2 / rho_hat), 
+            'lambda' : (21.8 / rho_hat),
         }
     },
     'boundary_condition' : {
@@ -99,9 +175,16 @@ setup = {
     'observation_operator': {
         'type': mm.ObservationOperatorType.Sensors,
         'hyperparameter' : {
-            'spatial_resolution' : state_grid_resolution,
-            'radius' : 0.001,
-            'second_row' : False 
+            'p1' : p1,
+            'p2' : p2,
+            'sensor_patch_size' : (28.0, 28.0),
+            'sensor_spacing' : 1.0,
+            'at_top' : True,
+            'at_bottom' : False,
+            'sensor_patch_center_offset' : (0.0, 0.0),
+            'x_face_offset' : 0.00,
+            'radius' : 0.001,  
+            'use_boundary_mass_matrix' : True,
         }
     },
     'dims' : {
@@ -242,7 +325,7 @@ TR_optimizer_parameter = {
         # TR config
         'eta_initial': 0.5,        
         'eta_min': 1e-2,
-        'eta_max': 2.00,
+        'eta_max': 2.0,
         'beta_1': 0.80,
         'beta_2': 0.80,
         'beta_3': 0.75,
@@ -344,9 +427,17 @@ setup_identity['observation_operator']['hyperparameter'] = {}
 setup_identity['products']['prod_C'] = 'state_l2'
 
 setup_grid['observation_operator']['type'] = mm.ObservationOperatorType.SensorsGrid
-setup_grid['observation_operator']['hyperparameter'] = {
-    'radius' : 0.001,
-    'grid_sizes' : [2,8,8]
+setup_grid['observation_operator']['hyperparameter'] =  {
+    'p1' : p1,
+    'p2' : p2,
+    'sensor_patch_size' : (28.0, 28.0),
+    'grid_sizes' : (8.0,8.0),
+    'at_top' : True,
+    'at_bottom' : False,
+    'sensor_patch_center_offset' : (0.0, 0.0),
+    'x_face_offset' : 0.00,
+    'radius' : 0.001,  
+    'use_boundary_mass_matrix' : True,
 }
 #setup_grid['noise_info']['noise_level_input'] = 5 * 1e-4
 
@@ -427,8 +518,6 @@ TR_optimizer_parameter_grid['tau'] = tau_
 EXPERIMENTS['TR_sensors'] = (setup_sensors, TR_optimizer_parameter_sensors)
 EXPERIMENTS['TR_identity'] = (setup_identity, TR_optimizer_parameter_identity)
 EXPERIMENTS['TR_grid'] = (setup_grid, TR_optimizer_parameter_grid)
-
-
 
 prefix = 'elasticity_alu'
 EXPERIMENTS = {f"{prefix}_{k}": v for k, v in EXPERIMENTS.items()}

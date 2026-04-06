@@ -20,18 +20,79 @@ def coord_to_index_1d(x, x_min, x_max, n_intervals, *, clamp=True):
     return i
 
 
+# def add_constant_square_patch_from_center_coords(
+#     arr,
+#     center_coords,
+#     value,
+#     half_size=1,
+#     *,
+#     y_bounds=(-15.0, 15.0),
+#     z_bounds=(-15.0, 15.0),
+# ):
+#     """
+#     Add a constant-valued square patch to `arr` using a center specified
+#     in physical (y, z) coordinates.
+
+#     Parameters
+#     ----------
+#     arr : 2D array of shape (Ny+1, Nz+1)
+#     center_coords : tuple[float, float]
+#         (y, z) physical coordinates of the patch center
+#     value : float
+#     half_size : int
+#         half_size=0 -> 1x1
+#         half_size=1 -> 3x3
+#         half_size=2 -> 5x5
+#         ...
+#     y_bounds : tuple[float, float]
+#     z_bounds : tuple[float, float]
+
+#     Returns
+#     -------
+#     tuple[int, int]
+#         (cy, cz) center node indices
+#     """
+#     Ny = arr.shape[0] - 1
+#     Nz = arr.shape[1] - 1
+
+#     y0, z0 = center_coords
+#     y_min, y_max = y_bounds
+#     z_min, z_max = z_bounds
+
+#     cy = coord_to_index_1d(y0, y_min, y_max, Ny)
+#     cz = coord_to_index_1d(z0, z_min, z_max, Nz)
+
+#     ys = np.arange(cy - half_size, cy + half_size + 1)
+#     zs = np.arange(cz - half_size, cz + half_size + 1)
+
+#     ys = ys[(ys >= 0) & (ys < arr.shape[0])]
+#     zs = zs[(zs >= 0) & (zs < arr.shape[1])]
+
+#     arr[np.ix_(ys, zs)] = value
+#     return cy, cz
+
 def add_constant_square_patch_from_center_coords(
     arr,
     center_coords,
     value,
     half_size=1,
     *,
+    interpolated=False,
+    distance="square",
+    background = 1.0,
     y_bounds=(-15.0, 15.0),
     z_bounds=(-15.0, 15.0),
 ):
     """
-    Add a constant-valued square patch to `arr` using a center specified
-    in physical (y, z) coordinates.
+    Add a patch to `arr` using a center specified in physical (y, z) coords.
+
+    Modes
+    -----
+    interpolated=False
+        Constant-valued square patch.
+
+    interpolated=True
+        Center = `value`, then linearly decays to 0 at distance `half_size`.
 
     Parameters
     ----------
@@ -44,6 +105,13 @@ def add_constant_square_patch_from_center_coords(
         half_size=1 -> 3x3
         half_size=2 -> 5x5
         ...
+    interpolated : bool
+        If True, apply linear decay from the center to the patch boundary.
+        If False, fill the patch with a constant value.
+    distance : {"square", "radial"}
+        Distance metric used when `interpolated=True`:
+        - "square": Chebyshev distance, gives square-shaped decay
+        - "radial": Euclidean distance, gives circular decay
     y_bounds : tuple[float, float]
     z_bounds : tuple[float, float]
 
@@ -68,7 +136,30 @@ def add_constant_square_patch_from_center_coords(
     ys = ys[(ys >= 0) & (ys < arr.shape[0])]
     zs = zs[(zs >= 0) & (zs < arr.shape[1])]
 
-    arr[np.ix_(ys, zs)] = value
+    if not interpolated:
+        arr[np.ix_(ys, zs)] = value
+        return cy, cz
+
+    # grid
+    Y, Z = np.meshgrid(ys, zs, indexing="ij")
+    dy = np.abs(Y - cy)
+    dz = np.abs(Z - cz)
+
+    if half_size == 0:
+        weights = np.ones((len(ys), len(zs)), dtype=float)
+    else:
+        if distance == "square":
+            d = np.maximum(dy, dz)
+        elif distance == "radial":
+            d = np.sqrt(dy**2 + dz**2)
+        else:
+            raise ValueError("distance must be 'square' or 'radial'")
+
+        weights = np.clip(1.0 - d / (half_size + 1), 0.0, 1.0)
+
+    patch = background + (value - background) * weights
+
+    arr[np.ix_(ys, zs)] = patch
     return cy, cz
 
 def add_constant_rect_patch_from_corners_coords(

@@ -56,13 +56,34 @@ assert T_final > T_initial
 q_circ = np.ones((1, par_dim))
 q_exact = np.ones((1,par_dim))
 
-half_size = 1
 q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
 
+# --------------------------------------------------------------------------
+half_size = 1
+add_constant_square_patch_from_center_coords(q_exact, 
+                          center_coords=( 5.0,  0.0), 
+                          value=3.0, 
+                          half_size=half_size,
+                          y_bounds=y_bounds, 
+                          z_bounds=z_bounds)
+
+
+add_constant_square_patch_from_center_coords(q_exact, 
+                          center_coords=(-9.0, -1.0), 
+                          value=2.0, 
+                          half_size=half_size,
+                          y_bounds=y_bounds, 
+                          z_bounds=z_bounds)
+
+
+# --------------------------------------------------------------------------
+# half_size = 1
 # add_constant_square_patch_from_center_coords(q_exact, 
 #                           center_coords=( 5.0,  0.0), 
 #                           value=3.0, 
 #                           half_size=half_size,
+#                           interpolated=False,
+#                           distance="square",
 #                           y_bounds=y_bounds, 
 #                           z_bounds=z_bounds)
 
@@ -71,25 +92,56 @@ q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
 #                           center_coords=(-9.0, -1.0), 
 #                           value=2.0, 
 #                           half_size=half_size,
+#                           interpolated=False,
+#                           distance="square",
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
+
+# --------------------------------------------------------------------------
+# half_size = 1
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=( 1.0,  -1.0), 
+#                           value=3.0, 
+#                           half_size=half_size,
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
+
+# --------------------------------------------------------------------------
+# half_size = 1
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=( 1.0,  -10.0), 
+#                           value=3.0, 
+#                           half_size=half_size,
 #                           y_bounds=y_bounds, 
 #                           z_bounds=z_bounds)
 
 
-add_constant_rect_patch_from_corners_coords(
-    q_exact,
-    tl_coords = (-10, -10),
-    br_coords = (-10 + 5, -10 + 20),
-    value = 0.01,
-    y_bounds=y_bounds,
-    z_bounds=z_bounds
-)
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=( -5.0,  7.0), 
+#                           value=3.0, 
+#                           half_size=half_size,
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
 
-parameter_factor = 10
- 
-q_exact = parameter_factor * q_exact.flatten()
+
+# add_constant_square_patch_from_center_coords(q_exact, 
+#                           center_coords=( 8.0,  9.0), 
+#                           value=3.0, 
+#                           half_size=half_size,
+#                           y_bounds=y_bounds, 
+#                           z_bounds=z_bounds)
+
+q_exact = q_exact.flatten()
 q_exact = np.array([q_exact])
 
-q_circ[0,:] = parameter_factor * 1.0
+import matplotlib.pyplot as plt
+plt.imshow(q_exact)
+plt.savefig('./q_exact.pdf')
+
+import sys
+sys.exit()
+
+q_circ[0,:] = 1.0
 
 bounds = np.zeros((par_dim, 2))
 bounds[:,0] = 1e-20
@@ -118,8 +170,8 @@ setup = {
         'hyperparameter' : {
             # 'mu' : 26.32, 
             # 'kappa' : 68.60
-            'mu' : 1 / parameter_factor *  (11.2 / rho_hat), 
-            'lambda' : 1 / parameter_factor * (21.8 / rho_hat),
+            'mu' : (11.2 / rho_hat), 
+            'lambda' : (21.8 / rho_hat),
         }
     },
     'boundary_condition' : {
@@ -277,9 +329,9 @@ TR_optimizer_parameter = {
         'type': TRType.RADIUS,
 
         # TR config
-        'eta_initial': parameter_factor * 0.5,        
-        'eta_min': parameter_factor * 1e-2,
-        'eta_max': parameter_factor * 2.00,
+        'eta_initial': 0.5,        
+        'eta_min': 1e-2,
+        'eta_max': 2.0,
         'beta_1': 0.80,
         'beta_2': 0.80,
         'beta_3': 0.75,

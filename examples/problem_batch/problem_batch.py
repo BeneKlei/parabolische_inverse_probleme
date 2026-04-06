@@ -230,10 +230,9 @@ def main():
     delta_t = (T_final - T_initial) / nt
     
     rho_hat = 2.70
-    parameter_factor = 10
 
     assert T_final > T_initial
-    q_circ = parameter_factor  * np.ones((1, par_dim))
+    q_circ = np.ones((1, par_dim))
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 1e-20
@@ -247,8 +246,7 @@ def main():
         br_coords = (-10 + 5, -10 + 20),
         value = 0.5,
         param_y_res = param_y_res,
-        param_z_res = param_z_res,
-        parameter_factor = parameter_factor
+        param_z_res = param_z_res
     )
 
     setup = {
@@ -275,8 +273,8 @@ def main():
                 # 'lambda' : (10.9 / rho_hat),
                 # 'mu' : (5.6 / rho_hat), 
                 # 'lambda' : (10.9 / rho_hat),
-                'mu' : 1/parameter_factor * (11.2 / rho_hat), 
-                'lambda' : 1/parameter_factor *  (21.8 / rho_hat),
+                'mu' : (11.2 / rho_hat), 
+                'lambda' : (21.8 / rho_hat),
                 # 'mu' : 4 * 4.15,
                 # 'lambda' : 4 * 8.07
             }

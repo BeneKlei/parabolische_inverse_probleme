@@ -43,7 +43,7 @@ os.mkdir(save_path)
 logfile_path= save_path / 'TR_IRGNM.log'
 
 logger = get_default_logger(logger_name='TR_IRGNM',
-                            logfile_path=logfile_path, 
+                            logfile_path=logfile_path,
                             use_timestemp=False)
 logger.setLevel(logging.DEBUG)
 
@@ -67,7 +67,7 @@ set_defaults({
 
 #########################################################################################''
 
-# np.set_printoptions(linewidth=np.inf) 
+# np.set_printoptions(linewidth=np.inf)
 # np.set_printoptions(threshold=np.inf)  # force full print
 
 def main():
@@ -77,22 +77,22 @@ def main():
     center = (
         p1[0],
         p1[1] + (p2[1] - p1[1]) / 2,
-        p1[2] + (p2[2] - p1[2]) / 2        
+        p1[2] + (p2[2] - p1[2]) / 2
     )
 
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    # state_y_res = 20
-    # state_z_res = 20
-
     state_y_res = 30
     state_z_res = 30
+
+    # state_y_res = 60
+    # state_z_res = 60
 
     param_y_res = state_y_res
     param_z_res = state_z_res
 
-    par_dim = (param_y_res + 1) * (param_z_res + 1) 
+    par_dim = (param_y_res + 1) * (param_z_res + 1)
 
     #################################################
     # Set:
@@ -103,21 +103,23 @@ def main():
     # 1 TU = 3.33 * 10^-5s
     #################################################
 
-    T_initial = 0    
+    T_initial = 0
     T_final = 16.0
     nt = 64
 
     delta_t = (T_final - T_initial) / nt
-    
+
     rho_hat = 2.70
 
     assert T_final > T_initial
     q_circ = np.ones((1, par_dim))
     q_exact = np.ones((1,par_dim))
-    
-    # 
+
+    #
     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    half_size = 0
+
+    # --------------------------------------------------------------------------
+    # half_size = 1
     # add_constant_square_patch_from_center_coords(q_exact, 
     #                           center_coords=( 5.0,  0.0), 
     #                           value=3.0, 
@@ -126,27 +128,83 @@ def main():
     #                           z_bounds=z_bounds)
 
 
-    add_constant_square_patch_from_center_coords(q_exact, 
-                              center_coords=(-9.0, -1.0), 
-                              value=2.0, 
-                              half_size=half_size,
-                              y_bounds=y_bounds, 
-                              z_bounds=z_bounds)
+    # add_constant_square_patch_from_center_coords(q_exact, 
+    #                           center_coords=(-9.0, -1.0), 
+    #                           value=2.0, 
+    #                           half_size=half_size,
+    #                           y_bounds=y_bounds, 
+    #                           z_bounds=z_bounds)
+
+    # --------------------------------------------------------------------------
+    # half_size = 1
+    # add_constant_square_patch_from_center_coords(q_exact, 
+    #                           center_coords=( 5.0,  0.0), 
+    #                           value=3.0, 
+    #                           half_size=half_size,
+    #                           y_bounds=y_bounds, 
+    #                           z_bounds=z_bounds)
 
 
-    # add_constant_rect_patch_from_corners_coords(
-    #     q_exact,
-    #     tl_coords = (-10, -10),
-    #     br_coords = (-10 + 5, -10 + 20),
-    #     value = 0.5,
-    #     y_bounds=y_bounds,
-    #     z_bounds=z_bounds
-    # )
+    # add_constant_square_patch_from_center_coords(q_exact, 
+    #                           center_coords=(-9.0, -1.0), 
+    #                           value=2.0, 
+    #                           half_size=half_size,
+    #                           y_bounds=y_bounds, 
+    #                           z_bounds=z_bounds)
 
-    q_exact = 10 * q_exact.flatten()
+
+
+    # --------------------------------------------------------------------------
+    # half_size = 1
+    # add_constant_square_patch_from_center_coords(q_exact, 
+    #                         center_coords=( 1.0,  -1.0), 
+    #                         value=3.0, 
+    #                         half_size=half_size,
+    #                         y_bounds=y_bounds, 
+    #                         z_bounds=z_bounds)
+
+    # --------------------------------------------------------------------------
+    # half_size = 1
+    # add_constant_square_patch_from_center_coords(q_exact, 
+    #                           center_coords=( 1.0,  -10.0), 
+    #                           value=3.0, 
+    #                           half_size=half_size,
+    #                           y_bounds=y_bounds, 
+    #                           z_bounds=z_bounds)
+
+
+    # add_constant_square_patch_from_center_coords(q_exact, 
+    #                           center_coords=( -5.0,  7.0), 
+    #                           value=3.0, 
+    #                           half_size=half_size,
+    #                           y_bounds=y_bounds, 
+    #                           z_bounds=z_bounds)
+
+
+    # add_constant_square_patch_from_center_coords(q_exact, 
+    #                           center_coords=( 8.0,  9.0), 
+    #                           value=3.0, 
+    #                           half_size=half_size,
+    #                           y_bounds=y_bounds, 
+    #                           z_bounds=z_bounds)
+
+    import matplotlib.pyplot as plt
+    plt.imshow(q_exact)
+    plt.colorbar()
+    plt.savefig('./q_exact.pdf')
+
+    import sys
+    sys.exit()
+
+    q_exact = q_exact.flatten()
     q_exact = np.array([q_exact])
 
-    q_circ[0,:] = 10 * 1.0
+
+    parameter_factor = 1
+    q_exact = parameter_factor * q_exact.flatten()
+    q_exact = np.array([q_exact])
+
+    q_circ[0,:] = parameter_factor * 1.0
 
     bounds = np.zeros((par_dim, 2))
     bounds[:,0] = 1e-20
@@ -171,7 +229,7 @@ def main():
             # 'type' : mm.BodyForceType.WavePulse,
             # 'hyperparameter' : {
             #     'origin' : center,
-            #     'end_time' : 4 * 1e-5, # physical time                
+            #     'end_time' : 4 * 1e-5, # physical time
             #     'factor' : 1 / rho_hat,
             #     'time_scaling_factor' : 3.33 * 10^-5
             # }
@@ -180,14 +238,14 @@ def main():
             'type' : hm.StoredEnergyFunctionType.Hookean,
             #'type' : hm.StoredEnergyFunctionType.NeoHookean,
             'hyperparameter' : {
-                # 'mu' : 26.32, 
+                # 'mu' : 26.32,
                 # 'kappa' : 68.60
-                # 'mu' : (5.6 / rho_hat), 
+                # 'mu' : (5.6 / rho_hat),
                 # 'lambda' : (10.9 / rho_hat),
-                # 'mu' : (5.6 / rho_hat), 
+                # 'mu' : (5.6 / rho_hat),
                 # 'lambda' : (10.9 / rho_hat),
-                'mu' : 1/10 * (11.2 / rho_hat), 
-                'lambda' : 1/10 * (21.8 / rho_hat),
+                'mu' : 1/parameter_factor * (11.2 / rho_hat),
+                'lambda' : 1/parameter_factor * (21.8 / rho_hat),
                 # 'mu' : 4 * 4.15,
                 # 'lambda' : 4 * 8.07
             }
@@ -209,7 +267,7 @@ def main():
                 'at_bottom' : False,
                 'sensor_patch_center_offset' : (0.0, 0.0),
                 'x_face_offset' : 0.00,
-                'radius' : 0.001,  
+                'radius' : 0.001,
                 'use_boundary_mass_matrix' : True,
             }
 
@@ -218,7 +276,7 @@ def main():
             # 'hyperparameter' : {
             #     'spatial_resolution' : state_grid_resolution,
             #     'radius' : 0.001,
-            #     'second_row' : False 
+            #     'second_row' : False
             #     # 'radius' : 0.001,
             #     # 'grid_sizes' : [2,8,8]
             # }
@@ -258,7 +316,7 @@ def main():
         'q_exact': q_exact,                           # Exact parameter values, will be set by 'build_InstationaryModelIP'
         'q_time_dep': False,                          # Whether parameter is time-dependent (bool)
         'riesz_rep_grad': True,                       # Use Riesz representative for gradient in optimization
-        'riesz_rep_hess': False,                       
+        'riesz_rep_hess': False,
         'bounds': bounds,                             # Bounds on parameter values (e.g., for optimization)
         'save_path' : save_path,
         'time_stepper' : {
@@ -305,7 +363,7 @@ def main():
     #     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
     #     q_exact[:, i:8] = 2.0
     #     q_exact = q_exact.flatten()
-    #     q_exact = np.array([q_exact])    
+    #     q_exact = np.array([q_exact])
 
     # #print(q_exact)
 
@@ -319,7 +377,7 @@ def main():
     # print(FOM.compute_objective(_q_exact))
 
     # q_exact = 2 * np.ones((1,par_dim))
-    # _q_circ = FOM.Q.make_array(q_circ)
+    #_q_circ = FOM.Q.make_array(q_circ)
     # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[0]))
     # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[1]))
     # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[2]))
@@ -331,6 +389,10 @@ def main():
     # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[8]))
     # print("------------------------------")
     # print(FOM.compute_objective(_q_circ))
+
+    #print(FOM.compute_objective(_q_circ, alpha=0))
+    #print(FOM.compute_objective(_q_circ, alpha=1e-5))
+    #print(FOM.compute_gradient_norm(_q_circ))
 
     # import sys
     # sys.exit()
@@ -379,7 +441,7 @@ def main():
     # _q_start = FOM.Q.make_array(q_start)
     # _q_exact = FOM.Q.make_array(q_exact)
     # J = FOM.compute_objective(_q_start)
-    
+
     # print(FOM.compute_objective(_q_start))
     # print(FOM.compute_objective(_q_exact))
     # _d = FOM.Q.zeros()
@@ -406,7 +468,7 @@ def main():
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
-        'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
+        'reg_loop_max': 30,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
         'AGC_armijo_cfg' : {
@@ -421,13 +483,24 @@ def main():
             "kappa_arm": 1e-12,
             "shrink": 0.5,
         },
+        # 'TR': {
+        #     'type': TRType.RADIUS,
+
+        #     # TR config
+        #     'eta_initial': parameter_factor * 1.00,
+        #     'eta_min': parameter_factor * 1e-5,
+        #     'eta_max': parameter_factor * 5.00,
+        #     'beta_1': 0.80,
+        #     'beta_2': 0.80,
+        #     'beta_3': 0.75,
+        # },
         'TR': {
             'type': TRType.RADIUS,
 
             # TR config
-            'eta_initial': parameter_factor * 1.00,
-            'eta_min': parameter_factor * 1e-5,
-            'eta_max': parameter_factor * 5.00,
+            'eta_initial': 1.0,
+            'eta_min': 1e-5,
+            'eta_max': 5.0,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
@@ -436,7 +509,7 @@ def main():
         #     'type': TRType.RADIUS,
 
         #     # TR config
-        #     'eta_initial': 0.25,        
+        #     'eta_initial': 0.25,
         #     'eta_min': 1e-2,
         #     'eta_max': 1.00,
         #     'beta_1': 0.80,
@@ -483,10 +556,10 @@ def main():
                     'include_krylov_directions' : False,
                     'include_q_exact' : False
                 },
-                'compression' : 
+                'compression' :
                 {
                     'normalize' : True,
-                    'HaPOD' : 
+                    'HaPOD' :
                     {
                         'eps': 1e-1,
                         'omega' : 0.1,
@@ -495,7 +568,7 @@ def main():
                 },
                 'coarsing' : None,
             },
-            'state_basis' : 
+            'state_basis' :
             {
                 'additional_snapshots' :{
                     'include_lin_states' : False,
@@ -522,31 +595,31 @@ def main():
         },
         'logging' : {
             'errors' : LoggerErrorChoice.NONE,
-            #'estimate_tcc' : None,
-            'estimate_tcc' : {
-                'models' : ['FOM', 'ROM'],
-                'config' : {
-                    "amplitudes": [1e0,1e-2,1e-4],
-                    "max_h": 10,
-                    "seed": 0,
-                    "perturbation_mode": "gradient_direction",
-                    "create_pdf": False,
-                    "pdf_filename": None,
-                    "verbose_logging" : False
-                },
-            }
-        }        
+            'estimate_tcc' : None,
+            # 'estimate_tcc' : {
+            #     'models' : ['FOM', 'ROM'],
+            #     'config' : {
+            #         "amplitudes": [1e0,1e-2,1e-4],
+            #         "max_h": 10,
+            #         "seed": 0,
+            #         "perturbation_mode": "gradient_direction",
+            #         "create_pdf": False,
+            #         "pdf_filename": None,
+            #         "verbose_logging" : False
+            #     },
+            # }
+        }
     }
 
 
 
     logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
-    save_dict_to_pkl(path=save_path / 'setup.pkl', 
+    save_dict_to_pkl(path=save_path / 'setup.pkl',
                      data = setup,
                      use_timestamp=False)
-        
+
     logger.info(f"Dumping model optimizer_parameter to {save_path / 'optimizer_parameter.pkl'}.")
-    save_dict_to_pkl(path=save_path / 'optimizer_parameter.pkl', 
+    save_dict_to_pkl(path=save_path / 'optimizer_parameter.pkl',
                         data = optimizer_parameter,
                         use_timestamp=False)
 
@@ -557,17 +630,17 @@ def main():
         save_path=save_path
     )
 
-    
+
     # _q_exact = FOM.Q.make_array(q_exact)
     # u_exact = FOM.solve_state(_q_exact)
     # p_exact = FOM.solve_adjoint(_q_exact, u_exact)
-        
+
     # optimizer.add_initial_snapshots(snapshots=FOM.Q.make_array(q_exact), basis="parameter_basis")
     # optimizer.add_initial_snapshots(snapshots=u_exact, basis="state_basis")
     # optimizer.add_initial_snapshots(snapshots=p_exact, basis="state_basis")
 
     q_est = optimizer.solve()
-   
+
 
 
 if __name__ == '__main__':

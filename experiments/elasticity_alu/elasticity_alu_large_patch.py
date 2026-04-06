@@ -59,22 +59,6 @@ q_exact = np.ones((1,par_dim))
 half_size = 1
 q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
 
-# add_constant_square_patch_from_center_coords(q_exact, 
-#                           center_coords=( 5.0,  0.0), 
-#                           value=3.0, 
-#                           half_size=half_size,
-#                           y_bounds=y_bounds, 
-#                           z_bounds=z_bounds)
-
-
-# add_constant_square_patch_from_center_coords(q_exact, 
-#                           center_coords=(-9.0, -1.0), 
-#                           value=2.0, 
-#                           half_size=half_size,
-#                           y_bounds=y_bounds, 
-#                           z_bounds=z_bounds)
-
-
 add_constant_rect_patch_from_corners_coords(
     q_exact,
     tl_coords = (-10, -10),
@@ -84,12 +68,11 @@ add_constant_rect_patch_from_corners_coords(
     z_bounds=z_bounds
 )
 
-parameter_factor = 10
  
-q_exact = parameter_factor * q_exact.flatten()
+q_exact = q_exact.flatten()
 q_exact = np.array([q_exact])
 
-q_circ[0,:] = parameter_factor * 1.0
+q_circ[0,:] = 1.0
 
 bounds = np.zeros((par_dim, 2))
 bounds[:,0] = 1e-20
@@ -118,8 +101,8 @@ setup = {
         'hyperparameter' : {
             # 'mu' : 26.32, 
             # 'kappa' : 68.60
-            'mu' : 1 / parameter_factor *  (11.2 / rho_hat), 
-            'lambda' : 1 / parameter_factor * (21.8 / rho_hat),
+            'mu' : (11.2 / rho_hat), 
+            'lambda' : (21.8 / rho_hat),
         }
     },
     'boundary_condition' : {
@@ -203,13 +186,13 @@ setup = {
 }
 
 q_start = q_circ
-abs_grad_tol = 5 * 1e-13
+abs_grad_tol = 5 * 1e-11
 tau = 2.00
 
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
     'q_0': q_start,                                          # Initial guess for the parameter to be optimized
-    'alpha_0': 1e-7,                                          # Initial regularization parameter
+    'alpha_0': 1e-5,                                          # Initial regularization parameter
     'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
     'tau': tau,                                              # Relative (to the noise) convergence tolerance for optimization
     'noise_level': setup['noise_info']['abs_noise_level_y'],                   # Lower tolerance for the direction acceptance condition
@@ -217,7 +200,7 @@ FOM_optimizer_parameter = {
     'Theta': 1.95,                                           # Upper tolerance for the direction acceptance condition
     #####################
     'i_max': 250,                                             # Maximum number of outer optimization iterations
-    'reg_loop_max': 15,                                      # Maximum number of regularization updates per step
+    'reg_loop_max': 25,                                      # Maximum number of regularization updates per step
     'i_max_inner': 10,                                       # Maximum number of inner iterations
     ####################
     'lin_solver_parms': {
@@ -237,7 +220,7 @@ FOM_optimizer_parameter = {
 TR_optimizer_parameter = {
     'method' : 'TR_IRGNM',
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
-    'alpha_0': 1e-7,                                              # Initial regularization parameter (data fidelity vs. regularization)        
+    'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
     'tau': tau,                                                  # Relative (to the noise) convergence tolerance for optimization
     'noise_level': None,                         # Noise level in observed data (from model setup)
@@ -247,7 +230,7 @@ TR_optimizer_parameter = {
     'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
     #####################
     'i_max': 250,                                                 # Max number of outer optimization iterations
-    'reg_loop_max': 15,                                          # Max number of regularization updates per iteration
+    'reg_loop_max': 10,                                          # Max number of regularization updates per iteration
     #'i_max_inner': 15,                                           # Max number of inner iterations
     'i_max_inner': 30,                                           # Max number of inner iterations
     'AGC_armijo_cfg' : {
@@ -277,9 +260,9 @@ TR_optimizer_parameter = {
         'type': TRType.RADIUS,
 
         # TR config
-        'eta_initial': parameter_factor * 0.5,        
-        'eta_min': parameter_factor * 1e-2,
-        'eta_max': parameter_factor * 2.0,
+        'eta_initial': 0.5,        
+        'eta_min': 1e-2,
+        'eta_max': 2.0,
         'beta_1': 0.80,
         'beta_2': 0.80,
         'beta_3': 0.75,
@@ -368,6 +351,7 @@ tau_ = 1.10
 
 FOM_optimizer_parameter_ = copy.deepcopy(FOM_optimizer_parameter)
 TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
+
 
 ##########################################################################################
 
