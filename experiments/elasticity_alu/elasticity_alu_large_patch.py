@@ -418,9 +418,9 @@ TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_
 TR_optimizer_parameter_identity['tau'] = tau_
 TR_optimizer_parameter_grid['tau'] = tau_
 
-EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
-EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
-EXPERIMENTS['TR_grid_time_step'] = (setup_grid, TR_optimizer_parameter_grid)
+# EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
+# EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+# EXPERIMENTS['TR_grid_time_step'] = (setup_grid, TR_optimizer_parameter_grid)
 
 #----------------------------------------------------------------------------------------
 
@@ -438,9 +438,9 @@ TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_
 TR_optimizer_parameter_identity['tau'] = tau_
 TR_optimizer_parameter_grid['tau'] = tau_
 
-EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
-EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
-EXPERIMENTS['TR_grid_time_step_full'] = (setup_grid, TR_optimizer_parameter_grid)
+# EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
+# EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
+# EXPERIMENTS['TR_grid_time_step_full'] = (setup_grid, TR_optimizer_parameter_grid)
 
 
 #----------------------------------------------------------------------------------------

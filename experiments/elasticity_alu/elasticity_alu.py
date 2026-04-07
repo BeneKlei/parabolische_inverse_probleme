@@ -60,31 +60,11 @@ half_size = 1
 q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
 
 # --------------------------------------------------------------------------
-half_size = 1
-add_constant_square_patch_from_center_coords(q_exact, 
-                          center_coords=( 5.0,  0.0), 
-                          value=3.0, 
-                          half_size=half_size,
-                          y_bounds=y_bounds, 
-                          z_bounds=z_bounds)
-
-
-add_constant_square_patch_from_center_coords(q_exact, 
-                          center_coords=(-9.0, -1.0), 
-                          value=2.0, 
-                          half_size=half_size,
-                          y_bounds=y_bounds, 
-                          z_bounds=z_bounds)
-
-
-# --------------------------------------------------------------------------
 # half_size = 1
 # add_constant_square_patch_from_center_coords(q_exact, 
 #                           center_coords=( 5.0,  0.0), 
 #                           value=3.0, 
 #                           half_size=half_size,
-#                           interpolated=True,
-#                           distance="square",
 #                           y_bounds=y_bounds, 
 #                           z_bounds=z_bounds)
 
@@ -93,10 +73,30 @@ add_constant_square_patch_from_center_coords(q_exact,
 #                           center_coords=(-9.0, -1.0), 
 #                           value=2.0, 
 #                           half_size=half_size,
-#                           interpolated=True,
-#                           distance="square",
 #                           y_bounds=y_bounds, 
 #                           z_bounds=z_bounds)
+
+
+# --------------------------------------------------------------------------
+half_size = 1
+add_constant_square_patch_from_center_coords(q_exact, 
+                          center_coords=( 5.0,  0.0), 
+                          value=3.0, 
+                          half_size=half_size,
+                          interpolated=True,
+                          distance="square",
+                          y_bounds=y_bounds, 
+                          z_bounds=z_bounds)
+
+
+add_constant_square_patch_from_center_coords(q_exact, 
+                          center_coords=(-9.0, -1.0), 
+                          value=2.0, 
+                          half_size=half_size,
+                          interpolated=True,
+                          distance="square",
+                          y_bounds=y_bounds, 
+                          z_bounds=z_bounds)
 
 # --------------------------------------------------------------------------
 # half_size = 1
@@ -104,33 +104,41 @@ add_constant_square_patch_from_center_coords(q_exact,
 #                           center_coords=( 1.0,  -1.0), 
 #                           value=3.0, 
 #                           half_size=half_size,
+#                           interpolated=True,
+#                           distance="square",
 #                           y_bounds=y_bounds, 
 #                           z_bounds=z_bounds)
 
 # --------------------------------------------------------------------------
-# half_size = 1
-# add_constant_square_patch_from_center_coords(q_exact, 
-#                           center_coords=( 1.0,  -10.0), 
-#                           value=3.0, 
-#                           half_size=half_size,
-#                           y_bounds=y_bounds, 
-#                           z_bounds=z_bounds)
+half_size = 1
+add_constant_square_patch_from_center_coords(q_exact, 
+                            center_coords=( 1.0,  -10.0), 
+                            value=3.0, 
+                            half_size=half_size,
+                            interpolated=True,
+                            distance="square",
+                            y_bounds=y_bounds, 
+                            z_bounds=z_bounds)
 
 
-# add_constant_square_patch_from_center_coords(q_exact, 
-#                           center_coords=( -5.0,  7.0), 
-#                           value=3.0, 
-#                           half_size=half_size,
-#                           y_bounds=y_bounds, 
-#                           z_bounds=z_bounds)
+add_constant_square_patch_from_center_coords(q_exact, 
+                          center_coords=( -5.0,  7.0), 
+                          value=3.0, 
+                          half_size=half_size,
+                          interpolated=True,
+                          distance="square",
+                          y_bounds=y_bounds, 
+                          z_bounds=z_bounds)
 
 
-# add_constant_square_patch_from_center_coords(q_exact, 
-#                           center_coords=( 8.0,  9.0), 
-#                           value=3.0, 
-#                           half_size=half_size,
-#                           y_bounds=y_bounds, 
-#                           z_bounds=z_bounds)
+add_constant_square_patch_from_center_coords(q_exact, 
+                          center_coords=( 8.0,  9.0), 
+                          value=3.0, 
+                          half_size=half_size,
+                          interpolated=True,
+                          distance="square",
+                          y_bounds=y_bounds, 
+                          z_bounds=z_bounds)
  
 q_exact = q_exact.flatten()
 q_exact = np.array([q_exact])
@@ -480,9 +488,9 @@ TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_
 TR_optimizer_parameter_identity['tau'] = tau_
 TR_optimizer_parameter_grid['tau'] = tau_
 
-EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
-EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
-EXPERIMENTS['TR_grid_time_step'] = (setup_grid, TR_optimizer_parameter_grid)
+# EXPERIMENTS['TR_sensors_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
+# EXPERIMENTS['TR_identity_time_step'] = (setup_identity, TR_optimizer_parameter_identity)
+# EXPERIMENTS['TR_grid_time_step'] = (setup_grid, TR_optimizer_parameter_grid)
 
 #----------------------------------------------------------------------------------------
 
@@ -500,9 +508,9 @@ TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_
 TR_optimizer_parameter_identity['tau'] = tau_
 TR_optimizer_parameter_grid['tau'] = tau_
 
-EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
-EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
-EXPERIMENTS['TR_grid_time_step_full'] = (setup_grid, TR_optimizer_parameter_grid)
+# EXPERIMENTS['TR_sensors_time_step_full'] = (setup_sensors, TR_optimizer_parameter_sensors)
+# EXPERIMENTS['TR_identity_time_step_full'] = (setup_identity, TR_optimizer_parameter_identity)
+# EXPERIMENTS['TR_grid_time_step_full'] = (setup_grid, TR_optimizer_parameter_grid)
 
 
 #----------------------------------------------------------------------------------------

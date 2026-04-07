@@ -59,31 +59,11 @@ q_exact = np.ones((1,par_dim))
 q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
 
 # --------------------------------------------------------------------------
-half_size = 1
-add_constant_square_patch_from_center_coords(q_exact, 
-                          center_coords=( 5.0,  0.0), 
-                          value=3.0, 
-                          half_size=half_size,
-                          y_bounds=y_bounds, 
-                          z_bounds=z_bounds)
-
-
-add_constant_square_patch_from_center_coords(q_exact, 
-                          center_coords=(-9.0, -1.0), 
-                          value=2.0, 
-                          half_size=half_size,
-                          y_bounds=y_bounds, 
-                          z_bounds=z_bounds)
-
-
-# --------------------------------------------------------------------------
 # half_size = 1
 # add_constant_square_patch_from_center_coords(q_exact, 
 #                           center_coords=( 5.0,  0.0), 
 #                           value=3.0, 
 #                           half_size=half_size,
-#                           interpolated=False,
-#                           distance="square",
 #                           y_bounds=y_bounds, 
 #                           z_bounds=z_bounds)
 
@@ -92,10 +72,30 @@ add_constant_square_patch_from_center_coords(q_exact,
 #                           center_coords=(-9.0, -1.0), 
 #                           value=2.0, 
 #                           half_size=half_size,
-#                           interpolated=False,
-#                           distance="square",
 #                           y_bounds=y_bounds, 
 #                           z_bounds=z_bounds)
+
+
+# --------------------------------------------------------------------------
+half_size = 1
+add_constant_square_patch_from_center_coords(q_exact, 
+                          center_coords=( 5.0,  0.0), 
+                          value=3.0, 
+                          half_size=half_size,
+                          interpolated=False,
+                          distance="square",
+                          y_bounds=y_bounds, 
+                          z_bounds=z_bounds)
+
+
+add_constant_square_patch_from_center_coords(q_exact, 
+                          center_coords=(-9.0, -1.0), 
+                          value=2.0, 
+                          half_size=half_size,
+                          interpolated=False,
+                          distance="square",
+                          y_bounds=y_bounds, 
+                          z_bounds=z_bounds)
 
 # --------------------------------------------------------------------------
 # half_size = 1
