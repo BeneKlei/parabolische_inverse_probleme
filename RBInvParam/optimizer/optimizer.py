@@ -1891,6 +1891,12 @@ class QrVrROMOptimizer(Optimizer):
                         last_inner_alpha = None
 
                 if not convergence_criterium:
+
+                    print("Called")
+                    self.reductor.delete_cached_operators()
+
+                    self.reductor.bases["state_basis"] = self.FOM.V.empty()
+                    
                     self._reset_snapshots()
                     self.snapshots = self.snapshot_preprocessor.get_snapshots(
                         config=opt_cfg.enrichment,
@@ -1916,33 +1922,37 @@ class QrVrROMOptimizer(Optimizer):
                     # self.reductor.bases["state_basis"] = self.FOM.V.empty()
 
 
-                    u_r = self.QrVrROM.solve_state(
-                        q_r
-                    )
+                    # u_r = self.QrVrROM.solve_state(
+                    #     q_r
+                    # )
 
-                    diff = u - self.reductor.reconstruct(u_r, basis="state_basis")                    
-                    self.FOM.A.hyperelasticity_model.save_time_series(
-                        [v.impl for v in diff.vectors],
-                        str('diff_u'),
-                        str(self.save_path / f'{i}'),
-                        np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-                    )
+                    # diff = u - self.reductor.reconstruct(u_r, basis="state_basis")                    
+                    # self.FOM.A.hyperelasticity_model.save_time_series(
+                    #     [v.impl for v in diff.vectors],
+                    #     str('diff_u'),
+                    #     str(self.save_path / f'{i}'),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
 
-                    self.FOM.A.hyperelasticity_model.save_time_series(
-                        [v.impl for v in u.vectors],
-                        str('u'),
-                        str(self.save_path / f'{i}'),
-                        np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
-                    )
+                    # self.FOM.A.hyperelasticity_model.save_time_series(
+                    #     [v.impl for v in u.vectors],
+                    #     str('u'),
+                    #     str(self.save_path / f'{i}'),
+                    #     np.linspace(self.FOM.T_initial, self.FOM.T_final, self.FOM.nt+1)
+                    # )
+                        
 
                     # import sys
                     # sys.exit()
                     
+                    print(len(self.reductor.bases["state_basis"] ))
                     
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.active_bases,
                         enrichment=opt_cfg.enrichment,
                     )
+
+                    print(len(self.reductor.bases["state_basis"] ))
 
                     # self._reset_snapshots()
                     # self.snapshots['parameter_basis'].append(q)

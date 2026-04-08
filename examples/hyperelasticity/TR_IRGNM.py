@@ -83,11 +83,11 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 30
-    state_z_res = 30
+    # state_y_res = 30
+    # state_z_res = 30
 
-    # state_y_res = 60
-    # state_z_res = 60
+    state_y_res = 60
+    state_z_res = 60
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -187,6 +187,16 @@ def main():
     #                           half_size=half_size,
     #                           y_bounds=y_bounds, 
     #                           z_bounds=z_bounds)
+
+
+    add_constant_rect_patch_from_corners_coords(
+        q_exact,
+        tl_coords = (-10, -10),
+        br_coords = (-10 + 5, -10 + 20),
+        value = 0.5,
+        y_bounds=y_bounds,
+        z_bounds=z_bounds
+    )
 
     # import matplotlib.pyplot as plt
     # plt.imshow(q_exact)
@@ -302,8 +312,8 @@ def main():
         #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         #'noise_level': 0,                      # Absolute noise magnitude added to data
         'noise_info' : {
-            'noise_level_input' : 1.0 * 1e-2,
-            #'noise_level_input' : 0.0,
+            #'noise_level_input' : 1.0 * 1e-2,
+            'noise_level_input' : 0.0,
             'noise_level_mode' : 'rel',
             'abs_noise_level_y' : None,
             'rel_noise_level_y' : None,
@@ -493,13 +503,13 @@ def main():
         #     'beta_3': 0.75,
         # },
         'TR': {
-            #'type': TRType.RADIUS,
-            'type': TRType.RELATIVE_OBJECTIVE_ERROR,
+            'type': TRType.RADIUS,
+            #'type': TRType.RELATIVE_OBJECTIVE_ERROR,
 
             # TR config
-            'eta_initial': 1.0,
+            'eta_initial': 0.5,
             'eta_min': 1e-5,
-            'eta_max': 5.0,
+            'eta_max': 2.0,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
@@ -550,21 +560,21 @@ def main():
             'parameter_basis' : {
                 'additional_snapshots' :{
                     'include_lin_grad' : False,
-                    'include_each_nabla_J_time_step' : True,
+                    'include_each_nabla_J_time_step' : False,
                     'include_each_nabla_lin_J_time_step' : False,
                     'include_krylov_directions' : False,
                     'include_q_exact' : False
                 },
-                'compression' :
-                {
-                    'normalize' : True,
-                    'HaPOD' :
-                    {
-                        'eps': 1e-1,
-                        'omega' : 0.1,
-                    },
-                    'every_n' : None,
-                },
+                'compression' : None,
+                # {
+                #     'normalize' : True,
+                #     'HaPOD' :
+                #     {
+                #         'eps': 1e-1,
+                #         'omega' : 0.1,
+                #     },
+                #     'every_n' : None,
+                # },
                 'coarsing' : None,
             },
             'state_basis' :
