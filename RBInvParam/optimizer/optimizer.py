@@ -1996,6 +1996,7 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics["outer_loop_runtime"]["total_runtime"].append(
                     timer() - outer_loop_start_time
                 )
+                self.statistics["FOM_num_calls"] = self.FOM.num_calls
 
             if (i % opt_cfg.dump_every_nth_loop == 0) or (i == 1):
                 self.dump_stats(
