@@ -529,6 +529,42 @@ class InstationaryModelIP(ImmutableObject):
 
                 if all(x is None for x in self._cached_operators[key]):
                     self.cache_operators(q=q, u=u, target=key)
+
+    def _collect_time_iterator_output(
+        self,
+        iterator,
+        space,
+        return_higher_orders: bool = False,
+        reverse: bool = False,
+    ):
+        x = space.empty(reserve=(self.nt + 1))
+        x_dot = space.empty(reserve=(self.nt + 1)) if return_higher_orders else None
+
+        x_n = None
+        x_dot_n = None
+
+        for item in iterator:
+            if len(item) == 3:
+                x_n, x_dot_n, _ = item
+            elif len(item) == 2:
+                x_n, _ = item
+                
+            else:
+                raise ValueError(f"Unexpected iterator output: {item}")
+
+            x.append(x_n)
+            if x_dot_n and return_higher_orders:
+                x_dot.append(x_dot_n)
+
+        if reverse:
+            x = x[::-1]
+            if return_higher_orders:
+                x_dot = x_dot[::-1]
+
+        if return_higher_orders:
+            return x, x_dot
+        else:
+            return x
         
 #%% solve methods
     def solve_state(self, 
@@ -560,16 +596,12 @@ class InstationaryModelIP(ImmutableObject):
                                          use_cached_operators=use_cached_operators,
                                          cached_operators=self._cached_operators)
         
-        u = self.V.empty(reserve=(self.nt + 1))
-        u_dot = self.V.empty(reserve=(self.nt + 1))
-        for u_n, u_dot_n,  _ in iterator:
-            u.append(u_n)
-            u_dot.append(u_dot_n)
-
-        if return_higher_orders:
-            return u, u_dot
-        else:
-            return u
+        return self._collect_time_iterator_output(
+            iterator=iterator,
+            space=self.V,
+            return_higher_orders=return_higher_orders,
+            reverse=False,
+        )
 
     def solve_adjoint(self, 
                       q: VectorArray, 
@@ -623,19 +655,12 @@ class InstationaryModelIP(ImmutableObject):
                                              'implicit_euler_rhs' : False
                                          })
         
-        p = self.V_ad.empty(reserve=(self.nt + 1))
-        p_dot = self.V_ad.empty(reserve=(self.nt + 1))
-        for p_n, p_dot_n,  _ in iterator:
-            p.append(p_n)
-            p_dot.append(p_dot_n)
-
-        p = p[::-1]
-        p_dot = p_dot[::-1]
-
-        if return_higher_orders:
-            return p, p_dot
-        else:
-            return p    
+        return self._collect_time_iterator_output(
+            iterator=iterator,
+            space=self.V_ad,
+            return_higher_orders=return_higher_orders,
+            reverse=True,
+        )   
     
     def solve_linearized_state(self,
                                q: VectorArray,
@@ -700,16 +725,12 @@ class InstationaryModelIP(ImmutableObject):
                                          cached_operators=self._cached_operators)
         
     
-        lin_u = self.V.empty(reserve=(self.nt + 1))
-        lin_u_dot = self.V.empty(reserve=(self.nt + 1))
-        for lin_u_n, lin_u_dot_n,  _ in iterator:
-            lin_u.append(lin_u_n)
-            lin_u_dot.append(lin_u_dot_n)
-
-        if return_higher_orders:
-            return lin_u, lin_u_dot
-        else:
-            return lin_u
+        return self._collect_time_iterator_output(
+            iterator=iterator,
+            space=self.V,
+            return_higher_orders=return_higher_orders,
+            reverse=False,
+        )
     
     def solve_linearized_adjoint(self,
                                  q: VectorArray,
@@ -764,19 +785,12 @@ class InstationaryModelIP(ImmutableObject):
                                              'implicit_euler_rhs' : False
                                          })
             
-        lin_p = self.V_ad.empty(reserve=(self.nt + 1))
-        lin_p_dot = self.V_ad.empty(reserve=(self.nt + 1))
-        for lin_p_n, lin_p_dot_n,  _ in iterator:
-            lin_p.append(lin_p_n)
-            lin_p_dot.append(lin_p_dot_n)
-        
-        lin_p = lin_p[::-1]
-        lin_p_dot = lin_p_dot[::-1]
-
-        if return_higher_orders:
-            return lin_p, lin_p_dot
-        else:
-            return lin_p
+        return self._collect_time_iterator_output(
+            iterator=iterator,
+            space=self.V_ad,
+            return_higher_orders=return_higher_orders,
+            reverse=True,
+        )
 
     def solve_second_adjoint(self, 
                              q: VectorArray, 

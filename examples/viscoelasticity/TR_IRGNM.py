@@ -83,11 +83,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    # state_y_res = 30
-    # state_z_res = 30
-
-    state_y_res = 60
-    state_z_res = 60
+    state_y_res = 10
+    state_z_res = 10
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -255,8 +252,8 @@ def main():
                 # 'lambda' : (10.9 / rho_hat),
                 # 'mu' : (5.6 / rho_hat),
                 # 'lambda' : (10.9 / rho_hat),
-                'mu' : 1/parameter_factor * (11.2 / rho_hat),
-                'lambda' : 1/parameter_factor * (21.8 / rho_hat),
+                'mu' : (11.2 / rho_hat),
+                'lambda' : (21.8 / rho_hat),
                 # 'mu' : 4 * 4.15,
                 # 'lambda' : 4 * 8.07
             }
@@ -315,8 +312,8 @@ def main():
         #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         #'noise_level': 0,                      # Absolute noise magnitude added to data
         'noise_info' : {
-            'noise_level_input' : 1.0 * 1e-2,
-            #'noise_level_input' : 0.0,
+            #'noise_level_input' : 1.0 * 1e-2,
+            'noise_level_input' : 0.0,
             'noise_level_mode' : 'rel',
             'abs_noise_level_y' : None,
             'rel_noise_level_y' : None,
@@ -333,29 +330,29 @@ def main():
         'time_stepper' : {
             'state' : {
                 #'type' : TimeStepperType.SecondOrderCrankNicolson,
-                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                'type' : TimeStepperType.FirstOrderCrankNicolson,
                 'config' : {
-                    'zeta' : 0.5
+                    'zeta' : 1.0
                 }
             },
             'adjoint' : {
-                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                'type' : TimeStepperType.FirstOrderCrankNicolson,
                 #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
                 'config' : {
-                    'zeta' : 0.5
+                    'zeta' : 1.0
                 }
             },
             'lin_state' : {
-                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                'type' : TimeStepperType.FirstOrderCrankNicolson,
                 'config' : {
-                    'zeta' : 0.5
+                    'zeta' : 1.0
                 }
             },
             'lin_adjoint' : {
-                'type' : TimeStepperType.SecondOrderCrankNicolson,
+                'type' : TimeStepperType.FirstOrderCrankNicolson,
                 #'type' : TimeStepperType.SecondOrderCrankNicolsonAdjointDTO,
                 'config' : {
-                    'zeta' : 0.5
+                    'zeta' : 1.0
                 }
             },
         }
@@ -506,13 +503,13 @@ def main():
         #     'beta_3': 0.75,
         # },
         'TR': {
-            #'type': TRType.RADIUS,
-            'type': TRType.RELATIVE_OBJECTIVE_ERROR,
+            'type': TRType.RADIUS,
+            #'type': TRType.RELATIVE_OBJECTIVE_ERROR,
 
             # TR config
-            'eta_initial': 0.1,
+            'eta_initial': 1.0,
             'eta_min': 1e-5,
-            'eta_max': 0.3,
+            'eta_max': 2.0,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
@@ -563,7 +560,7 @@ def main():
             'parameter_basis' : {
                 'additional_snapshots' :{
                     'include_lin_grad' : False,
-                    'include_each_nabla_J_time_step' : False,
+                    'include_each_nabla_J_time_step' : True,
                     'include_each_nabla_lin_J_time_step' : False,
                     'include_krylov_directions' : False,
                     'include_q_exact' : False
@@ -590,7 +587,7 @@ def main():
                 {
                     'normalize' : False,
                     'HaPOD' : {
-                        'eps': 1e-3,
+                        'eps': 1e-4,
                         'omega' : 0.1,
                     },
                     'every_n' : None,

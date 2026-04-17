@@ -1171,10 +1171,18 @@ class QrVrROMOptimizer(Optimizer):
                 cfg = base_cfg
 
             snapshots = self.snapshot_preprocessor.preprocess(
-                snapshots=snapshots,
+                snapshots=snapshots.copy(),
                 product=self.reductor.products[basis],
                 config=cfg,
             )
+
+            # if basis == "state_basis":
+            #     self.FOM.A.hyperelasticity_model.save_time_series(
+            #         [v.impl for v in snapshots.vectors],
+            #         str('snapshots_preprocessed'),
+            #         str(self.save_path),
+            #         np.arange(len(snapshots))
+            #     )
 
             try:
                 self.reductor.extend_basis(
@@ -1278,6 +1286,13 @@ class QrVrROMOptimizer(Optimizer):
             use_cached_operators = opt_cfg.use_cached_operators
         )
 
+        # self.FOM.A.hyperelasticity_model.save_time_series(
+        #     [v.impl for v in self.snapshots['state_basis'].vectors],
+        #     str('snapshots'),
+        #     str(self.save_path),
+        #     np.arange(len(self.snapshots['state_basis']))
+        # )
+
         for basis in self.active_bases:
             self.snapshots[basis].append(self.initial_snapshots[basis])
 
@@ -1285,6 +1300,16 @@ class QrVrROMOptimizer(Optimizer):
             bases=self.active_bases,
             enrichment=opt_cfg.enrichment
         )
+
+
+        # self.FOM.A.hyperelasticity_model.save_time_series(
+        #     [v.impl for v in self.reductor.bases['state_basis'].vectors],
+        #     str('reduced_bases'),
+        #     str(self.save_path),
+        #     np.arange(len(self.reductor.bases['state_basis']))
+        # )
+        # import sys
+        # sys.exit()
 
         # always enrich parameter basis with q and q_circ (normalized, no HaPOD)
         self._reset_snapshots()
@@ -1892,10 +1917,10 @@ class QrVrROMOptimizer(Optimizer):
 
                 if not convergence_criterium:
 
-                    print("Called")
-                    self.reductor.delete_cached_operators()
+                    # print("Called")
+                    # self.reductor.delete_cached_operators()
 
-                    self.reductor.bases["state_basis"] = self.FOM.V.empty()
+                    # self.reductor.bases["state_basis"] = self.FOM.V.empty()
                     
                     self._reset_snapshots()
                     self.snapshots = self.snapshot_preprocessor.get_snapshots(

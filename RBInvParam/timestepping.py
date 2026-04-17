@@ -18,6 +18,7 @@ from RBInvParam.problems.shared.pymor_dealii_bindings.operator import DealIIMatr
 
 class TimeStepperType(Enum):
     ImplicitEulerTimeStepper = "ImplicitEulerTimeStepper"
+    FirstOrderCrankNicolson = "FirstOrderCrankNicolson"
     SecondOrderCrankNicolson = "SecondOrderCrankNicolson"
     SecondOrderCrankNicolsonLinear = "SecondOrderCrankNicolsonLinear"
     SecondOrderCrankNicolsonAdjointDTO = "SecondOrderCrankNicolsonAdjointDTO"
@@ -117,34 +118,40 @@ class TimeStepper(ABC):
         assert len(data) == 1
 
 class ImplicitEulerTimeStepper(TimeStepper):
-    def iterate(self,                               
-                initial_data : VectorArray, 
+    def iterate(self,
+                initial_data : dict, 
                 q : Union[VectorArray, List[VectorArray]], 
-                rhs : Union[VectorArray, List[VectorArray]],
+                rhs : VectorArray,
+                u : Union[VectorArray, List[VectorArray]] = None,
                 use_cached_operators: bool = False,
-                cached_operators: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
-    
-        F, U0 = rhs, initial_data
-        dt_F = None
-        theta = self.theta
- 
-        assert isinstance(F, (VectorArray))
-        assert isinstance(q, (VectorArray, np.ndarray))
+                cached_operators: Dict = None,
+                config: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
+
+        ################################### Prepare ###################################
+
+        U0 = initial_data
+        F = rhs
+
+        assert isinstance(U0, VectorArray)
         assert U0 in self.A.source
         assert len(U0) == 1
+
+        assert isinstance(q, (VectorArray, np.ndarray))
         assert q in self.Q
 
         if use_cached_operators:
             self._check_cache(
-               keys = ['M_dt_A'],
-               q = q,
-               cached_operators = cached_operators
+                keys=['M_dt_A_q'],
+                q=q,
+                cached_operators=cached_operators
             )
 
         num_values = self.nt + 1
         dt = (self.T_final - self.T_initial) / self.nt
         DT = (self.T_final - self.T_initial) / (num_values - 1)
 
+        # ---- RHS handling ----
+        dt_F = None
         if F is None:
             F_time_dep = False
         elif isinstance(F, VectorArray):
@@ -152,59 +159,239 @@ class ImplicitEulerTimeStepper(TimeStepper):
             if len(F) == 1:
                 F_time_dep = False
                 dt_F = F * dt
-            elif len(F) == (self.nt):
+            elif len(F) == self.nt:
                 F_time_dep = True
-            else: 
-                # Should never happend
+            else:
                 raise AttributeError
         else:
-            # Should never happend
             raise AttributeError
-    
+
+        # ---- initial state ----
+        t = self.T_initial
+        U = U0.copy()
         num_ret_values = 1
-        M_dt_A_q = None    
-        
+
+        # ---- initial operator ----
         if use_cached_operators:
             M_dt_A_q = cached_operators['M_dt_A_q'][0]
         else:
             A_q = self.A(q[0])
-            M_dt_A_q = (self.M + A_q * dt).assemble()
-            
-        t = self.T_initial
-        U = U0.copy()
+            M_dt_A_q = (self.M + dt * A_q).assemble()
+
+        ################################### Stepping ###################################
 
         for n in range(self.nt):
             t += dt
 
+            # ---- RHS assembly ----
             _rhs = self.M.apply(U)
 
             if F_time_dep:
-                if isinstance(F, VectorArray):
-                    dt_F = F[n] * dt
-                else: 
-                    # Should never happend
-                    raise AttributeError
-                
+                dt_F = F[n] * dt
+
+            if dt_F is not None:
+                _rhs.axpy(1.0, dt_F)
+
+            # ---- operator update if q_time_dep ----
             if self.q_time_dep:
                 if use_cached_operators:
                     M_dt_A_q = cached_operators['M_dt_A_q'][n]
                 else:
                     A_q = self.A(q[n])
-                    M_dt_A_q = (self.M + A_q * dt)
-                
+                    M_dt_A_q = (self.M + dt * A_q).assemble()
+
             assert M_dt_A_q is not None
 
-            if dt_F:
-                rhs = _rhs + dt_F
-            else:
-                rhs = _rhs
-            
+            # ---- implicit solve ----
+            U = M_dt_A_q.apply_inverse(_rhs, initial_guess=U)
 
-            U = M_dt_A_q.apply_inverse(rhs, initial_guess=U)
-
-            while t - self.T_initial + (min(dt, DT) * 0.5) >= num_ret_values * DT:
+            # ---- output policy ----
+            while t - self.T_initial + 0.5 * min(dt, DT) >= num_ret_values * DT:
                 num_ret_values += 1
                 yield U, t
+
+class FirstOrderCrankNicolson(TimeStepper):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        assert not self.q_time_dep
+
+        assert 'zeta' in self.config.keys()
+        zeta = self.config['zeta']
+
+        assert 0 <= zeta <= 1 
+        self.zeta = zeta
+
+        _A_q_key = self.A_q_key.replace('_ad', '')
+        if _A_q_key == 'A_q':
+            policy = self.q_time_dep
+        elif _A_q_key == 'partial_q_A_q_u':
+            policy = True
+        elif _A_q_key == 'partial_u_A_q_u':
+            policy = not self.A.A_q_linear or self.q_time_dep
+        else:
+            self.logger.error(f'Unknown target {self.A_q_key}.')
+            raise ValueError
+
+        self.time_dep_cache_policy = {
+            self.key_prefix + '_' + 'S_zeta' : policy,
+            self.key_prefix + '_' + 'S_zeta_minus_one' : policy
+        }
+
+        self.required_cache_keys = list(self.time_dep_cache_policy.keys())
+    
+    def cache_operator(self,
+                       target: str,
+                       time_step: int,
+                       q: VectorArray,
+                       u: VectorArray,
+                       A_q: Operator) -> Operator:
+        
+        if self.q_time_dep:
+            assert time_step == 0
+
+        zeta = self.zeta 
+        dt = (self.T_final - self.T_initial) / self.nt
+
+        if target == (self.key_prefix + '_' +'S_zeta'):
+            return (self.M + dt * zeta * A_q).assemble()
+        elif target == (self.key_prefix + '_' + 'S_zeta_minus_one'):
+            return (self.M + dt * (zeta - 1) * A_q).assemble()
+        else:
+            raise ValueError
+
+    def iterate(self,                               
+                initial_data : dict, 
+                q : Union[VectorArray, List[VectorArray]], 
+                rhs : VectorArray,
+                u : Union[VectorArray, List[VectorArray]] = None,
+                use_cached_operators: bool = False,
+                cached_operators: Dict = None,
+                config: Dict = None) -> Generator[Tuple[VectorArray, float], None, None]:
+        
+        ################################### Prepare ###################################
+        # assert q in self.Q
+
+        # if self.q_time_dep:
+        #     assert len(q) == self.nt + 1
+        # else:
+        #     assert len(q) == 1
+
+        # assert isinstance(rhs, VectorArray)
+        # assert len(rhs) in (self.nt + 1, 1)
+
+        # if u: 
+        #     assert u in self.V
+        #     assert len(u) == self.nt + 1
+
+        if len(rhs) == 1:
+            rhs_time_dep = False
+        else:
+            rhs_time_dep = True
+
+        implicit_euler_rhs = False
+        if config and config['implicit_euler_rhs']:
+            implicit_euler_rhs = config['implicit_euler_rhs']
+
+        for key in ['zeroth_order', 'first_order']:
+            self._check_initial_data(initial_data, key)
+
+        if use_cached_operators:
+            self._check_cache(
+               keys = self.required_cache_keys,
+               q = q,
+               cached_operators = cached_operators
+            )
+                
+        num_values = self.nt + 1
+        dt = (self.T_final - self.T_initial) / self.nt
+        DT = (self.T_final - self.T_initial) / (num_values - 1)
+
+        zeta = self.zeta
+
+        ################################### First step ###################################
+        U_cur = initial_data['zeroth_order']
+
+        t = self.T_initial
+        yield U_cur, t
+
+        rhs_pre = rhs[0]
+        rhs_cur = rhs[0]
+
+        dt_R = rhs[0].copy()
+        dt_R.scal(0.0)
+
+        if not rhs_time_dep:
+            dt_R.axpy(dt, rhs_cur)   # dt_R = dt * rhs
+                
+        if use_cached_operators:
+            A_q = cached_operators[self.A_q_key][0]
+            S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][0]
+            S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][0]
+        else: 
+            A_q = self._get_A_q(q[0], u[0] if u else None)
+            S_zeta = self.M + dt * zeta * A_q
+            S_zeta_minus_one = self.M + dt * zeta * (zeta - 1) * A_q
+
+
+        A_q = A_q.assemble()
+        S_zeta = S_zeta.assemble()
+        S_zeta_minus_one = S_zeta_minus_one.assemble()
+
+
+        ################################### Stepping ###################################
+
+        for n in range(1,self.nt+1):
+            t += dt
+
+            # NOTE: U_pre does not need a copy (U_cur is not modified in-place before it's no longer needed)
+            U_pre = U_cur.copy()
+
+            # ---- RHS combination (no allocations) ----
+            if rhs_time_dep:
+                rhs_pre = rhs_cur
+                rhs_cur = rhs[n]
+                dt_R.scal(0.0)
+
+                dt_R.axpy(zeta, rhs_cur)
+                dt_R.axpy(1.0 - zeta, rhs_pre)
+                dt_R.scal(dt)
+            
+            # ---- operator update if q_time_dep ----
+            if self.q_time_dep:
+                raise
+                # Otherwise the values set above are never updated
+                if use_cached_operators:
+                    A_q = cached_operators[self.A_q_key][n]
+                    S_zeta = cached_operators[(self.key_prefix + '_' + 'S_zeta')][n]
+                    S_zeta_minus_one = cached_operators[(self.key_prefix + '_' + 'S_zeta_minus_one')][n]
+                else:
+                    A_q = self._get_A_q(q[0], u[0] if u else None)
+                    S_zeta = self.M + dt**2 * zeta**2 * A_q
+                    S_zeta_minus_one = self.M + dt**2 * zeta * (zeta - 1) * A_q
+                
+                A_q = A_q.assemble()
+                S_zeta = S_zeta.assemble()
+                S_zeta_minus_one = S_zeta_minus_one.assemble()
+
+
+            # --------------------------------------------------------------
+            _lhs = S_zeta
+            _rhs = S_zeta_minus_one.apply(U_pre)
+            _rhs.axpy(1.0, dt_R)
+            
+            if not self.apply_adjoint:
+                _U = _lhs.apply_inverse(_rhs)
+                assert np.max(np.abs(_lhs.apply(_U).to_numpy()-_rhs.to_numpy())) <= 1e-12
+            else:
+                _U = _lhs.apply_inverse_adjoint(_rhs)
+                assert np.max(np.abs(_lhs.apply_adjoint(_U).to_numpy()-_rhs.to_numpy())) <= 1e-12
+
+            # --------------------------------------------------------------
+            U_cur = _U
+
+            yield U_cur, t
+
 
 class SecondOrderCrankNicolson(TimeStepper):
     def __init__(self, **kwargs):
@@ -741,6 +928,8 @@ def create_time_stepper(time_stepper_type: TimeStepperType,
                         **kwargs) -> TimeStepper:
     if time_stepper_type == TimeStepperType.ImplicitEulerTimeStepper:
         return ImplicitEulerTimeStepper(**kwargs)
+    if time_stepper_type == TimeStepperType.FirstOrderCrankNicolson:
+        return FirstOrderCrankNicolson(**kwargs)
     elif time_stepper_type == TimeStepperType.SecondOrderCrankNicolson:
         return SecondOrderCrankNicolson(**kwargs)
     elif time_stepper_type == TimeStepperType.SecondOrderCrankNicolsonLinear:
