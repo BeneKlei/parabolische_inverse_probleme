@@ -411,7 +411,7 @@ class InstationaryModelIP(ImmutableObject):
                          time_step: int,
                          q: VectorArray,
                          u: VectorArray) -> None:
-        
+                
         if target == 'A_q':
             self._cached_operators[target][time_step] = self.A.get_A_q(q)
         elif target == 'partial_q_A_q_u':
@@ -683,8 +683,9 @@ class InstationaryModelIP(ImmutableObject):
         _time_stepper = self.lin_state_time_stepper
         
         required_cache_keys = ['A_q']
-        required_cache_keys += list(_time_stepper.time_dep_cache_policy.keys())
         required_cache_keys += ['partial_q_A_q_u']
+        required_cache_keys += ['partial_u_A_q_u']
+        required_cache_keys += list(_time_stepper.time_dep_cache_policy.keys())
         self.update_cache(
             q = q, 
             u = u,

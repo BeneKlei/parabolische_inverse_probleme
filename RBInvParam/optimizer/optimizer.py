@@ -142,7 +142,6 @@ class Optimizer(BasicObject):
         self.error_estimate_targets_outer = list(set(self.error_estimate_targets_outer))
         self.error_estimate_targets_inner = list(set(self.error_estimate_targets_inner))
 
-
     def _setup_TR(self, optimizer_parameter: Dict[str, Any]) -> None:
         tr_type = TRType.NONE
         tr_cfg = optimizer_parameter.get("TR")
@@ -586,7 +585,7 @@ class Optimizer(BasicObject):
             use_error_estimator=use_error_estimator,
         )
 
-        self.IRGNM_statistics["q"].append(q)
+        self.IRGNM_statistics["q"].append(q.copy())
         self.IRGNM_statistics["J"].append(J)
         self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
         self.IRGNM_statistics["alpha"].append(alpha)
@@ -818,7 +817,7 @@ class Optimizer(BasicObject):
             nabla_J = model.gradient(u, p, q, use_cached_operators=use_cached_operators)
             norm_nabla_J = model.compute_gradient_norm(nabla_J)
 
-            self.IRGNM_statistics["q"].append(q)
+            self.IRGNM_statistics["q"].append(q.copy())
             self.IRGNM_statistics["J"].append(J)
             self.IRGNM_statistics["norm_nabla_J"].append(norm_nabla_J)
             self.IRGNM_statistics["alpha"].append(alpha)
@@ -1021,7 +1020,7 @@ class FOMOptimizer(Optimizer):
         )
 
         # --- store + dump statistics (unchanged semantics) ---
-        self.statistics["q"] = IRGNM_statistic["q"]
+        self.statistics["q"] = IRGNM_statistic["q"]        
         self.statistics["alpha"] = IRGNM_statistic["alpha"]
         self.statistics["J"] = IRGNM_statistic["J"]
         self.statistics["norm_nabla_J"] = IRGNM_statistic["norm_nabla_J"]
@@ -1052,7 +1051,6 @@ class QrVrROMOptimizer(Optimizer):
 
         self.use_adjoint_space = optimizer_parameter["reductor"]["use_adjoint_space"]
         if self.use_adjoint_space:
-            print(optimizer_parameter['enrichment']['adjoint_basis'])
             assert optimizer_parameter['enrichment']['adjoint_basis']
 
         self.active_bases = []       
@@ -1969,15 +1967,11 @@ class QrVrROMOptimizer(Optimizer):
 
                     # import sys
                     # sys.exit()
-                    
-                    print(len(self.reductor.bases["state_basis"] ))
-                    
+                                        
                     self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
                         bases=self.active_bases,
                         enrichment=opt_cfg.enrichment,
                     )
-
-                    print(len(self.reductor.bases["state_basis"] ))
 
                     # self._reset_snapshots()
                     # self.snapshots['parameter_basis'].append(q)

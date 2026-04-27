@@ -123,12 +123,13 @@ class SnapshotPreprocessor(BasicObject):
         self,
         q: VectorArray,
         u: VectorArray,
+        d: VectorArray,
         use_cached_operators: bool,
     ) -> tuple[VectorArray, VectorArray]:
         
         # direction = ones; consider making this configurable or passing in
-        direction = self.FOM.Q.make_array(np.ones(self.FOM.Q.dim))
-        lin_u = self.FOM.solve_linearized_state(q, direction, u, use_cached_operators=use_cached_operators)
+        #direction = self.FOM.Q.make_array(np.ones(self.FOM.Q.dim))
+        lin_u = self.FOM.solve_linearized_state(q, d, u, use_cached_operators=use_cached_operators)
         lin_p = self.FOM.solve_linearized_adjoint(q, u, lin_u, use_cached_operators=use_cached_operators)
         return lin_u, lin_p
     
@@ -233,7 +234,13 @@ class SnapshotPreprocessor(BasicObject):
         if need_linearized:
             if q is None or u is None or use_cached_operators is None:
                 raise ValueError("q, u, use_cached_operators required for linearized quantities")
-            lin_u, lin_p = self._compute_linearized_states(q, u, use_cached_operators)
+            lin_u, lin_p = self._compute_linearized_states(
+                q, 
+                u,
+                nabla_J, 
+                use_cached_operators
+            )
+
 
         nabla_lin_J = time_steps_nabla_lin_J = None
         if include_lin_grad or include_each_lin:

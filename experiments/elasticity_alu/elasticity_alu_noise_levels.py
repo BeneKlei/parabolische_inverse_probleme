@@ -496,6 +496,26 @@ for noise_level in noise_levels:
     TR_optimizer_parameter_grid['tau'] = tau_
 
     EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}'] = (setup_sensors, TR_optimizer_parameter_sensors)
+
+
+    #----------------------------------------------------------------------------------------
+
+    TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+
+    TR_optimizer_parameter__['enrichment']['state_basis']['additional_snapshots']['include_lin_states'] = True
+
+    TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
+    TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
+    TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
+
+    #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+    TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
+    TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
+
+    TR_optimizer_parameter_identity['tau'] = tau_
+    TR_optimizer_parameter_grid['tau'] = tau_
+
+    EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}_sensitivites'] = (setup_sensors, TR_optimizer_parameter_sensors)
     
 
 prefix = 'elasticity_alu'
