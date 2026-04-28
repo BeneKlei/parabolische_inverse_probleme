@@ -27,7 +27,7 @@ from RBInvParam.utils.io import save_dict_to_pkl, dealii_vector_space_to_numpy
 from RBInvParam.domain_projector import SimpleBoundDomainProjector, ProjectionMismatchError
 from RBInvParam.trust_region import *
 
-from RBInvParam.schemas.optimizer import FOMOptimizerCfg, TROptimizerCfg, ArmijoConfig 
+from RBInvParam.schemas.optimizer import FOMOptimizerCfg, TROptimizerCfg, ArmijoConfig, ModelScheduleBlock
 from RBInvParam.optimizer.error_evaluator import ErrorEvaluator 
 from RBInvParam.optimizer.numerics import GLOBAL_OBJ_POLICY as OBJ
 from RBInvParam.schemas.logging_optimizer import log_fom_opt_config, log_tr_opt_config
@@ -1220,6 +1220,32 @@ class QrVrROMOptimizer(Optimizer):
     def _reset_snapshots(self) -> None:
         self.snapshots = self.snapshot_preprocessor.make_empty_snapshots_dict()
 
+    def _select_inner_model(
+        self,
+        i: int,
+        schedule: Optional[List[ModelScheduleBlock]],
+    ) -> InstationaryModelIP:
+        if schedule is None:
+            return self.QrVrROM
+
+        period = sum(block.length for block in schedule)
+        if period <= 0:
+            raise ValueError("inner_loop_model_schedule period must be > 0")
+
+        k = i % period
+
+        acc = 0
+        for block in schedule:
+            acc += block.length
+            if k < acc:
+                if block.model == "FOM":
+                    return self.FOM
+                if block.model == "ROM":
+                    return self.QrVrROM
+                raise ValueError(f"Unknown schedule model: {block.model}")
+
+        raise RuntimeError("Invalid inner_loop_model_schedule.")
+
     def add_initial_snapshots(self,
                               snapshots: VectorArray,
                               basis: str) -> None:
@@ -1688,10 +1714,53 @@ class QrVrROMOptimizer(Optimizer):
             # ------------------------------------------------------------
             IRGNM_start_time = timer()
 
-            if not model_insufficient:
-                q_r, IRGNM_statistic = self.IRGNM(
-                    model=self.QrVrROM,
-                    q_0=q_r,
+            model = self._select_inner_model(
+                i=i,
+                schedule=opt_cfg.inner_loop_model_schedule
+            )
+
+            # ----------------------------
+            # Identify model + log
+            # ----------------------------
+            if model is self.FOM:
+                model_name = "FOM"
+            elif model is self.QrVrROM:
+                model_name = "ROM"
+            else:
+                raise ValueError("Unknown model returned by _select_inner_model")
+
+
+            # ----------------------------
+            # Prepare inputs
+            # ----------------------------
+            do_inner_loop = True
+
+            if model is self.FOM:
+                q_ = self.reductor.reconstruct(
+                    x=q_r.copy(),
+                    basis='parameter_basis'
+                )
+                projector_ = self.FOM_projector
+
+                self.last_update_q = self.reductor.reconstruct(
+                    x=self.last_update_q.copy(),
+                    basis='parameter_basis'
+                )                
+                
+            elif model is self.QrVrROM:
+                do_inner_loop = not model_insufficient
+                q_ = q_r.copy()
+                projector_ = projector
+
+            # ----------------------------
+            # Run IRGNM
+            # ----------------------------
+            if do_inner_loop:
+                self.logger.info(f"[Outer {i}] Model={model_name}, do_inner_loop={do_inner_loop}")
+
+                q__, IRGNM_statistic = self.IRGNM(
+                    model=model,
+                    q_0=q_,
                     alpha_0=alpha,
                     tol=opt_cfg.tol,
                     tau=opt_cfg.tau,
@@ -1704,9 +1773,17 @@ class QrVrROMOptimizer(Optimizer):
                     TR_armijo_cfg=opt_cfg.TR_armijo_cfg,
                     lin_solver_parms=opt_cfg.lin_solver_parms,
                     use_cached_operators=opt_cfg.use_cached_operators,
-                    projector=projector,
+                    projector=projector_,
                     use_error_estimator=opt_cfg.use_error_estimator,
                 )
+
+            if model is self.FOM:                
+                q_r = self.QrVrROM.Q.make_array(
+                    self.reductor.project_vectorarray(q__.copy(), "parameter_basis")
+                )
+            elif model is self.QrVrROM:
+                q_r = q__.copy()
+
             
             self.statistics["outer_loop_runtime"]['IRGNM_runtime'].append(timer() - IRGNM_start_time)
 

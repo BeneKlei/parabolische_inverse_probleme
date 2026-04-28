@@ -346,6 +346,7 @@ TR_optimizer_parameter = {
     'reg_AGC_step' : False,
     'TR_enforcement' : 'backtracking',
     'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
+    'inner_loop_model_schedule' : None,
     'reductor' : {
         'type' : 'default',
         'use_adjoint_space' : False,
@@ -430,12 +431,12 @@ TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
 
 noise_levels = [
     0.0 * 1e-2,
-    0.1 * 1e-2,
-    0.5 * 1e-2,
-    1.0 * 1e-2,
-    2.5 * 1e-2,
-    5.0 * 1e-2,
-    10.0 * 1e-2,
+    # 0.1 * 1e-2,
+    # 0.5 * 1e-2,
+    # 1.0 * 1e-2,
+    # 2.5 * 1e-2,
+    # 5.0 * 1e-2,
+    # 10.0 * 1e-2,
 ]
 
 for noise_level in noise_levels:
@@ -478,7 +479,7 @@ for noise_level in noise_levels:
     FOM_optimizer_parameter_identity['tau'] = tau_
     FOM_optimizer_parameter_grid['tau'] = tau_
 
-    EXPERIMENTS[f'FOM_sensors_noise_level_{noise_level}'] = (setup_sensors, FOM_optimizer_parameter_sensors)
+    #EXPERIMENTS[f'FOM_sensors_noise_level_{noise_level}'] = (setup_sensors, FOM_optimizer_parameter_sensors)
 
     #----------------------------------------------------------------------------------------
 
@@ -495,7 +496,7 @@ for noise_level in noise_levels:
     TR_optimizer_parameter_identity['tau'] = tau_
     TR_optimizer_parameter_grid['tau'] = tau_
 
-    EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}'] = (setup_sensors, TR_optimizer_parameter_sensors)
+    #EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}'] = (setup_sensors, TR_optimizer_parameter_sensors)
 
 
     #----------------------------------------------------------------------------------------
@@ -515,7 +516,7 @@ for noise_level in noise_levels:
     TR_optimizer_parameter_identity['tau'] = tau_
     TR_optimizer_parameter_grid['tau'] = tau_
 
-    EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}_sensitivites'] = (setup_sensors, TR_optimizer_parameter_sensors)
+    #EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}_sensitivites'] = (setup_sensors, TR_optimizer_parameter_sensors)
 
     #----------------------------------------------------------------------------------------
 
@@ -534,7 +535,7 @@ for noise_level in noise_levels:
     TR_optimizer_parameter_identity['tau'] = tau_
     TR_optimizer_parameter_grid['tau'] = tau_
 
-    EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}_param_red'] = (setup_sensors, TR_optimizer_parameter_sensors)
+    #EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}_param_red'] = (setup_sensors, TR_optimizer_parameter_sensors)
 
     #----------------------------------------------------------------------------------------
 
@@ -555,7 +556,29 @@ for noise_level in noise_levels:
     TR_optimizer_parameter_identity['tau'] = tau_
     TR_optimizer_parameter_grid['tau'] = tau_
 
-    EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
+    #EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}_time_step'] = (setup_sensors, TR_optimizer_parameter_sensors)
+
+    #----------------------------------------------------------------------------------------
+
+    TR_optimizer_parameter__ = copy.deepcopy(TR_optimizer_parameter_)
+
+    TR_optimizer_parameter__['inner_loop_model_schedule'] = [
+        {'model': 'ROM', 'length': 5},
+        {'model': 'FOM', 'length': 2},
+    ]
+
+    TR_optimizer_parameter_sensors = copy.deepcopy(TR_optimizer_parameter__)
+    TR_optimizer_parameter_grid = copy.deepcopy(TR_optimizer_parameter__)
+    TR_optimizer_parameter_identity = copy.deepcopy(TR_optimizer_parameter__)
+
+    #TR_optimizer_parameter_identity['noise_level'] = setup_identity['noise_level']
+    TR_optimizer_parameter_identity['lin_solver_parms']['abs_grad_tol'] = identity_abs_grad_tol
+    TR_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad_tol
+
+    TR_optimizer_parameter_identity['tau'] = tau_
+    TR_optimizer_parameter_grid['tau'] = tau_
+
+    EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}_schedule'] = (setup_sensors, TR_optimizer_parameter_sensors)
     
 
 prefix = 'elasticity_alu'

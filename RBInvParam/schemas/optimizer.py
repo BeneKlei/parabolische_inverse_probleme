@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from RBInvParam.trust_region import TRType
 from RBInvParam.schemas.trust_region import TrustRegionConfig
@@ -192,6 +192,29 @@ class FOMOptimizerCfg:
         if not isinstance(self.lin_solver_parms, dict):
             raise ValueError("lin_solver_parms must be a dict")
 
+@dataclass(frozen=True)
+class ModelScheduleBlock:
+    model: str
+    length: int
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], *, where: str) -> "ModelScheduleBlock":
+        require(data, ["model", "length"], where=where)
+        unknown_keys(data, ["model", "length"], where=where)
+
+        block = cls(
+            model=str(data["model"]),
+            length=int(data["length"]),
+        )
+        block.validate()
+        return block
+
+    def validate(self) -> None:
+        if self.model not in ("ROM", "FOM"):
+            raise ValueError("schedule model must be 'ROM' or 'FOM'")
+        if self.length <= 0:
+            raise ValueError("schedule length must be > 0")
+
 # ----------------------------
 # TR run schema
 # ----------------------------
@@ -222,6 +245,7 @@ class TROptimizerCfg:
     reg_AGC_step: bool
     TR_enforcement: str
     dump_every_nth_loop: int
+    inner_loop_model_schedule: Optional[List[ModelScheduleBlock]]
 
     reductor: InstationaryReductorConfig
 
@@ -241,7 +265,8 @@ class TROptimizerCfg:
                 "i_max", "reg_loop_max", "i_max_inner",
                 "AGC_armijo_cfg", "TR_armijo_cfg", "TR",
                 "use_cached_operators", "use_error_estimator",
-                "reg_AGC_step", "TR_enforcement", "dump_every_nth_loop",
+                "reg_AGC_step", "TR_enforcement", "dump_every_nth_loop", 
+                "inner_loop_model_schedule",
                 "reductor",
                 "lin_solver_parms", "enrichment",
                 "logging",
@@ -253,6 +278,23 @@ class TROptimizerCfg:
         tr_arm = ArmijoConfig.from_dict(data["TR_armijo_cfg"], where=f"{where}['TR_armijo_cfg']")
         tr = TRBlock.from_dict(data["TR"], where=f"{where}['TR']")
         red = InstationaryReductorConfig.from_dict(data["reductor"], where=f"{where}['reductor']")
+        
+        raw_schedule = data["inner_loop_model_schedule"]
+
+        if raw_schedule is None:
+            schedule = None
+        elif isinstance(raw_schedule, list):
+            schedule = [
+                ModelScheduleBlock.from_dict(
+                    entry,
+                    where=f"{where}['inner_loop_model_schedule'][{idx}]",
+                )
+                for idx, entry in enumerate(raw_schedule)
+            ]
+        else:
+            raise TypeError(
+                f"{where}['inner_loop_model_schedule'] must be None or a list"
+            )
 
         cfg = cls(
             method=str(data["method"]),
@@ -279,6 +321,7 @@ class TROptimizerCfg:
             reg_AGC_step=bool(data["reg_AGC_step"]),
             TR_enforcement=str(data["TR_enforcement"]),
             dump_every_nth_loop=int(data["dump_every_nth_loop"]),
+            inner_loop_model_schedule=schedule,
 
             reductor=red,
 
@@ -313,6 +356,10 @@ class TROptimizerCfg:
         self.TR_armijo_cfg.validate()
         self.TR.validate()
         self.reductor.validate()
+
+        if self.inner_loop_model_schedule is not None:
+            for block in self.inner_loop_model_schedule:
+                block.validate()
 
         if "errors" not in self.logging:
             raise ValueError("logging must contain key 'errors'")

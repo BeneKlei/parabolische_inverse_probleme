@@ -172,6 +172,7 @@ def log_tr_opt_config(
     # -------------------------------------------------
     # Dict blocks
     # -------------------------------------------------
+    _log_block(logger, "inner_loop_model_schedule", opt_cfg.inner_loop_model_schedule)
     _log_block(logger, "lin_solver_parms", opt_cfg.lin_solver_parms)
     _log_block(logger, "enrichment", opt_cfg.enrichment)
     _log_block(logger, "logging", opt_cfg.logging)

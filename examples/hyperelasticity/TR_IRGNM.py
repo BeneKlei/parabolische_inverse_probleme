@@ -86,8 +86,8 @@ def main():
     # state_y_res = 30
     # state_z_res = 30
 
-    state_y_res = 60
-    state_z_res = 60
+    state_y_res = 20
+    state_z_res = 20
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -106,6 +106,7 @@ def main():
     T_initial = 0
     T_final = 16.0
     nt = 64
+    
 
     delta_t = (T_final - T_initial) / nt
 
@@ -315,8 +316,8 @@ def main():
         #'noise_level': 5 * 1e-5,                      # Absolute noise magnitude added to data
         #'noise_level': 0,                      # Absolute noise magnitude added to data
         'noise_info' : {
-            'noise_level_input' : 1.0 * 1e-2,
-            #'noise_level_input' : 0.0,
+            #'noise_level_input' : 1.0 * 1e-2,
+            'noise_level_input' : 0.0,
             'noise_level_mode' : 'rel',
             'abs_noise_level_y' : None,
             'rel_noise_level_y' : None,
@@ -473,13 +474,13 @@ def main():
         #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
         'tau': 1.0,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
-        'theta': 0.40,
+        'theta': 1.00,
         'Theta': 1.95,                                               # Upper bound for step acceptance condition
         #'Theta': 1.50,                                               # Upper bound for step acceptance condition
         'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
         #####################
         'i_max': 250,                                                 # Max number of outer optimization iterations
-        'reg_loop_max': 30,                                          # Max number of regularization updates per iteration
+        'reg_loop_max': 5,                                          # Max number of regularization updates per iteration
         #'i_max_inner': 15,                                           # Max number of inner iterations
         'i_max_inner': 30,                                           # Max number of inner iterations
         'AGC_armijo_cfg' : {
@@ -506,13 +507,13 @@ def main():
         #     'beta_3': 0.75,
         # },
         'TR': {
-            #'type': TRType.RADIUS,
-            'type': TRType.RELATIVE_OBJECTIVE_ERROR,
+            'type': TRType.RADIUS,
+            #'type': TRType.RELATIVE_OBJECTIVE_ERROR,
 
             # TR config
-            'eta_initial': 0.1,
+            'eta_initial': 1.0,
             'eta_min': 1e-5,
-            'eta_max': 0.3,
+            'eta_max': 3.0,
             'beta_1': 0.80,
             'beta_2': 0.80,
             'beta_3': 0.75,
@@ -534,6 +535,10 @@ def main():
         'reg_AGC_step' : False,
         'TR_enforcement' : 'backtracking',
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
+        'inner_loop_model_schedule': [
+            {'model': 'ROM', 'length': 2},
+            {'model': 'FOM', 'length': 2},
+        ],
         'reductor' : {
             #'type' : 'default',
             'type' : 'material_model',
