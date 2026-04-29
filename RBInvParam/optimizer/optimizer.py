@@ -1173,20 +1173,13 @@ class QrVrROMOptimizer(Optimizer):
                 product=self.reductor.products[basis],
                 config=cfg,
             )
-
-            # if basis == "state_basis":
-            #     self.FOM.A.hyperelasticity_model.save_time_series(
-            #         [v.impl for v in snapshots.vectors],
-            #         str('snapshots_preprocessed'),
-            #         str(self.save_path),
-            #         np.arange(len(snapshots))
-            #     )
-
+                
             try:
                 self.reductor.extend_basis(
                     U=snapshots,
                     basis=basis,
-                    method="gram_schmidt",
+                    method=enrichment[basis]["extend_basis"]["method"],
+                    pod_modes=enrichment[basis]["extend_basis"]["pod_modes"],
                     copy_U=False,
                 )
                 self.reductor._check_orthonormality(basis=basis)
@@ -1733,24 +1726,25 @@ class QrVrROMOptimizer(Optimizer):
             # ----------------------------
             # Prepare inputs
             # ----------------------------
-            do_inner_loop = True
+
+            do_inner_loop = not model_insufficient
+            q_ = q_r.copy()
+            projector_ = projector
+            i_max_inner_ = opt_cfg.i_max_inner
 
             if model is self.FOM:
+                do_inner_loop = True
                 q_ = self.reductor.reconstruct(
                     x=q_r.copy(),
                     basis='parameter_basis'
                 )
                 projector_ = self.FOM_projector
-
+                
                 self.last_update_q = self.reductor.reconstruct(
                     x=self.last_update_q.copy(),
                     basis='parameter_basis'
-                )                
-                
-            elif model is self.QrVrROM:
-                do_inner_loop = not model_insufficient
-                q_ = q_r.copy()
-                projector_ = projector
+                )
+                i_max_inner_ = 1                
 
             # ----------------------------
             # Run IRGNM
@@ -1765,7 +1759,7 @@ class QrVrROMOptimizer(Optimizer):
                     tol=opt_cfg.tol,
                     tau=opt_cfg.tau,
                     noise_level=delta,
-                    i_max=opt_cfg.i_max_inner,
+                    i_max=i_max_,
                     theta=opt_cfg.theta,
                     Theta=opt_cfg.Theta,
                     reg_loop_max=opt_cfg.reg_loop_max,

@@ -234,8 +234,6 @@ class BaseIPReductor(ProjectionBasedReductor):
         else:
             return _basis
 
-    
-
     def _build_setup(self) -> Dict:
 
         if len(self.bases['parameter_basis']) == 0:

@@ -83,11 +83,11 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    # state_y_res = 30
-    # state_z_res = 30
-
     state_y_res = 20
     state_z_res = 20
+
+    # state_y_res = 60
+    # state_z_res = 60
 
     param_y_res = state_y_res
     param_z_res = state_z_res
@@ -281,16 +281,6 @@ def main():
             #     'x_face_offset' : 0.00,
             #     'radius' : 0.001,
             #     'use_boundary_mass_matrix' : True,
-            # }
-
-            # 'type': mm.ObservationOperatorType.Sensors,
-            # #'type': mm.ObservationOperatorType.SensorsGrid,
-            # 'hyperparameter' : {
-            #     'spatial_resolution' : state_grid_resolution,
-            #     'radius' : 0.001,
-            #     'second_row' : False
-            #     # 'radius' : 0.001,
-            #     # 'grid_sizes' : [2,8,8]
             # }
         },
         'dims' : {
@@ -535,10 +525,7 @@ def main():
         'reg_AGC_step' : False,
         'TR_enforcement' : 'backtracking',
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
-        'inner_loop_model_schedule': [
-            {'model': 'ROM', 'length': 2},
-            {'model': 'FOM', 'length': 2},
-        ],
+        'inner_loop_model_schedule': None,
         'reductor' : {
             #'type' : 'default',
             'type' : 'material_model',
@@ -573,15 +560,19 @@ def main():
                     'include_krylov_directions' : False,
                     'include_q_exact' : False
                 },
-                'compression' :
-                {
-                    'normalize' : True,
-                    'HaPOD' :
-                    {
-                        'eps': 1e-1,
-                        'omega' : 0.1,
-                    },
-                    'every_n' : None,
+                'compression' : None,
+                # {
+                #     'normalize' : True,
+                #     'HaPOD' :
+                #     {
+                #         'eps': 1e-1,
+                #         'omega' : 0.1,
+                #     },
+                #     'every_n' : None,
+                # },
+                'extend_basis' : {
+                    'method' : 'gram_schmidt',
+                    'pod_modes' : None,
                 },
                 'coarsing' : None,
             },
@@ -593,7 +584,7 @@ def main():
                 },
                 'compression' : 
                 {
-                    'normalize' : False,
+                    'normalize' : True,
                     'HaPOD' : {
                         'eps': 1e-3,
                         'omega' : 0.1,
@@ -601,6 +592,10 @@ def main():
                     'every_n' : None,
                     # 'normalize' : None,
                     # 'HaPOD' : None,
+                },
+                'extend_basis' : {
+                    'method' : 'gram_schmidt',
+                    'pod_modes' : None
                 },
                 'coarsing' : None,
                 # 'coarsing' : {
