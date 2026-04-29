@@ -525,7 +525,10 @@ def main():
         'reg_AGC_step' : False,
         'TR_enforcement' : 'backtracking',
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
-        'inner_loop_model_schedule': None,
+        'inner_loop_model_schedule': [
+            {'model': 'ROM', 'length': 2},
+            {'model': 'FOM', 'length': 2},
+        ],
         'reductor' : {
             #'type' : 'default',
             'type' : 'material_model',

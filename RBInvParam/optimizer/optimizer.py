@@ -1759,7 +1759,7 @@ class QrVrROMOptimizer(Optimizer):
                     tol=opt_cfg.tol,
                     tau=opt_cfg.tau,
                     noise_level=delta,
-                    i_max=i_max_,
+                    i_max=i_max_inner_,
                     theta=opt_cfg.theta,
                     Theta=opt_cfg.Theta,
                     reg_loop_max=opt_cfg.reg_loop_max,
@@ -1786,6 +1786,9 @@ class QrVrROMOptimizer(Optimizer):
             # ------------------------------------------------------------
 
             check_conditions = bool(IRGNM_statistic) and (len(IRGNM_statistic.get("q", [])) > 1)
+            if model is self.FOM:
+                check_conditions = True
+
             self.statistics['flags']['check_conditions'].append(check_conditions)
 
             if check_conditions:
