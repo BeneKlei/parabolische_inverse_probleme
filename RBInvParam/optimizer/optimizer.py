@@ -1787,7 +1787,7 @@ class QrVrROMOptimizer(Optimizer):
 
             check_conditions = bool(IRGNM_statistic) and (len(IRGNM_statistic.get("q", [])) > 1)
             if model is self.FOM:
-                check_conditions = True
+                check_conditions = False
 
             self.statistics['flags']['check_conditions'].append(check_conditions)
 
@@ -1924,9 +1924,13 @@ class QrVrROMOptimizer(Optimizer):
 
                     self.logger.info(f"    eta = {self.TR.eta:3.4e}.") 
             else:
-                self.logger.debug("Not found q_trial; Using AGC.")
+                if model is self.FOM:
+                    self.logger.debug("FOM used; Skipping check.")
+                else:    
+                    self.logger.debug("Not found q_trial; Using AGC.")
+                    q_r = q_AGC.copy()
+                
                 rejected = False
-                q_r = q_AGC.copy()
 
                 solve_snapshot_FOM_start_time = timer()
                 q = self.reductor.reconstruct(q_r, basis="parameter_basis")
