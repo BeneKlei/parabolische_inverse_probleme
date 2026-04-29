@@ -385,6 +385,10 @@ TR_optimizer_parameter = {
                 'HaPOD' : None,
                 'every_n' : None,
             },
+            'extend_basis' : {
+                'method' : 'gram_schmidt',
+                'pod_modes' : None
+            },
             'coarsing' : None,
         },
         'state_basis' : {
@@ -399,6 +403,10 @@ TR_optimizer_parameter = {
                     'omega' : 0.1,
                     'every_n' : None,    
                 },
+            },
+            'extend_basis' : {
+                'method' : 'gram_schmidt',
+                'pod_modes' : None
             },
             'coarsing' : None,
         },
