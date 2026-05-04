@@ -397,7 +397,7 @@ TR_optimizer_parameter = {
                 'include_krylov_sensitivites' : False,
             },
             'compression' : {                
-                'normalize' : True,
+                'normalize' : False,
                 'HaPOD' : {
                     'eps': 1e-3,
                     'omega' : 0.1,
@@ -504,7 +504,7 @@ for noise_level in noise_levels:
     TR_optimizer_parameter_identity['tau'] = tau_
     TR_optimizer_parameter_grid['tau'] = tau_
 
-    #EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}'] = (setup_sensors, TR_optimizer_parameter_sensors)
+    EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}'] = (setup_sensors, TR_optimizer_parameter_sensors)
 
 
     #----------------------------------------------------------------------------------------
@@ -586,7 +586,7 @@ for noise_level in noise_levels:
     TR_optimizer_parameter_identity['tau'] = tau_
     TR_optimizer_parameter_grid['tau'] = tau_
 
-    EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}_schedule'] = (setup_sensors, TR_optimizer_parameter_sensors)
+    #EXPERIMENTS[f'TR_sensors_noise_level_{noise_level}_schedule'] = (setup_sensors, TR_optimizer_parameter_sensors)
     
 
 prefix = 'elasticity_alu'

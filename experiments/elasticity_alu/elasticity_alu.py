@@ -348,6 +348,7 @@ TR_optimizer_parameter = {
     'reg_AGC_step' : False,
     'TR_enforcement' : 'backtracking',
     'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
+    'inner_loop_model_schedule' : None,
     'reductor' : {
         'type' : 'default',
         'use_adjoint_space' : False,
@@ -386,6 +387,10 @@ TR_optimizer_parameter = {
                 'HaPOD' : None,
                 'every_n' : None,
             },
+            'extend_basis' : {
+                'method' : 'gram_schmidt',
+                'pod_modes' : None
+            },
             'coarsing' : None,
         },
         'state_basis' : {
@@ -394,12 +399,16 @@ TR_optimizer_parameter = {
                 'include_krylov_sensitivites' : False,
             },
             'compression' : {                
-                'normalize' : True,
+                'normalize' : False,
                 'HaPOD' : {
                     'eps': 1e-3,
                     'omega' : 0.1,
                     'every_n' : None,    
                 },
+            },
+            'extend_basis' : {
+                'method' : 'gram_schmidt',
+                'pod_modes' : None
             },
             'coarsing' : None,
         },
@@ -466,9 +475,9 @@ FOM_optimizer_parameter_grid['lin_solver_parms']['abs_grad_tol'] = grid_abs_grad
 FOM_optimizer_parameter_identity['tau'] = tau_
 FOM_optimizer_parameter_grid['tau'] = tau_
 
-EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
-EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
-EXPERIMENTS['FOM_grid'] = (setup_grid, FOM_optimizer_parameter_grid)
+# EXPERIMENTS['FOM_sensors'] = (setup_sensors, FOM_optimizer_parameter_sensors)
+# EXPERIMENTS['FOM_identity'] = (setup_identity, FOM_optimizer_parameter_identity)
+# EXPERIMENTS['FOM_grid'] = (setup_grid, FOM_optimizer_parameter_grid)
 
 #----------------------------------------------------------------------------------------
 

@@ -276,7 +276,8 @@ TR_optimizer_parameter = {
     'use_error_estimator' : False,
     'reg_AGC_step' : False,
     'TR_enforcement' : 'backtracking',
-    'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
+    'dump_every_nth_loop': 1,         
+    'inner_loop_model_schedule' : None,                                                      # Dump intermediate results every n optimization iterations
     'reductor' : {
         'type' : 'default',
         'use_adjoint_space' : False,
@@ -315,6 +316,10 @@ TR_optimizer_parameter = {
                 'HaPOD' : None,
                 'every_n' : None,
             },
+            'extend_basis' : {
+                'method' : 'gram_schmidt',
+                'pod_modes' : None
+            },
             'coarsing' : None,
         },
         'state_basis' : {
@@ -323,12 +328,16 @@ TR_optimizer_parameter = {
                 'include_krylov_sensitivites' : False,
             },
             'compression' : {                
-                'normalize' : True,
+                'normalize' : False,
                 'HaPOD' : {
                     'eps': 1e-3,
                     'omega' : 0.1,
                     'every_n' : None,    
                 },
+            },
+            'extend_basis' : {
+                'method' : 'gram_schmidt',
+                'pod_modes' : None
             },
             'coarsing' : None,
         },
