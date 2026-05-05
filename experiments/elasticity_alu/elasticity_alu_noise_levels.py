@@ -204,6 +204,7 @@ setup = {
         'prod_Q': 'euclid',                       # Product on Q_h
         'prod_V': 'h1',                           # Product on V_h
         'prod_C': 'euclid',                       # Product on C_h
+        'prod_reg': 'euclid',
     },
     'T_initial': T_initial,                       # Start time of the simulation
     'T_final': T_final,                           # End time of the simulation
@@ -273,7 +274,8 @@ FOM_optimizer_parameter = {
     'i_max_inner': 10,                                       # Maximum number of inner iterations
     ####################
     'lin_solver_parms': {
-        'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
+        'method': 'gd',
+        'use_barzilai_borwein' : True,                                          # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 250,                                         # Maximum iterations for the linear solver
         'abs_grad_tol' : abs_grad_tol,        
         'rel_change_obj_tol' : 1e-4,
@@ -362,7 +364,8 @@ TR_optimizer_parameter = {
     },
     #####################
     'lin_solver_parms': {
-        'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
+        'method': 'gd',
+        'use_barzilai_borwein' : True, # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 250,                                         # Maximum iterations for the linear solver
         'abs_grad_tol' : abs_grad_tol,
         'rel_change_obj_tol' : 1e-4,
@@ -439,9 +442,9 @@ TR_optimizer_parameter_ = copy.deepcopy(TR_optimizer_parameter)
 
 noise_levels = [
     0.0 * 1e-2,
-    # 0.1 * 1e-2,
-    # 0.5 * 1e-2,
-    # 1.0 * 1e-2,
+    0.1 * 1e-2,
+    0.5 * 1e-2,
+    1.0 * 1e-2,
     # 2.5 * 1e-2,
     # 5.0 * 1e-2,
     # 10.0 * 1e-2,
@@ -487,7 +490,7 @@ for noise_level in noise_levels:
     FOM_optimizer_parameter_identity['tau'] = tau_
     FOM_optimizer_parameter_grid['tau'] = tau_
 
-    #EXPERIMENTS[f'FOM_sensors_noise_level_{noise_level}'] = (setup_sensors, FOM_optimizer_parameter_sensors)
+    EXPERIMENTS[f'FOM_sensors_noise_level_{noise_level}'] = (setup_sensors, FOM_optimizer_parameter_sensors)
 
     #----------------------------------------------------------------------------------------
 

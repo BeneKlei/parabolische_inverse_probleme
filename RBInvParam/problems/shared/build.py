@@ -61,6 +61,7 @@ def build_InstationaryModelIP(setup : Dict,
         'prod_Q' : None,
         'prod_V' : None,
         'prod_C' : None,
+        'prod_reg' : None,
         'energy' : None,
         'bochner_prod_Q' : None,
         'bochner_prod_V' : None,
@@ -99,6 +100,12 @@ def build_InstationaryModelIP(setup : Dict,
     products['prod_V'] = SparseMatrixOperator(
         op = material_model.assemble_state_product_op(
             _str_to_enum_map_state[product_names['prod_V']]
+        )
+    )
+
+    products['prod_reg'] = NumpyDealIISparseMatrixOperator(
+        op = material_model.assemble_param_product_op(
+            _str_to_enum_map_state[product_names['prod_reg']]
         )
     )
 
@@ -192,16 +199,16 @@ def build_InstationaryModelIP(setup : Dict,
     q_circ = Q_h.make_array(q_circ)
     assert len(q_circ) in [setup['dims']['nt']+1, 1]
 
-    Q_op = products['prod_Q']
-    constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])
-    linear_vec = Q_op.apply_adjoint(q_circ)
+    prod_reg_op = products['prod_reg']
+
+    constant_reg_term = q_circ.pairwise_inner(q_circ, product=prod_reg_op)
+    linear_vec = prod_reg_op.apply_adjoint(q_circ)
 
     linear_reg_term = NumpyMatrixOperator(
         matrix=linear_vec.to_numpy().reshape(-1, 1)
     )
 
-    bilinear_reg_term = Q_op    
-
+    bilinear_reg_term = prod_reg_op    
 
     # constant_reg_term = q_circ.pairwise_inner(q_circ, product=products['prod_Q'])    
     # linear_reg_term = NumpyMatrixOperator(
