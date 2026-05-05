@@ -914,6 +914,7 @@ class Optimizer(BasicObject):
                                                        lin_solver_parms = lin_solver_parms,
                                                        projector=projector)
         elif method == 'BiCGSTAB':
+            raise DeprecationWarning
             return BiCGStab_linearized_problem(model, 
                                                q = q, 
                                                d_start = d_start, 

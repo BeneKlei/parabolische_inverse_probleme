@@ -139,8 +139,7 @@ def gradient_descent_linearized_problem(
     lin_solver_parms : Dict, 
     logger: logging.Logger = None,
     use_cached_operators: bool = False,
-    projector: SimpleBoundDomainProjector = None,
-    use_barzilai_borwein: bool = True) -> Tuple[VectorArray, int]:
+    projector: SimpleBoundDomainProjector = None) -> Tuple[VectorArray, int]:
 
     max_iter=lin_solver_parms['max_iter']
     abs_grad_tol = lin_solver_parms['abs_grad_tol']
@@ -150,6 +149,7 @@ def gradient_descent_linearized_problem(
     kappa_arm = lin_solver_parms['kappa_arm']
     armijo_inital_step_size = lin_solver_parms['armijo_inital_step_size']
     armijo_min_step_size = lin_solver_parms['armijo_min_step_size']
+    use_barzilai_borwein = lin_solver_parms['use_barzilai_borwein']
 
     assert alpha >= 0
     assert abs_grad_tol > 0
@@ -232,7 +232,7 @@ def gradient_descent_linearized_problem(
             product = model.products['prod_Q']
 
         # TODO Allow toggle between armijo and BB
-        try:            
+        try: 
             if (i < 2) or (not use_barzilai_borwein):
                 norm_grad = model.compute_gradient_norm(grad)            
                 grad.scal(1.0 / norm_grad)
