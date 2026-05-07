@@ -103,6 +103,7 @@ def log_fom_opt_config(
     # scalar fields
     scalar_fields = [
         ("alpha_0", cfg.alpha_0),
+        ("update_alpha", cfg.update_alpha),
         ("tol", cfg.tol),
         ("tau", cfg.tau),
         ("noise_level", cfg.noise_level),

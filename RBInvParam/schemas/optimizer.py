@@ -95,6 +95,7 @@ class TRBlock:
 class FOMOptimizerCfg:
     method: str
     q_0: Any
+    update_alpha: bool
     alpha_0: float
     tol: float
     tau: float
@@ -130,7 +131,7 @@ class FOMOptimizerCfg:
         require(
             data,
             [
-                "method", "q_0",
+                "method", "q_0", "update_alpha",
                 "alpha_0", "tol", "tau", "noise_level",
                 "theta", "Theta",
                 "i_max", "reg_loop_max", "i_max_inner",
@@ -145,6 +146,7 @@ class FOMOptimizerCfg:
             method=str(data["method"]),
             q_0=data["q_0"].copy() if hasattr(data["q_0"], "copy") else data["q_0"],
 
+            update_alpha=float(data["update_alpha"]),
             alpha_0=float(data["alpha_0"]),
             tol=float(data["tol"]),
             tau=float(data["tau"]),
@@ -223,6 +225,8 @@ class ModelScheduleBlock:
 class TROptimizerCfg:
     method: str
     q_0: Any
+
+    update_alpha : bool
     alpha_0: float
     tol: float
     tau: float
@@ -261,7 +265,8 @@ class TROptimizerCfg:
         require(
             data,
             [
-                "method", "q_0", "alpha_0", "tol", "tau", "noise_level", "theta", "Theta", "tau_tilde",
+                "method", "q_0", "update_alpha",
+                "alpha_0", "tol", "tau", "noise_level", "theta", "Theta", "tau_tilde",
                 "i_max", "reg_loop_max", "i_max_inner",
                 "AGC_armijo_cfg", "TR_armijo_cfg", "TR",
                 "use_cached_operators", "use_error_estimator",
@@ -299,6 +304,8 @@ class TROptimizerCfg:
         cfg = cls(
             method=str(data["method"]),
             q_0=data["q_0"].copy() if hasattr(data["q_0"], "copy") else data["q_0"],
+
+            update_alpha=float(data["update_alpha"]),
             alpha_0=float(data["alpha_0"]),
             tol=float(data["tol"]),
             tau=float(data["tau"]),

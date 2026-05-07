@@ -499,7 +499,8 @@ class Optimizer(BasicObject):
               dump_IRGNM_intermed_stats: bool = False,
               dump_every_nth_loop: int = 0,
               projector: SimpleBoundDomainProjector = None,
-              use_error_estimator: bool = False) -> Tuple[VectorArray, Dict]: 
+              use_error_estimator: bool = False,
+              update_alpha: bool = True) -> Tuple[VectorArray, Dict]: 
 
         assert q_0 in model.Q
         assert tol > 0
@@ -663,6 +664,10 @@ class Optimizer(BasicObject):
             condition_up = 2* lin_J < Theta*J
             regularization_qualification = condition_low and condition_up
 
+            if not update_alpha:
+                regularization_qualification = True
+                self.logger.warning(f"NOT checking regularization conditions. Keeping alpha constant at {alpha:3.4e}.")
+         
             if (not regularization_qualification) and (count < reg_loop_max):
                 self.logger.warning(f"Used alpha = {alpha:3.4e} does NOT satisfy selection criteria: {theta*J:3.4e} < {2* lin_J:3.4e} < {Theta*J:3.4e}")
                 self.logger.info(f"Searching for alpha:") 
@@ -1018,6 +1023,7 @@ class FOMOptimizer(Optimizer):
             dump_every_nth_loop=cfg.dump_every_nth_loop,
             projector=self.FOM_projector,
             use_error_estimator=False,  # FOM run usually doesn't need estimators
+            update_alpha=cfg.update_alpha,
         )
 
         # --- store + dump statistics (unchanged semantics) ---
@@ -1770,6 +1776,7 @@ class QrVrROMOptimizer(Optimizer):
                     use_cached_operators=opt_cfg.use_cached_operators,
                     projector=projector_,
                     use_error_estimator=opt_cfg.use_error_estimator,
+                    update_alpha=opt_cfg.update_alpha,
                 )
 
             if model is self.FOM:                
