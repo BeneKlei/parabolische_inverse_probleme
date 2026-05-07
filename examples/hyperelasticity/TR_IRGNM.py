@@ -83,8 +83,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 20
-    state_z_res = 20
+    state_y_res = 10
+    state_z_res = 10
 
     # state_y_res = 60
     # state_z_res = 60
@@ -292,11 +292,9 @@ def main():
         'products': {                                 # Inner products used in the problem
             'prod_H': 'l2',                           # Product on H_h
             'prod_Q': 'euclid',                      # Product on Q_h
-            #'prod_Q': 'h1',                           # Product on Q_h
-            #'prod_V': 'h1_0_semi',                    # Product on V_h
             'prod_V': 'h1',                           # Product on V_h
-            #'prod_C': 'state_l2',                       # Product on C_h
             'prod_C': 'euclid',                       # Product on C_h
+            'prod_reg' : 'h1_semi'
         },
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
@@ -423,7 +421,6 @@ def main():
         np.linspace(T_initial, T_final, nt+1)
     )
 
-
     p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
     FOM.A.hyperelasticity_model.save_time_series(
         [v.impl for v in p_start.vectors],
@@ -525,10 +522,7 @@ def main():
         'reg_AGC_step' : False,
         'TR_enforcement' : 'backtracking',
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
-        'inner_loop_model_schedule': [
-            {'model': 'ROM', 'length': 2},
-            {'model': 'FOM', 'length': 2},
-        ],
+        'inner_loop_model_schedule': None,
         'reductor' : {
             #'type' : 'default',
             'type' : 'material_model',
@@ -545,7 +539,8 @@ def main():
         },
         #####################
         'lin_solver_parms': {
-            'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
+            'method': 'gd',
+            'use_barzilai_borwein' : False,                                                                                                # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
             #'abs_grad_tol' : 5 * 1e-9,
             'abs_grad_tol' : 5 * 1e-11,
@@ -587,7 +582,7 @@ def main():
                 },
                 'compression' : 
                 {
-                    'normalize' : True,
+                    'normalize' : False,
                     'HaPOD' : {
                         'eps': 1e-3,
                         'omega' : 0.1,
