@@ -1337,20 +1337,21 @@ class QrVrROMOptimizer(Optimizer):
 
         # always enrich parameter basis with q and q_circ (normalized, no HaPOD)
         self._reset_snapshots()
-        self.snapshots['parameter_basis'].append(q)
-        self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
+        if 'parameter_basis' in self.active_bases:
+            self.snapshots['parameter_basis'].append(q)
+            self.snapshots['parameter_basis'].append(self.FOM.Q.make_array(self.FOM.setup['q_circ']))
 
-        self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
-            bases=["parameter_basis"],
-            enrichment=opt_cfg.enrichment,
-            compression_override={
-                "parameter_basis": {
-                    "normalize": True,
-                    "HaPOD": None,
-                    "every_n": None,
-                }
-            },
-        )
+            self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                bases=["parameter_basis"],
+                enrichment=opt_cfg.enrichment,
+                compression_override={
+                    "parameter_basis": {
+                        "normalize": True,
+                        "HaPOD": None,
+                        "every_n": None,
+                    }
+                },
+            )
 
         self.last_update_q = self.reductor.project_vectorarray(q.copy(), 'parameter_basis')
         self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
@@ -1597,15 +1598,17 @@ class QrVrROMOptimizer(Optimizer):
             proj_q_in_tr = tr_center.tr_ok
             assert proj_q_in_tr 
 
-            projector = SimpleBoundDomainProjector(
-                model = self.QrVrROM,
-                bounds = self.FOM.bounds,
-                reductor = self.reductor,
-                use_sufficient_condition = True,
-                #use_sufficient_condition = False,
-                logger = self.logger
-            )
-            #projector = None
+            if 'parameter_basis' in self.active_bases:
+                projector = SimpleBoundDomainProjector(
+                    model = self.QrVrROM,
+                    bounds = self.FOM.bounds,
+                    reductor = self.reductor,
+                    use_sufficient_condition = True,
+                    #use_sufficient_condition = False,
+                    logger = self.logger
+                )
+            else:
+                projector = None
 
             # ------------------------------------------------------------
             # AGC with Armijo+TR backtracking

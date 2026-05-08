@@ -49,6 +49,8 @@ class DefaultIPReductor(BaseIPReductor):
     def assemble_parameter_reduced_A(self) -> LincombOperator:
         self._logger.debug("Assemble parameter reduced A")
         parameter_basis = self._get_projection_basis('parameter_basis')
+        if not parameter_basis:
+            parameter_basis = self.FOM.Q.make_array(np.eye(self.FOM.Q.dim))        
 
         if not self._cached_operators['A']:
             start = 0
@@ -95,7 +97,6 @@ class DefaultIPReductor(BaseIPReductor):
             new_ops = [self.FOM.A.get_parameteric_operator(parameter_basis[i]) for i in to_build]
 
         operators.extend(new_ops)
-        print(timer()-t)
 
         # ---- coefficients are cheap, do them serially ----
         for i in range(len(parameter_basis)):

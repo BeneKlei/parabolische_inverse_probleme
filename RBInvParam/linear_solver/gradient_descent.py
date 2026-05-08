@@ -231,7 +231,6 @@ def gradient_descent_linearized_problem(
         else:
             product = model.products['prod_Q']
 
-        # TODO Allow toggle between armijo and BB
         try: 
             if (i < 2) or (not use_barzilai_borwein):
                 norm_grad = model.compute_gradient_norm(grad)            

@@ -189,7 +189,7 @@ class BaseIPReductor(ProjectionBasedReductor):
                             basis: str) -> np.ndarray:
 
         assert isinstance(x, VectorArray)
-        assert basis in self.active_bases
+        #assert basis in self.active_bases
         _basis = self.bases[basis]
 
         if len(_basis) == 0:
@@ -228,7 +228,8 @@ class BaseIPReductor(ProjectionBasedReductor):
 
         if len(_basis) == 0:
             if basis == 'parameter_basis':
-                raise NotImplementedError
+                #raise NotImplementedError
+                return None
             else:
                 return None
         else:
