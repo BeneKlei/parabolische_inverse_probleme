@@ -74,10 +74,16 @@ public:
                      const Vector<Number> &w) const override;
 
   void apply_inverse(Vector<Number> &y,
-                     const Vector<Number> &f) const override;
+                     const Vector<Number> &f,
+                     double rtol,
+                     double atol,
+                     unsigned int maxiter) const override;
 
   void apply_inverse_adjoint(Vector<Number> &y,
-                             const Vector<Number> &f) const override;
+                             const Vector<Number> &f,
+                             double rtol,
+                             double atol,
+                             unsigned int maxiter) const override;
   
   std::unique_ptr<BaseOperator<Number>> jacobian(const Vector<Number> &u) const override;
   

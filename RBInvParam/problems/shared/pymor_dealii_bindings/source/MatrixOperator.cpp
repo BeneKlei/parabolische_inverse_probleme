@@ -160,19 +160,29 @@ void MatrixOperator<Number, MatrixType>::apply_adjoint(Vector<Number>       &y,
 
 template <class Number, class MatrixType>
 void MatrixOperator<Number, MatrixType>::apply_inverse(Vector<Number> &y,
-                                                       const Vector<Number> &f) const
+                                                       const Vector<Number> &f,                                    
+                                                       double rtol,
+                                                       double atol,
+                                                       unsigned int maxiter) const
 {
   AssertDimension(f.size(), this->dim_range());
-  y.reinit(this->dim_source());
-  y = 0;
+  if (y.size() != this->dim_source())
+  {
+    y.reinit(this->dim_source());
+    y = 0;
+  }
 
-  //SolverControl solver_control(20000, 1e-15);
-  SolverControl solver_control(20000, 1e-12);
-  SolverCG<> solver(solver_control);
+    const double rhs_norm = f.l2_norm();
+
+    // deal.II SolverControl uses an absolute residual threshold
+    const double tolerance = std::max(atol, rtol * rhs_norm);
+    //std::cout << "tolerance = " << tolerance << std::endl;
+
+    SolverControl solver_control(maxiter, tolerance);
+    SolverCG<> solver(solver_control);
 
   if constexpr (std::is_same_v<MatrixType, SparseMatrix<Number>>)
   {
-
     PreconditionSSOR<SparseMatrix<Number>> preconditioner;
     preconditioner.initialize(m_matrix, 1.2);
     solver.solve(m_matrix, y, f, preconditioner);
@@ -186,9 +196,18 @@ void MatrixOperator<Number, MatrixType>::apply_inverse(Vector<Number> &y,
 
 template <class Number, class MatrixType>
 void MatrixOperator<Number, MatrixType>::apply_inverse_adjoint(Vector<Number>       &y,
-                                                               const Vector<Number> &f) const
+                                                               const Vector<Number> &f,                                    
+                                                               double rtol,
+                                                               double atol,
+                                                               unsigned int maxiter) const
 {
-  this->apply_inverse(y,f);
+  this->apply_inverse(
+    y,
+    f,
+    rtol,
+    atol,
+    maxiter
+  );
 }
 
 template <class Number, class MatrixType>

@@ -20,7 +20,6 @@ from pymor.vectorarrays.list import NumpyListVectorSpace
 class DealIIMatrixOperator(ListVectorArrayOperatorBase):
     """Wraps a dealII matrix as an |Operator|."""
     linear = True
-
     def __init__(self, matrix, name=None):
         self.source = DealIIVectorSpace(matrix.n())
         self.range = DealIIVectorSpace(matrix.m())
@@ -175,6 +174,7 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
         name: Optional[str] = None,
         source_space: SpaceKind = "dealii",
         range_space: SpaceKind = "dealii",
+        solver_options=None,
     ):
         if not isinstance(op, pd2.BaseOperator):
             raise TypeError(f"op must be pd2.BaseOperator, got {type(op).__name__}")
@@ -195,8 +195,28 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
         self.source = self._source_adapter.space
         self.range = self._range_adapter.space
 
+        self.solver_options = dict(solver_options or {
+            "rtol": 1e-5,
+            "atol": 1e-12,
+            "maxiter": 20000,
+        })
+
+        # self.solver_options = dict(solver_options or {
+        #     "rtol": 0.0,
+        #     "atol": 1e-12,
+        #     "maxiter": 20000,
+        # })
+
         self.__auto_init(locals())
 
+    @staticmethod
+    def _copy_initial_guess_to_native(initial_guess, adapter, native_vector):
+        if initial_guess is None:
+            return
+
+        ig_native = adapter.to_native(initial_guess)
+        native_vector.impl[:] = ig_native.impl[:]
+        
     @staticmethod
     def _make_adapter(kind: SpaceKind, native_space):
         if kind == "dealii":
@@ -213,14 +233,38 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
         return self._range_adapter.from_native(r_native)
 
     def _apply_inverse_one_vector(
-        self, v, mu=None, initial_guess=None, least_squares: bool = False, prepare_data=None
+        self,
+        v,
+        mu=None,
+        initial_guess=None,
+        least_squares: bool = False,
+        prepare_data=None
     ):
-        if least_squares:
-            raise NotImplementedError("least_squares inverse is not implemented.")
+        # if least_squares:
+        #     raise NotImplementedError("least_squares inverse is not implemented.")
+
+        opts = self.solver_options or {}
+
+        rtol = opts.get("rtol", 1e-5)
+        atol = opts.get("atol", 1e-12)
+        maxiter = opts.get("maxiter", 20000)
 
         v_native = self._range_adapter.to_native(v)
         r_native = self._native_source.zero_vector()
-        self.op.apply_inverse(r_native.impl, v_native.impl)
+
+        self._copy_initial_guess_to_native(
+            initial_guess,
+            self._source_adapter,
+            r_native,
+        )
+
+        self.op.apply_inverse(
+            r_native.impl, 
+            v_native.impl,
+            rtol,
+            atol,
+            maxiter
+        )
         return self._source_adapter.from_native(r_native)
 
     def _apply_adjoint_one_vector(self, v, mu=None, prepare_data=None):
@@ -230,14 +274,39 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
         return self._source_adapter.from_native(r_native)
 
     def _apply_inverse_adjoint_one_vector(
-        self, v, mu=None, initial_guess=None, least_squares: bool = False, prepare_data=None
+        self,
+        v,
+        mu=None,
+        initial_guess=None,
+        least_squares: bool = False,
+        prepare_data=None
     ):
-        if least_squares:
-            raise NotImplementedError("least_squares inverse adjoint is not implemented.")
+        # if least_squares:
+        #     raise NotImplementedError("least_squares inverse adjoint is not implemented.")
 
+        opts = self.solver_options or {}
+
+        rtol = opts.get("rtol", 1e-5)
+        atol = opts.get("atol", 1e-12)
+        maxiter = opts.get("maxiter", 20000)
+    
         v_native = self._source_adapter.to_native(v)
         r_native = self._native_range.zero_vector()
-        self.op.apply_inverse_adjoint(r_native.impl, v_native.impl)
+
+        self._copy_initial_guess_to_native(
+            initial_guess,
+            self._range_adapter,
+            r_native,
+        )
+
+        self.op.apply_inverse_adjoint(
+            r_native.impl, 
+            v_native.impl,
+            rtol,
+            atol,
+            maxiter
+        )
+
         return self._range_adapter.from_native(r_native)
 
     def jacobian(self, U, mu=None):
@@ -260,16 +329,18 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
         )
 
 class SparseMatrixOperator(DealIIBaseOperator):
+        
     def __init__(
         self,
         op: pd2.SparseMatrixOperator,
         name: Optional[str] = None,
         source_space: SpaceKind = "dealii",
         range_space: SpaceKind = "dealii",
+        solver_options=None,
     ):
         if not isinstance(op, pd2.SparseMatrixOperator):
             raise TypeError(f"op must be pd2.SparseMatrixOperator, got {type(op).__name__}")
-        super().__init__(op, name=name, source_space=source_space, range_space=range_space)
+        super().__init__(op, name=name, source_space=source_space, range_space=range_space, solver_options=solver_options)
 
     def _assemble_lincomb(
         self,
@@ -283,8 +354,7 @@ class SparseMatrixOperator(DealIIBaseOperator):
             return None
         if identity_shift != 0.0:
             return None
-        if solver_options:
-            raise NotImplementedError("solver_options are not yet configurable")
+        
 
         sp = operators[0].op.get_matrix().get_sparsity_pattern()
         matrix = pd2.SparseMatrix(sp)
@@ -294,12 +364,15 @@ class SparseMatrixOperator(DealIIBaseOperator):
         for _op, c in zip(operators[1:], coefficients[1:]):
             matrix.add(c, _op.op.get_matrix())
 
-        return SparseMatrixOperator(
+        assembled = SparseMatrixOperator(
             pd2.SparseMatrixOperator(matrix=matrix),
             name=name,
             source_space=self.source_space,
             range_space=self.range_space,
+            solver_options = self.solver_options
         )
+
+        return assembled
 
 class FullMatrixOperator(DealIIBaseOperator):
     def __init__(
@@ -397,7 +470,6 @@ class NumpyDealIIOperator(Operator):
             out[i] = np.asarray(r_native.to_numpy()).reshape(-1)
         return self.source.make_array(out)
     
-
 class NumpyDealIISparseMatrixOperator(Operator):
     """NumPy-space wrapper specialized for pd2.SparseMatrixOperator.
 

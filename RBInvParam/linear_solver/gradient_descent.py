@@ -263,12 +263,11 @@ def gradient_descent_linearized_problem(
             projection_error_flag = True
             last_i = i + 1
             break        
-        
-        
-        #if (i % 100 == 0):
+                
+        #if (i % 10 == 0):
         if (i % 1 == 0):
             logger.info(f"  Iteration {i+1} of {int(max_iter)} : objective = {current_J:3.4e}, norm gradient = {terminaton_lhs:3.4e}.")
-            
+        
 
         buffer_d.pop(0)
         buffer_d.append(current_d)

@@ -192,6 +192,7 @@ tau = 2.00
 FOM_optimizer_parameter = {
     'method' : 'FOM_IRGNM',
     'q_0': q_start,                                          # Initial guess for the parameter to be optimized
+    'update_alpha': True,
     'alpha_0': 1e-5,                                          # Initial regularization parameter
     'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
     'tau': tau,                                              # Relative (to the noise) convergence tolerance for optimization
@@ -205,6 +206,7 @@ FOM_optimizer_parameter = {
     ####################
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
+        'use_barzilai_borwein' : True,
         'max_iter': 250,                                         # Maximum iterations for the linear solver
         'abs_grad_tol' : abs_grad_tol,        
         'rel_change_obj_tol' : 1e-4,
@@ -224,6 +226,7 @@ FOM_optimizer_parameter = {
 TR_optimizer_parameter = {
     'method' : 'TR_IRGNM',
     'q_0': q_start,                                              # Initial guess for the parameter to be optimized        
+    'update_alpha': True,
     'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)        
     'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
     'tau': tau,                                                  # Relative (to the noise) convergence tolerance for optimization
@@ -294,6 +297,7 @@ TR_optimizer_parameter = {
     #####################
     'lin_solver_parms': {
         'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
+        'use_barzilai_borwein' : True,                                                                                                # Method for solving linear systems (e.g., gradient descent)
         'max_iter': 250,                                         # Maximum iterations for the linear solver
         'abs_grad_tol' : abs_grad_tol,
         'rel_change_obj_tol' : 1e-4,

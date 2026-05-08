@@ -263,42 +263,88 @@ void bind_operators(py::module_& m)
   using BaseOp   = BaseOperator<Number>;
   using SparseOp = SparseMatrixOperator<Number>;
   using FullOp   = FullMatrixOperator<Number>;
-  using Vec      = dealii::Vector<Number>;
 
-  py::class_<BaseOp, std::unique_ptr<BaseOp>>(m, "BaseOperator")
+  auto bind_base_methods = [](auto& cls) -> auto& {
+    return cls
       .def("apply", &BaseOp::apply, py::arg("y"), py::arg("x"))
       .def("apply_adjoint", &BaseOp::apply_adjoint, py::arg("y"), py::arg("x"))
-      .def("apply_inverse", &BaseOp::apply_inverse, py::arg("y"), py::arg("x"))
-      .def("apply_inverse_adjoint", &BaseOp::apply_inverse_adjoint, py::arg("y"), py::arg("x"))
+      .def("apply_inverse",
+           &BaseOp::apply_inverse,
+           py::arg("y"),
+           py::arg("x"),
+           py::arg("rtol") = 0.0,
+           py::arg("atol") = 1e-12,
+           py::arg("maxiter") = 20000)
+      .def("apply_inverse_adjoint",
+           &BaseOp::apply_inverse_adjoint,
+           py::arg("y"),
+           py::arg("x"),
+           py::arg("rtol") = 0.0,
+           py::arg("atol") = 1e-12,
+           py::arg("maxiter") = 20000)
       .def("jacobian", &BaseOp::jacobian, py::arg("u"))
       .def("dim_source", &BaseOp::dim_source)
       .def("dim_range", &BaseOp::dim_range)
       .def_readonly("linear", &BaseOp::m_linear);
+  };
+
+  auto base_cls =
+    py::class_<BaseOp, std::unique_ptr<BaseOp>>(m, "BaseOperator");
+
+  bind_base_methods(base_cls);
 
   py::class_<SparseOp, BaseOp, std::unique_ptr<SparseOp>>(m, "SparseMatrixOperator")
       .def(py::init<typename SparseOp::MatV&>(), py::arg("matrix"))
-      .def("apply", &SparseOp::apply, py::arg("y"), py::arg("u"))
-      .def("apply_adjoint", &SparseOp::apply_adjoint, py::arg("y"), py::arg("w"))
-      .def("apply_inverse", &SparseOp::apply_inverse, py::arg("y"), py::arg("f"))
-      .def("apply_inverse_adjoint", &SparseOp::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
-      .def("jacobian", &SparseOp::jacobian, py::arg("u"))
-      .def("get_matrix", &SparseOp::get_matrix, py::return_value_policy::reference_internal)
-      .def("dim_source", &SparseOp::dim_source)
-      .def("dim_range", &SparseOp::dim_range)
-      .def_readonly("linear", &BaseOp::m_linear);
+      .def("get_matrix", &SparseOp::get_matrix, py::return_value_policy::reference_internal);
 
   py::class_<FullOp, BaseOp, std::unique_ptr<FullOp>>(m, "FullMatrixOperator")
       .def(py::init<typename FullOp::MatV&>(), py::arg("matrix"))
-      .def("apply", &FullOp::apply, py::arg("y"), py::arg("u"))
-      .def("apply_adjoint", &FullOp::apply_adjoint, py::arg("y"), py::arg("w"))
-      .def("apply_inverse", &FullOp::apply_inverse, py::arg("y"), py::arg("f"))
-      .def("apply_inverse_adjoint", &FullOp::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
-      .def("jacobian", &FullOp::jacobian, py::arg("u"))
-      .def("get_matrix", &FullOp::get_matrix, py::return_value_policy::reference_internal)
-      .def("dim_source", &FullOp::dim_source)
-      .def("dim_range", &FullOp::dim_range)
-      .def_readonly("linear", &BaseOp::m_linear);
+      .def("get_matrix", &FullOp::get_matrix, py::return_value_policy::reference_internal);
 }
+
+
+// template <typename Number>
+// void bind_operators(py::module_& m)
+// {
+//   using BaseOp   = BaseOperator<Number>;
+//   using SparseOp = SparseMatrixOperator<Number>;
+//   using FullOp   = FullMatrixOperator<Number>;
+//   using Vec      = dealii::Vector<Number>;
+
+//   py::class_<BaseOp, std::unique_ptr<BaseOp>>(m, "BaseOperator")
+//       .def("apply", &BaseOp::apply, py::arg("y"), py::arg("x"))
+//       .def("apply_adjoint", &BaseOp::apply_adjoint, py::arg("y"), py::arg("x"))
+//       .def("apply_inverse", &BaseOp::apply_inverse, py::arg("y"), py::arg("x"))
+//       .def("apply_inverse_adjoint", &BaseOp::apply_inverse_adjoint, py::arg("y"), py::arg("x"))
+//       .def("jacobian", &BaseOp::jacobian, py::arg("u"))
+//       .def("dim_source", &BaseOp::dim_source)
+//       .def("dim_range", &BaseOp::dim_range)
+//       .def_readonly("linear", &BaseOp::m_linear);
+
+//   py::class_<SparseOp, BaseOp, std::unique_ptr<SparseOp>>(m, "SparseMatrixOperator")
+//       .def(py::init<typename SparseOp::MatV&>(), py::arg("matrix"))
+//       .def("apply", &SparseOp::apply, py::arg("y"), py::arg("u"))
+//       .def("apply_adjoint", &SparseOp::apply_adjoint, py::arg("y"), py::arg("w"))
+//       .def("apply_inverse", &SparseOp::apply_inverse, py::arg("y"), py::arg("f"))
+//       .def("apply_inverse_adjoint", &SparseOp::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
+//       .def("jacobian", &SparseOp::jacobian, py::arg("u"))
+//       .def("get_matrix", &SparseOp::get_matrix, py::return_value_policy::reference_internal)
+//       .def("dim_source", &SparseOp::dim_source)
+//       .def("dim_range", &SparseOp::dim_range)
+//       .def_readonly("linear", &BaseOp::m_linear);
+
+//   py::class_<FullOp, BaseOp, std::unique_ptr<FullOp>>(m, "FullMatrixOperator")
+//       .def(py::init<typename FullOp::MatV&>(), py::arg("matrix"))
+//       .def("apply", &FullOp::apply, py::arg("y"), py::arg("u"))
+//       .def("apply_adjoint", &FullOp::apply_adjoint, py::arg("y"), py::arg("w"))
+//       .def("apply_inverse", &FullOp::apply_inverse, py::arg("y"), py::arg("f"))
+//       .def("apply_inverse_adjoint", &FullOp::apply_inverse_adjoint, py::arg("y"), py::arg("f"))
+//       .def("jacobian", &FullOp::jacobian, py::arg("u"))
+//       .def("get_matrix", &FullOp::get_matrix, py::return_value_policy::reference_internal)
+//       .def("dim_source", &FullOp::dim_source)
+//       .def("dim_range", &FullOp::dim_range)
+//       .def_readonly("linear", &BaseOp::m_linear);
+// }
 
 // bindings_rom_projector.cpp
 //

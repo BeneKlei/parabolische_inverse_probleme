@@ -33,15 +33,21 @@ public:
   }
 
   // y = A^{-1} u  (optional; may throw ExcNotDefined)
-  virtual void apply_inverse(Vector<Number>       &y,
-                             const Vector<Number> &u) const
+  virtual void apply_inverse(Vector<Number> &y,
+                             const Vector<Number> &f,
+                             double rtol,
+                             double atol,
+                             unsigned int maxiter) const
   {
     AssertThrow(false, ExcNotDefined());
   }
 
   // y = (A^*)^{-1} u  (pyMOR apply_inverse_adjoint semantics; optional)
-  virtual void apply_inverse_adjoint(Vector<Number>       &y,
-                                     const Vector<Number> &u) const
+  virtual void apply_inverse_adjoint(Vector<Number> &y,
+                                     const Vector<Number> &f,
+                                     double rtol,
+                                     double atol,
+                                     unsigned int maxiter) const
   {
     AssertThrow(false, ExcNotDefined());
   }

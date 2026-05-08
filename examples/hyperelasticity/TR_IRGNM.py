@@ -294,7 +294,7 @@ def main():
             'prod_Q': 'euclid',                      # Product on Q_h
             'prod_V': 'h1',                           # Product on V_h
             'prod_C': 'euclid',                       # Product on C_h
-            'prod_reg' : 'h1_semi'
+            'prod_reg' : 'euclid'
         },
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
@@ -455,10 +455,9 @@ def main():
     optimizer_parameter = {
         'method' : 'TR_IRGNM',
         'q_0': q_start,                                              # Initial guess for the parameter to be optimized
+        'update_alpha': True,
         'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
-        #'alpha_0': 1e-10,                                              # Initial regularization parameter (data fidelity vs. regularization)
         'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        #'tau': 1.25,                                                  # Relative (to the noise) convergence tolerance for optimization
         'tau': 1.0,                                                  # Relative (to the noise) convergence tolerance for optimization
         'noise_level': setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
         'theta': 1.00,
@@ -524,8 +523,8 @@ def main():
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         'inner_loop_model_schedule': None,
         'reductor' : {
-            #'type' : 'default',
-            'type' : 'material_model',
+            'type' : 'default',
+            #'type' : 'material_model',
             'use_adjoint_space' : False,
             'offline_parallel' : False,
             'error_estimator_types' : {
@@ -550,7 +549,8 @@ def main():
             'armijo_min_step_size' : 1e-20
         },
         'enrichment': {
-            'parameter_basis' : {
+            'parameter_basis' : 
+            {
                 'additional_snapshots' :{
                     'include_lin_grad' : False,
                     'include_each_nabla_J_time_step' : False,

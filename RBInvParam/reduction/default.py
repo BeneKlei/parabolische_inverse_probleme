@@ -51,6 +51,7 @@ class DefaultIPReductor(BaseIPReductor):
         parameter_basis = self._get_projection_basis('parameter_basis')
         if not parameter_basis:
             parameter_basis = self.FOM.Q.make_array(np.eye(self.FOM.Q.dim))        
+            self.dims_history['parameter_basis'].append(len(parameter_basis))
 
         if not self._cached_operators['A']:
             start = 0

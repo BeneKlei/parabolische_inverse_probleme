@@ -392,7 +392,6 @@ class FirstOrderCrankNicolson(TimeStepper):
 
             yield U_cur, t
 
-
 class SecondOrderCrankNicolson(TimeStepper):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -571,11 +570,18 @@ class SecondOrderCrankNicolson(TimeStepper):
             _rhs.axpy(zeta * zeta, dt_R)
 
             if not self.apply_adjoint:
-                _U = _lhs.apply_inverse(_rhs)
-                assert np.max(np.abs(_lhs.apply(_U).to_numpy()-_rhs.to_numpy())) <= 1e-12
+                _U = _lhs.apply_inverse(
+                    _rhs,
+                    initial_guess = U_pre,
+                )
+                #assert np.max(np.abs(_lhs.apply(_U).to_numpy()-_rhs.to_numpy())) <= 1e-12
             else:
-                _U = _lhs.apply_inverse_adjoint(_rhs)
-                assert np.max(np.abs(_lhs.apply_adjoint(_U).to_numpy()-_rhs.to_numpy())) <= 1e-12
+                _U = _lhs.apply_inverse_adjoint(
+                    _rhs,
+                    initial_guess = U_pre,
+                )
+
+                #assert np.max(np.abs(_lhs.apply_adjoint(_U).to_numpy()-_rhs.to_numpy())) <= 1e-12
 
 
             # --------------------------------------------------------------
@@ -590,9 +596,15 @@ class SecondOrderCrankNicolson(TimeStepper):
             M_U_dot_cur.axpy(1.0, dt_R)
 
             if not self.apply_adjoint:
-                U_dot_cur = self.M.apply_inverse(M_U_dot_cur)
+                U_dot_cur = self.M.apply_inverse(
+                    M_U_dot_cur,
+                    initial_guess=M_U_dot_pre,
+                )
             else:
-                U_dot_cur = self.M.apply_inverse_adjoint(M_U_dot_cur)
+                U_dot_cur = self.M.apply_inverse_adjoint(
+                    M_U_dot_cur,
+                    initial_guess=M_U_dot_pre,
+                )
 
             # --------------------------------------------------------------
             U_cur = _U

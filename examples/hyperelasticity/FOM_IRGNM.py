@@ -78,8 +78,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 30
-    state_z_res = 30
+    state_y_res = 60
+    state_z_res = 60
 
     # state_y_res = 60
     # state_z_res = 60
@@ -177,20 +177,21 @@ def main():
             'hyperparameter' : {}
         },
         'observation_operator': {
-            #'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
-            'type': mm.ObservationOperatorType.Sensors,
-            'hyperparameter' : {
-                'p1' : p1,
-                'p2' : p2,
-                'sensor_patch_size' : (28.0, 28.0),
-                'sensor_spacing' : 1.0,
-                'at_top' : True,
-                'at_bottom' : False,
-                'sensor_patch_center_offset' : (0.0, 0.0),
-                'x_face_offset' : 0.00,
-                'radius' : 0.001,
-                'use_boundary_mass_matrix' : True,
-            }
+            'type': mm.ObservationOperatorType.Identity,                       # Type of observation operator (e.g., identity = full state observed)
+            'hyperparameter' : {}
+            #'type': mm.ObservationOperatorType.Sensors,
+            # 'hyperparameter' : {
+            #     'p1' : p1,
+            #     'p2' : p2,
+            #     'sensor_patch_size' : (28.0, 28.0),
+            #     'sensor_spacing' : 1.0,
+            #     'at_top' : True,
+            #     'at_bottom' : False,
+            #     'sensor_patch_center_offset' : (0.0, 0.0),
+            #     'x_face_offset' : 0.00,
+            #     'radius' : 0.001,
+            #     'use_boundary_mass_matrix' : True,
+            # }
         },
         'dims' : {
             'nt': nt,                                     # Number of time steps
@@ -203,6 +204,7 @@ def main():
             'prod_Q': 'euclid',                       # Product on Q_h
             'prod_V': 'h1_0_semi',                    # Product on V_h
             'prod_C': 'euclid',                       # Product on C_h
+            'prod_reg' : 'euclid',                       # Product on C_h
         },
         'T_initial': T_initial,                       # Start time of the simulation
         'T_final': T_final,                           # End time of the simulation
@@ -357,6 +359,7 @@ def main():
     optimizer_parameter = {
         'method' : 'FOM_IRGNM',
         'q_0': q_start,                                          # Initial guess for the parameter to be optimized
+        'update_alpha': True,
         'alpha_0': 1e-5,                                          # Initial regularization parameter
         #'alpha_0': 1e-14,                                          # Initial regularization parameter
         'tol': 1e-9,                                            # Absolute convergence tolerance for optimization
@@ -374,6 +377,7 @@ def main():
         ####################
         'lin_solver_parms': {
             'method': 'gd',                                          # Method for solving linear systems (e.g., gradient descent)
+            'use_barzilai_borwein' : True,                                                                                                # Method for solving linear systems (e.g., gradient descent)
             'max_iter': 250,                                         # Maximum iterations for the linear solver
             'abs_grad_tol' : 5 * 1e-9,
             'rel_change_obj_tol' : 1e-4,
