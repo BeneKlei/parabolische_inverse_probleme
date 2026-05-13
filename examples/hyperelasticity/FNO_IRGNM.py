@@ -32,17 +32,23 @@ from RBInvParam.trust_region import TRType
 from RBInvParam.schemas.reductor import LinearizationMethod
 
 from RBInvParam.timestepping import TimeStepperType
-
 from RBInvParam.utils.create_q_exact import *
+
+from RBInvParam.models.FNO.FNO import FNO1d_new
+from RBInvParam.models.FNO.utils import generate_training_data
+from RBInvParam.models.FNO.training import training
+from torch.utils.data import DataLoader, random_split
+
+import torch
 
 #########################################################################################''
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-save_path = Path('./dumps') / (timestamp + '_TR_IRGNM')
+save_path = Path('./dumps') / (timestamp + '_FNO_IRGNM')
 os.mkdir(save_path)
-logfile_path= save_path / 'TR_IRGNM.log'
+logfile_path= save_path / 'FNO_IRGNM.log'
 
-logger = get_default_logger(logger_name='TR_IRGNM',
+logger = get_default_logger(logger_name='FNO_IRGNM',
                             logfile_path=logfile_path,
                             use_timestemp=False)
 logger.setLevel(logging.DEBUG)
@@ -83,9 +89,9 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_x_res = 1
-    state_y_res = 10
-    state_z_res = 10
+    state_x_res = 4
+    state_y_res = 20
+    state_z_res = 20
 
     # state_y_res = 60
     # state_z_res = 60
@@ -352,308 +358,126 @@ def main():
         }
     }
 
-
     FOM = build_HyperElasticityModelIP(setup, logger)
     q_exact = FOM.setup['q_exact']
     q_start = q_circ
 
-    # _q_start = FOM.Q.make_array(q_start)
-    # print(FOM.compute_objective(_q_start))
+    n_samples = 10
 
-    # for i in range(8):
-    #     q_exact = np.ones((1,par_dim))
-    #     q_exact = q_exact[0,:].reshape(param_y_res+1,param_z_res+1)
-    #     q_exact[:, i:8] = 2.0
-    #     q_exact = q_exact.flatten()
-    #     q_exact = np.array([q_exact])
+    X = np.zeros((n_samples, nt + 1, par_dim), dtype=np.float32)
+    for i in range(n_samples):
+        X[i] = q_exact.flatten()
 
-    # #print(q_exact)
 
-    #     _q_exact = FOM.Q.make_array(q_exact)
-    #     print(FOM.compute_objective(_q_exact))
-    # import sys
-    # sys.exit()
+    dataset, X, Y, data_path = generate_training_data(
+        FOM=FOM,
+        n_samples=n_samples,
+        param_y_res=param_y_res,
+        param_z_res=param_z_res,
+        y_bounds=y_bounds,
+        z_bounds=z_bounds,
+        nt=nt,
+        save_path=save_path,
+        seed=42,
+        X = X
+    )
 
-    # q_exact = np.ones((1,par_dim))
-    # _q_exact = FOM.Q.make_array(q_exact)
-    # print(FOM.compute_objective(_q_exact))
+    train_size = int(0.9 * len(dataset))
+    val_size = len(dataset) - train_size
 
-    # q_exact = 2 * np.ones((1,par_dim))
-    #_q_circ = FOM.Q.make_array(q_circ)
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[0]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[1]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[2]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[3]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[4]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[5]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[6]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[7]))
-    # print(np.mean(FOM.solve_state(_q_circ).to_numpy()[8]))
-    # print("------------------------------")
-    # print(FOM.compute_objective(_q_circ))
+    train_dataset, val_dataset = random_split(
+        dataset,
+        [train_size, val_size],
+        generator=torch.Generator().manual_seed(42),
+    )
 
-    #print(FOM.compute_objective(_q_circ, alpha=0))
-    #print(FOM.compute_objective(_q_circ, alpha=1e-5))
-    #print(FOM.compute_gradient_norm(_q_circ))
+    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False)
 
-    # import sys
-    # sys.exit()
+    torch.save(train_dataset, data_path / "train_dataset.pt")
+    torch.save(val_dataset, data_path / "val_dataset.pt")
 
+
+    fno = FNO1d_new(
+        dim_Q = FOM.Q.dim,
+        dim_V = FOM.V.dim,
+        modes = 16,
+        lifting_width = FOM.Q.dim,
+    )
+
+    training(
+        train_loader = train_loader,
+        val_loader = val_loader,
+        model = fno,
+        checkpoint_path = data_path,
+        num_epoch = 50
+    )  
+
+    # --------------------------------------------
+    
     u_exact = FOM.solve_state(FOM.Q.make_array(q_exact))
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in u_exact.vectors],
-        str('u_exact'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    u_NN = fno(
+        torch.tensor(np.expand_dims(
+            np.tile(q_exact, (nt + 1, 1)), 
+            axis = 0
+        ),    
+        dtype=torch.float32
+    ))
+    
 
-    p_exact = FOM.solve_adjoint(FOM.Q.make_array(q_exact), u = u_exact)
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in p_exact.vectors],
-        str('p_exact'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # u_NN = torch.tensor(u_NN, dtype=torch.float64)
+    # u_NN_ = FOM.V.empty()
 
-    u_start = FOM.solve_state(FOM.Q.make_array(q_start))
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in u_start.vectors],
-        str('u_start'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    # import pymor_dealii_bindings as pd2
+    # for v in u_NN[0].detach().numpy():
+    #     u_NN_.append(pd2.Vector(v))
 
-    p_start = FOM.solve_adjoint(FOM.Q.make_array(q_start), u = u_start)
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in p_start.vectors],
-        str('p_start'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    u_exact_np = u_exact.to_numpy()
+    u_NN_np = u_NN.detach().cpu().numpy().astype(np.float64)
 
-    diff = u_start - u_exact
-    FOM.A.hyperelasticity_model.save_time_series(
-        [v.impl for v in diff.vectors],
-        str('diff'),
-        str(save_path),
-        np.linspace(T_initial, T_final, nt+1)
-    )
+    #print(u_exact_np - u_NN_np)
+    diff = (u_exact_np - u_NN_np)[0]
+    norm_diff = np.linalg.norm(diff, axis=1)
+    print(norm_diff)
+    print(norm_diff / np.linalg.norm(u_exact_np, axis=1))
 
-    # _q_start = FOM.Q.make_array(q_start)
-    # _q_exact = FOM.Q.make_array(q_exact)
-    # J = FOM.compute_objective(_q_start)
-
-    # print(FOM.compute_objective(_q_start))
-    # print(FOM.compute_objective(_q_exact))
-    # _d = FOM.Q.zeros()
-    # print(FOM.compute_linearized_objective(_q_start, _d, 0.0))
-    # print(FOM.compute_linearized_objective(_q_exact, _d, 0.0))
-    # print(np.sqrt(2 * J))
-
-    # print(FOM.compute_gradient(_q_start))
-    # print(FOM.compute_gradient(_q_exact))
+    
 
 
-    optimizer_parameter = {
-        'method' : 'TR_IRGNM',
-        'q_0': q_start,                                              # Initial guess for the parameter to be optimized
-        'update_alpha': True,
-        'alpha_0': 1e-5,                                              # Initial regularization parameter (data fidelity vs. regularization)
-        'tol': 1e-9,                                                 # Absolute convergence tolerance for optimization
-        'tau': 1.0,                                                  # Relative (to the noise) convergence tolerance for optimization
-        'noise_level': setup['noise_info']['abs_noise_level_y'],                         # Noise level in observed data (from model setup)
-        'theta': 1.00,
-        'Theta': 1.95,                                               # Upper bound for step acceptance condition
-        #'Theta': 1.50,                                               # Upper bound for step acceptance condition
-        'tau_tilde': 3.5,                                            # Relative (to the noise) convergence tolerance for optimization inside the trust region
-        #####################
-        'i_max': 250,                                                 # Max number of outer optimization iterations
-        'reg_loop_max': 5,                                          # Max number of regularization updates per iteration
-        #'i_max_inner': 15,                                           # Max number of inner iterations
-        'i_max_inner': 30,                                           # Max number of inner iterations
-        'AGC_armijo_cfg' : {
-            "max_iter": 50,
-            "initial_step_size": 1.0,
-            "kappa_arm": 1e-12,
-            "shrink": 0.5,
-        },
-        'TR_armijo_cfg' : {
-            "max_iter": 5,
-            "initial_step_size": 1.0,
-            "kappa_arm": 1e-12,
-            "shrink": 0.5,
-        },
-        # 'TR': {
-        #     'type': TRType.RADIUS,
+    # u_NN_ = FOM.V.empty()
 
-        #     # TR config
-        #     'eta_initial': parameter_factor * 1.00,
-        #     'eta_min': parameter_factor * 1e-5,
-        #     'eta_max': parameter_factor * 5.00,
-        #     'beta_1': 0.80,
-        #     'beta_2': 0.80,
-        #     'beta_3': 0.75,
-        # },
-        'TR': {
-            'type': TRType.RADIUS,
-            #'type': TRType.RELATIVE_OBJECTIVE_ERROR,
+    # for i, values in enumerate(u_NN_np[0]):
+    #     vec = u_exact.vectors[i].copy()
+    #     vec.scal(0.0)
+    #     vec.axpy(1.0, FOM.V.make_array(values.reshape(1, -1))[0])
+    #     u_NN_.append(vec)
+    
+    # #FOM.V.make_array(u_NN[0].detach().numpy())
 
-            # TR config
-            'eta_initial': 1.0,
-            'eta_min': 1e-5,
-            'eta_max': 3.0,
-            'beta_1': 0.80,
-            'beta_2': 0.80,
-            'beta_3': 0.75,
-        },
-        # 'TR': {
-        #     'type': TRType.RADIUS,
+    # print(u_exact.to_numpy()[0].dtype)
+    # print(u_NN_.to_numpy()[0].dtype)
 
-        #     # TR config
-        #     'eta_initial': 0.25,
-        #     'eta_min': 1e-2,
-        #     'eta_max': 1.00,
-        #     'beta_1': 0.80,
-        #     'beta_2': 0.80,
-        #     'beta_3': 0.75,
-        # },
-        #####################
-        'use_cached_operators': True,                               # Reuse previously assembled operators to save computation
-        'use_error_estimator' : False,
-        'reg_AGC_step' : False,
-        'TR_enforcement' : 'backtracking',
-        'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
-        'inner_loop_model_schedule': None,
-        'reductor' : {
-            'type' : 'default',
-            #'type' : 'material_model',
-            'use_adjoint_space' : False,
-            'offline_parallel' : False,
-            'error_estimator_types' : {
-                'state' : StateErrorEstimatorType.HYPERBOLIC,
-                'adjoint' : AdjointErrorEstimatorType.NONE,
-                'objective' : ObjectiveErrorEstimatorType.NAIVE,
-            },
-            'check_orthonormality' : True,
-            'check_tol' : 1e-9,
-            'linearization_method' : LinearizationMethod.DEIM,
-        },
-        #####################
-        'lin_solver_parms': {
-            'method': 'gd',
-            'use_barzilai_borwein' : False,                                                                                                # Method for solving linear systems (e.g., gradient descent)
-            'max_iter': 250,                                         # Maximum iterations for the linear solver
-            #'abs_grad_tol' : 5 * 1e-9,
-            'abs_grad_tol' : 5 * 1e-11,
-            'rel_change_obj_tol' : 1e-4,
-            'kappa_arm' : 1e-12,
-            'armijo_inital_step_size': 1e-2,                                    # Initial step size for iterative linear solver
-            'armijo_min_step_size' : 1e-20
-        },
-        'enrichment': {
-            'parameter_basis' : 
-            {
-                'additional_snapshots' :{
-                    'include_lin_grad' : False,
-                    'include_each_nabla_J_time_step' : False,
-                    'include_each_nabla_lin_J_time_step' : False,
-                    'include_krylov_directions' : False,
-                    'include_q_exact' : False
-                },
-                'compression' : None,
-                # {
-                #     'normalize' : True,
-                #     'HaPOD' :
-                #     {
-                #         'eps': 1e-1,
-                #         'omega' : 0.1,
-                #     },
-                #     'every_n' : None,
-                # },
-                'extend_basis' : {
-                    'method' : 'gram_schmidt',
-                    'pod_modes' : None,
-                },
-                'coarsing' : None,
-            },
-            'state_basis' :
-            {
-                'additional_snapshots' :{
-                    'include_lin_states' : False,
-                    'include_krylov_sensitivites' : False,
-                },
-                'compression' : 
-                {
-                    'normalize' : False,
-                    'HaPOD' : {
-                        'eps': 1e-3,
-                        'omega' : 0.1,
-                    },
-                    'every_n' : None,
-                    # 'normalize' : None,
-                    # 'HaPOD' : None,
-                },
-                'extend_basis' : {
-                    'method' : 'gram_schmidt',
-                    'pod_modes' : None
-                },
-                'coarsing' : None,
-                # 'coarsing' : {
-                #     'rel_tol_coeff_u' : 1e-2,
-                #     'rel_tol_coeff_p' : 1e-2
-                # }
-            },
-            'adjoint_basis' : None
-        },
-        'logging' : {
-            'errors' : LoggerErrorChoice.NONE,
-            'estimate_tcc' : None,
-            # 'estimate_tcc' : {
-            #     'models' : ['FOM', 'ROM'],
-            #     'config' : {
-            #         "amplitudes": [1e0,1e-2,1e-4],
-            #         "max_h": 10,
-            #         "seed": 0,
-            #         "perturbation_mode": "gradient_direction",
-            #         "create_pdf": False,
-            #         "pdf_filename": None,
-            #         "verbose_logging" : False
-            #     },
-            # }
-        }
-    }
+    
+    # --------------------------------------------
 
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in u_exact.vectors],
+    #     str('u_exact'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
+    # FOM.A.hyperelasticity_model.save_time_series(
+    #     [v.impl for v in u_NN_.vectors],
+    #     str('u_NN'),
+    #     str(save_path),
+    #     np.linspace(T_initial, T_final, nt+1)
+    # )
 
-    logger.info(f"Dumping model setup to {save_path / 'setup.pkl'}.")
-    save_dict_to_pkl(path=save_path / 'setup.pkl',
-                     data = setup,
-                     use_timestamp=False)
-
-    logger.info(f"Dumping model optimizer_parameter to {save_path / 'optimizer_parameter.pkl'}.")
-    save_dict_to_pkl(path=save_path / 'optimizer_parameter.pkl',
-                        data = optimizer_parameter,
-                        use_timestamp=False)
-
-    optimizer = QrVrROMOptimizer(
-        FOM = FOM,
-        optimizer_parameter = optimizer_parameter,
-        logger = logger,
-        save_path=save_path
-    )
-
-
-    # _q_exact = FOM.Q.make_array(q_exact)
-    # u_exact = FOM.solve_state(_q_exact)
-    # p_exact = FOM.solve_adjoint(_q_exact, u_exact)
-
-    # optimizer.add_initial_snapshots(snapshots=FOM.Q.make_array(q_exact), basis="parameter_basis")
-    # optimizer.add_initial_snapshots(snapshots=u_exact, basis="state_basis")
-    # optimizer.add_initial_snapshots(snapshots=p_exact, basis="state_basis")
-
-    q_est = optimizer.solve()
-
-
-
+    
 if __name__ == '__main__':
     main()
+
+
+
+

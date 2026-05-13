@@ -133,6 +133,9 @@ def add_constant_square_patch_from_center_coords(
     ys = np.arange(cy - half_size, cy + half_size + 1)
     zs = np.arange(cz - half_size, cz + half_size + 1)
 
+    print(ys)
+    print(zs)
+
     ys = ys[(ys >= 0) & (ys < arr.shape[0])]
     zs = zs[(zs >= 0) & (zs < arr.shape[1])]
 
