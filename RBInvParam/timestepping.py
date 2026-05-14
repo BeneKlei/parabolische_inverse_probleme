@@ -338,7 +338,6 @@ class FirstOrderCrankNicolson(TimeStepper):
         S_zeta = S_zeta.assemble()
         S_zeta_minus_one = S_zeta_minus_one.assemble()
 
-
         ################################### Stepping ###################################
 
         for n in range(1,self.nt+1):
@@ -522,6 +521,17 @@ class SecondOrderCrankNicolson(TimeStepper):
         A_q = A_q.assemble()
         S_zeta = S_zeta.assemble()
         S_zeta_minus_one = S_zeta_minus_one.assemble()
+
+        # print("------------------------------------")
+        # import inspect
+        #from pymor.operators.numpy import NumpyMatrixOperator
+
+        # print(inspect.getsource(NumpyMatrixOperator.apply_inverse))
+        # from pymor.bindings.scipy import solver_options
+        # print(solver_options())
+        # print(type(S_zeta))
+        # print(S_zeta.solver_options)
+        
 
 
         ################################### Stepping ###################################

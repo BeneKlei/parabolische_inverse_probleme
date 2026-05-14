@@ -286,7 +286,7 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
 
         opts = self.solver_options or {}
 
-        rtol = opts.get("rtol", 1e-5)
+        rtol = opts.get("rtol", 0.0)
         atol = opts.get("atol", 1e-12)
         maxiter = opts.get("maxiter", 20000)
     

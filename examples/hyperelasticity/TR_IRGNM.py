@@ -83,8 +83,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 10
-    state_z_res = 10
+    state_y_res = 30
+    state_z_res = 30
 
     # state_y_res = 60
     # state_z_res = 60
@@ -521,7 +521,10 @@ def main():
         'reg_AGC_step' : False,
         'TR_enforcement' : 'backtracking',
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
-        'inner_loop_model_schedule': None,
+        'inner_loop_model_schedule': [
+            {"model": "ROM", "length": 2},
+            {"model": "FOM", "length": 10000},
+        ],
         'reductor' : {
             'type' : 'default',
             #'type' : 'material_model',
@@ -580,17 +583,17 @@ def main():
                     'include_lin_states' : False,
                     'include_krylov_sensitivites' : False,
                 },
-                'compression' : 
-                {
-                    'normalize' : False,
-                    'HaPOD' : {
-                        'eps': 1e-3,
-                        'omega' : 0.1,
-                    },
-                    'every_n' : None,
-                    # 'normalize' : None,
-                    # 'HaPOD' : None,
-                },
+                'compression' : None,
+                # {
+                #     'normalize' : False,
+                #     'HaPOD' : {
+                #         'eps': 1e-3,
+                #         'omega' : 0.1,
+                #     },
+                #     'every_n' : None,
+                #     # 'normalize' : None,
+                #     # 'HaPOD' : None,
+                # },
                 'extend_basis' : {
                     'method' : 'gram_schmidt',
                     'pod_modes' : None

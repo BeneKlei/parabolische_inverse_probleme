@@ -135,6 +135,7 @@ setup = {
         'prod_Q': 'euclid',                       # Product on Q_h
         'prod_V': 'h1',                           # Product on V_h
         'prod_C': 'euclid',                       # Product on C_h
+        'prod_reg': 'euclid',                       # Product on C_h
     },
     'T_initial': T_initial,                       # Start time of the simulation
     'T_final': T_final,                           # End time of the simulation

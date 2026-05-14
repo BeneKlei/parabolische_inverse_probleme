@@ -176,8 +176,6 @@ void MatrixOperator<Number, MatrixType>::apply_inverse(Vector<Number> &y,
 
     // deal.II SolverControl uses an absolute residual threshold
     const double tolerance = std::max(atol, rtol * rhs_norm);
-    //std::cout << "tolerance = " << tolerance << std::endl;
-
     SolverControl solver_control(maxiter, tolerance);
     SolverCG<> solver(solver_control);
 
