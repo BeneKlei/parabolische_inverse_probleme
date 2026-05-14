@@ -83,8 +83,8 @@ def main():
     y_bounds = (p1[1], p2[1])
     z_bounds = (p1[2], p2[2])
 
-    state_y_res = 30
-    state_z_res = 30
+    state_y_res = 10
+    state_z_res = 10
 
     # state_y_res = 60
     # state_z_res = 60
@@ -522,7 +522,7 @@ def main():
         'TR_enforcement' : 'backtracking',
         'dump_every_nth_loop': 1,                                    # Dump intermediate results every n optimization iterations
         'inner_loop_model_schedule': [
-            {"model": "ROM", "length": 2},
+            {"model": "ROM", "length": 0},
             {"model": "FOM", "length": 10000},
         ],
         'reductor' : {
@@ -543,7 +543,7 @@ def main():
         'lin_solver_parms': {
             'method': 'gd',
             'use_barzilai_borwein' : False,                                                                                                # Method for solving linear systems (e.g., gradient descent)
-            'max_iter': 250,                                         # Maximum iterations for the linear solver
+            'max_iter': 10,                                         # Maximum iterations for the linear solver
             #'abs_grad_tol' : 5 * 1e-9,
             'abs_grad_tol' : 5 * 1e-11,
             'rel_change_obj_tol' : 1e-4,

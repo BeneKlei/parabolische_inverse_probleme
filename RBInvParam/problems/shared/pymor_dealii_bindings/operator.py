@@ -196,7 +196,7 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
         self.range = self._range_adapter.space
 
         self.solver_options = dict(solver_options or {
-            "rtol": 1e-5,
+            "rtol": 0.0,
             "atol": 1e-12,
             "maxiter": 20000,
         })
@@ -245,7 +245,7 @@ class DealIIBaseOperator(ListVectorArrayOperatorBase):
 
         opts = self.solver_options or {}
 
-        rtol = opts.get("rtol", 1e-5)
+        rtol = opts.get("rtol", 0.0)
         atol = opts.get("atol", 1e-12)
         maxiter = opts.get("maxiter", 20000)
 

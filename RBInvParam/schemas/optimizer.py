@@ -214,9 +214,6 @@ class ModelScheduleBlock:
     def validate(self) -> None:
         if self.model not in ("ROM", "FOM"):
             raise ValueError("schedule model must be 'ROM' or 'FOM'")
-        if self.length <= 0:
-            raise ValueError("schedule length must be > 0")
-
 # ----------------------------
 # TR run schema
 # ----------------------------

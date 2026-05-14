@@ -1495,14 +1495,96 @@ class QrVrROMOptimizer(Optimizer):
             )
             if model is self.FOM:
                 model_name = "FOM"
+                use_AGC = False
             elif model is self.QrVrROM:
                 model_name = "ROM"
+                use_AGC = True
             else:
                 raise ValueError("Unknown model returned by _select_inner_model")
 
-            ########################################### q^{(i)} in TR ###########################################
+            ########################################### q^{(i)} in TR ##########################################
 
-            if model is self.QrVrROM:
+            errors = self._maybe_estimate_tr_error(
+                model=self.QrVrROM,
+                previous_q=q_r,
+                current_q=q_r,
+                u=u_r,
+                p=p_r,
+                u_dot=u_dot_r,
+                p_dot=p_dot_r,
+                current_J=J_r,
+                targets=self.error_estimate_targets_outer,
+                use_cached_operators=opt_cfg.use_cached_operators,
+                use_error_estimator=opt_cfg.use_error_estimator,
+            )
+            
+            ctx = TRContext(
+                objective=float(J_r),
+                abs_error=float(errors.get("err_J", np.nan)),
+                center_q=self.last_update_q,
+                current_q=q_r,
+                product=self._tr_product(self.QrVrROM),
+                step_size=None,
+                meta=None,
+            )
+
+            tr_center = self.TR.check(ctx)
+            proj_q_in_tr = tr_center.tr_ok
+
+            if AGC_jump_back: 
+                self.statistics['flags']['proj_q_in_tr'][-1] = proj_q_in_tr
+            else:
+                self.statistics['flags']['proj_q_in_tr'].append(proj_q_in_tr)
+
+            if not proj_q_in_tr:
+                self._logger.warning(f"q^(i) is not in the trust region.")
+                self._logger.warning(f"Extending reduced spaces with all snapshots.")
+
+                self._reset_snapshots()
+                self.snapshots = self.snapshot_preprocessor.get_snapshots(
+                    config = opt_cfg.enrichment,
+                    bases = self.active_bases,
+                    q = q,
+                    u = u,
+                    p = p,
+                    nabla_J = nabla_J,
+                    time_steps_nabla_J = None,
+                    add_additional_snapshots = False,
+                    use_cached_operators = opt_cfg.use_cached_operators
+                )
+
+                self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
+                    bases=self.active_bases,
+                    enrichment=opt_cfg.enrichment,
+                    compression_override={
+                        basis: {
+                            "normalize": True,
+                            "HaPOD": None,
+                            "every_n": None,
+                        }
+                        for basis in self.active_bases
+                    },
+                )   
+
+                self.last_update_q = self.reductor.project_vectorarray(q.copy(), 'parameter_basis')
+                self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
+                
+                self.FOM.reset_cached_operators()
+
+                q_r = self.reductor.project_vectorarray(q, "parameter_basis")
+                q_r = self.QrVrROM.Q.make_array(q_r)
+
+                u_r, u_dot_r = self.QrVrROM.solve_state(
+                    q_r, use_cached_operators=False, return_higher_orders=True
+                )
+                p_r, p_dot_r = self.QrVrROM.solve_adjoint(
+                    q_r, u_r, use_cached_operators=False, return_higher_orders=True
+                )
+
+                J_r = self.QrVrROM.objective(u_r)
+                nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
+                norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
+
                 errors = self._maybe_estimate_tr_error(
                     model=self.QrVrROM,
                     previous_q=q_r,
@@ -1528,107 +1610,28 @@ class QrVrROMOptimizer(Optimizer):
                 )
 
                 tr_center = self.TR.check(ctx)
-                proj_q_in_tr = tr_center.tr_ok
 
-                if AGC_jump_back: 
-                    self.statistics['flags']['proj_q_in_tr'][-1] = proj_q_in_tr
-                else:
-                    self.statistics['flags']['proj_q_in_tr'].append(proj_q_in_tr)
+            tr_center = self.TR.check(ctx)
+            proj_q_in_tr = tr_center.tr_ok
+            assert proj_q_in_tr 
 
-                if not proj_q_in_tr:
-                    self._logger.warning(f"q^(i) is not in the trust region.")
-                    self._logger.warning(f"Extending reduced spaces with all snapshots.")
+            if 'parameter_basis' in self.active_bases:
+                projector = SimpleBoundDomainProjector(
+                    model = self.QrVrROM,
+                    bounds = self.FOM.bounds,
+                    reductor = self.reductor,
+                    use_sufficient_condition = True,
+                    #use_sufficient_condition = False,
+                    logger = self.logger
+                )
+            else:
+                projector = None
 
-                    self._reset_snapshots()
-                    self.snapshots = self.snapshot_preprocessor.get_snapshots(
-                        config = opt_cfg.enrichment,
-                        bases = self.active_bases,
-                        q = q,
-                        u = u,
-                        p = p,
-                        nabla_J = nabla_J,
-                        time_steps_nabla_J = None,
-                        add_additional_snapshots = False,
-                        use_cached_operators = opt_cfg.use_cached_operators
-                    )
+            # ------------------------------------------------------------
+            # AGC with Armijo+TR backtracking
+            # ------------------------------------------------------------ 
 
-                    self.QrVrROM = self.extend_bases_and_rebuild_QrVrROM(
-                        bases=self.active_bases,
-                        enrichment=opt_cfg.enrichment,
-                        compression_override={
-                            basis: {
-                                "normalize": True,
-                                "HaPOD": None,
-                                "every_n": None,
-                            }
-                            for basis in self.active_bases
-                        },
-                    )   
-
-                    self.last_update_q = self.reductor.project_vectorarray(q.copy(), 'parameter_basis')
-                    self.last_update_q = self.QrVrROM.Q.make_array(self.last_update_q)
-                    
-                    self.FOM.reset_cached_operators()
-
-                    q_r = self.reductor.project_vectorarray(q, "parameter_basis")
-                    q_r = self.QrVrROM.Q.make_array(q_r)
-
-                    u_r, u_dot_r = self.QrVrROM.solve_state(
-                        q_r, use_cached_operators=False, return_higher_orders=True
-                    )
-                    p_r, p_dot_r = self.QrVrROM.solve_adjoint(
-                        q_r, u_r, use_cached_operators=False, return_higher_orders=True
-                    )
-
-                    J_r = self.QrVrROM.objective(u_r)
-                    nabla_J_r = self.QrVrROM.gradient(u_r, p_r, q_r)
-                    norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
-
-                    errors = self._maybe_estimate_tr_error(
-                        model=self.QrVrROM,
-                        previous_q=q_r,
-                        current_q=q_r,
-                        u=u_r,
-                        p=p_r,
-                        u_dot=u_dot_r,
-                        p_dot=p_dot_r,
-                        current_J=J_r,
-                        targets=self.error_estimate_targets_outer,
-                        use_cached_operators=opt_cfg.use_cached_operators,
-                        use_error_estimator=opt_cfg.use_error_estimator,
-                    )
-                    
-                    ctx = TRContext(
-                        objective=float(J_r),
-                        abs_error=float(errors.get("err_J", np.nan)),
-                        center_q=self.last_update_q,
-                        current_q=q_r,
-                        product=self._tr_product(self.QrVrROM),
-                        step_size=None,
-                        meta=None,
-                    )
-
-                    tr_center = self.TR.check(ctx)
-
-                tr_center = self.TR.check(ctx)
-                proj_q_in_tr = tr_center.tr_ok
-                assert proj_q_in_tr 
-
-                if 'parameter_basis' in self.active_bases:
-                    projector = SimpleBoundDomainProjector(
-                        model = self.QrVrROM,
-                        bounds = self.FOM.bounds,
-                        reductor = self.reductor,
-                        use_sufficient_condition = True,
-                        #use_sufficient_condition = False,
-                        logger = self.logger
-                    )
-                else:
-                    projector = None
-
-                # ------------------------------------------------------------
-                # AGC with Armijo+TR backtracking
-                # ------------------------------------------------------------ 
+            if use_AGC:
                 self.logger.warning("Calculate AGC with Armijo backtracking.")
 
                 AGC_start_time = timer()
@@ -1727,6 +1730,12 @@ class QrVrROMOptimizer(Optimizer):
                 self.statistics["outer_loop_runtime"]['AGC_runtime'].append(timer() - AGC_start_time)
 
                 q_r = q_AGC.copy()
+            else:
+                self.statistics['flags']['model_insufficient'].append(False)
+                self.statistics["outer_loop_runtime"]['AGC_runtime'].append(0.0)
+
+                self.statistics['flags']['model_insufficient'].append(False)
+                self.statistics["outer_loop_runtime"]['AGC_runtime'].append(0.0)
 
             # ------------------------------------------------------------
             # IRGNM inner loop
@@ -1795,7 +1804,7 @@ class QrVrROMOptimizer(Optimizer):
             check_conditions = bool(IRGNM_statistic) and (len(IRGNM_statistic.get("q", [])) > 1)
             if model is self.FOM:
                 check_conditions = False
-
+                
             self.statistics['flags']['check_conditions'].append(check_conditions)
 
             if check_conditions:
@@ -1969,11 +1978,18 @@ class QrVrROMOptimizer(Optimizer):
                 )
                 norm_nabla_J_r = self.QrVrROM.compute_gradient_norm(nabla_J_r)
 
-                abs_est_error_J_r = OBJ.sanitize_error(errors_AGC.get("err_J", np.nan), name="err_J")
-                rel_est_error_J_r = OBJ.rel_error(abs_error = abs_est_error_J_r, objective=J_r_AGC)
+                if use_AGC:
+                    abs_est_error_J_r = OBJ.sanitize_error(errors_AGC.get("err_J", np.nan), name="err_J")
+                    rel_est_error_J_r = OBJ.rel_error(abs_error = abs_est_error_J_r, objective=J_r_AGC)
 
-                abs_est_error_nabla_J_r = OBJ.sanitize_error(errors_AGC.get("err_nabla_J", np.nan), name="err_nabla_J")
-                rel_est_error_nabla_J_r = OBJ.rel_error(abs_error = abs_est_error_nabla_J_r, objective=norm_nabla_J_r)
+                    abs_est_error_nabla_J_r = OBJ.sanitize_error(errors_AGC.get("err_nabla_J", np.nan), name="err_nabla_J")
+                    rel_est_error_nabla_J_r = OBJ.rel_error(abs_error = abs_est_error_nabla_J_r, objective=norm_nabla_J_r)
+                else:
+                    abs_est_error_J_r = np.nan
+                    rel_est_error_J_r = np.nan
+
+                    abs_est_error_nabla_J_r = np.nan
+                    rel_est_error_nabla_J_r = np.nan
 
 
             for basis in self.active_bases:
